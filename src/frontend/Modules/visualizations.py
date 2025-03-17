@@ -136,7 +136,7 @@ def render_visualizations(analytics):
             st.markdown("""
             - This chart shows the average final scores of students over different enrollment years
             - Higher scores indicate better academic performance
-            - The scores are calculated from 'GemEindcijferVoVanDeHoogsteVooroplVoorHetHo'
+            - The scores are calculated from 'GemEindcijferVoVanDeHoogsteVooroplVrHetHo'
             """)
     else:
         st.info("No data available for score visualization.")

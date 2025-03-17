@@ -4,11 +4,19 @@ import io
 
 
 def detect_csv_separator(file_content):
-    """Detect if a CSV file uses comma or semicolon as separator"""
-    # Count separators in the entire file
-    comma_count = file_content.count(",")
-    semicolon_count = file_content.count(";")
-    return ";" if semicolon_count > comma_count else ","
+    """Improved separator detection using header line only"""
+    first_line = file_content.split("\n", 1)[0]  # Get header only
+    comma_count = first_line.count(",")
+    semicolon_count = first_line.count(";")
+    pipe_count = first_line.count("|")
+    
+    # Determine most frequent separator in header
+    max_count = max(comma_count, semicolon_count, pipe_count)
+    return (
+        "|" if pipe_count == max_count else
+        ";" if semicolon_count == max_count else
+        ","
+    )
 
 
 def load_file(file_path):

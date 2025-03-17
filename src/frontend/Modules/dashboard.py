@@ -13,29 +13,7 @@ def render_dashboard():
         return
 
     df_columns = set(st.session_state.df.columns)
-    vakhavw_columns = {
-        "BrinnummerVoInstelling",
-        "VestigingsnummerVoVestiging",
-        "VooropleidingOorspronkelijkeCode",
-        "Diplomajaar",
-        "GemiddeldCijferCijferlijst",
-        "VakCode",
-        "VakAfkorting",
-        "AnderNiveau",
-        "IndicatieDiplomavak",
-        "CijferSchoolexamen",
-        "BeoordelingSchoolexamen",
-        "CijferEersteCentraalExamen",
-        "CijferTweedeCentraalExamen",
-        "CijferDerdeCentraalExamen",
-        "EersteEindcijfer",
-        "TweedeEindcijfer",
-        "DerdeEindcijfer",
-        "CijferCijferlijst",
-        "Burgerservicenummer",
-        "Onderwijsnummer",
-        "PersoonsgebondenNummer",
-    }
+    vakhavw_columns = {'CijferTweedeCentraalExamen', 'AfkortingVak', 'CijferCijferlijst', 'Diplomajaar', 'EersteEindcijfer', 'Vakcode', 'BrinnummerVoinstelling', 'Onderwijsnummer', 'CijferDerdeCentraalExamen', 'VooropleidingOorspronkelijkeCode', 'PersoonsgebondenNummer', 'Burgerservicenummer', 'AnderNiveau', 'VestigingsnummerVovestiging', 'TweedeEindcijfer', 'IndicatieDiplomavak', 'BeoordelingSchoolexamen', 'DerdeEindcijfer', 'CijferSchoolexamen', 'CijferEersteCentraalExamen', 'GemiddeldCijferCijferlijst'}
 
     if vakhavw_columns.issubset(df_columns):
         analytics = VAKHAVWDashboardAnalytics()
@@ -74,7 +52,7 @@ def render_dashboard():
                 ],
                 key="metric_selectbox_1",
             )
-            fig = analytics.get_vakafkorting_visualization(diplomajaar_filter, metric)
+            fig = analytics.get_AfkortingVak_visualization(diplomajaar_filter, metric)
             st.plotly_chart(fig)
         else:
             filters = render_visualizations(analytics)
@@ -86,10 +64,10 @@ def render_dashboard():
     # Render the trends analysis tab
     with tab3:
         if isinstance(analytics, VAKHAVWDashboardAnalytics):
-            vakafkorting_filter = st.selectbox(
-                "Select VakAfkorting",
-                options=st.session_state.df["VakAfkorting"].unique(),
-                key="vakafkorting_filter",
+            AfkortingVak_filter = st.selectbox(
+                "Select AfkortingVak",
+                options=st.session_state.df["AfkortingVak"].unique().sort(),
+                key="AfkortingVak_filter",
             )
             metric = st.selectbox(
                 "Select Metric",
@@ -105,7 +83,7 @@ def render_dashboard():
                 ],
                 key="metric_selectbox_2",
             )
-            render_trends_analysis(analytics, vakafkorting_filter, metric)
+            render_trends_analysis(analytics, AfkortingVak_filter, metric)
         else:
             render_trends_analysis(
                 analytics, filters if "filters" in locals() else None
