@@ -7,9 +7,9 @@ def render_trends_analysis(analytics, filters, metric=None):
     st.subheader("Trends Analysis")
 
     if isinstance(analytics, VAKHAVWDashboardAnalytics):
-        vakafkorting_filter = filters
+        AfkortingVak_filter = filters
         fig = analytics.get_trends_visualization(
-            vakafkorting_filter=vakafkorting_filter, metric=metric
+            AfkortingVak_filter=AfkortingVak_filter, metric=metric
         )
     else:
         if filters:

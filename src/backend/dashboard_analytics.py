@@ -11,7 +11,7 @@ class DashboardAnalytics:
         self.data = df.with_columns(
             [
                 pl.col("Inschrijvingsjaar").cast(pl.Utf8).alias("Year"),
-                pl.col("GemEindcijferVoVanDeHoogsteVooroplVoorHetHo").cast(pl.Float64),
+                pl.col("GemEindcijferVoVanDeHoogsteVooroplVrHetHo").cast(pl.Float64),
                 pl.col("VerblijfsjaarActueleInstelling").cast(pl.Int64),
             ]
         )
@@ -314,7 +314,7 @@ class DashboardAnalytics:
             # Ensure score column is numeric and year is properly formatted
             score_data = score_data.with_columns(
                 [
-                    pl.col("GemEindcijferVoVanDeHoogsteVooroplVoorHetHo")
+                    pl.col("GemEindcijferVoVanDeHoogsteVooroplVrHetHo")
                     .cast(pl.Float64)
                     .alias("average_score"),
                     pl.col("Inschrijvingsjaar").cast(pl.Utf8).alias("Year"),

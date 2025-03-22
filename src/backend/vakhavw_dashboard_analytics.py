@@ -40,7 +40,7 @@ class VAKHAVWDashboardAnalytics:
 
         return summary
 
-    def get_vakafkorting_visualization(
+    def get_AfkortingVak_visualization(
         self, diplomajaar_filter=None, metric="CijferSchoolexamen"
     ):
         if self.data is None:
@@ -48,22 +48,24 @@ class VAKHAVWDashboardAnalytics:
 
         query = self.data
         if diplomajaar_filter:
+            diplomajaar_filter = str(diplomajaar_filter)  # Ensure the filter value is a string
+            query = query.with_columns(pl.col("Diplomajaar").cast(pl.Utf8))
             query = query.filter(pl.col("Diplomajaar") == diplomajaar_filter)
 
         grouped = (
-            query.group_by(["VakAfkorting", "Diplomajaar"])
+            query.group_by(["AfkortingVak", "Diplomajaar"])
             .agg(pl.col(metric).mean().alias("avg_score"))
-            .sort(["VakAfkorting", "Diplomajaar"])
+            .sort(["AfkortingVak", "Diplomajaar"])
             .to_pandas()
         )
 
         fig = px.bar(
             grouped,
-            x="VakAfkorting",
+            x="AfkortingVak",
             y="avg_score",
             color="Diplomajaar",
             title=f"Average {metric} by Subject and Year",
-            labels={"VakAfkorting": "Subject", "avg_score": f"Average {metric}"},
+            labels={"AfkortingVak": "Subject", "avg_score": f"Average {metric}"},
             barmode="group",
         )
 
@@ -82,7 +84,7 @@ class VAKHAVWDashboardAnalytics:
         return fig
 
     def get_trends_visualization(
-        self, vakafkorting_filter=None, metric="CijferSchoolexamen"
+        self, AfkortingVak_filter=None, metric="CijferSchoolexamen"
     ):
         """Generate trends visualization showing average school exam scores over time for a specific subject"""
         if self.data is None:
@@ -91,9 +93,9 @@ class VAKHAVWDashboardAnalytics:
         try:
             # Data preparation with filters
             trends_data = self.data
-            if vakafkorting_filter:
+            if AfkortingVak_filter:
                 trends_data = trends_data.filter(
-                    pl.col("VakAfkorting") == vakafkorting_filter
+                    pl.col("AfkortingVak") == AfkortingVak_filter
                 )
 
             # Ensure year is properly formatted
@@ -113,7 +115,7 @@ class VAKHAVWDashboardAnalytics:
                 grouped,
                 x="Year",
                 y="avg_score",
-                title=f"Average {metric} Over Time for {vakafkorting_filter}",
+                title=f"Average {metric} Over Time for {AfkortingVak_filter}",
                 labels={"Year": "Diploma Year", "avg_score": f"Average {metric}"},
                 markers=True,
             )
