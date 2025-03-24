@@ -1,11 +1,15 @@
 import streamlit as st
 
+# TODO
+# - Add gradient line between header and subtitle
+# - Add button to data explorer page & explain what it does
+# - Remove upload button & text
+
 # -----------------------------------------------------------------------------
 # Page Configuration
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="CEDA | 1cijferho ",
-    page_icon="🚀",
     layout="centered",  # This sets the layout to centered (not wide)
     initial_sidebar_state="expanded"
 )
@@ -15,27 +19,24 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 # Main header and subtitle
 st.title("🚀 1cijferho")
-st.write("Transform complex DUO datasets into actionable insights in minutes, not months. ✨")
+st.caption("Transform complex DUO datasets into actionable insights in minutes, not months. ✨")
 
 # Features
 st.caption("📊 Instant visualization • ⏱️ Time-saving automation • 🔍 Intelligent error reduction • 👥 Enhanced accessibility • 🔄 Batch processing")
 
-# Application Overview section - consolidated content
-st.subheader("🔭 Overview")
+# Overview
 st.write("""
 Our application decodes and delimits all 1CHO files, enabling researchers to access educational 
 data without technical expertise. We also provide pre-made visualizations and data sets 
 based on 1CHO for immediate insights.
 """)
 
+
 st.subheader("📢 Get Involved")
 st.write("We're constantly improving based on your feedback! Share your ideas by emailing us at a.sewnandan@hhs.nl or t.iwan@vu.nl, or submit a feature request:")
 
 # Adding an inline button for GitHub issues
-feature_request = st.button("Submit Feature Request", help="Opens our GitHub issues page")
-if feature_request:
-    st.markdown("[Feature Request](https://github.com/cedanl/1cijferho/issues)", unsafe_allow_html=True)
-    # Note: In Streamlit, the button can't directly open a URL, so we display the link after clicking
+st.link_button("Submit Feature Request", url="https://github.nl/cedanl/1cijferho/issues", help="Opens our GitHub issues page")
 
 # Divider before Demo section
 st.divider()

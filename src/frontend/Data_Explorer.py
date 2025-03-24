@@ -5,7 +5,6 @@ import streamlit as st
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="Data Explorer",
-    page_icon="🚀",
     layout="wide",  # This sets the layout to centered (not wide)
     initial_sidebar_state="expanded"
 )
@@ -14,5 +13,6 @@ st.set_page_config(
 # Main Section
 # -----------------------------------------------------------------------------
 # Main header and subtitle
-st.title("🚀 Data Explorer")
+st.title(":material/explore: Data Explorer")
 st.write("Transform complex DUO datasets into actionable insights in minutes, not months. ✨")
+

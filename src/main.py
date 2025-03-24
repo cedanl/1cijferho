@@ -13,7 +13,6 @@ import streamlit as st
 # Pages Overview - YOU CAN ADD MORE PAGES HERE
 # -----------------------------------------------------------------------------
 home_page = st.Page("frontend/Home.py", icon=":material/home:")
-upload_files_page = st.Page("frontend/Files/Upload_Files.py", icon=":material/file_upload:")
 data_explorer_page = st.Page("frontend/Data_Explorer.py", icon=":material/explore:")
 
 
@@ -28,7 +27,7 @@ st.logo(LOGO_URL)
 # Initialize Navigation
 pg = st.navigation ( {
     "Overview": [home_page],
-    "Files": [data_explorer_page, upload_files_page],
+    "Files": [data_explorer_page],
 })
 
 # -----------------------------------------------------------------------------
