@@ -15,8 +15,15 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 # Main header and subtitle
 st.title(":material/explore: Data Explorer")
-st.write("Transform complex DUO datasets into actionable insights in minutes, not months. ✨")
+st.write("""
+Copy your 1CHO files to the `data/01-input` folder in the repository. This page will pre-process your Bestandsbeschrijvingen 
+(stored as .xlsx files in `data/00-metadata`, which you can edit if needed) and display which of your files can be successfully matched. 
+Once you've reviewed the matches, you can proceed to the magic converter to transform your data.
+""")
 
+#---------------------
+### Display Input Folder
+#----------------------
 st.title("Display Input Folder")
     
     # Access the session state variable

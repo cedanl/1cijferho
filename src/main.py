@@ -16,6 +16,8 @@ home_page = st.Page("frontend/Overview/Home.py", icon=":material/home:")
 data_explorer_page = st.Page("frontend/Files/Data_Explorer.py", icon=":material/explore:")
 magic_converter_page = st.Page("frontend/Files/Magic_Converter.py", icon="✨")
 
+ev_page = st.Page("frontend/Visualisations/EV.py", icon="📓")
+vakhavw_page = st.Page("frontend/Visualisations/VAKHAVW.py", icon="📓")
 # -----------------------------------------------------------------------------
 # Session State Management
 # -----------------------------------------------------------------------------
@@ -33,7 +35,8 @@ st.logo(LOGO_URL)
 # Initialize Navigation
 pg = st.navigation ( {
     "Overview": [home_page],
-    "Files": [data_explorer_page, magic_converter_page]
+    "Files": [data_explorer_page, magic_converter_page],
+    "Analytics": [ev_page, vakhavw_page]
 })
 
 # -----------------------------------------------------------------------------
