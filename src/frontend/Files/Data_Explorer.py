@@ -28,6 +28,9 @@ Once you've reviewed the matches, you can proceed to the magic converter to tran
 #----------------------
 st.title("Display Input Folder")
     # Access the session state variable
+st.title("Main Bestanden")
+st.title("Bestandsbeschrijvingen")
+st.title("Decodeer bestanden")
 
 df = de_helper.get_files_dataframe(st.session_state.INPUT_FOLDER)
 if df is not None:
@@ -36,5 +39,5 @@ if df is not None:
 st.divider()
 st.header("✨ Transform Your Data")
 st.write("Ready to convert your 1CHO files? Our Magic Converter turns complex DUO datasets into clean, analysis-ready data formats with just a few clicks.")
-if st.button("✨ Magic Converter", help="Opens the Magic Converter"):
-    st.switch_page("frontend/Files/Data_Explorer.py")
+if st.button("✨ Magic Converter", help="Opens the Magic Converter", type="primary"):
+    st.switch_page("frontend/Files/Magic_Converter.py")
