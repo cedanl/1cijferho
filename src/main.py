@@ -1,41 +1,44 @@
+# -----------------------------------------------------------------------------
+# Organization: CEDA
+# Original Author: Ash Sewnandan
+# Contributors: -
+# License: MIT
+# -----------------------------------------------------------------------------
+"""
+Main Entrypoint for the 1CIJFERHO App
+"""
 import streamlit as st
-from frontend.Modules.dashboard import render_dashboard
-from backend.file_handler import file_handler
 
-# Set page config
-st.set_page_config(page_title="Student Intake Analysis", page_icon="📊", layout="wide")
+# -----------------------------------------------------------------------------
+# Pages Configuration
+# -----------------------------------------------------------------------------
+# You can add more pages here
 
-# Handle file upload in sidebar
-with st.sidebar:
-    st.title("Data Upload")
-    file_handler()
-
-# Sidebar feedback section
-with st.sidebar:
-    st.markdown("---")
-    st.subheader("📝 Feedback")
-
-    # Star feedback
-    st.write("How would you rate this dashboard?")
-    sentiment_mapping = ["Poor", "Fair", "Good", "Very Good", "Excellent"]
-    selected = st.feedback("stars", key="dashboard_feedback")
-    if selected is not None:
-        st.success(
-            f"Thank you! You rated the dashboard as '{sentiment_mapping[selected]}'"
-        )
-
-    # GitHub issues link
-    st.markdown("""
-    #### 🐛 Report Issues
-    Found a bug or have a suggestion? Let us know!
-    """)
-
-    st.link_button(
-        "Open an Issue on GitHub", "https://github.com/cedanl/data-1cijferho-py/issues"
-    )
-
-    st.markdown("---")
+home_page = st.Page("frontend/Home.py", title="Home", icon=":material/home:", default=True)
+upload_files_page = st.Page("frontend/Files/Upload_Files.py", title="Upload Files", icon=":material/file_upload:")
 
 
-# Render dashboard
-render_dashboard()
+
+# -----------------------------------------------------------------------------
+# Sidebar Configuration
+# -----------------------------------------------------------------------------
+
+# Add Logo
+LOGO_URL = "src/assets/npuls_logo.png"
+st.logo(LOGO_URL)
+
+# 
+
+
+pg = st.navigation ( {
+    "Overview": [home_page],
+    "Files": [upload_files_page]
+})
+
+# General Page Configuration
+st.set_page_config(page_title="CEDA | 1cijferho", page_icon="📊")
+
+# -----------------------------------------------------------------------------
+# Run the app
+# -----------------------------------------------------------------------------
+pg.run()
