@@ -1,5 +1,18 @@
 import streamlit as st
 
+# -----------------------------------------------------------------------------
+# Page Configuration
+# -----------------------------------------------------------------------------
+st.set_page_config(
+    page_title="CEDA | 1cijferho ",
+    page_icon="🚀",
+    layout="centered",  # This sets the layout to centered (not wide)
+    initial_sidebar_state="expanded"
+)
+
+# -----------------------------------------------------------------------------
+# Main Section
+# -----------------------------------------------------------------------------
 # Main header and subtitle
 st.title("🚀 1cijferho")
 st.write("Transform complex DUO datasets into actionable insights in minutes, not months. ✨")
@@ -8,7 +21,7 @@ st.write("Transform complex DUO datasets into actionable insights in minutes, no
 st.caption("📊 Instant visualization • ⏱️ Time-saving automation • 🔍 Intelligent error reduction • 👥 Enhanced accessibility • 🔄 Batch processing")
 
 # Application Overview section - consolidated content
-st.subheader("👁️ Overview")
+st.subheader("🔭 Overview")
 st.write("""
 Our application decodes and delimits all 1CHO files, enabling researchers to access educational 
 data without technical expertise. We also provide pre-made visualizations and data sets 

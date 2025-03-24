@@ -1,5 +1,10 @@
 import streamlit as st
 
+st.set_page_config(
+    page_title="sdfsd wewweExplorer 📊",
+    layout="wide"# This sets the layout to centered (not wide)
+)
+
 # ---------------------------------------
 # PAGE CONFIGURATION
 # ---------------------------------------
