@@ -12,14 +12,12 @@ import streamlit as st
 # -----------------------------------------------------------------------------
 # Pages Overview - YOU CAN ADD MORE PAGES HERE
 # -----------------------------------------------------------------------------
-home_page = st.Page("frontend/Home.py", icon=":material/home:")
-data_explorer_page = st.Page("frontend/Data_Explorer.py", icon=":material/explore:")
-
+home_page = st.Page("frontend/Overview/Home.py", icon=":material/home:")
+data_explorer_page = st.Page("frontend/Files/Data_Explorer.py", icon=":material/explore:")
 
 # -----------------------------------------------------------------------------
 # Sidebar Configuration
 # -----------------------------------------------------------------------------
-
 # Add Logo
 LOGO_URL = "src/assets/npuls_logo.png"
 st.logo(LOGO_URL)

@@ -46,8 +46,9 @@ st.divider()
 # -----------------------------------------------------------------------------
 
 # Demo section
-st.header("✨ Try Now (DEMO)")
-uploaded_file = st.file_uploader("Upload your DUO data file", type=["csv", "xlsx", "txt"])
-
+st.header("✨ Try the Application")
+st.write("Upload your 1CHO data and discover insights in minutes. Click below to get started.")
+if st.button(":material/explore: Data Explorer", help="Opens the Data Explorer"):
+    st.switch_page("frontend/Files/Data_Explorer.py")
 # Footer section
 st.write("© 2025 CEDA | Bridging institutions, sharing solutions, advancing education.")
