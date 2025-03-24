@@ -23,7 +23,7 @@ st.caption("Transform complex DUO datasets into actionable insights in minutes, 
 
 # Features
 st.caption("📊 Instant visualization • ⏱️ Time-saving automation • 🔍 Intelligent error reduction • 👥 Enhanced accessibility • 🔄 Batch processing")
-
+    
 # Overview
 st.write("""
 Our application decodes and delimits all 1CHO files, enabling researchers to access educational 
@@ -44,11 +44,15 @@ st.divider()
 # -----------------------------------------------------------------------------
 # Demo Section
 # -----------------------------------------------------------------------------
-
 # Demo section
 st.header("✨ Try the Application")
+
 st.write("Upload your 1CHO data and discover insights in minutes. Click below to get started.")
 if st.button(":material/explore: Data Explorer", help="Opens the Data Explorer", type="primary"):
     st.switch_page("frontend/Files/Data_Explorer.py")
+
+# -----------------------------------------------------------------------------
+# Footer Section
+# -----------------------------------------------------------------------------
 # Footer section
-st.write("© 2025 CEDA | Bridging institutions, sharing solutions, advancing education.")
+st.caption("© 2025 CEDA | Bridging institutions, sharing solutions, advancing education.")

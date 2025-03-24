@@ -26,7 +26,7 @@ Once you've reviewed the matches, you can proceed to the magic converter to tran
 #---------------------
 ### Display Input Folder
 #----------------------
-st.title("Display Input Folder")
+st.title("Summary")
     # Access the session state variable
 st.title("Main Bestanden")
 st.title("Bestandsbeschrijvingen")

@@ -2,6 +2,8 @@ import streamlit as st
 import os
 import polars as pl
 
+INPUT_FOLDER = "data/01-input"
+
 def get_files_dataframe(folder_path):
     if not os.path.exists(folder_path):
         return None
@@ -17,3 +19,15 @@ def get_files_dataframe(folder_path):
     })
     
     return df
+
+# ---
+
+def filter_bestandbeschrijving_txt(df):
+    # Filter the DataFrame to only include Bestandbeschrijving.txt files
+    mask = (
+        df['Filename'].str.contains('Bestandbeschrijving') & 
+        df['Extension'].str.contains('txt')
+    )
+    
+    # Return the filtered DataFrame
+    return df[mask]
