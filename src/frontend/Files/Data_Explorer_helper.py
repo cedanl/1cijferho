@@ -2,8 +2,7 @@ import streamlit as st
 import os
 import polars as pl
 
-INPUT_FOLDER = "data/01-input"
-
+@st.cache_data
 def get_files_dataframe(folder_path):
     if not os.path.exists(folder_path):
         return None
@@ -31,3 +30,10 @@ def filter_bestandbeschrijving_txt(df):
     
     # Return the filtered DataFrame
     return df[mask]
+
+
+df = get_files_dataframe("data/01-input")
+print(df)
+
+ed = filter_bestandbeschrijving_txt(df)
+print(ed)
