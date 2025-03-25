@@ -19,11 +19,8 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 # Main header and subtitle
 st.title("🚀 1cijferho")
-st.caption("Transform complex DUO datasets into actionable insights in minutes, not months. ✨")
+st.caption("Transform complex DUO datasets into actionable insights in minutes, not months. ✨  •  📊 Instant visualization • ⏱️ Time-saving automation • 🔍 Intelligent error reduction • 👥 Enhanced accessibility • 🔄 Batch processing")
 
-# Features
-st.caption("📊 Instant visualization • ⏱️ Time-saving automation • 🔍 Intelligent error reduction • 👥 Enhanced accessibility • 🔄 Batch processing")
-    
 # Overview
 st.write("""
 Our application decodes and delimits all 1CHO files, enabling researchers to access educational 
