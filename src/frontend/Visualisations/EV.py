@@ -1,6 +1,7 @@
 import frontend.Visualisations.EV_helper as helper
 import frontend.Visualisations.helpers as helpers
 import streamlit as st
+import polars as pl
 
 # -----------------------------------------------------------------------------
 # Page Configuration
@@ -28,19 +29,20 @@ dfEV = helper.find_and_load_ev_csv("data/02-output")
 
 @st.cache_data
 def filter_data(_df, gender_filter, phase_filter):
-    df = _df  # Create a new reference to avoid modifying the original
-    if gender_filter != "All":
+    df = _df.clone()  # Create a new reference to avoid modifying the original
+    if gender_filter and gender_filter != "All":
         df = df.filter(pl.col("Geslacht") == gender_filter)
-    if phase_filter != "All":
+    if phase_filter and phase_filter != "All":
         df = df.filter(pl.col("OpleidingsfaseActueel") == phase_filter)
     return df
+
 
 # Filter/Stack Section
 st.header("Filters and Stacking")
 
 # Create filter options
-gender_filter = st.selectbox("Filter by Gender", ["All"] + list(dfEV["Geslacht"].unique()))
-phase_filter = st.selectbox("Filter by Phase", ["All"] + list(dfEV["OpleidingsfaseActueel"].unique()))
+gender_filter = st.selectbox("Filter by Gender", ["All"] + sorted(dfEV["Geslacht"].unique().to_list()))
+phase_filter = st.selectbox("Filter by Phase", ["All"] + sorted(dfEV["OpleidingsfaseActueel"].unique().to_list()))
 
 # Create stack option
 stack_by = st.selectbox("Stack by", ["None", "Geslacht", "OpleidingsfaseActueel"])
@@ -53,8 +55,8 @@ filtered_df = filter_data(
 )
 
 # Create tabs for different sections of the dashboard
-tab1, tab2, tab3 = st.tabs( ## tabjes aanmaken kan nu voor iedere "module" ipv hier
-    ["📊 Visualizations", "ℹ️ Data Info", "📈 Trends Analysis"]
+tab1, tab2, tab3, tab4 = st.tabs( 
+    ["📊 Visualizations", "ℹ️ Data Info", "📈 Trends Analysis", "🏆 Performance"]
 )
 # Logic
 
@@ -79,11 +81,17 @@ with tab2:
 
 with tab3:
     # Generate and display visualization
-    trends_fig = helper.get_trends_visualization(dfEV, gender_filter, phase_filter, stack_by)
+    trends_fig = helper.get_trends_visualization(filtered_df, gender_filter, phase_filter, stack_by)
     if trends_fig:
         st.plotly_chart(trends_fig)
     else:
         st.write("No data available for the selected filters.")
+
+
+with tab4:
+    st.title("Student Intake Analysis Dashboard")
+    # helper.get_performance_visualization(filtered_df, gender_filter, phase_filter, stack_by)
+
 
 
     
