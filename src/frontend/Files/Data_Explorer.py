@@ -23,14 +23,21 @@ Copy your 1CHO files to the `data/01-input` folder in the repository. This page 
 Once you've reviewed the matches, you can proceed to the magic converter to transform your data.
 """)
 
+st.warning("⚠️ Please copy your 1CHO files to the data/01-input folder in this repository to continue.")
+
 #---------------------
-### Display Input Folder
+### Overview Files
 #----------------------
-st.title("Summary")
-    # Access the session state variable
-st.title("Main Bestanden")
-st.title("Bestandsbeschrijvingen")
-st.title("Decodeer bestanden")
+# Create subheader for the file tabs
+st.subheader("Overview of your 1CHO Files")
+
+# Tabs p
+tab1, tab2, tab3 = st.tabs(["📑 Main Files", "🗃 Bestandsbeschrijvingen", "🔐 Decodeer Files",])
+tab1.write("Overview of your Main files")
+tab2.write("Overview of your Bestandsbeschrijvingen")
+tab3.write("Overview of your Decodeer files")
+
+st.divider()
 
 df = de_helper.get_files_dataframe(st.session_state.INPUT_FOLDER)
 if df is not None:
@@ -45,5 +52,3 @@ st.write("Ready to convert your 1CHO files? Our Magic Converter turns complex DU
 if st.button("✨ Magic Converter", help="Opens the Magic Converter", type="primary"):
     st.switch_page("frontend/Files/Magic_Converter.py")
     
-    
-st.table(de_helper.filter_bestandbeschrijving_txt(df))

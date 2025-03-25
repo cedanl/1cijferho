@@ -1,5 +1,5 @@
 import streamlit as st
-import backend.utils.converter as converter
+import backend.core.converter as converter
 import os
 import sys
 # -----------------------------------------------------------------------------
@@ -17,8 +17,6 @@ st.set_page_config(
 # Main header and subtitle
 st.title("✨ Magic Converter")
 st.write("Transform complex DUO datasets into actionable insights in minutes, not months. ✨")
-
-
 
 # Add the directory containing converter.py to the Python path if needed
 # sys.path.append('/path/to/directory/containing/converter.py')
