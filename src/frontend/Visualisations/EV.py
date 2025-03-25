@@ -38,16 +38,17 @@ import streamlit as st
 import polars as pl
 import plotly.express as px
 
-# def filter_data(df, gender_filter=None, phase_filter=None, opleiding_filter=None):
-def filter_data(df, gender_filter=None, phase_filter=None):
-    filtered_df = df
-    if gender_filter:
-        filtered_df = filtered_df[filtered_df["Geslacht"] == gender_filter]
-    if phase_filter:
-        filtered_df = filtered_df[filtered_df["OpleidingsfaseActueel"] == phase_filter]
-    # if opleiding_filter:
-        # filtered_df = filtered_df[filtered_df["NAAM_OPLEIDING"] == opleiding_filter]
-    return filtered_df
+# Assuming dfEV is loaded elsewhere. If not, load it here:
+# dfEV = pl.read_csv("your_data_file.csv")
+
+@st.cache_data
+def filter_data(_df, gender_filter, phase_filter):
+    df = _df  # Create a new reference to avoid modifying the original
+    if gender_filter != "All":
+        df = df.filter(pl.col("Geslacht") == gender_filter)
+    if phase_filter != "All":
+        df = df.filter(pl.col("OpleidingsfaseActueel") == phase_filter)
+    return df
 
 def get_intake_visualization(df, stack_by=None):
     df = df.with_columns(pl.col('Inschrijvingsjaar').cast(pl.Utf8).alias('Year'))
@@ -73,29 +74,43 @@ def get_intake_visualization(df, stack_by=None):
                       legend_title=stack_by if stack_by else None)
     return fig
 
+# Streamlit app
+st.title("Student Intake Analysis Dashboard")
+
 # Filter/Stack Section
 st.header("Filters and Stacking")
 
 # Create filter options
-gender_filter = st.selectbox("Filter by Gender", ["All"] + list(dfEV["Geslacht"].unique()))
-phase_filter = st.selectbox("Filter by Phase", ["All"] + list(dfEV["OpleidingsfaseActueel"].unique()))
-# opleiding_filter = st.selectbox("Filter by Opleiding", ["All"] + list(dfEV["NAAM_OPLEIDING"].unique()))
+gender_options = ["All"] + sorted(dfEV["Geslacht"].unique().to_list())
+phase_options = ["All"] + sorted(dfEV["OpleidingsfaseActueel"].unique().to_list())
+
+gender_filter = st.selectbox("Filter by Gender", gender_options)
+phase_filter = st.selectbox("Filter by Phase", phase_options)
 
 # Create stack option
-# stack_by = st.selectbox("Stack by", ["None", "Geslacht", "OpleidingsfaseActueel", "NAAM_OPLEIDING"])
-stack_by = st.selectbox("Stack by", ["None", "Geslacht", "OpleidingsfaseActueel"])
+stack_options = ["None", "Geslacht", "OpleidingsfaseActueel"]
+stack_by = st.selectbox("Stack by", stack_options)
 
 # Apply filters
-filtered_df = filter_data(
-    dfEV,
-    gender_filter if gender_filter != "All" else None,
-    phase_filter if phase_filter != "All" else None,
-    # opleiding_filter if opleiding_filter != "All" else None
-)
+filtered_df = filter_data(dfEV, gender_filter, phase_filter)
 
 # Generate and display visualization
 fig = get_intake_visualization(filtered_df, stack_by if stack_by != "None" else None)
 st.plotly_chart(fig)
+
+# Display data counts
+st.write(f"Total records: {len(dfEV)}")
+st.write(f"Filtered records: {len(filtered_df)}")
+
+# Optional: Display filtered data
+if st.checkbox("Show filtered data"):
+    st.write(filtered_df)
+
+# Display current filter and stack settings in the sidebar for clarity
+st.sidebar.write("Current Settings:")
+st.sidebar.write(f"Gender Filter: {gender_filter}")
+st.sidebar.write(f"Phase Filter: {phase_filter}")
+st.sidebar.write(f"Stack By: {stack_by}")
 
 
 # - data summary -> if we have time and last tab
