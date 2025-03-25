@@ -1,4 +1,5 @@
 import streamlit as st
+import frontend.Visualisations.helper as helper
 
 # -----------------------------------------------------------------------------
 # Page Configuration
@@ -15,3 +16,17 @@ st.set_page_config(
 # Main header and subtitle
 st.title("EV")
 st.caption("DEMO - EV Analytics")
+
+# Load EV File 
+dfEV = helper.find_and_load_ev_csv("data/02-output")
+st.data_editor(dfEV.head(1000))  # Show first 1000 rows
+
+# Logic
+
+# - Inladen + Types + PascalCase
+# - intake_visualization
+# - data summary -> if we have time and last tab
+# - diploma types
+# - performance visualization
+# - score visualisation
+# - trends visualisation

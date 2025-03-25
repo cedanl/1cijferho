@@ -1,6 +1,15 @@
 import streamlit as st
 import os
 import polars as pl
+import tkinter as tk
+from tkinter import filedialog
+
+def select_folder():
+   root = tk.Tk()
+   root.withdraw()
+   folder_path = filedialog.askdirectory(master=root)
+   root.destroy()
+   return folder_path
 
 def get_files_dataframe(folder_path):
     if not os.path.exists(folder_path):
@@ -42,3 +51,4 @@ def get_main_files(df):
     
     # Apply both filters
     return df.filter(pattern_filter & extension_filter)
+

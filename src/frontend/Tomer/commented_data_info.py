@@ -7,7 +7,7 @@ def render_data_info(analytics):
     st.subheader("Dataset Information")
 
     # Get data summary
-    summary = analytics.get_data_summary()
+    summary = analytics.get_data_summary() ## Gebruik maar geen Class
 
     if summary:
         # Display total records and time period in metrics
@@ -21,7 +21,7 @@ def render_data_info(analytics):
             )
 
         # Conditionally display gender distribution and phase distribution
-        if hasattr(analytics, "get_intake_visualization"):
+        if hasattr(analytics, "get_intake_visualization"): ## CONDITIONAL: EV wel, VAKHAVW Niet
             # Display gender distribution in a small table
             st.write("##### Gender Distribution")
             gender_df = summary["gender_distribution"].to_pandas()
@@ -36,7 +36,7 @@ def render_data_info(analytics):
         st.write("##### Data Schema")
 
         # Create schema table with example values
-        schema_data = []
+        schema_data = [] ## COMPUTATION
         for col in summary["columns"]:
             col_data = analytics.data.get_column(col)
             col_type = str(col_data.dtype)
