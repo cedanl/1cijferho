@@ -2,7 +2,8 @@ import streamlit as st
 import os
 import polars as pl
 import frontend.Files.Data_Explorer_helper as de_helper
-
+import tkinter as tk
+from tkinter import filedialog
 # -----------------------------------------------------------------------------
 # Page Configuration
 # -----------------------------------------------------------------------------
@@ -28,23 +29,22 @@ st.warning("⚠️ Please copy your 1CHO files to the data/01-input folder in th
 #---------------------
 ### Overview Files
 #----------------------
-# Create subheader for the file tabs
 st.subheader("Overview of your 1CHO Files")
-
-# Tabs p
-tab1, tab2, tab3 = st.tabs(["📑 Main Files", "🗃 Bestandsbeschrijvingen", "🔐 Decodeer Files",])
-tab1.write("Overview of your Main files")
-tab2.write("Overview of your Bestandsbeschrijvingen")
-tab3.write("Overview of your Decodeer files")
-
-st.divider()
-
 df = de_helper.get_files_dataframe(st.session_state.INPUT_FOLDER)
-if df is not None:
-    st.table(df)
 
+# Configure Tabs
+tab1, tab2, tab3 = st.tabs(["📑 Main Files", "🗃 Bestandsbeschrijvingen", "🔐 Decodeer Files",])
 
-st.write(st.session_state.INPUT_FOLDER)
+# Tab 1 - Main Files
+with tab1.expander("Main Files"):
+    tab1.table(de_helper.get_main_files(df))
+
+# Tab 2 - Bestandsbeschrijvingen
+tab2.table(de_helper.get_bestandsbeschrijving_files(df))
+
+# Tab 3 - Decodeer Files
+tab3.table(de_helper.get_dec_files(df))
+
 
 st.divider()
 st.header("✨ Transform Your Data")
@@ -52,3 +52,18 @@ st.write("Ready to convert your 1CHO files? Our Magic Converter turns complex DU
 if st.button("✨ Magic Converter", help="Opens the Magic Converter", type="primary"):
     st.switch_page("frontend/Files/Magic_Converter.py")
     
+def select_folder():
+   root = tk.Tk()
+   root.withdraw()
+   folder_path = filedialog.askdirectory(master=root)
+   root.destroy()
+   return folder_path
+
+selected_folder_path = st.session_state.get("folder_path", None)
+folder_select_button = st.button("Select Folder")
+if folder_select_button:
+  selected_folder_path = select_folder()
+  st.session_state.folder_path = selected_folder_path
+
+if selected_folder_path:
+   st.write("Selected folder path:", selected_folder_path)

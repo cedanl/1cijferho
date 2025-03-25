@@ -18,4 +18,27 @@ def get_files_dataframe(folder_path):
     
     return df
 
-# ---
+def get_bestandsbeschrijving_files(df):
+    # Filter the dataframe to only include rows with "Bestandsbeschrijving" in the Filename
+    return df.filter(pl.col("Filename").str.contains("Bestandsbeschrijving"))
+
+def get_dec_files(df):
+    # Filter the dataframe to only include rows with "Dec_" in the Filename
+    return df.filter(pl.col("Filename").str.contains("Dec_"))
+
+def get_main_files(df):
+    # Filter for filenames containing any of the specified patterns
+    pattern_filter = (
+        pl.col("Filename").str.contains("EV") | 
+        pl.col("Filename").str.contains("Croho") |
+        pl.col("Filename").str.contains("Croho_vest") |
+        pl.col("Filename").str.contains("VAKHAVW")
+    )
+    
+    # Filter out files with specified extensions
+    extension_filter = ~(
+        pl.col("Extension").is_in([".txt", ".zip", ".xlsx"])
+    )
+    
+    # Apply both filters
+    return df.filter(pattern_filter & extension_filter)
