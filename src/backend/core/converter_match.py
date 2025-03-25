@@ -194,7 +194,7 @@ def find_matches(metadata_file, input_files):
         
         similarity = SequenceMatcher(None, main_pattern.lower(), input_base.lower()).ratio()
         
-        if similarity > 0.65 and similarity > best_score:
+        if similarity > 1 and similarity > best_score:
             best_score = similarity
             best_match = (input_file, f"🔍 Fuzzy match ({best_score:.2f})")
     
