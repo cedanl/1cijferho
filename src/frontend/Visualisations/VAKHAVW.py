@@ -51,6 +51,22 @@ stack_by = st.selectbox(
     "Stack by", ["None", "Diplomajaar", "AfkortingVak"]
 )
 
+# Create metric selection
+metric = st.selectbox(
+    "Select Metric",
+    options=[
+        "CijferSchoolexamen",
+        "CijferEersteCentraalExamen",
+        "CijferTweedeCentraalExamen",
+        "CijferDerdeCentraalExamen",
+        "EersteEindcijfer",
+        "TweedeEindcijfer",
+        "DerdeEindcijfer",
+        "CijferCijferlijst",
+    ],
+    key="metric_selectbox"
+)
+
 # Apply filters
 filtered_df = filter_data(dfVAKHAVW, diplomajaar_filter, afkortingvak_filter)
 
@@ -68,8 +84,7 @@ tab1, tab2, tab3 = st.tabs( ## tabjes aanmaken kan nu voor iedere "module" ipv h
 # Test
 
 with tab1:
-    # Streamlit app
-    st.title("Student Intake Analysis Dashboard")
+    st.title("Student Analysis Dashboard")
 
     # Generate and display visualization
     fig = helper.get_AfkortingVak_visualization(filtered_df, stack_by if stack_by != "None" else None)
@@ -80,15 +95,12 @@ with tab2:
     helpers.render_data_info(dfVAKHAVW)
 
 with tab3:
-    # Generate and display visualization
-    st.title("Student Intake Analysis Dashboard")
-    trends_fig = helper.get_trends_visualization(filtered_df)
+    st.title("Trends Analysis Dashboard")
+    trends_fig = helper.get_trends_visualization(filtered_df, afkortingvak_filter, metric)
     if trends_fig:
         st.plotly_chart(trends_fig)
     else:
         st.write("No data available for the selected filters.")
-
-
     
 
 
