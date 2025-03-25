@@ -20,7 +20,7 @@ st.caption("DEMO - VAKHAVW Analytics")
 # Logic 
 # Load EV File 
 dfVAKHAVW = helper.find_and_load_vakhavw_csv("data/02-output")
-st.data_editor(dfVAKHAVW.head(1000))  # Show first 1000 rows
+st.dataframe(dfVAKHAVW.head(1000))  # Show first 1000 rows
 
 # - Inladen + Types + PascalCase
 # - data summary -> if we have time and last tab

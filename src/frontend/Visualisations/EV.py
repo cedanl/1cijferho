@@ -19,7 +19,7 @@ st.caption("DEMO - EV Analytics")
 
 # Load EV File 
 dfEV = helper.find_and_load_ev_csv("data/02-output")
-st.data_editor(dfEV.head(1000))  # Show first 1000 rows
+st.dataframe(dfEV.head(1000))  # Show first 1000 rows
 
 # Logic
 
