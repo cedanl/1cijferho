@@ -55,9 +55,11 @@ filtered_df = filter_data(
 )
 
 # Create tabs for different sections of the dashboard
-tab1, tab2, tab3, tab4 = st.tabs( 
-    ["📊 Visualizations", "ℹ️ Data Info", "📈 Trends Analysis", "🏆 Performance"]
+tab1, tab2, tab3, tab4, tab5 = st.tabs( 
+    ["📊 Visualizations", "📈 Trends Analysis", "🏆 Performance", "🎓 Scores", "ℹ️ Data Info"]
 )
+
+
 # Logic
 
 
@@ -76,10 +78,6 @@ with tab1:
     st.plotly_chart(fig)
 
 with tab2:
-    st.dataframe(dfEV.head(1000))  # Show first 1000 rows
-    helpers.render_data_info(dfEV)
-
-with tab3:
     # Generate and display visualization
     trends_fig = helper.get_trends_visualization(filtered_df, gender_filter, phase_filter, stack_by)
     if trends_fig:
@@ -87,15 +85,19 @@ with tab3:
     else:
         st.write("No data available for the selected filters.")
 
+with tab3:
+    per = helper.get_performance_visualization(filtered_df, gender_filter, phase_filter, stack_by)
+    st.plotly_chart(per)
 
 with tab4:
     st.title("Student Intake Analysis Dashboard")
-    # helper.get_performance_visualization(filtered_df, gender_filter, phase_filter, stack_by)
-
-
-
+    fig = helper.get_score_visualization(filtered_df, stack_by if stack_by != "None" else None)
+    st.plotly_chart(fig)
     
 
+with tab5:
+    st.dataframe(dfEV.head(1000))  # Show first 1000 rows
+    helpers.render_data_info(dfEV)
 
 # - data summary -> if we have time and last tab
 # - diploma types
