@@ -1,5 +1,5 @@
 import streamlit as st
-import frontend.Visualisations.helper as helper
+import frontend.Visualisations.VAKHAVW_helper as helper
 
 # -----------------------------------------------------------------------------
 # Page Configuration
