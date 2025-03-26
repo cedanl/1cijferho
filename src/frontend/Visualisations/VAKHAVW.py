@@ -19,6 +19,7 @@ st.set_page_config(
 # Main header and subtitle
 st.title("VAKHAVW")
 st.caption("DEMO - VAKHAVW Analytics")
+st.info("🔧 This is beta version (v0.5.3). Your feedback is appreciated!")
 
 # Logic 
 # Load EV File 
