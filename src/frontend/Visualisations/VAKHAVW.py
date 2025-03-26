@@ -1,6 +1,7 @@
 import streamlit as st
 import frontend.Visualisations.VAKHAVW_helper as helper
 import frontend.Visualisations.helpers as helpers
+import backend.analytics.VAKHAVW_analytics as analytics_vakhavw
 import polars as pl
 
 # -----------------------------------------------------------------------------
@@ -21,7 +22,7 @@ st.caption("DEMO - VAKHAVW Analytics")
 
 # Logic 
 # Load EV File 
-dfVAKHAVW = helper.find_and_load_vakhavw_csv("data/02-output")
+dfVAKHAVW = helper.find_and_load_vakhavw_csv("data/012-output")
 
 @st.cache_data
 def filter_data(_df, diplomajaar_filter=None, afkortingvak_filter=None):
@@ -87,7 +88,7 @@ with tab1:
     st.title("Student Analysis Dashboard")
 
     # Generate and display visualization
-    fig = helper.get_AfkortingVak_visualization(filtered_df, stack_by if stack_by != "None" else None)
+    fig = analytics_vakhavw.get_AfkortingVak_visualization(filtered_df, stack_by if stack_by != "None" else None)
     st.plotly_chart(fig)
 
 with tab2:
@@ -96,7 +97,7 @@ with tab2:
 
 with tab3:
     st.title("Trends Analysis Dashboard")
-    trends_fig = helper.get_trends_visualization(filtered_df, afkortingvak_filter, metric)
+    trends_fig = analytics_vakhavw.get_trends_visualization(filtered_df, afkortingvak_filter, metric)
     if trends_fig:
         st.plotly_chart(trends_fig)
     else:

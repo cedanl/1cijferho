@@ -1,4 +1,5 @@
 import frontend.Visualisations.EV_helper as helper
+import backend.analytics.EV_analytics as analytics_ev
 import frontend.Visualisations.helpers as helpers
 import streamlit as st
 import polars as pl
@@ -25,7 +26,7 @@ st.caption("DEMO - EV Analytics")
 # Show filters and stack options to apply to the data
 
 # Load EV File 
-dfEV = helper.find_and_load_ev_csv("data/02-output")
+dfEV = helper.find_and_load_ev_csv("data/012-output")
 
 @st.cache_data
 def filter_data(_df, gender_filter, phase_filter):
@@ -74,24 +75,24 @@ with tab1:
     st.title("Student Intake Analysis Dashboard")
 
     # Generate and display visualization
-    fig = helper.get_intake_visualization(filtered_df, stack_by if stack_by != "None" else None)
+    fig = analytics_ev.get_intake_visualization(filtered_df, stack_by if stack_by != "None" else None)
     st.plotly_chart(fig)
 
 with tab2:
     # Generate and display visualization
-    trends_fig = helper.get_trends_visualization(filtered_df, gender_filter, phase_filter, stack_by)
+    trends_fig = analytics_ev.get_trends_visualization(filtered_df, gender_filter, phase_filter, stack_by)
     if trends_fig:
         st.plotly_chart(trends_fig)
     else:
         st.write("No data available for the selected filters.")
 
 with tab3:
-    per = helper.get_performance_visualization(filtered_df, gender_filter, phase_filter, stack_by)
+    per = analytics_ev.get_performance_visualization(filtered_df, gender_filter, phase_filter, stack_by)
     st.plotly_chart(per)
 
 with tab4:
     st.title("Student Intake Analysis Dashboard")
-    fig = helper.get_score_visualization(filtered_df, stack_by if stack_by != "None" else None)
+    fig = analytics_ev.get_score_visualization(filtered_df, stack_by if stack_by != "None" else None)
     st.plotly_chart(fig)
     
 
