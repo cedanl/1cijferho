@@ -19,7 +19,6 @@ st.set_page_config(
 # Main header and subtitle
 st.title("EV")
 st.caption("DEMO - EV Analytics")
-st.info("🔧 This is beta version (v0.5.3). Your feedback is appreciated!")
 
 # -----------------------------------------------------------------------------
 # Filter/Stack Section
