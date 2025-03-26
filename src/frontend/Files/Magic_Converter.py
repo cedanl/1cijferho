@@ -69,40 +69,63 @@ with st.expander("✴️ Matching Results"):
         st.warning("⚠️ No matching results found. Please create the match.csv file using the Data Explorer first.")
 
 
-
 if st.button("✨Convert✨", help="Run conversion", type="primary"):
-    with st.spinner("Converting files..."):
-        try:
-            # Call the converter script as a subprocess
-            result = subprocess.run(
-                ["uv", "run", "src/backend/core/converter.py"],
-                capture_output=True,
-                text=True,
-                check=True
-            )
+    # Create a placeholder for the live console output
+    console_placeholder = st.empty()
+    console_output = console_placeholder.code("Starting conversion process...", language="bash")
+    
+    try:
+        # Run the converter process with live output
+        process = subprocess.Popen(
+            ["uv", "run", "src/backend/core/converter.py"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            universal_newlines=True
+        )
+        
+        # Initialize output collection
+        output = "Starting conversion process...\n"
+        
+        # Read and display output line by line
+        for line in iter(process.stdout.readline, ""):
+            output += line
+            console_output.code(output, language="bash")
+        
+        # Check if conversion was successful
+        if process.wait() == 0:
             st.success("Conversion completed!")
             
-            # Run the compressor script
-            with st.spinner("Compressing files..."):
-                compress_result = subprocess.run(
-                    ["uv", "run", "src/backend/core/compressor.py"],
-                    capture_output=True,
-                    text=True,
-                    check=True
-                )
+            # Update console for compression process
+            output += "\nStarting compression process...\n"
+            console_output.code(output, language="bash")
+            
+            # Run the compressor process
+            compress_process = subprocess.Popen(
+                ["uv", "run", "src/backend/core/compressor.py"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                universal_newlines=True
+            )
+            
+            # Read and display output line by line
+            for line in iter(compress_process.stdout.readline, ""):
+                output += line
+                console_output.code(output, language="bash")
+            
+            # Check if compression was successful
+            if compress_process.wait() == 0:
                 st.success("Compression completed!")
-            
-            dtResult = de_helper.get_files_dataframe("data/02-output")
-            dtResult= dtResult.sort("Extension")
-            st.dataframe(dtResult)
-            
-            # Show results in an expander
-            with st.expander("View Process Results", expanded=False):
-                st.subheader("Conversion Output")
-                st.code(result.stdout)
                 
-                st.subheader("Compression Output")
-                st.code(compress_result.stdout)
-                
-        except subprocess.CalledProcessError as e:
-            st.error(f"Error during process: {e.stderr}")
+                # Display output files
+                dtResult = de_helper.get_files_dataframe("data/02-output")
+                dtResult = dtResult.sort("Extension")
+                st.dataframe(dtResult)
+            else:
+                st.error("Error during compression")
+        else:
+            st.error("Error during conversion")
+            
+    except Exception as e:
+        st.error(f"Error during process: {str(e)}")
