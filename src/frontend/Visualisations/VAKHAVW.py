@@ -22,7 +22,7 @@ st.caption("DEMO - VAKHAVW Analytics")
 
 # Logic 
 # Load EV File 
-dfVAKHAVW = helper.find_and_load_vakhavw_csv("data/012-output")
+dfVAKHAVW = helper.find_and_load_vakhavw_csv("data/02-output")
 
 @st.cache_data
 def filter_data(_df, diplomajaar_filter=None, afkortingvak_filter=None):
