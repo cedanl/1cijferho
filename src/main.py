@@ -22,8 +22,8 @@ vakhavw_page = st.Page("frontend/Visualisations/VAKHAVW.py", icon="📓")
 # Session State Management
 # -----------------------------------------------------------------------------
 # Initialize session state if not already done
-if 'INPUT_FOLDER' not in st.session_state:
-    st.session_state.INPUT_FOLDER = "data/01-input"
+#if 'INPUT_FOLDER' not in st.session_state:
+#    st.session_state.INPUT_FOLDER = "data/01-input"
     
 # -----------------------------------------------------------------------------
 # Sidebar Configuration
