@@ -4,7 +4,6 @@ import polars as pl
 import frontend.Files.Data_Explorer_helper as de_helper
 import tkinter as tk
 from tkinter import filedialog
-from PIL import Image
 from backend.core import extractor as ex
 from backend.validation import extractor_validation as ex_val
 from backend.core import converter_match as cm
