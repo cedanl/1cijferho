@@ -19,7 +19,8 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 # Main header and subtitle
 st.title("🚀 1cijferho")
-st.caption("Transform complex DUO datasets into actionable insights in minutes, not months. ✨  •  📊 Instant visualization • ⏱️ Time-saving automation • 🔍 Intelligent error reduction • 👥 Enhanced accessibility • 🔄 Batch processing")
+st.caption("Transform complex DUO datasets into actionable insights in minutes, not months. ✨")
+st.caption("📊 Instant visualization • ⏱️ Time-saving automation • 🔍 Intelligent error reduction • 👥 Enhanced accessibility • 🔄 Batch processing")
 
 # Overview
 st.write("""

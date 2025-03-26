@@ -3,13 +3,54 @@ import os
 import polars as pl
 import tkinter as tk
 from tkinter import filedialog
+import platform
+import tempfile
+import subprocess
 
 def select_folder():
-   root = tk.Tk()
-   root.withdraw()
-   folder_path = filedialog.askdirectory(master=root)
-   root.destroy()
-   return folder_path
+    # Different approach based on OS
+    if platform.system() == "Darwin":  # macOS
+        try:
+            # Create a temporary AppleScript file
+            script_file = tempfile.NamedTemporaryFile(delete=False, suffix='.scpt', mode='w')
+            script_path = script_file.name
+            
+            # Write AppleScript to select folder
+            script_file.write('''
+            set folderPath to POSIX path of (choose folder with prompt "Select a folder:")
+            return folderPath
+            ''')
+            script_file.close()
+            
+            # Execute the AppleScript
+            result = subprocess.run(['osascript', script_path], 
+                                   capture_output=True, 
+                                   text=True, 
+                                   check=True)
+            
+            # Clean up
+            os.unlink(script_path)
+            
+            # Return the selected folder path
+            folder_path = result.stdout.strip()
+            return folder_path if folder_path else None
+            
+        except subprocess.CalledProcessError as e:
+            # User probably canceled the dialog
+            return None
+        except Exception as e:
+            st.error(f"Error selecting folder: {str(e)}")
+            return None
+            
+    else:  # Windows and other systems
+        import tkinter as tk
+        from tkinter import filedialog
+        
+        root = tk.Tk()
+        root.withdraw()
+        folder_path = filedialog.askdirectory(master=root)
+        root.destroy()
+        return folder_path
 
 def get_files_dataframe(folder_path):
     if not os.path.exists(folder_path):
