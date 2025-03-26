@@ -20,15 +20,16 @@ Functions:
         - Export the matching results to a CSV file
 """
 
-import validation.extractor_validation as ex_val
 import os
 import re
 import polars as pl
 from rich.console import Console
 from rich.table import Table
 from difflib import SequenceMatcher
+import json
 
 def match_metadata_inputs(input_folder="data/01-input", metadata_folder="data/00-metadata"):
+    import validation.extractor_validation as ex_val
     """
     Matches metadata files with input files and displays validation status.
     Returns a polars DataFrame with the matching and validation results.
@@ -45,7 +46,7 @@ def match_metadata_inputs(input_folder="data/01-input", metadata_folder="data/00
         return pl.DataFrame()
     
     # Get validation results
-    validation_results = ex_val.validate_metadata_folder(metadata_folder, return_dict=True)
+    validation_results = json.load(open(os.path.join(metadata_folder, "logs", "validation_results_latest.json"))).get("file_results", {})
     
     # Create table
     table = Table(title="Metadata to Input Files Matching with Validation Status")

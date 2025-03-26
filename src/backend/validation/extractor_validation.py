@@ -158,12 +158,28 @@ def validate_metadata(file_path, verbose=True):
             console.print(f"[red]Found {issues_count} issues[/red]")
         return False, issues_dict
 
-def validate_metadata_folder(metadata_folder="data/00-metadata", return_dict=False):
+def validate_metadata_folder(metadata_folder="data/00-metadata", return_dict=False, save_log=True):
     """
-    Validates all Excel files in a metadata_folder and returns a summary
+    Validates all Excel files in a metadata_folder, returns a summary, and optionally saves results to a log file
+    
+    Parameters:
+    -----------
+    metadata_folder : str
+        Path to the folder containing metadata Excel files
+    return_dict : bool
+        Whether to return the validation results as a dictionary
+    save_log : bool
+        Whether to save the validation results to a log file in {metadata_folder}/logs
+        
+    Returns:
+    --------
+    dict or None
+        Dictionary of validation results if return_dict=True, None otherwise
     """
     import os
     import glob
+    import json
+    import datetime
     from rich.console import Console
     from rich.table import Table
     
@@ -255,7 +271,73 @@ def validate_metadata_folder(metadata_folder="data/00-metadata", return_dict=Fal
                     console.print(f"    Last position: {issues['length_last']}")
                     console.print(f"    Difference: {abs(issues['length_sum'] - issues['length_last'])}")
 
+    # Save results to log file if requested
+    if save_log:
+        # Create logs directory if it doesn't exist
+        logs_dir = os.path.join(metadata_folder, "logs")
+        os.makedirs(logs_dir, exist_ok=True)
+        
+        # Get current timestamp
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Create a serializable version of the results
+        serializable_results = {
+            "timestamp": timestamp,
+            "metadata_folder": metadata_folder,
+            "total_files": len(results),
+            "passed_files": passed,
+            "failed_files": len(results) - passed,
+            "file_results": {}
+        }
+        
+        # Add each file's results
+        for file_name, res in results.items():
+            # Clean up the issues to make them JSON serializable
+            clean_issues = {}
+            
+            for key, value in res["issues"].items():
+                if key in ["duplicates", "position_errors"]:
+                    # These are lists of dicts that might need conversion
+                    clean_issues[key] = []
+                    for item in value:
+                        clean_item = {}
+                        for k, v in item.items():
+                            # Convert any non-serializable types
+                            if isinstance(v, (int, float, str, bool, type(None))):
+                                clean_item[k] = v
+                            else:
+                                clean_item[k] = str(v)
+                        clean_issues[key].append(clean_item)
+                else:
+                    # For simple values, just convert non-serializable types
+                    if isinstance(value, (int, float, str, bool, type(None))):
+                        clean_issues[key] = value
+                    else:
+                        clean_issues[key] = str(value)
+            
+            serializable_results["file_results"][file_name] = {
+                "success": res["success"],
+                "issues": clean_issues
+            }
+        
+        # Save only the latest results to a fixed filename for easy access
+        latest_log_file = os.path.join(logs_dir, "validation_results_latest.json")
+        with open(latest_log_file, 'w') as f:
+            json.dump(serializable_results, f, indent=2)
+        
+        console.print(f"\n[bold green]Validation results saved to:[/bold green] {latest_log_file}")
+        
+        # Code for timestamped files is commented out
+        """
+        # Create a timestamp for the log file
+        log_file = os.path.join(logs_dir, f"validation_results_{timestamp}.json")
+        
+        # Save to JSON file
+        with open(log_file, 'w') as f:
+            json.dump(serializable_results, f, indent=2)
+        
+        console.print(f"[bold green]Validation results also saved to:[/bold green] {log_file}")
+        """
+
     if return_dict:
         return results
-    
-    

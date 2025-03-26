@@ -6,8 +6,8 @@ import tkinter as tk
 from tkinter import filedialog
 from PIL import Image
 from backend.core import extractor as ex
-#from src.backend.validation import extractor_validation as ex_val
-#from src.backend.core import converter_match as cm
+from backend.validation import extractor_validation as ex_val
+from backend.core import converter_match as cm
 
 # -----------------------------------------------------------------------------
 # Page Configuration
@@ -77,11 +77,7 @@ if st.session_state.INPUT_FOLDER:
     
      # Add explanation text
     st.markdown("""
-    This page will extract specifications from the **Bestandsbeschrijving** files to determine proper file delimiters.
-    It will then attempt to match them with **Main** and **Decodeer** files.
-    
-    ⚠️ **Note:** Results are saved as Excel files in `data/00-metadata`. Any existing files will be overwritten when you press "Find Matches".
-    """)
+        """)
     
     
     # Configure Tabs

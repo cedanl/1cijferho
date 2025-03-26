@@ -3,7 +3,7 @@ from validation import extractor_validation as ex_val
 from core import converter_match as cm
 
 # Step 1: Extract Metadata from Bestandsbeschrijving files (txt -> JSON -> Excel)
-ex.process_txt_folder()
+ex.process_txt_folder("data/01-input")
 ex.process_json_folder()
 ex_val.validate_metadata_folder()
 
