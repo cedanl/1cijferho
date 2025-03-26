@@ -3,9 +3,9 @@ import os
 import sys
 from pathlib import Path
 
-from utils import extractor as ex
+from core import extractor as ex
 from validation import extractor_validation as ex_val
-from utils import converter_match as cm
+from core import converter_match as cm
 
 # Define default paths as constants
 INPUT_FOLDER = "data/01-input"

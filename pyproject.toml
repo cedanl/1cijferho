@@ -14,5 +14,6 @@ dependencies = [
     "rich>=13.9.4",
     "ruff>=0.10.0",
     "streamlit>=1.41.1",
+    "streamlit-extras>=0.6.0",
     "xlsxwriter>=3.2.2",
 ]

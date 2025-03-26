@@ -171,38 +171,6 @@ def find_matches(metadata_file, input_files):
     if matches:
         return matches
     
-    # Try partial matching
-    for input_file in input_files:
-        input_base = os.path.splitext(input_file)[0].lower()
-        
-        for pattern in patterns:
-            if pattern.lower() in input_base:
-                matches.append((input_file, "✓ Partial match"))
-                break
-    
-    # If partial matches found, return them
-    if matches:
-        return matches
-    
-    # Try fuzzy matching as last resort
-    best_match = None
-    best_score = 0
-    
-    for input_file in input_files:
-        input_base = os.path.splitext(input_file)[0].lower()
-        main_pattern = patterns[0] if patterns else metadata_file.split('_')[0]
-        
-        similarity = SequenceMatcher(None, main_pattern.lower(), input_base.lower()).ratio()
-        
-        if similarity > 0.65 and similarity > best_score:
-            best_score = similarity
-            best_match = (input_file, f"🔍 Fuzzy match ({best_score:.2f})")
-    
-    if best_match:
-        matches.append(best_match)
-    
-    return matches
-
 def extract_key_pattern(filename):
     """Extract key patterns from a metadata filename."""
     # Remove common prefixes

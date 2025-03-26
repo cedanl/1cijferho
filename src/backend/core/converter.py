@@ -25,7 +25,6 @@ import polars as pl
 from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
-import re
 
 # TODO: Add Test (Line Length, Add to table returned by converter_match.py)
 
@@ -51,12 +50,6 @@ def format_elapsed_time(seconds):
     else:
         hours = seconds / 3600
         return f"{hours:.2f} hr"
-
-def clean_column_name(name):
-    """Clean column name by removing special characters, starting with a capital letter, and using PascalCase"""
-    name = re.sub(r'[^a-zA-Z0-9\s]', '', name)  # Remove special characters
-    name = name.title().replace(' ', '')  # Capitalize and remove spaces
-    return name
 
 ################################################################
 #                       COMPUTER MAGIC                          
@@ -98,7 +91,7 @@ def converter(input_file, metadata_file):
     
     # Convert widths to integers explicitly
     widths = [int(w) for w in metadata_df["Aantal posities"].to_list()]
-    column_names = [clean_column_name(name) for name in metadata_df["Naam"].to_list()]
+    column_names = metadata_df["Naam"].to_list()
     
     # Calculate positions for each field
     positions = [(sum(widths[:i]), sum(widths[:i+1])) for i in range(len(widths))]
