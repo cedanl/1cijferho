@@ -28,7 +28,7 @@ st.caption("DEMO - EV Analytics")
 # Logic 
 # Load EV File 
 try:
-    dfVAKHAVW = helper.find_and_load_ev_csv("data/02-output")
+    dfEV = helper.find_and_load_ev_csv("data/02-output")
 except Exception as e:
     st.warning(f"Correct EV not found, did you run the Magic Converter first?{str(e)}")
     
