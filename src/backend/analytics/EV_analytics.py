@@ -106,9 +106,9 @@ def get_score_visualization(
     try:
         # Data preparation with filters
         score_data = data
-        if gender_filter:
+        if gender_filter and gender_filter != "All":
             score_data = score_data.filter(pl.col("Geslacht") == gender_filter)
-        if phase_filter:
+        if phase_filter and phase_filter != "All":
             score_data = score_data.filter(pl.col("OpleidingsfaseActueel") == phase_filter)
 
         # Ensure score column is numeric and year is properly formatted
@@ -122,7 +122,7 @@ def get_score_visualization(
         )
 
         # Group by logic depending on stack_by parameter
-        if stack_by:
+        if stack_by and stack_by != "None":
             grouped = (
                 score_data.group_by(["Year", stack_by])
                 .agg(pl.col("average_score").mean().alias("avg_score"))
@@ -168,7 +168,7 @@ def get_score_visualization(
             plot_bgcolor="white",
             xaxis={"type": "category"},
             height=500,
-            showlegend=True if stack_by else False,
+            showlegend=True if stack_by and stack_by != "None" else False,
             margin=dict(t=30),
         )
 

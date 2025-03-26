@@ -60,16 +60,6 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(
     ["📊 Visualizations", "📈 Trends Analysis", "🏆 Performance", "🎓 Scores", "ℹ️ Data Info"]
 )
 
-
-# Logic
-
-
-# - Inladen + Types + PascalCase
-# - intake_visualization
-
-# -----------------------------------------------------------------------------
-# Test
-
 with tab1:
     # Streamlit app
     st.title("Student Intake Analysis Dashboard")
@@ -92,16 +82,10 @@ with tab3:
 
 with tab4:
     st.title("Student Intake Analysis Dashboard")
-    fig = analytics_ev.get_score_visualization(filtered_df, stack_by if stack_by != "None" else None)
+    fig = analytics_ev.get_score_visualization(filtered_df, gender_filter, phase_filter, stack_by)
     st.plotly_chart(fig)
     
 
 with tab5:
     st.dataframe(dfEV.head(1000))  # Show first 1000 rows
     helpers.render_data_info(dfEV)
-
-# - data summary -> if we have time and last tab
-# - diploma types
-# - performance visualization
-# - score visualisation
-# - trends visualisation
