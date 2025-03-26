@@ -32,7 +32,7 @@
 - [x] **Data Transformation**: Process and transform your 1 Cijfer HO data using advanced algorithms
 - [x] **Visual Data Representations**: Generate interactive visualizations of your educational data
 - [x] **Data Validation**: Comprehensive error checking and validation reporting
-- [ ] **User-friendly Interface**: Streamlit-based UI requiring no coding knowledge
+- [x] **User-friendly Interface**: Streamlit-based UI requiring no coding knowledge
 - [x] **`uv` Powered Setup**: One-click installation that installs Python and all dependencies in seconds - no technical knowledge needed!
 
 <br>
