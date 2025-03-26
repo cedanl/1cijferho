@@ -107,26 +107,10 @@ uv run streamlit run src/main.py
 That's it! The app will automatically spring to life in your browser. If you've completed all the steps in the First Time Setup correctly, this is the **only command** you'll need going forward. 🎉
 
 > **Pro Tip**: Create a shortcut: `.bat` file (Windows) or `.sh` script (macOS/Linux)
+> **Pro Tip**: Check out our [architecture.md](architecture.md) for technical details!
 
 Happy analyzing! ✨📊📝
 
-<br>
-
-## 💡 Using the App
-
-1. **Upload Your Data**
-   - Drag and drop your files
-
-2. **Choose Analysis**
-   - Data transformation
-   - Data validation
-
-3. **Explore Results**
-   - Interactive visualizations
-   - Download reports
-   - Share insights
-
-> **Pro Tip**: Check out our [architecture.md](architecture.md) for technical details!
 
 <br>
 
@@ -142,7 +126,7 @@ If you find this project helpful, please consider:
 - 💡 Suggesting features
 - 💻 Contributing code
 
-If you encounter any issues or need further assistance, please feel free to [open an issue](https://github.com/cedanl/1cijferho/issues) or contact amir.khodaie@ru.nl
+If you encounter any issues or need further assistance, please feel free to [open an issue](https://github.com/cedanl/1cijferho/issues) or contact a.sewnandan@hhs.nl | t.iwan@vu.nl
 
 ## 🙏 Acknowledgements
 <strong>Special thanks to:</strong>

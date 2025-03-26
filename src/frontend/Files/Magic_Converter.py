@@ -7,7 +7,7 @@ import sys
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="Magic Converter",
-    layout="wide",  # This sets the layout to centered (not wide)
+    layout="centered",  # This sets the layout to centered (not wide)
     initial_sidebar_state="expanded"
 )
 

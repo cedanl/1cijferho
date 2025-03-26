@@ -61,35 +61,39 @@ def get_files_dataframe(folder_path):
     if not files:
         return None
     
+    # Calculate raw file sizes in MB
+    sizes_mb = [os.path.getsize(os.path.join(folder_path, f)) / (1024 * 1024) for f in files]
+    
+    # Create the DataFrame with raw values
     df = pl.DataFrame({
         "Filename": files,
-        "Extension": [os.path.splitext(f)[1] for f in files]
+        "Extension": [os.path.splitext(f)[1] for f in files],
+        "Size (MB)": sizes_mb
     })
+    
+    # Convert to Decimal datatype and round to 1 decimal place
+    df = df.with_columns(pl.col("Size (MB)").cast(pl.Decimal(precision=10, scale=3)))
     
     return df
 
-def get_bestandsbeschrijving_files(df):
-    # Filter the dataframe to only include rows with "Bestandsbeschrijving" in the Filename
-    return df.filter(pl.col("Filename").str.contains("Bestandsbeschrijving"))
-
-def get_dec_files(df):
-    # Filter the dataframe to only include rows with "Dec_" in the Filename
-    return df.filter(pl.col("Filename").str.contains("Dec_"))
-
-def get_main_files(df):
-    # Filter for filenames containing any of the specified patterns
-    pattern_filter = (
-        pl.col("Filename").str.contains("EV") | 
-        pl.col("Filename").str.contains("Croho") |
-        pl.col("Filename").str.contains("Croho_vest") |
-        pl.col("Filename").str.contains("VAKHAVW")
+def categorize_files(df):
+    if df is None:
+        return None
+        
+    # Create a new column "Type" based on filename patterns
+    return df.with_columns(
+        pl.when(pl.col("Filename").str.contains("Bestandsbeschrijving"))
+        .then(pl.lit("Bestandsbeschrijving"))
+        .when(pl.col("Filename").str.contains("Dec_"))
+        .then(pl.lit("Decodeer File"))
+        .when(
+            (pl.col("Filename").str.contains("EV") | 
+             pl.col("Filename").str.contains("Croho") |
+             pl.col("Filename").str.contains("Croho_vest") |
+             pl.col("Filename").str.contains("VAKHAVW")) &
+            ~pl.col("Extension").is_in([".txt", ".zip", ".xlsx"])
+        )
+        .then(pl.lit("Main File"))
+        .otherwise(pl.lit("Other"))
+        .alias("Type")  # This explicitly names the column "Type"
     )
-    
-    # Filter out files with specified extensions
-    extension_filter = ~(
-        pl.col("Extension").is_in([".txt", ".zip", ".xlsx"])
-    )
-    
-    # Apply both filters
-    return df.filter(pattern_filter & extension_filter)
-
