@@ -22,8 +22,11 @@ st.caption("DEMO - VAKHAVW Analytics")
 
 # Logic 
 # Load EV File 
-dfVAKHAVW = helper.find_and_load_vakhavw_csv("data/02-output")
-
+try:
+    dfVAKHAVW = helper.find_and_load_vakhavw_csv("data/02-output")
+except Exception as e:
+    st.warning(f"Correct VAKHAVW not found, did you run the Magic Converter first?{str(e)}")
+    
 @st.cache_data
 def filter_data(_df, diplomajaar_filter=None, afkortingvak_filter=None):
     """Filter the dataframe based on Diplomajaar and AfkortingVak."""

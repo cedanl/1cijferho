@@ -7,6 +7,8 @@ from tkinter import filedialog
 from backend.core import extractor as ex
 from backend.validation import extractor_validation as ex_val
 from backend.core import converter_match as cm
+import time
+import random
 
 # -----------------------------------------------------------------------------
 # Page Configuration
@@ -22,11 +24,16 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 # Main header and subtitle
 st.title(":material/explore: Data Explorer")
+st.info("🔧 This is beta version (v0.5.3). Your feedback is appreciated!")
 st.write("""
-Select the folder containing your unzipped 1CHO files, or choose the demo folders. Make sure the following files are present in the 
-selected folder (not nested): 
+The Data Explorer processes your unzipped 1CHO files (place files directly in folder, not in subfolders). 
 
-**EV | VAKHAVW | Croho | Croho_vest**
+1. Select a folder below
+2. Review your uploaded files below
+3. Click "Match Files" to analyze compatibility 
+4. When the "Magic Converter" appears, click to continue
+
+Metadata will be saved to `data/00-metadata` in Excel format. If matching issues occur, either upload the correct files or manually edit the Bestandsbeschrijvingen Excel files.
 """)
 
 with st.expander("📂 View Example Directory Structure"):
@@ -64,20 +71,12 @@ if st.button("Select Folder"):
 if st.session_state.DEMO_FOLDER:
     st.warning("⚠️ The demo folder is currently selected")
 
-st.divider()
 # -----------------------------------------------------------------------------
 # Overview Files Section - Only displayed when INPUT_FOLDER is present
 # -----------------------------------------------------------------------------
 if st.session_state.INPUT_FOLDER:
-    
-    st.subheader(" ⚙️ File Preparation")
     df = de_helper.get_files_dataframe(st.session_state.INPUT_FOLDER)
     df = de_helper.categorize_files(df)
-    
-     # Add explanation text
-    st.markdown("""
-        """)
-    
     
     # Configure Tabs
     tab1, tab2 = st.tabs(["🔥 Matches","🗃 Files"])
@@ -97,19 +96,44 @@ if st.session_state.INPUT_FOLDER:
         
         # Display appropriate message based on what was found
         if len(found_types) == len(required_types):
-            st.success("All required files found in the data!")
+            st.info(":material/info: All required files found in the data! Press Match Files to continue.")
+            
             if st.button("Match Files"):
+                progress_bar = st.progress(0)
+                
+                # Process each step with progress updates and random delays
+                progress_bar.progress(0, "Processing text folder...")
                 ex.process_txt_folder(st.session_state.INPUT_FOLDER)
+                time.sleep(random.uniform(0.7, 1))  # Random delay between 2-4 seconds
+                
+                progress_bar.progress(25, "Processing JSON folder...")
                 ex.process_json_folder()
+                time.sleep(random.uniform(0.7, 1))  # Random delay between 2-4 seconds
+                
+                progress_bar.progress(50, "Validating metadata folder...")
                 ex_val.validate_metadata_folder()
+                time.sleep(random.uniform(0.7, 1))  # Random delay between 2-4 seconds
+                
+                progress_bar.progress(75, "Matching metadata inputs...")
                 cm.match_metadata_inputs()
+                time.sleep(random.uniform(0.7, 1))  # Random delay between 2-4 seconds
                 
-                # Display the matching results
-                st.subheader("🔎 Matching Results")
-                st.write("The following files were matched:")
-                dfMatch = pl.read_csv("data/00-metadata/logs/match.csv")
-                st.dataframe(dfMatch, use_container_width=True)
+                progress_bar.progress(100, "Complete!")
                 
+                # Set a session state flag to indicate matching is complete
+                st.session_state.matching_complete = True
+                
+                with st.expander("✴️ Matching Results"):
+                    # Display the matching results
+                    dfMatch = pl.read_csv("data/00-metadata/logs/match.csv")
+                    st.dataframe(dfMatch, use_container_width=True)
+            
+            # Check if matching is complete and show the Magic Converter button
+            if st.session_state.get('matching_complete', False):
+                if st.button("✨ Continue", help="Opens the Magic Converter", type="primary"):
+                    # This will be executed on the next rerun after clicking
+                    st.switch_page("frontend/Files/Magic_Converter.py")
+
         elif len(found_types) > 0:
             st.warning(f"Warning! Some required files are missing: {', '.join(missing_types)}")
         else:

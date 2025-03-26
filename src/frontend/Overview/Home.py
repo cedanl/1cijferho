@@ -19,7 +19,7 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 # Main header and subtitle
 st.title("🚀 1cijferho")
-st.info("🔧 This is a beta version (v0.9). Your feedback is appreciated!")
+st.info("🔧 This is beta version (v0.5.3). Your feedback is appreciated!")
 st.caption("Transform complex DUO datasets into actionable insights in minutes, not months. ✨")
 st.caption("📊 Instant visualization • ⏱️ Time-saving automation • 🔍 Intelligent error reduction • 👥 Enhanced accessibility • 🔄 Batch processing")
 

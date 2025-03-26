@@ -25,9 +25,13 @@ st.caption("DEMO - EV Analytics")
 # -----------------------------------------------------------------------------
 # Show filters and stack options to apply to the data
 
+# Logic 
 # Load EV File 
-dfEV = helper.find_and_load_ev_csv("data/02-output")
-
+try:
+    dfVAKHAVW = helper.find_and_load_ev_csv("data/02-output")
+except Exception as e:
+    st.warning(f"Correct EV not found, did you run the Magic Converter first?{str(e)}")
+    
 @st.cache_data
 def filter_data(_df, gender_filter, phase_filter):
     df = _df.clone()  # Create a new reference to avoid modifying the original

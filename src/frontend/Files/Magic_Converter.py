@@ -2,6 +2,12 @@ import streamlit as st
 import backend.core.converter as converter
 import os
 import sys
+import polars as pl
+import subprocess
+import backend.core.compressor as compressor
+import frontend.Files.Data_Explorer_helper as de_helper
+
+
 # -----------------------------------------------------------------------------
 # Page Configuration
 # -----------------------------------------------------------------------------
@@ -16,26 +22,87 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 # Main header and subtitle
 st.title("✨ Magic Converter")
-st.write("Transform complex DUO datasets into actionable insights in minutes, not months. ✨")
+st.caption("Transform complex DUO datasets into actionable insights in minutes, not months. ✨")
+st.info("🔧 This is beta version (v0.5.3). Your feedback is appreciated!")
 
-# Add the directory containing converter.py to the Python path if needed
-# sys.path.append('/path/to/directory/containing/converter.py')
+st.write("""
+##### 🚀 Ready for Conversion
 
-st.title("Fixed-width to CSV Batch Converter")
+Great news! Your files are matched and ready for conversion.
 
-# Create input fields for file paths
-matches_csv = st.text_input("Matches CSV Path", value="data/00-metadata/logs/match.csv")
-input_folder = st.text_input("Input Folder", value="data/01-input")
-metadata_folder = st.text_input("Metadata Folder", value="data/00-metadata")
+##### 📋 Review & Next Steps
+Below are all files eligible for conversion based on your matching criteria:
+1. Review the matched files in the table
+2. Click **✨ Convert ✨** to start transformation
+3. Find converted files in the `02-output` directory
 
-#if st.button("Process All Matches"):
-#    with st.spinner("Processing all matches..."):
-#        try:
-#            converter.run_conversions_from_matches(
-#                matches_csv=matches_csv,
-#                input_folder=input_folder,
-#                metadata_folder=metadata_folder
-#            )
-#            st.success("All conversions completed!")
-#        except Exception as e:
-#            st.error(f"Error processing matches: {str(e)}")
+##### 💡 Usage Tips
+For optimal performance:
+- **Python**: Use Polars for fast processing
+  ```python
+  import polars as pl
+  df = pl.read_parquet("path/to/your/file.parquet")
+  df = pl.read_csv("path/to/your/file.csv")
+  ```
+- **R**: Use data.table for efficient manipulation
+  ```r
+  library(data.table)
+  df <- fread("path/to/your/file.csv")
+  # or compress to qs format for faster loading
+  library(qs)
+  qs::saveqs(df, "path/to/your/file.qs")
+  df <- qs::readqs("path/to/your/file.qs")
+  ```
+
+When ready, hit Convert to transform your data!
+""")
+
+with st.expander("✴️ Matching Results"):
+    # Check if the match.csv file exists
+    file_path = "data/00-metadata/logs/match.csv"
+    if os.path.exists(file_path):
+        # Display the matching results
+        dfMatch = pl.read_csv(file_path)
+        st.dataframe(dfMatch, use_container_width=True)
+    else:
+        # Show a warning if the file doesn't exist
+        st.warning("⚠️ No matching results found. Please create the match.csv file using the Data Explorer first.")
+
+
+
+if st.button("✨Convert✨", help="Run conversion", type="primary"):
+    with st.spinner("Converting files..."):
+        try:
+            # Call the converter script as a subprocess
+            result = subprocess.run(
+                ["uv", "run", "src/backend/core/converter.py"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            st.success("Conversion completed!")
+            
+            # Run the compressor script
+            with st.spinner("Compressing files..."):
+                compress_result = subprocess.run(
+                    ["uv", "run", "src/backend/core/compressor.py"],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                st.success("Compression completed!")
+            
+            dtResult = de_helper.get_files_dataframe("data/02-output")
+            dtResult= dtResult.sort("Extension")
+            st.dataframe(dtResult)
+            
+            # Show results in an expander
+            with st.expander("View Process Results", expanded=False):
+                st.subheader("Conversion Output")
+                st.code(result.stdout)
+                
+                st.subheader("Compression Output")
+                st.code(compress_result.stdout)
+                
+        except subprocess.CalledProcessError as e:
+            st.error(f"Error during process: {e.stderr}")
