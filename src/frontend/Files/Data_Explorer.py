@@ -98,13 +98,18 @@ if st.session_state.INPUT_FOLDER:
         # Display appropriate message based on what was found
         if len(found_types) == len(required_types):
             st.success("All required files found in the data!")
-            if st.button("Find Matches", type="primary"):
+            if st.button("Match Files"):
                 ex.process_txt_folder(st.session_state.INPUT_FOLDER)
                 ex.process_json_folder()
                 ex_val.validate_metadata_folder()
                 cm.match_metadata_inputs()
-
-            
+                
+                # Display the matching results
+                st.subheader("🔎 Matching Results")
+                st.write("The following files were matched:")
+                dfMatch = pl.read_csv("data/00-metadata/logs/match.csv")
+                st.dataframe(dfMatch, use_container_width=True)
+                
         elif len(found_types) > 0:
             st.warning(f"Warning! Some required files are missing: {', '.join(missing_types)}")
         else:

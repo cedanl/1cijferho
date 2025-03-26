@@ -29,7 +29,6 @@ from difflib import SequenceMatcher
 import json
 
 def match_metadata_inputs(input_folder="data/01-input", metadata_folder="data/00-metadata"):
-    import validation.extractor_validation as ex_val
     """
     Matches metadata files with input files and displays validation status.
     Returns a polars DataFrame with the matching and validation results.
