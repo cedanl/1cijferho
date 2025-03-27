@@ -32,6 +32,14 @@ from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeEl
 #                       HELPER FUNCTIONS                          
 ################################################################
 
+def format_file_size(size_bytes):
+    """Format file size from bytes to human-readable format"""
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size_bytes < 1024.0:
+            return f"{size_bytes:.2f} {unit}"
+        size_bytes /= 1024.0
+    return f"{size_bytes:.2f} PB"
+
 def format_elapsed_time(seconds):
     """Format elapsed time in seconds to a readable format"""
     if seconds < 60:
@@ -50,34 +58,16 @@ def format_elapsed_time(seconds):
 def process_chunk(chunk_data):
     """
     Process a chunk of lines and return the converted output
-    Optimized version with batch processing
     """
     positions, chunk = chunk_data
-    # Pre-allocate output buffer for better performance
     output_lines = []
-    output_lines_append = output_lines.append  # Local reference for faster access
-    
-    # Pre-calculate number of fields for faster joining
-    num_positions = len(positions)
-    
     for line in chunk:
         if isinstance(line, bytes):
             line = line.decode('latin1')  # Adjust encoding as needed
-        if not line.strip():  # Skip empty lines
-            continue
-            
-        # Pre-allocate fields array for better performance
-        fields = [''] * num_positions
-        for i, (start, end) in enumerate(positions):
-            fields[i] = line[start:end].strip()
-        
-        # Join once at the end
-        output_lines_append('|'.join(fields))
-    
-    # Return as a single string to minimize memory allocations
-    if output_lines:
-        return '\n'.join(output_lines)
-    return ''
+        if line.strip():  # Skip empty lines
+            fields = [line[start:end].strip() for start, end in positions]
+            output_lines.append('|'.join(fields))
+    return output_lines
 
 
 def converter(input_file, metadata_file):
@@ -106,19 +96,19 @@ def converter(input_file, metadata_file):
     # Calculate positions for each field
     positions = [(sum(widths[:i]), sum(widths[:i+1])) for i in range(len(widths))]
     
+    # Count total lines
+    with open(input_file, 'rb') as f:
+        total_lines = sum(1 for _ in f.readlines())
+    
     console = Console()
     
     # Write header first
     with open(output_file, 'w', encoding='latin1', newline='') as f_out:
         f_out.write('|'.join(column_names) + '\n')
     
-    # Single-pass file reading - count lines while reading content
-    all_lines = []
+    # Read the entire file into memory (if it's not too large)
     with open(input_file, 'r', encoding='latin1') as f_in:
         all_lines = f_in.readlines()
-    
-    # Use the length of all_lines as total_lines
-    total_lines = len(all_lines)
     
     # Guard to prevent recursive multiprocessing
     # This will only allow multiprocessing in the main process
@@ -149,15 +139,13 @@ def converter(input_file, metadata_file):
                 with mp.Pool(processes=num_processes) as pool:
                     results_iter = pool.imap_unordered(process_chunk, chunk_data)
                     
-                    # Write results as they come in with optimized writes
+                    # Write results as they come in
                     lines_processed = 0
                     with open(output_file, 'a', encoding='latin1', newline='') as f_out:
                         for result in results_iter:
                             if result:
-                                # Result is already joined as a single string
-                                f_out.write(result + '\n')
-                                # Count lines by counting newlines in the result
-                                lines_processed += result.count('\n') + 1
+                                f_out.write('\n'.join(result) + '\n')
+                            lines_processed += len(result) if result else 0
                             progress.update(task, completed=min(lines_processed, total_lines))
             
             except Exception as e:
@@ -170,7 +158,7 @@ def converter(input_file, metadata_file):
         results = process_chunk((positions, all_lines))
         with open(output_file, 'a', encoding='latin1', newline='') as f_out:
             if results:
-                f_out.write(results + '\n')
+                f_out.write('\n'.join(results) + '\n')
     
     console.print(f"[green]Conversion completed successfully! Output saved to {output_file} ✨")
     return output_file
@@ -237,6 +225,8 @@ def run_conversions_from_matches(matches_csv="data/00-metadata/logs/match.csv", 
         table = Table(title="Conversion Progress")
         table.add_column("Input File", style="cyan")
         table.add_column("Metadata File", style="green")
+        table.add_column("Input Size", style="blue")
+        table.add_column("Output Size", style="blue")
         table.add_column("Elapsed Time", style="yellow")
         table.add_column("Status", style="magenta")
         
@@ -258,6 +248,14 @@ def run_conversions_from_matches(matches_csv="data/00-metadata/logs/match.csv", 
                 if not os.path.exists(metadata_path):
                     raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
                 
+                # Get input file size before conversion
+                input_size_bytes = os.path.getsize(input_path)
+                input_file_size = format_file_size(input_size_bytes)
+                
+                # Determine output file path
+                input_filename = os.path.basename(input_path)
+                output_file = os.path.join('data', '02-output', input_filename)
+                
                 # Track time elapsed during conversion
                 start_time = time.time()
                 
@@ -269,16 +267,27 @@ def run_conversions_from_matches(matches_csv="data/00-metadata/logs/match.csv", 
                 total_elapsed_time += elapsed_time  # Add to total
                 formatted_time = format_elapsed_time(elapsed_time)
                 
+                # Get output file size after conversion
+                if os.path.exists(output_file):
+                    output_size_bytes = os.path.getsize(output_file)
+                    output_file_size = format_file_size(output_size_bytes)
+                else:
+                    output_file_size = "File not found"
+                
                 success_count += 1
-                status = "[green]✓ Successfully converted[/green]"
+                status = "[green]Success: Converted[/green]"  # Changed from "✓ Successfully converted"
             except Exception as e:
                 error_count += 1
-                status = f"[red]✗ Error: {str(e)}[/red]"
+                status = f"[red]Error: {str(e)}[/red]"  # Changed from "✗ Error: {str(e)}"
+                input_file_size = "N/A"
+                output_file_size = "N/A"
                 formatted_time = "N/A"
             
             table.add_row(
                 row["input_file"], 
                 row["metadata_file"], 
+                input_file_size,
+                output_file_size,
                 formatted_time, 
                 status
             )
