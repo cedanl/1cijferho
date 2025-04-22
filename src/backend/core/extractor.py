@@ -6,7 +6,7 @@
 # -----------------------------------------------------------------------------
 """
 Extractor module for 1cijferho data. Contains functions for extracting tables from text files and converting them
-into a JSON format.
+into a JSON then XLSX format.
 
 Functions:
     [x] extract_tables_from_txt(txt_file_path, json_folder)
@@ -24,8 +24,6 @@ import re
 import polars as pl
 import datetime
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
-
 
 def extract_tables_from_txt(txt_file_path, json_output_folder):
     """Extracts tables from a .txt file and saves them as JSON."""
@@ -388,10 +386,10 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
             
     except Exception as e:
         console.print(f"[red]Error during processing: {str(e)}")
-        return results, files_created, total_tables
+        return files_created, total_tables
     
-    return results, files_created, total_tables
-
+    return files_created, total_tables
+    
 
 def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_folder="data/00-metadata"):
     """Processes all JSON files in a folder, converting tables to Excel files."""
@@ -440,7 +438,7 @@ def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_
             "output": None
         }
         
-        table_results, files_created, tables_found = extract_excel_from_json(json_file, excel_output_folder)
+        files_created, tables_found = extract_excel_from_json(json_file, excel_output_folder)
         
         # Update file status in log
         file_log["status"] = "success" if files_created > 0 else "no_tables_extracted"
