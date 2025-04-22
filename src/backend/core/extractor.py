@@ -458,3 +458,4 @@ def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_
         json.dump(log_data, f, indent=2)
     
     return total_excel_files, processed_json_files
+
