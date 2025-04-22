@@ -97,6 +97,7 @@ def extract_tables_from_txt(txt_file_path, json_output_folder):
     
     return None
 
+
 def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json"):
     """Finds all .txt files containing 'Bestandsbeschrijving' and extracts tables from them."""
     os.makedirs(json_output_folder, exist_ok=True)
@@ -105,15 +106,16 @@ def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json")
     log_folder = "data/00-metadata/logs"
     os.makedirs(log_folder, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = os.path.join(log_folder, f"extraction_log_{timestamp}.json")
+    log_file = os.path.join(log_folder, f"processing_log_{timestamp}.json")
     
     log_data = {
         "timestamp": timestamp,
         "input_folder": input_folder,
         "output_folder": json_output_folder,
         "status": "started",
-        "files_processed": [],
-        "extracted_files": []
+        "processed_files": [],
+        "total_files_processed": 0,
+        "total_files_extracted": 0
     }
     
     filter_keyword = "Bestandsbeschrijving"
@@ -125,8 +127,11 @@ def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json")
                 txt_path = os.path.join(root, file)
                 
                 # Log file processing
-                file_log = {"file": os.path.basename(txt_path), "status": "processing"}
-                log_data["files_processed"].append(file_log)
+                file_log = {
+                    "file": os.path.basename(txt_path), 
+                    "status": "processing",
+                    "output": None
+                }
                 
                 json_path = extract_tables_from_txt(txt_path, json_output_folder)
                 
@@ -135,15 +140,16 @@ def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json")
                 if json_path:
                     extracted_files.append(json_path)
                     file_log["output"] = os.path.basename(json_path)
-                    log_data["extracted_files"].append(os.path.basename(json_path))
+                
+                log_data["processed_files"].append(file_log)
     
     # Update final log status
     log_data["status"] = "completed"
-    log_data["total_processed"] = len(log_data["files_processed"])
-    log_data["total_extracted"] = len(extracted_files)
+    log_data["total_files_processed"] = len(log_data["processed_files"])
+    log_data["total_files_extracted"] = len(extracted_files)
     
     # Save log file
-    with open(log_file, "w", encoding="utf-8") as f:
+    with open(log_file, "w", encoding="latin1") as f:
         json.dump(log_data, f, indent=2)
     
     return extracted_files
@@ -382,128 +388,73 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
 
 
 def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_folder="data/00-metadata"):
-    """
-    Processes all JSON files in a folder, converting tables to Excel files.
-    Uses a table to display results instead of spinners/progress bars.
-    """
-    # Initialize Rich console for better output
-    console = Console()
-    from rich.table import Table
-    
-    # Create output directory if it doesn't exist
+    """Processes all JSON files in a folder, converting tables to Excel files."""
     os.makedirs(excel_output_folder, exist_ok=True)
     
-    console.print(f"[bold cyan]Processing JSON files from: {json_input_folder}")
+    # Setup logging
+    log_folder = "data/00-metadata/logs"
+    os.makedirs(log_folder, exist_ok=True)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file = os.path.join(log_folder, f"processing_log_{timestamp}.json")
     
-    total_excel_files = 0
-    total_json_files = 0
+    log_data = {
+        "timestamp": timestamp,
+        "input_folder": json_input_folder,
+        "output_folder": excel_output_folder,
+        "status": "started",
+        "processed_files": [],
+        "total_files_processed": 0,
+        "total_files_extracted": 0
+    }
     
     # Find all JSON files in the folder
-    json_files = []
-    for root, _, files in os.walk(json_input_folder):
-        for file in files:
-            if file.endswith(".json"):
-                json_files.append(os.path.join(root, file))
+    json_files = [os.path.join(root, file) 
+                  for root, _, files in os.walk(json_input_folder) 
+                  for file in files if file.endswith(".json")]
     
     total_json_files = len(json_files)
     if total_json_files == 0:
-        console.print("[yellow]Warning: No JSON files found in the specified folder.")
+        log_data["status"] = "completed"
+        log_data["message"] = "No JSON files found"
+        with open(log_file, "w", encoding="latin1") as f:
+            json.dump(log_data, f, indent=2)
         return 0, 0
     
-    console.print(f"Found {total_json_files} JSON files")
-    
-    # Create a master results table
-    master_table = Table(title="JSON Processing Results")
-    master_table.add_column("JSON File", style="cyan")
-    master_table.add_column("Tables", style="blue")
-    master_table.add_column("Processed", style="green")
-    master_table.add_column("Skipped", style="yellow")
-    master_table.add_column("Errors", style="red")
-    master_table.add_column("Status", style="magenta")
-    
-    # Process each JSON file and collect results
-    all_detailed_results = []
+    # Process each JSON file
+    total_excel_files = 0
     processed_json_files = 0
     
     for json_file in json_files:
         file_name = os.path.basename(json_file)
-        console.print(f"\n[cyan]Processing file: {file_name}")
         
-        # Process the JSON file
+        # Log file processing
+        file_log = {
+            "file": file_name,
+            "status": "processing",
+            "output": None
+        }
+        
         table_results, files_created, tables_found = extract_excel_from_json(json_file, excel_output_folder)
         
-        # Count different statuses
-        processed = sum(1 for r in table_results if r["status"] == "Processed")
-        skipped = sum(1 for r in table_results if r["status"] == "Skipped")
-        errors = sum(1 for r in table_results if r["status"] == "Error")
+        # Update file status in log
+        file_log["status"] = "success" if files_created > 0 else "no_tables_extracted"
+        file_log["tables_found"] = tables_found
+        file_log["files_created"] = files_created
         
-        # Determine overall status
-        if errors > 0:
-            status = "Issues Encountered"
-        elif skipped > 0:
-            status = "Partially Processed"
-        elif processed > 0:
-            status = "Success"
-        else:
-            status = "No Tables Processed"
-        
-        # Add to the master table
-        master_table.add_row(
-            file_name, 
-            str(tables_found), 
-            str(processed), 
-            str(skipped),
-            str(errors),
-            status
-        )
-        
-        # Store detailed results for this file
-        file_detail = {
-            "file_name": file_name,
-            "tables_found": tables_found,
-            "processed": processed,
-            "skipped": skipped,
-            "errors": errors,
-            "table_results": table_results
-        }
-        all_detailed_results.append(file_detail)
-        
-        # Create a detailed table for this file
-        if table_results:
-            detail_table = Table(title=f"Detailed Results for {file_name}", show_header=True)
-            detail_table.add_column("Table #", style="cyan", justify="center")
-            detail_table.add_column("Title", style="blue")
-            detail_table.add_column("Status", style="green")
-            detail_table.add_column("Rows", style="magenta", justify="right")
-            detail_table.add_column("Output File", style="cyan")
-            detail_table.add_column("Notes", style="yellow")
-            
-            for result in table_results:
-                status_style = "green" if result["status"] == "Processed" else "red"
-                
-                detail_table.add_row(
-                    str(result["table_number"]),
-                    result["table_title"],
-                    f"[{status_style}]{result['status']}[/{status_style}]",
-                    str(result["rows"]),
-                    result["output_file"],
-                    result["notes"]
-                )
-            
-            console.print(detail_table)
+        log_data["processed_files"].append(file_log)
         
         # Update counters
         total_excel_files += files_created
         if files_created > 0:
             processed_json_files += 1
     
-    # Print the master summary table
-    console.print("\n")
-    console.print(master_table)
+    # Update final log status
+    log_data["status"] = "completed"
+    log_data["total_files_processed"] = total_json_files
+    log_data["total_files_extracted"] = processed_json_files
     
-    # Print summary
-    console.print("\n[bold]Summary:[/bold]")
-    console.print(f"Processed {total_json_files} JSON files: [green]{processed_json_files} with tables extracted[/green], [yellow]{total_json_files - processed_json_files} with no tables extracted[/yellow]")
-    console.print(f"[green]Created {total_excel_files} Excel files from tables.")
+    # Save log file
+    with open(log_file, "w", encoding="latin1") as f:
+        json.dump(log_data, f, indent=2)
     
     return total_excel_files, processed_json_files
