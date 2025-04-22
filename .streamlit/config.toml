@@ -1,6 +1,9 @@
 [server]
 maxUploadSize = 1024  # Size in MB (1GB)
 
+[browser]
+gatherUsageStats = false
+
 [theme]
 #primaryColor="#F63366"
 #backgroundColor="#FFFFFF"
