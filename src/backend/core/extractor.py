@@ -22,8 +22,10 @@ import os
 import json
 import re
 import polars as pl
+import datetime
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
+
 
 def extract_tables_from_txt(txt_file_path, json_output_folder):
     """Extracts tables from a .txt file and saves them as JSON."""
@@ -99,25 +101,50 @@ def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json")
     """Finds all .txt files containing 'Bestandsbeschrijving' and extracts tables from them."""
     os.makedirs(json_output_folder, exist_ok=True)
     
-    console = Console()
-    console.print(f"[cyan]Processing text files from: {input_folder}")
+    # Setup logging
+    log_folder = "data/00-metadata/logs"
+    os.makedirs(log_folder, exist_ok=True)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file = os.path.join(log_folder, f"extraction_log_{timestamp}.json")
+    
+    log_data = {
+        "timestamp": timestamp,
+        "input_folder": input_folder,
+        "output_folder": json_output_folder,
+        "status": "started",
+        "files_processed": [],
+        "extracted_files": []
+    }
     
     filter_keyword = "Bestandsbeschrijving"
     extracted_files = []
+    
     for root, _, files in os.walk(input_folder):
         for file in files:
             if file.endswith(".txt") and filter_keyword in file:
                 txt_path = os.path.join(root, file)
-                console.print(f"[cyan]Processing file: {os.path.basename(txt_path)}")
+                
+                # Log file processing
+                file_log = {"file": os.path.basename(txt_path), "status": "processing"}
+                log_data["files_processed"].append(file_log)
+                
                 json_path = extract_tables_from_txt(txt_path, json_output_folder)
+                
+                # Update file status in log
+                file_log["status"] = "success" if json_path else "no_tables_found"
                 if json_path:
                     extracted_files.append(json_path)
-                    console.print(f"[green]Created JSON: {os.path.basename(json_path)}")
+                    file_log["output"] = os.path.basename(json_path)
+                    log_data["extracted_files"].append(os.path.basename(json_path))
     
-    if extracted_files:
-        console.print(f"[green]Successfully extracted {len(extracted_files)} JSON files ✨")
-    else:
-        console.print("[yellow]No tables found in any text files.")
+    # Update final log status
+    log_data["status"] = "completed"
+    log_data["total_processed"] = len(log_data["files_processed"])
+    log_data["total_extracted"] = len(extracted_files)
+    
+    # Save log file
+    with open(log_file, "w", encoding="utf-8") as f:
+        json.dump(log_data, f, indent=2)
     
     return extracted_files
 
