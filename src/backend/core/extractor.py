@@ -103,8 +103,11 @@ def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json")
     # Setup logging
     log_folder = "data/00-metadata/logs"
     os.makedirs(log_folder, exist_ok=True)
+    
+    # Create both timestamped and latest logs
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = os.path.join(log_folder, f"(1)_json_processing_log_{timestamp}.json")
+    timestamped_log_file = os.path.join(log_folder, f"json_processing_log_{timestamp}.json")
+    latest_log_file = os.path.join(log_folder, "(1)_json_processing_log_latest.json")
     
     log_data = {
         "timestamp": timestamp,
@@ -146,17 +149,19 @@ def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json")
     log_data["total_files_processed"] = len(log_data["processed_files"])
     log_data["total_files_extracted"] = len(extracted_files)
     
-    # Save log file
-    with open(log_file, "w", encoding="latin1") as f:
+    # Save log file to both locations
+    with open(timestamped_log_file, "w", encoding="latin1") as f:
+        json.dump(log_data, f, indent=2)
+    with open(latest_log_file, "w", encoding="latin1") as f:
         json.dump(log_data, f, indent=2)
     
     # Print summary to console
     console = Console()
     console.print(f"[green]Processed {log_data['total_files_processed']} text files")
     console.print(f"[green]Extracted tables to {log_data['total_files_extracted']} JSON files")
-    console.print(f"[blue]Log saved to: {os.path.basename(log_file)} in {log_folder}")
+    console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}")
 
-    return extracted_files
+    return None
 
 def extract_excel_from_json(json_file_path, excel_output_folder):
     """
@@ -388,7 +393,7 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
         console.print(f"[red]Error during processing: {str(e)}")
         return files_created, total_tables
     
-    return files_created, total_tables
+    return files_created, total_tables, output_path
     
 
 def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_folder="data/00-metadata"):
@@ -398,8 +403,11 @@ def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_
     # Setup logging
     log_folder = "data/00-metadata/logs"
     os.makedirs(log_folder, exist_ok=True)
+    
+    # Create both a timestamped log and a latest log
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = os.path.join(log_folder, f"(2)_xlsx_processing_log_{timestamp}.json")
+    timestamped_log_file = os.path.join(log_folder, f"xlsx_processing_log_{timestamp}.json")
+    latest_log_file = os.path.join(log_folder, "(2)_xlsx_processing_log_latest.json")
     
     log_data = {
         "timestamp": timestamp,
@@ -420,9 +428,12 @@ def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_
     if total_json_files == 0:
         log_data["status"] = "completed"
         log_data["message"] = "No JSON files found"
-        with open(log_file, "w", encoding="latin1") as f:
+        # Save to both log files
+        with open(timestamped_log_file, "w", encoding="latin1") as f:
             json.dump(log_data, f, indent=2)
-        return 0, 0
+        with open(latest_log_file, "w", encoding="latin1") as f:
+            json.dump(log_data, f, indent=2)
+        return None
     
     # Process each JSON file
     total_excel_files = 0
@@ -438,13 +449,13 @@ def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_
             "output": None
         }
         
-        files_created, tables_found = extract_excel_from_json(json_file, excel_output_folder)
+        files_created, tables_found, output_path = extract_excel_from_json(json_file, excel_output_folder)
         
         # Update file status in log
         file_log["status"] = "success" if files_created > 0 else "no_tables_extracted"
         file_log["tables_found"] = tables_found
         file_log["files_created"] = files_created
-        
+        file_log["output"] = output_path
         log_data["processed_files"].append(file_log)
         
         # Update counters
@@ -457,14 +468,16 @@ def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_
     log_data["total_files_processed"] = total_json_files
     log_data["total_files_extracted"] = processed_json_files
     
-    # Save log file
-    with open(log_file, "w", encoding="latin1") as f:
+    # Save log file to both locations
+    with open(timestamped_log_file, "w", encoding="latin1") as f:
+        json.dump(log_data, f, indent=2)
+    with open(latest_log_file, "w", encoding="latin1") as f:
         json.dump(log_data, f, indent=2)
     
     # Print summary to console
     console = Console()
     console.print(f"[green]Processed {total_json_files} JSON files")
     console.print(f"[green]Created {total_excel_files} Excel files from {processed_json_files} JSON files")
-    console.print(f"[blue]Log saved to: {os.path.basename(log_file)} in {log_folder}")
+    console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}")
 
-    return total_excel_files, processed_json_files
+    return None
