@@ -116,6 +116,7 @@ def validate_metadata(file_path):
         return True, issues_dict
     else:
         return False, issues_dict
+
     
 def validate_metadata_folder(metadata_folder="data/00-metadata", return_dict=False):
     """Validates all Excel files in a metadata_folder and returns a summary."""
@@ -179,9 +180,8 @@ def validate_metadata_folder(metadata_folder="data/00-metadata", return_dict=Fal
     log_data["failed_files"] = len(results) - passed
     
     # Print summary
-    console.print("\n[bold]Summary:[/bold]")
-    console.print(f"Validated {len(results)} files: [green]{passed} passed[/green], [red]{len(results) - passed} failed[/red]")
-    
+    console.print(f"[green]Validated {len(results)} files: {passed} passed[/green], [red]{len(results) - passed} failed[/red]")
+
     # Show failed files with issues in console
     if len(results) - passed > 0:
         console.print("\n[yellow]Failed files with issues:[/yellow]")

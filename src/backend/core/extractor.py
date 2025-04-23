@@ -280,6 +280,9 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
             else:
                 rows.append(["ID", "Naam", "Startpositie", "Aantal posities", "Opmerking"])
             
+            # Count the number of valid content lines for later verification
+            valid_content_lines = 0
+            
             # Process each data line
             row_id = 1  # Start ID counter
             for line in content_array[1:]:
@@ -310,6 +313,7 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
                             # Convert numeric fields to integers
                             rows.append([int(row_id), field_name, int(start_pos), int(aantal_pos), comment])
                             row_id += 1  # Increment ID
+                            valid_content_lines += 1
                     continue
                 
                 # Extract field name - use a more precise approach that preserves all characters
@@ -367,6 +371,7 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
                     # Convert numeric fields to integers
                     rows.append([int(row_id), field_name, int(start_pos), int(aantal_pos), comment])
                     row_id += 1  # Increment ID
+                    valid_content_lines += 1
             
             # Skip if no data rows were found
             if len(rows) <= 1:
@@ -399,6 +404,15 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
                     pl.col("Aantal posities").cast(pl.Int64)
                 ])
                 
+                # Check if the number of rows in the DataFrame matches the expected count
+                df_row_count = df.shape[0]
+                if df_row_count != valid_content_lines:
+                    console.print(f"[yellow]Warning: Row count mismatch for table {table_title}.")
+                    console.print(f"[yellow]Expected {valid_content_lines} rows, got {df_row_count} rows in DataFrame.")
+                    table_result["notes"] += f" Row count mismatch: {valid_content_lines} valid content lines vs {df_row_count} DataFrame rows."
+                else:
+                    None
+                
                 # Write to Excel with specified datatypes
                 df.write_excel(output_path, autofit=True)
                 files_created += 1
@@ -414,9 +428,9 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
             
     except Exception as e:
         console.print(f"[red]Error during processing: {str(e)}")
-        return files_created, total_tables
+        return results, files_created, total_tables
     
-    return files_created, total_tables
+    return results, files_created, total_tables
 
 
 def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_folder="data/00-metadata"):
@@ -439,7 +453,8 @@ def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_
         "status": "started",
         "processed_files": [],
         "total_files_processed": 0,
-        "total_files_extracted": 0
+        "total_files_extracted": 0,
+        "row_count_mismatches": 0  # Track files with row count mismatches
     }
     
     # Find all JSON files in the folder
@@ -461,6 +476,7 @@ def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_
     # Process each JSON file
     total_excel_files = 0
     processed_json_files = 0
+    total_row_mismatches = 0
     
     for json_file in json_files:
         file_name = os.path.basename(json_file)
@@ -469,16 +485,28 @@ def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_
         file_log = {
             "file": file_name,
             "status": "processing",
-            "output": None
+            "tables": []
         }
         
-        files_created, tables_found = extract_excel_from_json(json_file, excel_output_folder)
+        # Extract tables from JSON file - now also gets detailed results
+        table_results, files_created, tables_found = extract_excel_from_json(json_file, excel_output_folder)
+        
+        # Check for row count mismatches in any tables
+        file_has_mismatch = False
+        for table_result in table_results:
+            if "Row count mismatch" in table_result.get("notes", ""):
+                file_has_mismatch = True
+                total_row_mismatches += 1
+                
+            # Add table results to file log
+            file_log["tables"].append(table_result)
         
         # Update file status in log
         file_log["status"] = "success" if files_created > 0 else "no_tables_extracted"
         file_log["tables_found"] = tables_found
         file_log["files_created"] = files_created
-        file_log["output"] = None
+        file_log["has_row_mismatch"] = file_has_mismatch
+        
         log_data["processed_files"].append(file_log)
         
         # Update counters
@@ -490,6 +518,7 @@ def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_
     log_data["status"] = "completed"
     log_data["total_files_processed"] = total_json_files
     log_data["total_files_extracted"] = processed_json_files
+    log_data["row_count_mismatches"] = total_row_mismatches
     
     # Save log file to both locations
     with open(timestamped_log_file, "w", encoding="latin1") as f:
@@ -501,6 +530,12 @@ def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_
     console = Console()
     console.print(f"[green]Processed {total_json_files} JSON files")
     console.print(f"[green]Created {total_excel_files} Excel files from {processed_json_files} JSON files")
+    
+    if total_row_mismatches > 0:
+        console.print(f"[yellow]Warning: {total_row_mismatches} tables had row count mismatches. Check logs for details.")
+    else:
+        console.print(f"[green]All tables passed row count verification.")
+        
     console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}")
 
     return None
