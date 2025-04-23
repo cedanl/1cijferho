@@ -19,8 +19,6 @@ import os
 import glob
 import json
 import datetime
-from rich.table import Table
-import fastexcel
 
 # Check column lenght in extractor with json
 
