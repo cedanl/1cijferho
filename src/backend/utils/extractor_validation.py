@@ -182,7 +182,7 @@ def validate_metadata_folder(metadata_folder="data/00-metadata", return_dict=Fal
 
     # Show failed files with issues in console
     if len(results) - passed > 0:
-        console.print("\n[yellow]Failed files with issues:[/yellow]")
+        console.print("\n[yellow]Failed files with issues, manually adjust these files and re-run validation:[/yellow]")
         for file_name, res in results.items():
             if not res["success"]:
                 issues = res["issues"]

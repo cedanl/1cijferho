@@ -25,15 +25,15 @@ import polars as pl
 import datetime
 from rich.console import Console
 
-def extract_tables_from_txt(txt_file_path, json_output_folder):
+def extract_tables_from_txt(txt_file, json_output_folder):
     """Extracts tables from a .txt file and saves them as JSON."""
     os.makedirs(json_output_folder, exist_ok=True)
     
     try:
-        with open(txt_file_path, 'r', encoding='latin-1') as file:
+        with open(txt_file, 'r', encoding='latin-1') as file:
             text = file.read()
     except Exception as e:
-        print(f"Error reading {txt_file_path}: {e}")
+        print(f"Error reading {txt_file}: {e}")
         return None
     
     # Process the text to find tables
@@ -85,7 +85,7 @@ def extract_tables_from_txt(txt_file_path, json_output_folder):
     
     # Save all tables to a single JSON file
     if all_tables:
-        base_filename = os.path.splitext(os.path.basename(txt_file_path))[0]
+        base_filename = os.path.splitext(os.path.basename(txt_file))[0]
         json_path = os.path.join(json_output_folder, f"{base_filename}.json")
         
         with open(json_path, 'w', encoding='latin-1') as json_file:
@@ -100,6 +100,11 @@ def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json")
     """Finds all .txt files containing 'Bestandsbeschrijving' and extracts tables from them."""
     os.makedirs(json_output_folder, exist_ok=True)
     
+    # Remove any existing Excel files
+    for file in os.listdir(json_output_folder):
+        if file.endswith(".json"):
+            os.remove(os.path.join(json_output_folder, file))
+
     # Setup logging
     log_folder = "data/00-metadata/logs"
     os.makedirs(log_folder, exist_ok=True)
@@ -163,7 +168,7 @@ def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json")
 
     return None
 
-def extract_excel_from_json(json_file_path, excel_output_folder):
+def extract_excel_from_json(json_file, excel_output_folder):
     """
     Extracts tables from a JSON file and saves them as Excel files.
     Includes ID column and a column for comments (Opmerkingen) after Aantal posities.
@@ -182,7 +187,7 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
     
     # Load the JSON file with appropriate encoding
     try:
-        with open(json_file_path, 'r', encoding='latin1') as file:
+        with open(json_file, 'r', encoding='latin1') as file:
             data = json.load(file)
     except json.JSONDecodeError as e:
         # Handle JSON parsing errors
@@ -194,7 +199,7 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
         return [], 0, 0
     
     # Get the base filename without extension
-    base_filename = os.path.basename(json_file_path)
+    base_filename = os.path.basename(json_file)
     base_filename = os.path.splitext(base_filename)[0]
     
     # Extract the filename from the JSON if available
@@ -437,6 +442,11 @@ def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_
     """Processes all JSON files in a folder, converting tables to Excel files."""
     os.makedirs(excel_output_folder, exist_ok=True)
     
+    # Remove any existing Excel files
+    for file in os.listdir(excel_output_folder):
+        if file.endswith(".xlsx"):
+            os.remove(os.path.join(excel_output_folder, file))
+
     # Setup logging
     log_folder = "data/00-metadata/logs"
     os.makedirs(log_folder, exist_ok=True)

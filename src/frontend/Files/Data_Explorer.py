@@ -5,8 +5,8 @@ import frontend.Files.Data_Explorer_helper as de_helper
 import tkinter as tk
 from tkinter import filedialog
 from backend.core import extractor as ex
-from backend.validation import extractor_validation as ex_val
-from backend.core import converter_match as cm
+from backend.utils import extractor_validation as ex_val
+from backend.utils import match_validation as cm
 import time
 import random
 

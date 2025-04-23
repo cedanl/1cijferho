@@ -31,7 +31,7 @@ def load_input_files(input_folder):
     for root, _, filenames in os.walk(input_folder):
         for filename in filenames:
             # Check if the file doesn't have excluded extensions
-            if not filename.lower().endswith(('.txt', '.zip', '.xlsx')):
+            if not filename.lower().endswith(('.txt', '.zip', '.xlsx', '.docx', '.csv')):
                 full_path = os.path.join(root, filename)
                 files.append(filename)
                 
@@ -104,7 +104,6 @@ def match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validatio
         "total_validation_files": len(validation_df),
         "matched_validation_files": 0,
         "unmatched_validation_files": 0,
-        "total_rows_processed": input_df["row_count"].sum()  # Add total rows being processed
     }
     
     # Create a new column with matches
@@ -188,26 +187,13 @@ def match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validatio
     # Create unmatched validation dataframe
     unmatched_validation_df = pl.DataFrame(unmatched_validation)
     
-    # Calculate totals for logging
-    matched_rows = 0
-    unmatched_rows = 0
-    
-    # If there are matched files, calculate their row counts
-    if result_df.filter(pl.col('matched')).height > 0:
-        matched_rows = result_df.filter(pl.col('matched')).select('row_count').sum()[0, 0]
-    
-    # If there are unmatched files, calculate their row counts
-    if result_df.filter(~pl.col('matched')).height > 0:
-        unmatched_rows = result_df.filter(~pl.col('matched')).select('row_count').sum()[0, 0]
-    
+     
     # Update log data
     log_data["status"] = "completed"
     log_data["matched_files"] = result_df.filter(pl.col('matched')).height
     log_data["unmatched_files"] = result_df.filter(~pl.col('matched')).height
     log_data["matched_validation_files"] = len(matched_validation_files)
     log_data["unmatched_validation_files"] = len(validation_df) - len(matched_validation_files)
-    log_data["matched_rows"] = int(matched_rows)  # Convert to int to ensure JSON serialization
-    log_data["unmatched_rows"] = int(unmatched_rows)  # Convert to int to ensure JSON serialization
     log_data["unmatched_validation"] = [
         {"validation_file": row["validation_file"], "validation_status": row["validation_status"]}
         for row in unmatched_validation
@@ -229,8 +215,3 @@ def match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validatio
         "input_matches": result_df,
         "unmatched_validation": unmatched_validation_df
     }
-
-    
-# Run the matching function if executed as a script
-if __name__ == "__main__":
-    match_files("data/01-input")

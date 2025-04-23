@@ -19,8 +19,6 @@ Functions:
 
 import multiprocessing as mp
 import os
-import time
-from functools import partial
 import polars as pl
 from rich.console import Console
 from rich.table import Table
@@ -28,20 +26,6 @@ from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeEl
 
 # TODO: Add Test (Line Length, Add to table returned by converter_match.py)
 
-################################################################
-#                       HELPER FUNCTIONS                          
-################################################################
-
-def format_file_size(size_bytes):
-    """Format file size from bytes to human-readable format"""
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if size_bytes < 1024.0:
-            return f"{size_bytes:.2f} {unit}"
-        size_bytes /= 1024.0
-    return f"{size_bytes:.2f} PB"
-
-def format_elapsed_time(seconds):
-    """Format elapsed time in seconds to a readable format"""
     if seconds < 60:
         return f"{seconds:.2f} sec"
     elif seconds < 3600:
