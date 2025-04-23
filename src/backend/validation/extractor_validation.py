@@ -138,7 +138,7 @@ def validate_metadata_folder(metadata_folder="data/00-metadata", return_dict=Fal
     
     # Create both timestamped and latest logs (similar to the extractor code)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    timestamped_log_file = os.path.join(log_folder, f"validation_log_{timestamp}.json")
+    timestamped_log_file = os.path.join(log_folder, f"xlsx_validation_log_{timestamp}.json")
     latest_log_file = os.path.join(log_folder, "(3)_xlsx_validation_log_latest.json")
     
     log_data = {
