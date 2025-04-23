@@ -18,24 +18,39 @@ Functions:
 import os
 import polars as pl
 from rich.console import Console
-from rich.table import Table
-from difflib import SequenceMatcher
 import json
 import datetime
 
 def load_input_files(input_folder):
-    """Get all files from the user input_folder, excluding .txt, .zip, and .xlsx extensions"""
+    """Get all files from the user input_folder, excluding .txt, .zip, and .xlsx extensions,
+    and count the number of rows in each file."""
     files = []
-    
+    row_counts = []
+    console = Console()
     # Walk through the directory
     for root, _, filenames in os.walk(input_folder):
         for filename in filenames:
             # Check if the file doesn't have excluded extensions
             if not filename.lower().endswith(('.txt', '.zip', '.xlsx')):
+                full_path = os.path.join(root, filename)
                 files.append(filename)
+                
+                # Count number of rows in the file
+                try:
+                    with open(full_path, 'rb') as f:
+                        # Fast way to count lines using binary mode
+                        row_count = sum(1 for _ in f)
+                    row_counts.append(row_count)
+                except Exception as e:
+                    # If we can't read the file for any reason, set count to -1
+                    console.print(f"[red]Warning: Could not read file {filename}: {str(e)}")
+                    row_counts.append(-1)
     
-    # Create dataframe with file names
-    df = pl.DataFrame({"input_file": files})
+    # Create dataframe with file names and row counts
+    df = pl.DataFrame({
+        "input_file": files,
+        "row_count": row_counts
+    })
     
     return df
 
@@ -69,9 +84,9 @@ def match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validatio
     latest_log_file = os.path.join(log_folder, "(4)_file_matching_log_latest.json")
     
     # Load both dataframes
-    input_df = load_input_files(input_folder)
+    input_df = load_input_files(input_folder)  # This now includes row_count
     validation_df = load_validation_log(log_path)
-    
+
     # Print initial status message
     console = Console()
     console.print("[green]Finding matches between input files and validation records")
@@ -88,7 +103,8 @@ def match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validatio
         "unmatched_files": 0,
         "total_validation_files": len(validation_df),
         "matched_validation_files": 0,
-        "unmatched_validation_files": 0
+        "unmatched_validation_files": 0,
+        "total_rows_processed": input_df["row_count"].sum()  # Add total rows being processed
     }
     
     # Create a new column with matches
@@ -97,7 +113,10 @@ def match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validatio
     # Keep track of which validation files have been matched
     matched_validation_files = set()
     
-    for input_file in input_df["input_file"]:
+    for idx, row in enumerate(input_df.rows()):
+        input_file = row[0]  # Filename
+        row_count = row[1]   # Row count
+        
         matches = None
         
         # Apply special matching rules based on input filename
@@ -113,6 +132,7 @@ def match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validatio
         
         file_log = {
             "input_file": input_file,
+            "row_count": row_count,  # Add row count to log
             "status": "unmatched",
             "matches": []
         }
@@ -134,6 +154,7 @@ def match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validatio
                 
                 results.append({
                     "input_file": input_file,
+                    "row_count": row_count,  # Add row count to results
                     "validation_file": validation_file,
                     "status": match_row[1],
                     "matched": True
@@ -142,6 +163,7 @@ def match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validatio
             # No match found
             results.append({
                 "input_file": input_file,
+                "row_count": row_count,  # Add row count to results
                 "validation_file": None,
                 "status": None,
                 "matched": False
@@ -166,12 +188,26 @@ def match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validatio
     # Create unmatched validation dataframe
     unmatched_validation_df = pl.DataFrame(unmatched_validation)
     
+    # Calculate totals for logging
+    matched_rows = 0
+    unmatched_rows = 0
+    
+    # If there are matched files, calculate their row counts
+    if result_df.filter(pl.col('matched')).height > 0:
+        matched_rows = result_df.filter(pl.col('matched')).select('row_count').sum()[0, 0]
+    
+    # If there are unmatched files, calculate their row counts
+    if result_df.filter(~pl.col('matched')).height > 0:
+        unmatched_rows = result_df.filter(~pl.col('matched')).select('row_count').sum()[0, 0]
+    
     # Update log data
     log_data["status"] = "completed"
     log_data["matched_files"] = result_df.filter(pl.col('matched')).height
     log_data["unmatched_files"] = result_df.filter(~pl.col('matched')).height
     log_data["matched_validation_files"] = len(matched_validation_files)
     log_data["unmatched_validation_files"] = len(validation_df) - len(matched_validation_files)
+    log_data["matched_rows"] = int(matched_rows)  # Convert to int to ensure JSON serialization
+    log_data["unmatched_rows"] = int(unmatched_rows)  # Convert to int to ensure JSON serialization
     log_data["unmatched_validation"] = [
         {"validation_file": row["validation_file"], "validation_status": row["validation_status"]}
         for row in unmatched_validation
@@ -184,16 +220,17 @@ def match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validatio
         json.dump(log_data, f, indent=2)
     
     # Print summary to console with unmatched validation files in yellow
-    console.print(f"[green]Total input files: {log_data['total_input_files']} | Matched files: {log_data['matched_files']}[/green] | [red]Unmatched files: {log_data['unmatched_files']}[/red]")
-    console.print(f"[green]Total validation files: {log_data['total_validation_files']} [/green] | [yellow] Unmatched validation files: {log_data['unmatched_validation_files']}[/yellow]")
+    console.print(f"[green]Total input files: {log_data['total_input_files']}  | Matched files: {log_data['matched_files']} [/green] | [red]Unmatched files: {log_data['unmatched_files']}[/red]")
+    console.print(f"[green]Total validation files: {log_data['total_validation_files']} [/green] | [yellow]Unmatched validation files: {log_data['unmatched_validation_files']}[/yellow]")
     console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}")
-    
+
     # Return both result dataframes
     return {
         "input_matches": result_df,
         "unmatched_validation": unmatched_validation_df
     }
 
+    
 # Run the matching function if executed as a script
 if __name__ == "__main__":
     match_files("data/01-input")
