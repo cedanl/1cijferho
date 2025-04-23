@@ -168,6 +168,8 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
     Extracts tables from a JSON file and saves them as Excel files.
     Includes ID column and a column for comments (Opmerkingen) after Aantal posities.
     Returns detailed processing results for table reporting.
+    Sets specific data types for Excel columns: ID (int), Naam (str), Startpositie (int), 
+    Aantal posities (int), Opmerking (str).
     """
     # Initialize Rich console for better output
     console = Console()
@@ -305,7 +307,8 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
                             comment = parts[3].strip()
                         
                         if field_name and start_pos.isdigit() and aantal_pos.isdigit():
-                            rows.append([row_id, field_name, start_pos, aantal_pos, comment])
+                            # Convert numeric fields to integers
+                            rows.append([int(row_id), field_name, int(start_pos), int(aantal_pos), comment])
                             row_id += 1  # Increment ID
                     continue
                 
@@ -361,7 +364,8 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
                 
                 # Add to rows if both numbers were found
                 if field_name and start_pos and aantal_pos:
-                    rows.append([row_id, field_name, start_pos, aantal_pos, comment])
+                    # Convert numeric fields to integers
+                    rows.append([int(row_id), field_name, int(start_pos), int(aantal_pos), comment])
                     row_id += 1  # Increment ID
             
             # Skip if no data rows were found
@@ -376,7 +380,26 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
                 
             # Write to Excel file
             try:
+                # Create DataFrame with specific data types
+                schema = {
+                    "ID": pl.Int64,
+                    "Naam": pl.Utf8,
+                    "Startpositie": pl.Int64,
+                    "Aantal posities": pl.Int64,
+                    "Opmerking": pl.Utf8
+                }
+                
+                # Create DataFrame from rows
                 df = pl.DataFrame(rows[1:], schema=rows[0], orient="row")
+                
+                # Convert columns to appropriate types
+                df = df.with_columns([
+                    pl.col("ID").cast(pl.Int64),
+                    pl.col("Startpositie").cast(pl.Int64),
+                    pl.col("Aantal posities").cast(pl.Int64)
+                ])
+                
+                # Write to Excel with specified datatypes
                 df.write_excel(output_path, autofit=True)
                 files_created += 1
                 results.append(table_result)
@@ -393,8 +416,8 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
         console.print(f"[red]Error during processing: {str(e)}")
         return files_created, total_tables
     
-    return files_created, total_tables, output_path
-    
+    return files_created, total_tables
+
 
 def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_folder="data/00-metadata"):
     """Processes all JSON files in a folder, converting tables to Excel files."""
@@ -449,13 +472,13 @@ def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_
             "output": None
         }
         
-        files_created, tables_found, output_path = extract_excel_from_json(json_file, excel_output_folder)
+        files_created, tables_found = extract_excel_from_json(json_file, excel_output_folder)
         
         # Update file status in log
         file_log["status"] = "success" if files_created > 0 else "no_tables_extracted"
         file_log["tables_found"] = tables_found
         file_log["files_created"] = files_created
-        file_log["output"] = output_path
+        file_log["output"] = None
         log_data["processed_files"].append(file_log)
         
         # Update counters
