@@ -5,17 +5,15 @@
 # License: MIT
 # -----------------------------------------------------------------------------
 """
-Script that matches the Bestandsbeschrijving files (.xlsx) in the data folder with the input files.
+Script that matches the input files with validation records from previously processed metadata files.
 
 Functions:
-    [M] match_metadata_inputs(input_folder="data/01-input", metadata_folder="data/00-metadata") -> Main function
-        - Matches metadata files with input files and displays validation status from extractor_validation.py
-    [x] find_matches(metadata_file, input_files)
-        - Special case matching for 1cyferho → EV files and Vakgegevens → VAKHAVW files
-    [x] extract_key_pattern(filename)
-        - Extract key patterns from a metadata filename
-    [x] print_summary(console, metadata_files, input_files, ignored_files, matched_metadata, validation_results)
-        - Print summary statistics about matching results
+    [x] load_input_files(input_folder)
+        - Get all files from the input folder, excluding certain extensions
+    [x] load_validation_log(log_path)
+        - Load processed bestandbeschrijvingen validation log into a Polars dataframe
+    [M] match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validation_log_latest.json") -> Main function
+        - Matches input files with validation records and logs the results
 """
 import os
 import polars as pl
@@ -39,12 +37,8 @@ def load_input_files(input_folder):
     # Create dataframe with file names
     df = pl.DataFrame({"input_file": files})
     
-    # Print dataframe
-    print(df)
-    
     return df
 
-# Load XLSX Validation Log
 def load_validation_log(log_path):
     """Load processed bestandbeschrijvingen validation log and return a Polars dataframe with file and status columns"""
     with open(log_path, 'r') as f:
@@ -55,13 +49,15 @@ def load_validation_log(log_path):
         for item in data.get('processed_files', [])
     ])
     
-    print(df)
     return df
 
-
-# Match & Log
 def match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validation_log_latest.json"):
-    """Match input files with metadata files and log the results."""
+    """Match input files with metadata files and log the results.
+    
+    Special matching rules:
+    - Files starting with "EV" match with files containing "1cyferho"
+    - Files containing "VAKHAVW" match with files containing "Vakgegevens"
+    """
     
     # Setup logging
     log_folder = "data/00-metadata/logs"
@@ -93,12 +89,21 @@ def match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validatio
     }
     
     # Create a new column with matches
-    # For each input file, check if it appears within any validation file string
     results = []
     
     for input_file in input_df["input_file"]:
-        # Find matches in validation_df where input_file is contained in the 'file' column
-        matches = validation_df.filter(pl.col("file").str.contains(input_file))
+        matches = None
+        
+        # Apply special matching rules based on input filename
+        if input_file.startswith("EV"):
+            # For files starting with "EV", match with files containing "1cyferho"
+            matches = validation_df.filter(pl.col("file").str.contains("1cyferho"))
+        elif "VAKHAVW" in input_file:
+            # For files containing "VAKHAVW", match with files containing "Vakgegevens"
+            matches = validation_df.filter(pl.col("file").str.contains("Vakgegevens"))
+        else:
+            # Default matching: find where input_file is contained in the 'file' column
+            matches = validation_df.filter(pl.col("file").str.contains(input_file))
         
         file_log = {
             "input_file": input_file,
@@ -149,7 +154,7 @@ def match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validatio
         json.dump(log_data, f, indent=2)
     
     # Print simple summary to console
-    console.print(f"[green]Total input files: {log_data['total_input_files']} | Matched files: {log_data['matched_files']} | [/green][red]Unmatched files: {log_data['unmatched_files']}[/red]")
+    console.print(f"[green]Total input files: {log_data['total_input_files']} | Matched files: {log_data['matched_files']}[/green] | [red]Unmatched files: {log_data['unmatched_files']}[/red]")
     console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}")
     
     # Return the result dataframe

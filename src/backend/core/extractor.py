@@ -534,7 +534,7 @@ def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_
     if total_row_mismatches > 0:
         console.print(f"[yellow]Warning: {total_row_mismatches} tables had row count mismatches. Check logs for details.")
     else:
-        console.print(f"[green]All tables passed row count verification.")
+        console.print(f"[green]All tables passed row count verification")
         
     console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}")
 

@@ -133,7 +133,7 @@ def validate_metadata_folder(metadata_folder="data/00-metadata", return_dict=Fal
     console.print(f"[green]Validating {len(excel_files)} Excel files")
     
     # Setup logging
-    log_folder = os.path.join(metadata_folder, "logs")
+    log_folder = "data/00-metadata/logs"
     os.makedirs(log_folder, exist_ok=True)
     
     # Create both timestamped and latest logs (similar to the extractor code)
