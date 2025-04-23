@@ -185,7 +185,7 @@ def match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validatio
     
     # Print summary to console with unmatched validation files in yellow
     console.print(f"[green]Total input files: {log_data['total_input_files']} | Matched files: {log_data['matched_files']}[/green] | [red]Unmatched files: {log_data['unmatched_files']}[/red]")
-    console.print(f"[yellow]Total validation files: {log_data['total_validation_files']} | Unmatched validation files: {log_data['unmatched_validation_files']}[/yellow]")
+    console.print(f"[green]Total validation files: {log_data['total_validation_files']} [/green] | [yellow] Unmatched validation files: {log_data['unmatched_validation_files']}[/yellow]")
     console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}")
     
     # Return both result dataframes
