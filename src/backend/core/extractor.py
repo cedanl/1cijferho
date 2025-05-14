@@ -100,7 +100,7 @@ def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json")
     """Finds all .txt files containing 'Bestandsbeschrijving' and extracts tables from them."""
     os.makedirs(json_output_folder, exist_ok=True)
     
-    # Remove any existing Excel files
+    # Remove any existing json files
     for file in os.listdir(json_output_folder):
         if file.endswith(".json"):
             os.remove(os.path.join(json_output_folder, file))

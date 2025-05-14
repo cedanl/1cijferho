@@ -1,9 +1,3 @@
-# -----------------------------------------------------------------------------
-# Organization: CEDA
-# Original Author: Ash Sewnandan
-# Contributors: -
-# License: MIT
-# -----------------------------------------------------------------------------
 """
 Fixed-width to CSV converter for 1CHO data files. Contains functionality for efficient conversion 
 of fixed-width format files to CSV format using multiprocessing.
@@ -11,29 +5,20 @@ of fixed-width format files to CSV format using multiprocessing.
 Functions:
     [x] process_chunk(chunk_data) - Processes a chunk of lines in a fixed-width file
         - Process a chunk of lines and return the converted output
-    [M] converter(input_file, metadata_file) - Converts a fixed-width file to CSV using a metadata specification -> Main function
+    [M] converter(input_file, metadata_file) - Converts a fixed-width file to CSV using a metadata specification
         - Convert fixed-width file to CSV using multiprocessing for better performance
-    [N] run_conversions_from_matches(matches_csv, input_folder) - Run the converter for each valid match
-        - Processes all valid matches in the CSV file, applying the converter function
+    [N] run_conversions_from_matches(match_log_file) - Run the converter for each valid match in the JSON log
+        - Processes all valid matches in the JSON file, applying the converter function
 """
 
 import multiprocessing as mp
 import os
+import json
 import polars as pl
 from rich.console import Console
-from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 
 # TODO: Add Test (Line Length, Add to table returned by converter_match.py)
-
-    if seconds < 60:
-        return f"{seconds:.2f} sec"
-    elif seconds < 3600:
-        minutes = seconds / 60
-        return f"{minutes:.2f} min"
-    else:
-        hours = seconds / 3600
-        return f"{hours:.2f} hr"
 
 ################################################################
 #                       COMPUTER MAGIC                          
@@ -84,8 +69,6 @@ def converter(input_file, metadata_file):
     with open(input_file, 'rb') as f:
         total_lines = sum(1 for _ in f.readlines())
     
-    console = Console()
-    
     # Write header first
     with open(output_file, 'w', encoding='latin1', newline='') as f_out:
         f_out.write('|'.join(column_names) + '\n')
@@ -99,206 +82,164 @@ def converter(input_file, metadata_file):
     is_main_process = mp.current_process().name == 'MainProcess'
     
     if is_main_process:
-        # Set up multiprocessing safely
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[cyan]Converting..."),
-            BarColumn(),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            TimeElapsedColumn(),
-            console=console,
-        ) as progress:
-            task = progress.add_task("", total=total_lines)
+        # Determine chunk size and number of processes
+        num_processes = max(1, mp.cpu_count() - 1)  # Leave one core free
+        chunk_size = max(1, len(all_lines) // (num_processes * 4))  # Create 4x as many chunks as processes
+        
+        # Split data into chunks
+        chunks = [all_lines[i:i + chunk_size] for i in range(0, len(all_lines), chunk_size)]
+        chunk_data = [(positions, chunk) for chunk in chunks]
+        
+        # Process in parallel with proper cleanup
+        with mp.Pool(processes=num_processes) as pool:
+            results_iter = pool.imap_unordered(process_chunk, chunk_data)
             
-            try:
-                # Determine chunk size and number of processes
-                num_processes = max(1, mp.cpu_count() - 1)  # Leave one core free
-                chunk_size = max(1, len(all_lines) // (num_processes * 4))  # Create 4x as many chunks as processes
-                
-                # Split data into chunks
-                chunks = [all_lines[i:i + chunk_size] for i in range(0, len(all_lines), chunk_size)]
-                chunk_data = [(positions, chunk) for chunk in chunks]
-                
-                # Process in parallel with proper cleanup
-                with mp.Pool(processes=num_processes) as pool:
-                    results_iter = pool.imap_unordered(process_chunk, chunk_data)
-                    
-                    # Write results as they come in
-                    lines_processed = 0
-                    with open(output_file, 'a', encoding='latin1', newline='') as f_out:
-                        for result in results_iter:
-                            if result:
-                                f_out.write('\n'.join(result) + '\n')
-                            lines_processed += len(result) if result else 0
-                            progress.update(task, completed=min(lines_processed, total_lines))
-            
-            except Exception as e:
-                console.print(f"[red]Error during conversion: {str(e)}")
-                raise
+            # Write results as they come in
+            lines_processed = 0
+            with open(output_file, 'a', encoding='latin1', newline='') as f_out:
+                for result in results_iter:
+                    if result:
+                        f_out.write('\n'.join(result) + '\n')
+                    lines_processed += len(result) if result else 0
     else:
         # Process the data serially if we're in a child process
-        console.print("[yellow]Running in serial mode (child process detected)")
-        
         results = process_chunk((positions, all_lines))
         with open(output_file, 'a', encoding='latin1', newline='') as f_out:
             if results:
                 f_out.write('\n'.join(results) + '\n')
     
-    console.print(f"[green]Conversion completed successfully! Output saved to {output_file} ✨")
     return output_file
 
-# -----------------------------------------------------------------------------
-# Script to run converter for each valid matched file pair
-# -----------------------------------------------------------------------------
 
-def run_conversions_from_matches(matches_csv="data/00-metadata/logs/match.csv", input_folder="data/01-input", metadata_folder="data/00-metadata"):
+def run_conversions_from_matches(match_log_file):
     """
-    Run the converter function for each valid matched file pair in the CSV.
-    Only processes rows where:
-    1. is_valid is True
-    2. There is an actual input file (not "No matching file")
+    Run the converter for each valid match in the JSON log
     
     Args:
-        matches_csv: Path to the match.csv file containing matching results
-        input_folder: Path to the folder containing input files
-        metadata_folder: Path to the folder containing metadata files
+        match_log_file (str): Path to the JSON log file with file matches
+        
+    Returns:
+        dict: Summary of processing results
     """
     console = Console()
+    console.print(f"[cyan]Starting conversion based on match log: {match_log_file}")
     
-    # Check if matches CSV exists
-    if not os.path.exists(matches_csv):
-        console.print(f"[bold red]Error:[/bold red] Matches CSV file '{matches_csv}' not found!")
-        return
+    # Check if log file exists
+    if not os.path.exists(match_log_file):
+        console.print(f"[red]Match log file not found: {match_log_file}")
+        return {"status": "failed", "reason": "Log file not found"}
     
-    # Check if input folder exists
-    if not os.path.exists(input_folder):
-        console.print(f"[bold red]Error:[/bold red] Input folder '{input_folder}' does not exist!")
-        return
-    
-    # Check if metadata folder exists
-    if not os.path.exists(metadata_folder):
-        console.print(f"[bold red]Error:[/bold red] Metadata folder '{metadata_folder}' does not exist!")
-        return
-    
+    # Load the JSON log file
     try:
-        # Read the matches CSV
-        df = pl.read_csv(matches_csv)
-        
-        # Ensure required columns exist
-        required_cols = ["metadata_file", "input_file", "is_valid"]
-        missing_cols = [col for col in required_cols if col not in df.columns]
-        if missing_cols:
-            console.print(f"[bold red]Error:[/bold red] Missing required columns in CSV: {', '.join(missing_cols)}")
-            return
-        
-        # Filter valid rows and exclude "No matching file" entries
-        valid_matches = df.filter(
-            (pl.col("is_valid") == True) & 
-            (pl.col("input_file") != "No matching file")
-        )
-        
-        if valid_matches.is_empty():
-            console.print("[yellow]No valid file matches found to process.[/yellow]")
-            return
-        
-        # Print summary
-        total_matches = len(valid_matches)
-        console.print(f"[bold]Found {total_matches} valid matches to process.[/bold]")
-        
-        # Create a table to display progress
-        table = Table(title="Conversion Progress")
-        table.add_column("Input File", style="cyan")
-        table.add_column("Metadata File", style="green")
-        table.add_column("Input Size", style="blue")
-        table.add_column("Output Size", style="blue")
-        table.add_column("Elapsed Time", style="yellow")
-        table.add_column("Status", style="magenta")
-        
-        # Process each valid match
-        success_count = 0
-        error_count = 0
-        total_elapsed_time = 0  # Track total elapsed time
-        
-        for row in valid_matches.iter_rows(named=True):
-            metadata_path = os.path.join(metadata_folder, row["metadata_file"])
-            input_path = os.path.join(input_folder, row["input_file"])
-            
-            console.print(f"\n[bold]Processing:[/bold] {row['input_file']} with {row['metadata_file']}")
-            
-            try:
-                # Check if both files exist
-                if not os.path.exists(input_path):
-                    raise FileNotFoundError(f"Input file not found: {input_path}")
-                if not os.path.exists(metadata_path):
-                    raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
-                
-                # Get input file size before conversion
-                input_size_bytes = os.path.getsize(input_path)
-                input_file_size = format_file_size(input_size_bytes)
-                
-                # Determine output file path
-                input_filename = os.path.basename(input_path)
-                output_file = os.path.join('data', '02-output', input_filename)
-                
-                # Track time elapsed during conversion
-                start_time = time.time()
-                
-                # Run converter on this file pair
-                converter(input_path, metadata_path)
-                
-                # Calculate elapsed time
-                elapsed_time = time.time() - start_time
-                total_elapsed_time += elapsed_time  # Add to total
-                formatted_time = format_elapsed_time(elapsed_time)
-                
-                # Get output file size after conversion
-                if os.path.exists(output_file):
-                    output_size_bytes = os.path.getsize(output_file)
-                    output_file_size = format_file_size(output_size_bytes)
-                else:
-                    output_file_size = "File not found"
-                
-                success_count += 1
-                status = "[green]Success: Converted[/green]"  # Changed from "✓ Successfully converted"
-            except Exception as e:
-                error_count += 1
-                status = f"[red]Error: {str(e)}[/red]"  # Changed from "✗ Error: {str(e)}"
-                input_file_size = "N/A"
-                output_file_size = "N/A"
-                formatted_time = "N/A"
-            
-            table.add_row(
-                row["input_file"], 
-                row["metadata_file"], 
-                input_file_size,
-                output_file_size,
-                formatted_time, 
-                status
-            )
-        
-        # Print final summary
-        console.print(table)
-        
-        # Print total elapsed time summary
-        total_formatted_time = format_elapsed_time(total_elapsed_time)
-        console.print(f"\n[bold]Conversion complete:[/bold] {success_count} successful, {error_count} failed")
-        console.print(f"[bold]Total processing time:[/bold] {total_formatted_time}")
-        
+        with open(match_log_file, 'r') as f:
+            log_data = json.load(f)
     except Exception as e:
-        console.print(f"[bold red]Error processing matches CSV:[/bold red] {str(e)}")
+        console.print(f"[red]Error loading JSON log file: {str(e)}")
+        return {"status": "failed", "reason": f"Error loading JSON: {str(e)}"}
+    
+    results = {
+        "total_files": 0,
+        "successful_conversions": 0,
+        "failed_conversions": 0,
+        "skipped_files": 0,
+        "details": []
+    }
+    
+    # Iterate through processed files in the log
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[cyan]Processing files..."),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        # Count files with successful validation
+        valid_files = [f for f in log_data["processed_files"] 
+                      if f["status"] == "matched" and 
+                      any(m["validation_status"] == "success" for m in f["matches"])]
+        
+        total_files = len(valid_files)
+        results["total_files"] = total_files
+        
+        task = progress.add_task("", total=total_files)
+        
+        for file_info in log_data["processed_files"]:
+            input_file_name = file_info["input_file"]
+            file_result = {
+                "input_file": input_file_name,
+                "status": "skipped",
+                "reason": ""
+            }
+            
+            # Check if file has matches with successful validation
+            if file_info["status"] == "matched":
+                valid_matches = [m for m in file_info["matches"] if m["validation_status"] == "success"]
+                
+                if valid_matches:
+                    # Take the first successful match for processing
+                    validation_file_name = valid_matches[0]["validation_file"]
+                    
+                    # Construct full paths
+                    input_file_path = os.path.join('data', '01-input', input_file_name)
+                    validation_file_path = os.path.join('data', '00-metadata', validation_file_name)
+                    
+                    # Check if files exist
+                    if not os.path.exists(input_file_path):
+                        console.print(f"[red]Input file not found: {input_file_path}")
+                        file_result["status"] = "failed"
+                        file_result["reason"] = "Input file not found"
+                        results["failed_conversions"] += 1
+                        continue
+                    
+                    if not os.path.exists(validation_file_path):
+                        console.print(f"[red]Validation file not found: {validation_file_path}")
+                        file_result["status"] = "failed"
+                        file_result["reason"] = "Validation file not found"
+                        results["failed_conversions"] += 1
+                        continue
+                    
+                    try:
+                        # Call the converter function
+                        output_file = converter(input_file_path, validation_file_path)
+                        
+                        if output_file:
+                            file_result["status"] = "success"
+                            file_result["output_file"] = output_file
+                            results["successful_conversions"] += 1
+                        else:
+                            file_result["status"] = "failed"
+                            file_result["reason"] = "Conversion returned None"
+                            results["failed_conversions"] += 1
+                    except Exception as e:
+                        file_result["status"] = "failed"
+                        file_result["reason"] = f"Error during conversion: {str(e)}"
+                        results["failed_conversions"] += 1
+                else:
+                    file_result["reason"] = "No valid validation files found"
+                    results["skipped_files"] += 1
+            else:
+                file_result["reason"] = f"File status is {file_info['status']}"
+                results["skipped_files"] += 1
+            
+            results["details"].append(file_result)
+            progress.update(task, advance=1)
+    
+    # Print summary
+    console.print(f"[green]Conversion process completed")
+    console.print(f"[green]Total files: {results['total_files']}")
+    console.print(f"[green]Successfully converted: {results['successful_conversions']}")
+    
+    if results["failed_conversions"] > 0:
+        console.print(f"[red]Failed conversions: {results['failed_conversions']}")
+    
+    if results["skipped_files"] > 0:
+        console.print(f"[yellow]Skipped files: {results['skipped_files']}")
+    
+    return results
+
 
 if __name__ == "__main__":
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="Run converter for matched metadata and input files")
-    parser.add_argument("--matches", default="data/00-metadata/logs/match.csv", help="Path to the match.csv file")
-    parser.add_argument("--input", default="data/01-input", help="Path to the input folder")
-    parser.add_argument("--metadata", default="data/00-metadata", help="Path to the metadata folder")
-    
-    args = parser.parse_args()
-    
-    run_conversions_from_matches(
-        matches_csv=args.matches,
-        input_folder=args.input,
-        metadata_folder=args.metadata
-    )
+    # Example usage
+    match_log_file = 'data/00-metadata/logs/(4)_file_matching_log_latest.json'
+    run_conversions_from_matches(match_log_file)
