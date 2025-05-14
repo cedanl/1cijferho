@@ -19,9 +19,12 @@ import os
 import glob
 import json
 import datetime
+from pathlib import Path
 
-# Check column lenght in extractor with json
 
+# Check column lenght in extractor with json  
+
+# Move .csv to 02-output
 
 def validate_metadata(file_path):
     """Validates a single layout specification file and returns validation results."""

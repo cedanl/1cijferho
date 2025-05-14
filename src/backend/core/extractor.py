@@ -390,24 +390,8 @@ def extract_excel_from_json(json_file, excel_output_folder):
                 
             # Write to Excel file
             try:
-                # Create DataFrame with specific data types
-                schema = {
-                    "ID": pl.Int64,
-                    "Naam": pl.Utf8,
-                    "Startpositie": pl.Int64,
-                    "Aantal posities": pl.Int64,
-                    "Opmerking": pl.Utf8
-                }
-                
-                # Create DataFrame from rows
                 df = pl.DataFrame(rows[1:], schema=rows[0], orient="row")
-                
-                # Convert columns to appropriate types
-                df = df.with_columns([
-                    pl.col("ID").cast(pl.Int64),
-                    pl.col("Startpositie").cast(pl.Int64),
-                    pl.col("Aantal posities").cast(pl.Int64)
-                ])
+                df.write_excel(output_path, autofit=True)
                 
                 # Check if the number of rows in the DataFrame matches the expected count
                 df_row_count = df.shape[0]
