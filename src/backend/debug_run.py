@@ -3,6 +3,9 @@ from utils import extractor_validation as ex_val
 from utils import converter_match as cm
 from utils import converter_validation as cv
 from utils import check_dec_csv as cd
+from utils import compressor as co
+import subprocess
+
 
 # Step 0: Set Input Folder
 input_folder = "data/01-input"
@@ -19,15 +22,13 @@ cm.match_files(input_folder)
 cd.move_dec_csv_files()
 
 # Step 3:
-# uv run src/backend/convert.py
-
+subprocess.run(["uv", "run", "src/backend/core/converter.py"])
 
 # Step 4: Validate Conversion
 cv.converter_validation()
 
-
-
 # Step 5: Run Compressor
+co.convert_csv_to_parquet()
 
 # Step 6: Run Encryptor
 
