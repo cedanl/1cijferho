@@ -4,8 +4,8 @@ from utils import converter_match as cm
 from utils import converter_validation as cv
 from utils import check_dec_csv as cd
 from utils import compressor as co
+from utils import encryptor as en
 import subprocess
-
 
 # Step 0: Set Input Folder
 input_folder = "data/01-input"
@@ -21,7 +21,7 @@ cm.match_files(input_folder)
 # Step 2.1: Some users already have Dec*.csv files in data/01-input. Move them to data/02-output
 cd.move_dec_csv_files()
 
-# Step 3:
+# Step 3: Convert Files
 subprocess.run(["uv", "run", "src/backend/core/converter.py"])
 
 # Step 4: Validate Conversion
@@ -31,6 +31,7 @@ cv.converter_validation()
 co.convert_csv_to_parquet()
 
 # Step 6: Run Encryptor
+en.encryptor()
 
 # Step 7: Run Decoder
 
