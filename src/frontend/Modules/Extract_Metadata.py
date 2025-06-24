@@ -17,6 +17,35 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 # Helper Functions
 # -----------------------------------------------------------------------------
+def clear_existing_files():
+    """Clear existing metadata files before starting new extraction"""
+    metadata_dir = "data/00-metadata"
+    json_dir = os.path.join(metadata_dir, "json")
+    
+    files_cleared = []
+    
+    # Clear .xlsx files from metadata directory
+    if os.path.exists(metadata_dir):
+        xlsx_files = glob.glob(os.path.join(metadata_dir, "*.xlsx"))
+        for file_path in xlsx_files:
+            try:
+                os.remove(file_path)
+                files_cleared.append(os.path.basename(file_path))
+            except Exception as e:
+                print(f"Warning: Could not remove {file_path}: {e}")
+    
+    # Clear JSON files from json subfolder
+    if os.path.exists(json_dir):
+        json_files = glob.glob(os.path.join(json_dir, "*.json"))
+        for file_path in json_files:
+            try:
+                os.remove(file_path)
+                files_cleared.append(f"json/{os.path.basename(file_path)}")
+            except Exception as e:
+                print(f"Warning: Could not remove {file_path}: {e}")
+    
+    return files_cleared
+
 def get_bestandsbeschrijvingen():
     """Get all bestandsbeschrijving files from the input directory"""
     input_dir = "data/01-input"
@@ -57,12 +86,13 @@ if not bestandsbeschrijvingen:
     st.error("🚨 **No Bestandsbeschrijving files found in `data/01-input`**")
 else:
     st.success(f"✅ **{len(bestandsbeschrijvingen)} Bestandsbeschrijving file(s) found**")
+    st.info("💡 You are able to proceed, even with errors - do this with caution!")
     
     # Side-by-side buttons with equal width
     col1, col2 = st.columns(2)
     
     with col1:
-        extract_clicked = st.button("🔍 Start Extraction", type="primary", use_container_width=True)
+        extract_clicked = st.button("🔍 Start Extraction ⚡", type="primary", use_container_width=True)
     
     with col2:
         # Check if metadata exists to enable/disable the validate button
@@ -88,6 +118,15 @@ else:
         with st.spinner("Extracting..."):
             try:
                 st.session_state.extract_console_log += "🔄 Starting extraction process...\n"
+                
+                # Clear existing files first
+                st.session_state.extract_console_log += "🧹 Clearing existing metadata files...\n"
+                cleared_files = clear_existing_files()
+                if cleared_files:
+                    st.session_state.extract_console_log += f"✅ Cleared {len(cleared_files)} existing files: {', '.join(cleared_files[:3])}{'...' if len(cleared_files) > 3 else ''}\n"
+                else:
+                    st.session_state.extract_console_log += "✅ No existing files to clear\n"
+                
                 st.session_state.extract_console_log += "📁 Processing TXT files...\n"
                 
                 # Capture stdout from process_txt_folder

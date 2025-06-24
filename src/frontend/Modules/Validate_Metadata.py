@@ -159,7 +159,7 @@ else:
     col1, col2 = st.columns(2)
     
     with col1:
-        validate_clicked = st.button("🛡️ Start Validation", type="primary", use_container_width=True)
+        validate_clicked = st.button("🛡️ Start Validation ⚡", type="primary", use_container_width=True, key="validate_btn")
     
     with col2:
         # Check if validation results exist to enable/disable the next page button
@@ -172,11 +172,12 @@ else:
             matching_log_files = glob.glob(os.path.join(logs_dir, "*file_matching_log_latest.json"))
             validation_complete = len(xlsx_log_files) > 0 and len(matching_log_files) > 0
         
-        next_page_clicked = st.button("➡️ Continue to Step 3", type="secondary", disabled=not validation_complete, use_container_width=True)
+        next_page_clicked = st.button("➡️ Continue to Step 3", type="secondary", disabled=not validation_complete, use_container_width=True, key="next_step_btn")
     
     # Handle next page button click
     if next_page_clicked:
-        # Replace with your actual next page path
+        # Set flag to indicate navigation to prevent auto-execution
+        st.session_state.navigation_from_other_page = True
         st.switch_page("frontend/Modules/Turbo_Convert.py")
     
     # Load and display validation issues below the buttons

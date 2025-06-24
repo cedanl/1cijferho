@@ -97,7 +97,7 @@ def extract_tables_from_txt(txt_file, json_output_folder):
 
 
 def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json"):
-    """Finds all .txt files containing 'Bestandsbeschrijving' and extracts tables from them."""
+    """Finds all .txt files containing 'Bestandsbeschrijving' in the root directory only and extracts tables from them."""
     os.makedirs(json_output_folder, exist_ok=True)
     
     # Remove any existing json files
@@ -127,19 +127,20 @@ def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json")
     filter_keyword = "Bestandsbeschrijving"
     extracted_files = []
     
-    for root, _, files in os.walk(input_folder):
-        for file in files:
-            if file.endswith(".txt") and filter_keyword in file:
-                txt_path = os.path.join(root, file)
-                
+    # Only process files in the root directory, not subdirectories
+    if os.path.exists(input_folder):
+        for file in os.listdir(input_folder):
+            file_path = os.path.join(input_folder, file)
+            # Check if it's a file (not a directory) and meets our criteria
+            if os.path.isfile(file_path) and file.endswith(".txt") and filter_keyword in file:
                 # Log file processing
                 file_log = {
-                    "file": os.path.basename(txt_path), 
+                    "file": file, 
                     "status": "processing",
                     "output": None
                 }
                 
-                json_path = extract_tables_from_txt(txt_path, json_output_folder)
+                json_path = extract_tables_from_txt(file_path, json_output_folder)
                 
                 # Update file status in log
                 file_log["status"] = "success" if json_path else "no_tables_found"

@@ -22,17 +22,18 @@ import json
 import datetime
 
 def load_input_files(input_folder):
-    """Get all files from the user input_folder, excluding .txt, .zip, and .xlsx extensions,
+    """Get all files from the user input_folder (root level only), excluding .txt, .zip, and .xlsx extensions,
     and count the number of rows in each file."""
     files = []
     row_counts = []
     console = Console()
-    # Walk through the directory
-    for root, _, filenames in os.walk(input_folder):
-        for filename in filenames:
-            # Check if the file doesn't have excluded extensions
-            if not filename.lower().endswith(('.txt', '.zip', '.xlsx', '.docx', '.csv')):
-                full_path = os.path.join(root, filename)
+    
+    # Only process files in the root directory, not subdirectories
+    if os.path.exists(input_folder):
+        for filename in os.listdir(input_folder):
+            full_path = os.path.join(input_folder, filename)
+            # Check if it's a file (not a directory) and doesn't have excluded extensions
+            if os.path.isfile(full_path) and not filename.lower().endswith(('.txt', '.zip', '.xlsx', '.docx', '.csv')):
                 files.append(filename)
                 
                 # Count number of rows in the file
