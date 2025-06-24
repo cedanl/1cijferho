@@ -48,7 +48,7 @@ Transform complex DUO datasets into actionable insights in minutes, not months. 
 """)
 
 # Beta version info
-st.info("🔧 This is beta version (v0.9). Your feedback is appreciated!")
+st.info("✨ v0.9 - All core features ready! Help us perfect it with your feedback.", icon="🎯")
 
 # Try the application section
 st.write("Ready to get started? Upload your 1CHO data and discover insights in minutes:")
