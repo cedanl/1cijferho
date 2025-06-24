@@ -63,16 +63,8 @@ def clear_console_log():
 # -----------------------------------------------------------------------------
 # Initialize/Clear Console Log on Page Load
 # -----------------------------------------------------------------------------
-# Clear console log and button states when page is loaded
-# This prevents auto-execution when navigating from other pages
+# Clear console log when page is loaded
 clear_console_log()
-
-# Clear navigation flag after one page load
-if 'navigation_from_other_page' in st.session_state:
-    del st.session_state['navigation_from_other_page']
-
-# Set page initialization flag
-st.session_state.page_initialized_convert = True
 
 # -----------------------------------------------------------------------------
 # Main Content
@@ -132,8 +124,8 @@ else:
         with col2:
             convert_clicked = st.button("⚡ Start Turbo Convert 🚀", type="primary", use_container_width=True, key="turbo_convert_btn")
 
-        # Handle conversion logic - only if button was actually clicked on THIS page
-        if convert_clicked and not st.session_state.get('navigation_from_other_page', False):
+        # Handle conversion logic
+        if convert_clicked:
             # Reset console log at the start of each conversion
             st.session_state.convert_console_log = ""
             

@@ -176,8 +176,6 @@ else:
     
     # Handle next page button click
     if next_page_clicked:
-        # Set flag to indicate navigation to prevent auto-execution
-        st.session_state.navigation_from_other_page = True
         st.switch_page("frontend/Modules/Turbo_Convert.py")
     
     # Load and display validation issues below the buttons
