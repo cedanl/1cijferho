@@ -40,13 +40,14 @@ st.title("🔍 Extract Metadata")
 
 # Intro text
 st.write("""
-This page extracts structured information from your Bestandsbeschrijving files (.txt) and converts them into JSON and Excel formats for further processing.
+**Step 1: Extracting Data Structure**
 
-The extraction process will:
-- Parse .txt files and extract field definitions
-- Convert information to JSON format  
-- Generate .xlsx files for each dataset
-- Save all files to `data/00-metadata/`
+We'll now read your Bestandsbeschrijving files to find where each field is positioned in your main/dec files. This creates the "map" we need to properly split your fixed-width data.
+
+What happens:
+- Extract field positions from your .txt files
+- Convert to JSON format, then Excel
+- Save to `data/00-metadata/` folder
 """)
 
 # Get files and display status
@@ -61,43 +62,49 @@ else:
     col1, col2 = st.columns(2)
     
     with col1:
-        extract_clicked = st.button("⚡ Start Extraction", type="primary", use_container_width=True)
+        extract_clicked = st.button("🔍 Start Extraction", type="primary", use_container_width=True)
     
     with col2:
         # Check if metadata exists to enable/disable the validate button
-        metadata_exists = os.path.exists("data/00-metadata") and os.listdir("data/00-metadata")
+        logs_dir = "data/00-metadata/logs"
+        extraction_complete = False
         
-        validate_clicked = st.button("🛡️ Validate Metadata", type="secondary", disabled=not metadata_exists, use_container_width=True)
+        if os.path.exists("data/00-metadata") and os.listdir("data/00-metadata") and os.path.exists(logs_dir):
+            # Check for the required extraction log file
+            xlsx_processing_log_files = glob.glob(os.path.join(logs_dir, "*xlsx_processing_log_latest.json"))
+            extraction_complete = len(xlsx_processing_log_files) > 0
+        
+        validate_clicked = st.button("➡️ Continue to Step 2", type="secondary", disabled=not extraction_complete, use_container_width=True)
     
     # Handle validate button click
     if validate_clicked:
         st.switch_page("frontend/Modules/Validate_Metadata.py")
-    
+
     # Handle extraction logic
     if extract_clicked:
         # Reset console log at the start of each extraction
-        st.session_state.console_log = ""
+        st.session_state.extract_console_log = ""
         
         with st.spinner("Extracting..."):
             try:
-                st.session_state.console_log += "🔄 Starting extraction process...\n"
-                st.session_state.console_log += "📁 Processing TXT files...\n"
+                st.session_state.extract_console_log += "🔄 Starting extraction process...\n"
+                st.session_state.extract_console_log += "📁 Processing TXT files...\n"
                 
                 # Capture stdout from process_txt_folder
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
                     ex.process_txt_folder("data/01-input")
-                st.session_state.console_log += captured_output.getvalue()
-                st.session_state.console_log += "✅ TXT files processed successfully\n"
+                st.session_state.extract_console_log += captured_output.getvalue()
+                st.session_state.extract_console_log += "✅ TXT files processed successfully\n"
                 
-                st.session_state.console_log += "📊 Converting JSON to Excel...\n"
+                st.session_state.extract_console_log += "📊 Converting JSON to Excel...\n"
                 # Capture stdout from process_json_folder  
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
                     ex.process_json_folder()
-                st.session_state.console_log += captured_output.getvalue()
-                st.session_state.console_log += "✅ JSON conversion completed\n"
-                st.session_state.console_log += "🎉 Extraction completed successfully!\n"
+                st.session_state.extract_console_log += captured_output.getvalue()
+                st.session_state.extract_console_log += "✅ JSON conversion completed\n"
+                st.session_state.extract_console_log += "🎉 Extraction completed successfully!\n"
                 
                 st.success("✅ **Extraction completed!** Files saved to `data/00-metadata/`, Logs saved to `data/00-metadata/logs/`, You can now validate the metadata.")
                 
@@ -105,13 +112,13 @@ else:
                 st.rerun()
                 
             except Exception as e:
-                st.session_state.console_log += f"❌ Error: {str(e)}\n"
+                st.session_state.extract_console_log += f"❌ Error: {str(e)}\n"
                 st.error(f"❌ **Extraction failed:** Logs saved to `data/00-metadata/logs/` {str(e)}")
 
     # Console Log expander
     with st.expander("📋 Console Log", expanded=True):
-        if 'console_log' in st.session_state and st.session_state.console_log:
-            st.code(st.session_state.console_log, language=None)
+        if 'extract_console_log' in st.session_state and st.session_state.extract_console_log:
+            st.code(st.session_state.extract_console_log, language=None)
         else:
             st.info("No extraction process started yet. Click 'Start Extraction' to begin.")
     

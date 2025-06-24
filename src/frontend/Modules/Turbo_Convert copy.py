@@ -4,9 +4,6 @@ import os
 import sys
 import polars as pl
 import subprocess
-import backend.core.compressor as compressor
-import frontend.Files.Data_Explorer_helper as de_helper
-
 
 # -----------------------------------------------------------------------------
 # Page Configuration

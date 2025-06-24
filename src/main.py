@@ -14,14 +14,12 @@ import streamlit as st
 # -----------------------------------------------------------------------------
 home_page = st.Page("frontend/Overview/Home.py", icon=":material/home:")
 
-data_upload_page = st.Page("frontend/Files/Data_Upload.py", icon=":material/upload_file:")
+data_upload_page = st.Page("frontend/Files/Upload_Data.py", icon="📁")
 
 extract_page = st.Page("frontend/Modules/Extract_Metadata.py", icon="🔍", title="Extract Metadata")
 validate_page = st.Page("frontend/Modules/Validate_Metadata.py", icon="🛡️", title="Validate Metadata")
 
-magic_converter_page = st.Page("frontend/Files/Magic_Converter.py", icon="✨")
-
-
+turbo_convert_page = st.Page("frontend/Modules/Turbo_Convert.py", icon="⚡")
 
 # -----------------------------------------------------------------------------
 # Sidebar Configuration
@@ -34,7 +32,7 @@ st.logo(LOGO_URL)
 pg = st.navigation ( {
     "Overview": [home_page],
     "Files": [data_upload_page],
-    "Modules": [extract_page, validate_page, magic_converter_page],
+    "Modules": [extract_page, validate_page, turbo_convert_page],
 })
 
 # -----------------------------------------------------------------------------

@@ -205,10 +205,30 @@ def match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validatio
     with open(latest_log_file, "w", encoding="latin1") as f:
         json.dump(log_data, f, indent=2)
     
-    # Print summary to console with unmatched validation files in yellow
+    # Print summary to console
     console.print(f"[green]Total input files: {log_data['total_input_files']}  | Matched files: {log_data['matched_files']} [/green] | [red]Unmatched files: {log_data['unmatched_files']}[/red]")
     console.print(f"[green]Total validation files: {log_data['total_validation_files']} [/green] | [yellow]Unmatched validation files: {log_data['unmatched_validation_files']}[/yellow]")
-    console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}")
+    
+    # Print unmatched files with helpful header if there are any
+    if log_data["unmatched_files"] > 0 or log_data["unmatched_validation_files"] > 0:
+        console.print("\n[yellow]Perhaps a naming error? Manually fix in data/01-input for input files or data/00-metadata for validation files[/yellow]")
+    
+    # Print unmatched input files details
+    if log_data["unmatched_files"] > 0:
+        console.print("\n[red]Unmatched input files:[/red]")
+        unmatched_input = result_df.filter(~pl.col('matched'))
+        for row in unmatched_input.rows():
+            input_file = row[0]
+            console.print(f"[red]{input_file}[/red]")
+    
+    # Print unmatched validation files details
+    if log_data["unmatched_validation_files"] > 0:
+        console.print("\n[yellow]Unmatched validation files:[/yellow]")
+        for item in log_data["unmatched_validation"]:
+            validation_file = item["validation_file"]
+            console.print(f"[yellow]{validation_file}[/yellow]")
+    
+    console.print(f"\n[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}[/blue]")
 
     # Return both result dataframes
     return {

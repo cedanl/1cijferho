@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import glob
+import json
 import backend.utils.extractor_validation as ex_val
 import backend.utils.converter_match as cm
 import io
@@ -24,17 +25,10 @@ def get_metadata_files():
     if not os.path.exists(metadata_dir):
         return []
     
-    # Look for JSON and Excel files
-    json_files = glob.glob(os.path.join(metadata_dir, "*.json"))
     xlsx_files = glob.glob(os.path.join(metadata_dir, "*.xlsx"))
     
     all_files = []
-    
-    # Add JSON files
-    for file_path in json_files:
-        filename = os.path.basename(file_path)
-        all_files.append(filename)
-    
+
     # Add Excel files
     for file_path in xlsx_files:
         filename = os.path.basename(file_path)
@@ -42,65 +36,94 @@ def get_metadata_files():
     
     return sorted(all_files)
 
-def check_validation_logs():
-    """Check for validation issues in logs 3 and 4"""
+def load_validation_logs():
+    """Load the latest validation logs and return failure information"""
     logs_dir = "data/00-metadata/logs"
+    
     if not os.path.exists(logs_dir):
-        return
+        return None, None
     
-    # Check log 3 (validation status)
-    log3_path = os.path.join(logs_dir, "03_validation_report.txt")
-    if os.path.exists(log3_path):
-        try:
-            with open(log3_path, 'r', encoding='utf-8') as f:
-                log3_content = f.read()
-            
-            # Check for failed validations
-            failed_files = []
-            lines = log3_content.split('\n')
-            for line in lines:
-                if 'status' in line.lower() and 'success' not in line.lower():
-                    # Extract filename from the line
-                    if '.xlsx' in line or '.json' in line:
-                        # Try to extract filename
-                        parts = line.split()
-                        for part in parts:
-                            if '.xlsx' in part or '.json' in part:
-                                failed_files.append(part.strip(',:'))
-                                break
-            
-            if failed_files:
-                st.warning(f"⚠️ **Validation Issues Found:** The following files have validation errors: {', '.join(set(failed_files))}. Please manually adjust them in the .xlsx files in `data/00-metadata/` and restart the validation.")
-                
-        except Exception as e:
-            st.warning(f"⚠️ **Could not read validation log:** {str(e)}")
+    # Find the latest log files
+    xlsx_log_files = glob.glob(os.path.join(logs_dir, "*xlsx_validation_log_latest.json"))
+    matching_log_files = glob.glob(os.path.join(logs_dir, "*file_matching_log_latest.json"))
     
-    # Check log 4 (file matching)
-    log4_path = os.path.join(logs_dir, "04_file_matching_report.txt")
-    if os.path.exists(log4_path):
+    xlsx_failures = []
+    matching_failures = []
+    
+    # Load XLSX validation failures
+    if xlsx_log_files:
         try:
-            with open(log4_path, 'r', encoding='utf-8') as f:
-                log4_content = f.read()
-            
-            # Check for unmatched files
-            unmatched_files = []
-            lines = log4_content.split('\n')
-            for line in lines:
-                if 'no match' in line.lower() or 'not matched' in line.lower() or 'unmatched' in line.lower():
-                    # Extract filename from the line
-                    if '.xlsx' in line or '.json' in line or '.csv' in line:
-                        # Try to extract filename
-                        parts = line.split()
-                        for part in parts:
-                            if '.xlsx' in part or '.json' in part or '.csv' in part:
-                                unmatched_files.append(part.strip(',:'))
-                                break
-            
-            if unmatched_files:
-                st.warning(f"⚠️ **File Matching Issues Found:** The following files could not be matched: {', '.join(set(unmatched_files))}. Please check if the corresponding data files exist and restart the validation.")
+            with open(xlsx_log_files[0], 'r') as f:
+                xlsx_data = json.load(f)
                 
-        except Exception as e:
-            st.warning(f"⚠️ **Could not read file matching log:** {str(e)}")
+            for file_info in xlsx_data.get('processed_files', []):
+                if file_info.get('status') == 'failed':
+                    issues = file_info.get('issues', {})
+                    failure_details = []
+                    
+                    if issues.get('position_errors'):
+                        failure_details.append(f"{len(issues['position_errors'])} position error(s)")
+                    if issues.get('length_mismatch'):
+                        failure_details.append("length mismatch")
+                    if issues.get('duplicates'):
+                        failure_details.append(f"{len(issues['duplicates'])} duplicate(s)")
+                    
+                    xlsx_failures.append({
+                        'file': file_info['file'],
+                        'details': ', '.join(failure_details) if failure_details else 'validation failed'
+                    })
+        except (json.JSONDecodeError, FileNotFoundError) as e:
+            st.error(f"Error loading XLSX validation log: {e}")
+    
+    # Load file matching failures
+    if matching_log_files:
+        try:
+            with open(matching_log_files[0], 'r') as f:
+                matching_data = json.load(f)
+            
+            # Unmatched input files
+            for file_info in matching_data.get('processed_files', []):
+                if file_info.get('status') == 'unmatched':
+                    matching_failures.append({
+                        'type': 'Unmatched input file',
+                        'file': file_info['input_file'],
+                        'details': f"No corresponding metadata file found ({file_info.get('row_count', 0)} rows)"
+                    })
+                elif file_info.get('status') == 'matched':
+                    # Check for failed validations within matches
+                    for match in file_info.get('matches', []):
+                        if match.get('validation_status') == 'failed':
+                            matching_failures.append({
+                                'type': 'Validation failed',
+                                'file': f"{file_info['input_file']} → {match['validation_file']}",
+                                'details': 'Metadata validation failed for this file pair'
+                            })
+            
+            # Unmatched validation files
+            for unmatched in matching_data.get('unmatched_validation', []):
+                matching_failures.append({
+                    'type': 'Unmatched metadata file',
+                    'file': unmatched['validation_file'],
+                    'details': 'No corresponding input file found'
+                })
+                
+        except (json.JSONDecodeError, FileNotFoundError) as e:
+            st.error(f"Error loading file matching log: {e}")
+    
+    return xlsx_failures, matching_failures
+
+def clear_console_log():
+    """Clear the console log in session state"""
+    if 'validate_console_log' in st.session_state:
+        del st.session_state['validate_console_log']
+
+# -----------------------------------------------------------------------------
+# Initialize/Clear Console Log on Page Load
+# -----------------------------------------------------------------------------
+# Clear console log when page is first loaded or refreshed
+if 'page_initialized' not in st.session_state:
+    clear_console_log()
+    st.session_state.page_initialized = True
 
 # -----------------------------------------------------------------------------
 # Main Content
@@ -109,15 +132,17 @@ st.title("🛡️ Validate Metadata")
 
 # Intro text
 st.write("""
-This page validates the extracted metadata files and matches them with corresponding data files for further processing.
+**Step 2: Validating & Matching Files**
 
-The validation process will:
-- Validate the structure and content of metadata files
-- Check for required fields and data consistency
-- Match metadata files with corresponding data files
-- Generate validation reports and save them to `data/00-metadata/logs/`
+We'll check your extracted Excel files for errors (DUO occasionally makes mistakes) and match them to your main/dec files so we know which structure belongs to which data.
+
+What happens:
+- Validate Excel metadata for issues
+- Match Excel files to main/dec files
+- Save validation reports to `data/00-metadata/logs/`
+
+If validation or matching fails, you can edit the .xlsx files in `data/00-metadata/` and `data/01-input/` respectively. Check the log below to see which files need attention.
 """)
-
 # Get files and display status
 metadata_files = get_metadata_files()
 
@@ -128,68 +153,86 @@ if not metadata_files:
     st.error("🚨 **No metadata files found in `data/00-metadata`**")
     st.info("💡 Please run the extraction process first to generate metadata files.")
 else:
-    st.success(f"✅ **{len(metadata_files)} metadata file(s) found**")
-    
+    st.success(f"✅ **{len(metadata_files)} Bestandsbeschrijving Metadata file(s) found**")
+    st.info("💡 You are able to proceed, even if you have errors - do this with caution!")
     # Side-by-side buttons with equal width
     col1, col2 = st.columns(2)
     
     with col1:
-        validate_clicked = st.button("⚡ Start Validation", type="primary", use_container_width=True)
+        validate_clicked = st.button("🛡️ Start Validation", type="primary", use_container_width=True)
     
     with col2:
         # Check if validation results exist to enable/disable the next page button
-        # You can adjust this condition based on your next page requirements
-        validation_exists = os.path.exists("data/00-metadata/logs") and os.listdir("data/00-metadata/logs")
+        logs_dir = "data/00-metadata/logs"
+        validation_complete = False
         
-        next_page_clicked = st.button("➡️ Next Step", type="secondary", disabled=not validation_exists, use_container_width=True)
+        if os.path.exists(logs_dir):
+            # Check for both required validation log files
+            xlsx_log_files = glob.glob(os.path.join(logs_dir, "*xlsx_validation_log_latest.json"))
+            matching_log_files = glob.glob(os.path.join(logs_dir, "*file_matching_log_latest.json"))
+            validation_complete = len(xlsx_log_files) > 0 and len(matching_log_files) > 0
+        
+        next_page_clicked = st.button("➡️ Continue to Step 3", type="secondary", disabled=not validation_complete, use_container_width=True)
     
     # Handle next page button click
     if next_page_clicked:
         # Replace with your actual next page path
-        st.switch_page("frontend/Modules/Next_Page.py")
+        st.switch_page("frontend/Modules/Turbo_Convert.py")
+    
+    # Load and display validation issues below the buttons
+    xlsx_failures, matching_failures = load_validation_logs()
+    
+    # Show validation issues (no tabs, stacked vertically)
+    if xlsx_failures:
+        st.warning(f"⚠️ **{len(xlsx_failures)} validation failure(s)** - Check console log below for details or rerun validation") 
+    
+    # Show file matching issues
+    unmatched_input = [f for f in matching_failures if f['type'] == 'Unmatched input file']
+    unmatched_metadata = [f for f in matching_failures if f['type'] == 'Unmatched metadata file']
+    total_unmatched = len(unmatched_input) + len(unmatched_metadata)
+    
+    if total_unmatched > 0:
+        st.warning(f"⚠️ **{total_unmatched} unmatched file(s)** - Check console log below for details or rerun validation")
     
     # Handle validation logic
     if validate_clicked:
-        # Reset console log at the start of each validation
-        st.session_state.console_log = ""
+        # Clear console log at the start of each validation
+        clear_console_log()
+        st.session_state.validate_console_log = ""
         
         with st.spinner("Validating..."):
             try:
-                st.session_state.console_log += "🔄 Starting validation process...\n"
-                st.session_state.console_log += "🛡️ Validating metadata files...\n"
+                st.session_state.validate_console_log += "🔄 Starting validation process...\n"
+                st.session_state.validate_console_log += "🛡️ Validating metadata files...\n"
                 
                 # Capture stdout from validate_metadata_folder
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
                     ex_val.validate_metadata_folder()
-                st.session_state.console_log += captured_output.getvalue()
-                st.session_state.console_log += "✅ Metadata validation completed\n"
+                st.session_state.validate_console_log += captured_output.getvalue()
+                st.session_state.validate_console_log += "✅ Metadata validation completed\n"
                 
-                st.session_state.console_log += "🔗 Matching files...\n"
+                st.session_state.validate_console_log += "🔗 Matching files...\n"
                 # Capture stdout from match_files
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
                     cm.match_files(input_folder)
-                st.session_state.console_log += captured_output.getvalue()
-                st.session_state.console_log += "✅ File matching completed\n"
-                st.session_state.console_log += "🎉 Validation completed successfully!\n"
+                st.session_state.validate_console_log += captured_output.getvalue()
+                st.session_state.validate_console_log += "✅ File matching completed\n"
+                st.session_state.validate_console_log += "🎉 Validation completed successfully!\n"
                 
                 st.success("✅ **Validation completed!** Results saved to `data/00-metadata/logs/`. You can now proceed to the next step.")
-                
-                # Check for validation issues after validation completes
-                check_validation_logs()
-                
-                # Rerun to update the next step button state
+                # Rerun to update the next step button state and show new warnings
                 st.rerun()
                 
             except Exception as e:
-                st.session_state.console_log += f"❌ Error: {str(e)}\n"
+                st.session_state.validate_console_log += f"❌ Error: {str(e)}\n"
                 st.error(f"❌ **Validation failed:** {str(e)}")
 
     # Console Log expander
     with st.expander("📋 Console Log", expanded=True):
-        if 'console_log' in st.session_state and st.session_state.console_log:
-            st.code(st.session_state.console_log, language=None)
+        if 'validate_console_log' in st.session_state and st.session_state.validate_console_log:
+            st.code(st.session_state.validate_console_log, language=None)
         else:
             st.info("No validation process started yet. Click 'Start Validation' to begin.")
     

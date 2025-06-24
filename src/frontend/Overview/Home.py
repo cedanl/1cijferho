@@ -1,56 +1,59 @@
 import streamlit as st
 
-# TODO
-# - Add gradient line between header and subtitle
-# - Add button to data explorer page & explain what it does
-# - Remove upload button & text
-
 # -----------------------------------------------------------------------------
 # Page Configuration
 # -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title="CEDA | 1cijferho ",
-    layout="centered",  # This sets the layout to centered (not wide)
+    page_title="🚀 1cijferho | CEDA",
+    layout="centered",
     initial_sidebar_state="expanded"
 )
 
 # -----------------------------------------------------------------------------
-# Main Section
+# Main Content
 # -----------------------------------------------------------------------------
-# Main header and subtitle
 st.title("🚀 1cijferho")
-st.info("🔧 This is beta version (v0.9). Your feedback is appreciated!")
-st.caption("Transform complex DUO datasets into actionable insights in minutes, not months. ✨")
 
-# Overview
+# Intro text
 st.write("""
-Our application decodes and delimits all 1CHO files, enabling researchers to access educational 
-data without technical expertise. We also provide pre-made visualizations and data sets 
-based on 1CHO for immediate insights.
+Transform complex DUO datasets into actionable insights in minutes, not months. Our application decodes and delimits all 1CHO files, enabling researchers to access educational data without technical expertise.
 """)
 
+# Beta version info
+st.info("🔧 This is beta version (v0.9). Your feedback is appreciated!")
 
-st.subheader("📢 Get Involved")
-st.write("We're constantly improving based on your feedback! Share your ideas by emailing us at a.sewnandan@hhs.nl or t.iwan@vu.nl, or submit a feature request:")
+# Try the application section
+st.write("Ready to get started? Upload your 1CHO data and discover insights in minutes:")
 
-# Adding an inline button for GitHub issues
-st.link_button("Submit Feature Request", url="https://github.nl/cedanl/1cijferho/issues", help="Opens our GitHub issues page")
+# Side-by-side buttons with equal width
+col1, col2 = st.columns(2)
 
-# Divider before Demo section
+with col1:
+    data_upload_clicked = st.button("📁 Upload Data", type="primary", use_container_width=True)
+
+with col2:
+    documentation_clicked = st.button("📚 Documentation", type="secondary", use_container_width=True)
+
+# Handle button clicks
+if data_upload_clicked:
+    st.switch_page("frontend/Files/Upload_Data.py")  # Replace with your actual data upload page path
+
+if documentation_clicked:
+    st.switch_page("frontend/Documentation.py")  # Replace with your actual documentation page path
+
+# Divider
 st.divider()
 
 # -----------------------------------------------------------------------------
-# Demo Section
+# Get Involved Section
 # -----------------------------------------------------------------------------
-# Demo section
-st.header("✨ Try the Application")
+st.subheader("📢 Get Involved")
+st.write("We're constantly improving based on your feedback! Share your ideas by emailing us at a.sewnandan@hhs.nl or t.iwan@vu.nl, or submit a feature request:")
 
-st.write("Upload your 1CHO data and discover insights in minutes. Click below to get started.")
-if st.button(":material/explore: Data Explorer", help="Opens the Data Explorer", type="primary"):
-    st.switch_page("frontend/Files/Data_Explorer.py")
+# GitHub issues link
+st.link_button("Submit Feature Request", url="https://github.nl/cedanl/1cijferho/issues", help="Opens our GitHub issues page")
 
 # -----------------------------------------------------------------------------
 # Footer Section
 # -----------------------------------------------------------------------------
-# Footer section
 st.caption("© 2025 CEDA | Bridging institutions, sharing solutions, advancing education.")

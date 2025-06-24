@@ -6,7 +6,7 @@ import glob
 # Page Configuration
 # -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Data Upload",
+    page_title="📁 Upload Data",
     layout="centered",
     initial_sidebar_state="expanded"
 )
@@ -71,7 +71,7 @@ def categorize_files():
 # Header Section
 # -----------------------------------------------------------------------------
 # Main header and subtitle
-st.title(":material/explore: Data Upload")
+st.title("📂 Data Upload")
 st.write("""
 Follow these steps to get started:
 
@@ -91,7 +91,7 @@ with col2:
     # Check if files exist to enable/disable the extract button
     files_found, _, _ = categorize_files()
     
-    if st.button("🔍 Extract Metadata", type="secondary", disabled=not files_found, use_container_width=True):
+    if st.button("➡️ Continue to Step 1", type="secondary", disabled=not files_found, use_container_width=True):
         st.switch_page("frontend/Modules/Extract_Metadata.py")
 
 # -----------------------------------------------------------------------------
@@ -130,7 +130,7 @@ else:
     st.success(f"""
     ✅ **{total_files} files detected in `data/01-input` directory**
     
-    Files have been automatically categorized by type. Review the categories below to ensure all expected files are present. Use the Extract Metadata button above to continue.
+    Files have been automatically categorized by type. Review the categories below to ensure all expected files are present.
     """)
 
     st.markdown("---")
