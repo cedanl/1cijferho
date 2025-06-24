@@ -103,34 +103,50 @@ with tab1:
     # The Problem Section
     st.markdown("## 🚨 The Challenge We Solve")
     
-    st.markdown("**📁 What DUO Gives Us:**")
     st.markdown("""
-    - **Fixed-width ASCII files** - Giant strings of data with no clear separation
-    - **Separate decode files** - Additional context files that need to be matched
-    - **Unstructured .txt metadata** - Field positions buried in poorly formatted text files
-    - **Manual processing nightmare** - Hours of work to make sense of a single dataset
-    """)
+    <div class="problem-box">
+        <h4>📁 What DUO Gives Us:</h4>
+        <ul>
+            <li><strong>Fixed-width ASCII files</strong> - Massive strings like <code>821PL21PL506451B090    J2006Swo 50645 6834609baB...</code></li>
+            <li><strong>Separate decode files</strong> - Country codes (<code>5001Canada</code>, <code>5002Frankrijk</code>) that need matching</li>
+            <li><strong>Unstructured .txt metadata</strong> - Field positions buried in text files</li>
+            <li><strong>Manual processing nightmare</strong> - Hours/days of work to make sense of a single dataset</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
     
-    st.markdown("**💔 The Pain Points:**")
     st.markdown("""
+    **💔 The Pain Points:**
     - 🤯 **Overwhelming complexity** - Researchers spend more time on data prep than research
-    - ⏰ **Time sink** - What should take minutes takes hours or days
+    - ⏰ **Time sink** - What should take minutes takes days or weeks
     - ❌ **Error-prone manual work** - Easy to misalign fields or lose data integrity
     - 🏢 **Institutional barriers** - Every HO/WO reinvents the wheel separately
-    - 🔒 **Privacy concerns** - Sensitive data like BSN numbers need careful handling
+    - 🔒 **Privacy concerns** - Sensitive BSN data needs careful handling
     """)
     
     # The Solution Section
-    st.markdown("## ✨ Our Solution")
+    st.markdown("## 🚀 Our Solution")
     
-    st.markdown("**🎯 What This App Does:**")
-    st.markdown("We've created a **blazingly fast, automated pipeline** that transforms DUO's messy data into clean, research-ready formats saving you **days to months of manual work**, reducing processing time to just **minutes**.")
-    
-    st.markdown("**🚀 Key Benefits:**")
     st.markdown("""
+    <div class="solution-box">
+        <h4>🎯 What This App Does:</h4>
+        <p>We've created a <strong>blazingly fast, automated pipeline</strong> that transforms DUO's messy data into clean, research-ready formats - saving you <strong>days to weeks</strong> of manual work.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div style="background-color: #e3f2fd; border: 2px solid #1976d2; border-radius: 8px; padding: 1rem; margin: 1rem 0; font-family: monospace;">
+        <div style="color: #d32f2f; margin-bottom: 0.5rem;"><strong>Before:</strong> <code>821PL21PL506451B090    J2006Swo 50645...</code></div>
+        <div style="text-align: center; margin: 0.5rem 0; font-size: 1.2rem; color: #1976d2;">↓ 1CijferHO Magic ↓</div>
+        <div style="color: #388e3c;"><strong>After:</strong> <code>Persoonsgebonden_nummer: 821PL21PL506</code> + <code>Landcode_decoded: Canada</code></div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+    **🚀 Key Benefits:**
     - ⚡ **Lightning Fast** - Process massive files in minutes using multiprocessing
     - 🎯 **Zero Manual Work** - Fully automated from upload to final output
-    - ✅ **100% Data Integrity*** - Maintains data exactly as delivered by DUO
+    - ✅ **100% Data Integrity** - Maintains data exactly as delivered by DUO
     - 🔒 **Privacy-First** - Automatic anonymization of sensitive columns (BSN, etc.)
     - 📊 **Research-Ready Output** - Clean CSV and compressed Parquet files
     - 🏢 **Institution-Friendly** - Designed for every HO and WO in the Netherlands
@@ -283,40 +299,20 @@ with tab3:
     core_modules = [
         {
             "name": "extractor.py",
-            "purpose": "Table Extraction Engine",
-            "functions": [
-                "extract_tables_from_txt() - Parses DUO metadata files",
-                "extract_excel_from_json() - Converts to structured Excel format"
-            ],
-            "note": "Two main process functions serve as wrappers for different input types"
+            "purpose": "Extracts field position tables from DUO metadata files and converts them to structured Excel format"
         },
         {
             "name": "converter.py", 
-            "purpose": "High-Performance File Conversion",
-            "functions": [
-                "process_chunk() - Parallel processing worker function",
-                "converter() - Main fixed-width to CSV conversion",
-                "run_conversions_from_matches() - Batch conversion orchestrator"
-            ]
+            "purpose": "High-performance fixed-width to CSV conversion using multiprocessing"
         },
         {
             "name": "decoder.py",
-            "purpose": "Decode File Processing (On Roadmap)", 
-            "functions": [
-                "Advanced decode file parsing and validation",
-                "Intelligent field mapping and verification"
-            ],
-            "note": "Currently paused due to complexity and dataset size. Part of the information is still in file descriptions (values) and requires reading descriptions to understand which decoder to use for which columns."
+            "purpose": "Decode file processing (Currently on roadmap due to complexity)"
         }
     ]
     
     for module in core_modules:
-        with st.expander(f"📄 {module['name']} - {module['purpose']}"):
-            st.markdown(f"**Primary Functions:**")
-            for func in module['functions']:
-                st.markdown(f"- `{func}`")
-            if 'note' in module:
-                st.markdown(f"**Note:** {module['note']}")
+        st.markdown(f"**📄 {module['name']}** - {module['purpose']}")
     
     # Utility modules  
     st.markdown("#### 🔧 Utility Modules")
@@ -405,18 +401,8 @@ with tab3:
 with tab4:
     st.markdown("## 🚀 Getting Started")
     
-    # Quick start guide
-    st.markdown("### ⚡ Quick Start Guide")
-    
-    st.markdown("""
-    <div class="solution-box">
-        <h3>🎯 Ready to Transform Your DUO Data?</h3>
-        <p>Follow these simple steps to go from raw DUO files to research-ready data in minutes!</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
     # Prerequisites
-    st.markdown("#### 📋 What You Need")
+    st.markdown("### 📋 What You Need")
     
     col1, col2 = st.columns(2)
     
@@ -436,45 +422,20 @@ with tab4:
         - 2GB+ free disk space
         """)
     
-    # Step by step
-    st.markdown("#### 🎯 Step-by-Step Process")
+    # Simple getting started
+    st.markdown("### ⚡ Ready to Start?")
     
-    process_steps = [
-        {
-            "step": "1. 📁 Upload Data",
-            "description": "Copy your DUO files to the data/01-input directory",
-            "action": "Use the 'Upload Data' page - copy files to data/01-input folder and refresh to see categorized files"
-        },
-        {
-            "step": "2. 🔍 Extract Metadata", 
-            "description": "Process the metadata .txt files to extract field positions",
-            "action": "Go to 'Extract Metadata' page and click 'Start Extraction ⚡' to process bestandsbeschrijving files"
-        },
-        {
-            "step": "3. 🛡️ Validate Metadata",
-            "description": "Validate extracted metadata and match files automatically",
-            "action": "Navigate to 'Validate Metadata' page and click 'Start Validation ⚡' to check for errors and match files"
-        },
-        {
-            "step": "4. ⚡ Turbo Convert",
-            "description": "Convert, validate, compress, and encrypt your data files", 
-            "action": "Go to 'Turbo Convert' page and click 'Start Turbo Convert 🚀' to run the complete processing pipeline"
-        },
-        {
-            "step": "5. 📊 Download Results",
-            "description": "Get your research-ready files in CSV and Parquet formats",
-            "action": "Find processed files in the 'data/02-output' folder with CSV and encrypted Parquet versions"
-        }
-    ]
-    
-    for step_info in process_steps:
-        st.markdown(f"""
-        <div class="feature-card">
-            <h4>{step_info['step']}</h4>
-            <p><strong>{step_info['description']}</strong></p>
-            <p style="color: #007bff; font-style: italic;">→ {step_info['action']}</p>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown("""
+    <div class="solution-box">
+        <h3>🎯 Simple 3-Step Process:</h3>
+        <ol>
+            <li><strong>📁 Have your DUO files ready</strong> (data files + metadata .txt files)</li>
+            <li><strong>🚀 Use the navigation menu</strong> - the app guides you through each step</li>
+            <li><strong>⚡ Process in order:</strong> Upload → Extract → Validate → Convert</li>
+        </ol>
+        <p><strong>That's it!</strong> The app interface will guide you through everything else.</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Tips and best practices
     st.markdown("### 💡 Pro Tips & Best Practices")

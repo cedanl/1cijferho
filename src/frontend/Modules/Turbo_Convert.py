@@ -84,7 +84,7 @@ st.title("⚡ Turbo Convert")
 
 # Intro text
 st.write("""
-**Step 3: Converting & Processing Data**
+**Step 3: Final Converting & Processing Data**
 
 We'll now use the validated metadata to convert your main/dec files through a complete processing pipeline. This transforms your fixed-width data into encrypted, compressed, ready-to-use files.
 
@@ -104,6 +104,7 @@ total_pairs = len(successful_pairs) + len(skipped_pairs)
 
 if total_pairs == 0:
     st.error("🚨 **No matched files found**")
+    st.info("💡 Please run the validation process first to ensure your files are ready for conversion.")
 else:
     st.success(f"✅ **{len(successful_pairs)} file pair(s) ready for conversion** ({len(skipped_pairs)} skipped validation)")
     
