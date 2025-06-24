@@ -159,7 +159,7 @@ else:
     col1, col2 = st.columns(2)
     
     with col1:
-        validate_clicked = st.button("🛡️ Start Validation ⚡", type="primary", use_container_width=True, key="validate_btn")
+        validate_clicked = st.button("🛡️ Start Validation", type="primary", use_container_width=True, key="validate_btn")
     
     with col2:
         # Check if validation results exist to enable/disable the next page button

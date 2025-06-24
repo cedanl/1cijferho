@@ -134,7 +134,7 @@ else:
         
         with col2:
             # Use callback-based button (recommended Streamlit pattern)
-            st.button("⚡ Start Turbo Convert 🚀", 
+            st.button("⚡ Start Turbo Convert ⚡", 
                      type="primary", 
                      use_container_width=True, 
                      key="turbo_convert_btn",
@@ -192,27 +192,27 @@ else:
                 update_console()
                 progress_bar.progress(50)
                 
-                # Step 5: Run Encryptor
-                status_text.text("🔒 Step 5: Encrypting final files...")
-                st.session_state.convert_console_log += "🔒 Step 5: Encrypting final files...\n"
-                update_console()
-                captured_output = io.StringIO()
-                with contextlib.redirect_stdout(captured_output):
-                    en.encryptor()
-                st.session_state.convert_console_log += captured_output.getvalue()
-                st.session_state.convert_console_log += "✅ Encryption completed\n"
-                update_console()
-                progress_bar.progress(75)
-                
-                # Step 6: Run Compressor
-                status_text.text("🗜️ Step 6: Compressing to Parquet format...")
-                st.session_state.convert_console_log += "🗜️ Step 6: Compressing to Parquet format...\n"
+                # Step 5: Run Compressor
+                status_text.text("🗜️ Step 5: Compressing to Parquet format...")
+                st.session_state.convert_console_log += "🗜️ Step 5: Compressing to Parquet format...\n"
                 update_console()
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
                     co.convert_csv_to_parquet()
                 st.session_state.convert_console_log += captured_output.getvalue()
                 st.session_state.convert_console_log += "✅ Compression completed\n"
+                update_console()
+                progress_bar.progress(75)
+                
+                # Step 6: Run Encryptor
+                status_text.text("🔒 Step 6: Encrypting final files...")
+                st.session_state.convert_console_log += "🔒 Step 6: Encrypting final files...\n"
+                update_console()
+                captured_output = io.StringIO()
+                with contextlib.redirect_stdout(captured_output):
+                    en.encryptor()
+                st.session_state.convert_console_log += captured_output.getvalue()
+                st.session_state.convert_console_log += "✅ Encryption completed\n"
                 st.session_state.convert_console_log += "🎉 Complete processing pipeline finished successfully!\n"
                 update_console()
                 progress_bar.progress(100)
@@ -231,7 +231,7 @@ else:
                 console_container.empty()
                 
                 # Rerun to update any button states
-                # st.rerun()
+                st.rerun()
                 
             except Exception as e:
                 st.session_state.convert_console_log += f"❌ Error: {str(e)}\n"

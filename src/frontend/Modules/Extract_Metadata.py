@@ -92,7 +92,7 @@ else:
     col1, col2 = st.columns(2)
     
     with col1:
-        extract_clicked = st.button("🔍 Start Extraction ⚡", type="primary", use_container_width=True)
+        extract_clicked = st.button("🔍 Start Extraction", type="primary", use_container_width=True)
     
     with col2:
         # Check if metadata exists to enable/disable the validate button

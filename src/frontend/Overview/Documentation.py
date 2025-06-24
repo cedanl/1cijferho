@@ -71,6 +71,15 @@ st.markdown("""
     font-weight: bold;
     margin-right: 10px;
 }
+
+.contribute-section {
+    background-color: #f8f9fa;
+    border: 2px solid #007bff;
+    border-radius: 8px;
+    padding: 2rem;
+    margin: 2rem 0;
+    text-align: center;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -94,46 +103,40 @@ with tab1:
     # The Problem Section
     st.markdown("## 🚨 The Challenge We Solve")
     
+    st.markdown("**📁 What DUO Gives Us:**")
     st.markdown("""
-    <div class="problem-box">
-        <h3>📁 What DUO Gives Us:</h3>
-        <ul>
-            <li><strong>Fixed-width ASCII files</strong> - Giant strings of data with no clear separation</li>
-            <li><strong>Separate decode files</strong> - Additional context files that need to be matched</li>
-            <li><strong>Unstructured .txt metadata</strong> - Field positions buried in poorly formatted text files</li>
-            <li><strong>Manual processing nightmare</strong> - Hours of work to make sense of a single dataset</li>
-        </ul>
-        
-        <h3>💔 The Pain Points:</h3>
-        <ul>
-            <li>🤯 <strong>Overwhelming complexity</strong> - Researchers spend more time on data prep than research</li>
-            <li>⏰ <strong>Time sink</strong> - What should take minutes takes hours or days</li>
-            <li>❌ <strong>Error-prone manual work</strong> - Easy to misalign fields or lose data integrity</li>
-            <li>🏢 <strong>Institutional barriers</strong> - Every HO/WO reinvents the wheel separately</li>
-            <li>🔒 <strong>Privacy concerns</strong> - Sensitive data like BSN numbers need careful handling</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
+    - **Fixed-width ASCII files** - Giant strings of data with no clear separation
+    - **Separate decode files** - Additional context files that need to be matched
+    - **Unstructured .txt metadata** - Field positions buried in poorly formatted text files
+    - **Manual processing nightmare** - Hours of work to make sense of a single dataset
+    """)
+    
+    st.markdown("**💔 The Pain Points:**")
+    st.markdown("""
+    - 🤯 **Overwhelming complexity** - Researchers spend more time on data prep than research
+    - ⏰ **Time sink** - What should take minutes takes hours or days
+    - ❌ **Error-prone manual work** - Easy to misalign fields or lose data integrity
+    - 🏢 **Institutional barriers** - Every HO/WO reinvents the wheel separately
+    - 🔒 **Privacy concerns** - Sensitive data like BSN numbers need careful handling
+    """)
     
     # The Solution Section
     st.markdown("## ✨ Our Solution")
     
+    st.markdown("**🎯 What This App Does:**")
+    st.markdown("We've created a **blazingly fast, automated pipeline** that transforms DUO's messy data into clean, research-ready formats saving you **days to months of manual work**, reducing processing time to just **minutes**.")
+    
+    st.markdown("**🚀 Key Benefits:**")
     st.markdown("""
-    <div class="solution-box">
-        <h3>🎯 What This App Does:</h3>
-        <p>We've created a <strong>blazingly fast, automated pipeline</strong> that transforms DUO's messy data into clean, research-ready formats in minutes instead of hours.</p>
-        
-        <h3>🚀 Key Benefits:</h3>
-        <ul>
-            <li>⚡ <strong>Lightning Fast</strong> - Process massive files in minutes using multiprocessing</li>
-            <li>🎯 <strong>Zero Manual Work</strong> - Fully automated from upload to final output</li>
-            <li>✅ <strong>Bulletproof Validation</strong> - Multiple validation steps ensure data integrity</li>
-            <li>🔒 <strong>Privacy-First</strong> - Automatic anonymization of sensitive columns (BSN, etc.)</li>
-            <li>📊 <strong>Research-Ready Output</strong> - Clean CSV and compressed Parquet files</li>
-            <li>🏢 <strong>Institution-Friendly</strong> - Designed for every HO and WO in the Netherlands</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
+    - ⚡ **Lightning Fast** - Process massive files in minutes using multiprocessing
+    - 🎯 **Zero Manual Work** - Fully automated from upload to final output
+    - ✅ **100% Data Integrity*** - Maintains data exactly as delivered by DUO
+    - 🔒 **Privacy-First** - Automatic anonymization of sensitive columns (BSN, etc.)
+    - 📊 **Research-Ready Output** - Clean CSV and compressed Parquet files
+    - 🏢 **Institution-Friendly** - Designed for every HO and WO in the Netherlands
+    """)
+    
+    st.caption("*Data integrity as received from DUO - we preserve exactly what's in the original files")
     
     # Impact Section
     st.markdown("## 🎉 The Impact")
@@ -144,8 +147,8 @@ with tab1:
         st.markdown("""
         <div class="feature-card">
             <h3>⏱️ Time Savings</h3>
-            <p><strong>From hours to minutes</strong></p>
-            <p>What used to take researchers 4-8 hours of manual work now takes 5-10 minutes of automated processing.</p>
+            <p><strong>From months/days to minutes</strong></p>
+            <p>What used to take researchers days to months of manual work now takes minutes of automated processing.</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -231,27 +234,28 @@ with tab2:
         """, unsafe_allow_html=True)
     
     # Performance metrics
-    st.markdown("### 📈 Performance Metrics")
+    st.markdown("### 📈 Processing Speed")
     
     col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("""
-        **🚀 Processing Speed:**
-        - Small files (< 100MB): ~30 seconds
-        - Medium files (100MB - 1GB): ~2-5 minutes  
-        - Large files (1GB+): ~5-15 minutes
-        - Multi-core acceleration automatically adapts to your hardware
+        **🚀 Average Runtime:**
+        - Process time with 1CijferHO: **A few seconds to a couple of minutes**
+        - Depends on your hardware specifications
+        - Multi-core acceleration automatically adapts to your system
         """)
     
     with col2:
         st.markdown("""
         **💾 Output Quality:**
-        - 100% data integrity validation
+        - 100% data integrity as received from DUO*
         - 60-80% file size reduction (Parquet compression)
         - Cryptographically secure anonymization
         - Research-ready CSV and Parquet formats
         """)
+        
+    st.markdown("*Data integrity maintained exactly as delivered by DUO")
 
 with tab3:
     st.markdown("## 🔧 Technical Architecture")
@@ -261,7 +265,7 @@ with tab3:
     
     st.markdown("""
     <div style="margin: 1rem 0;">
-        <span class="tech-badge">Python 3.11+</span>
+        <span class="tech-badge">Python 3.13+</span>
         <span class="tech-badge">Streamlit</span>
         <span class="tech-badge">Polars</span>
         <span class="tech-badge">Multiprocessing</span>
@@ -282,9 +286,9 @@ with tab3:
             "purpose": "Table Extraction Engine",
             "functions": [
                 "extract_tables_from_txt() - Parses DUO metadata files",
-                "process_txt_folder() - Batch processes all metadata files", 
                 "extract_excel_from_json() - Converts to structured Excel format"
-            ]
+            ],
+            "note": "Two main process functions serve as wrappers for different input types"
         },
         {
             "name": "converter.py", 
@@ -297,11 +301,12 @@ with tab3:
         },
         {
             "name": "decoder.py",
-            "purpose": "Decode File Processing", 
+            "purpose": "Decode File Processing (On Roadmap)", 
             "functions": [
                 "Advanced decode file parsing and validation",
                 "Intelligent field mapping and verification"
-            ]
+            ],
+            "note": "Currently paused due to complexity and dataset size. Part of the information is still in file descriptions (values) and requires reading descriptions to understand which decoder to use for which columns."
         }
     ]
     
@@ -310,6 +315,8 @@ with tab3:
             st.markdown(f"**Primary Functions:**")
             for func in module['functions']:
                 st.markdown(f"- `{func}`")
+            if 'note' in module:
+                st.markdown(f"**Note:** {module['note']}")
     
     # Utility modules  
     st.markdown("#### 🔧 Utility Modules")
@@ -434,29 +441,29 @@ with tab4:
     
     process_steps = [
         {
-            "step": "1. 📁 File Upload",
-            "description": "Drop your DUO files into the designated folders",
-            "action": "Use the 'File Upload' page in the sidebar"
+            "step": "1. 📁 Upload Data",
+            "description": "Copy your DUO files to the data/01-input directory",
+            "action": "Use the 'Upload Data' page - copy files to data/01-input folder and refresh to see categorized files"
         },
         {
             "step": "2. 🔍 Extract Metadata", 
             "description": "Process the metadata .txt files to extract field positions",
-            "action": "Click 'Smart Extract' on the extraction page"
+            "action": "Go to 'Extract Metadata' page and click 'Start Extraction ⚡' to process bestandsbeschrijving files"
         },
         {
-            "step": "3. 🔗 Match Files",
-            "description": "Automatically match data files with their metadata",
-            "action": "Review matches on the validation page"
+            "step": "3. 🛡️ Validate Metadata",
+            "description": "Validate extracted metadata and match files automatically",
+            "action": "Navigate to 'Validate Metadata' page and click 'Start Validation ⚡' to check for errors and match files"
         },
         {
-            "step": "4. ⚡ Convert Data",
-            "description": "Transform fixed-width files to clean CSV format", 
-            "action": "Hit 'Turbo Convert' and watch the magic happen"
+            "step": "4. ⚡ Turbo Convert",
+            "description": "Convert, validate, compress, and encrypt your data files", 
+            "action": "Go to 'Turbo Convert' page and click 'Start Turbo Convert 🚀' to run the complete processing pipeline"
         },
         {
             "step": "5. 📊 Download Results",
             "description": "Get your research-ready files in CSV and Parquet formats",
-            "action": "Find processed files in the 'data/02-output' folder"
+            "action": "Find processed files in the 'data/02-output' folder with CSV and encrypted Parquet versions"
         }
     ]
     
@@ -524,13 +531,26 @@ with tab4:
         <h3>🚀 Future Roadmap</h3>
         <ul>
             <li><strong>🎨 Standard Dataset Templates</strong> - Pre-configured settings for common DUO datasets</li>
-            <li><strong>🤝 Community Contributions</strong> - Shared configurations and best practices</li>
             <li><strong>📊 Advanced Analytics</strong> - Built-in data exploration and visualization tools</li>
-            <li><strong>🔗 API Integration</strong> - Direct integration with research platforms and tools</li>
-            <li><strong>☁️ Cloud Processing</strong> - Handle massive datasets with cloud computing power</li>
+            <li><strong>🤝 Community Contributions</strong> - Shared configurations and best practices</li>
         </ul>
-        
-        <p><strong>Want to contribute?</strong> This tool is open-source and built for the community. Join us in making DUO data processing easier for everyone!</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Want to contribute section
+    st.markdown("""
+    <div class="contribute-section">
+        <h3>🤝 Want to Contribute?</h3>
+        <p>This tool is open-source and built for the community. Join us in making DUO data processing easier for everyone!</p>
+        <p><strong>Ways to contribute:</strong></p>
+        <ul style="text-align: left; display: inline-block;">
+            <li>🐛 Report bugs and issues</li>
+            <li>💡 Suggest new features</li>
+            <li>📖 Improve documentation</li>
+            <li>🔧 Submit code improvements</li>
+            <li>🤝 Share your use cases and feedback</li>
+        </ul>
+        <p><strong>Get involved:</strong> Visit our <a href="https://github.com/cedanl/1cijferho" target="_blank">GitHub repository</a> or contact the development team</p>
     </div>
     """, unsafe_allow_html=True)
 
