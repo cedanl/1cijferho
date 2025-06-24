@@ -21,39 +21,30 @@
 > [!NOTE]
 > No Python or technical knowledge required! This tool is designed for everyone, regardless of programming experience.
 
-**Breaking down the barriers between raw educational data and meaningful research for every HO and WO institution in the Netherlands.**
+**Transform DUO's complex educational data into research-ready insights in minutes, not hours.**
 
-### 🚨 The Challenge
-DUO provides educational data in complex formats that create massive barriers for researchers:
-- **Fixed-width ASCII files** - Giant strings of data with no clear field separation
-- **Unstructured metadata** - Field positions buried in poorly formatted .txt files  
-- **Manual processing nightmare** - Hours of tedious work to make sense of a single dataset
-- **Error-prone workflows** - Easy to misalign fields or lose data integrity
+### 🚨 The Problem
+DUO data comes as:
+- Fixed-width ASCII files with no clear field separation
+- Unstructured .txt metadata files
+- Hours of manual processing required
+- High risk of errors and data loss
 
-### ✨ Our Solution
-A **blazingly fast, automated pipeline** that transforms DUO's complex data into clean, research-ready formats:
-
-- ⚡ **Lightning Fast Processing** - Handle massive files in minutes using multiprocessing
-- 🎯 **Zero Manual Work** - Fully automated from upload to final output
-- ✅ **Bulletproof Validation** - Multiple validation steps ensure data integrity
-- 🔒 **Privacy-First** - Automatic anonymization of sensitive columns (BSN, etc.)
-- 📊 **Research-Ready Output** - Clean CSV and compressed Parquet files
-- 🏢 **Institution-Friendly** - Designed for every HO and WO in the Netherlands
-
-### 🎉 The Impact
-**⏱️ Time Savings:** From 4-8 hours of manual work to 5-10 minutes of automated processing  
-**🎯 Accuracy:** Error-free processing with automated validation  
-**🤝 Collaboration:** Building towards standardized datasets for the entire Dutch higher education research community
+### ✨ The Solution
+Automated pipeline that delivers:
+- ⚡ **Fast** - Process GB files in minutes using multiprocessing
+- 🎯 **Accurate** - Automated validation prevents errors
+- 🔒 **Secure** - Auto-anonymization of sensitive data (BSN, etc.)
+- 📊 **Ready** - Clean CSV/Parquet output for immediate analysis
 
 ## ✨ Features
-- [x] **Smart Metadata Extraction** - Automatically finds and extracts field position tables from messy DUO .txt files
-- [x] **Intelligent File Matching** - Automatically matches main data files with their corresponding decode/metadata files
-- [x] **Turbo Conversion** - Converts fixed-width files to CSV format using multiprocessing for blazing speed
-- [x] **Quality Assurance** - Validates conversion accuracy with comprehensive error checking
-- [x] **Data Optimization** - Compresses files to efficient Parquet format (60-80% size reduction)
-- [x] **Privacy Protection** - Automatically anonymizes sensitive columns using cryptographic hashing
-- [x] **User-friendly Interface** - Streamlit-based UI requiring no coding knowledge
-- [x] **`uv` Powered Setup** - One-click installation that handles Python and all dependencies automatically
+- [x] **Smart Extraction** - Auto-finds field positions in messy .txt files
+- [x] **Intelligent Matching** - Links data files with metadata automatically  
+- [x] **Turbo Conversion** - Multiprocessing for blazing speed
+- [x] **Quality Validation** - Comprehensive error checking
+- [x] **File Optimization** - 60-80% size reduction via Parquet compression
+- [x] **Privacy Protection** - Cryptographic anonymization
+- [x] **Zero Setup** - `uv` handles all dependencies automatically
 
 <br>
 
