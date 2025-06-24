@@ -36,9 +36,9 @@ def show_demo_notifications():
     if demo_exists:
         # Sidebar (persistent)
         with st.sidebar:
-            st.warning("🎯 **Demo Mode**", icon="⚠️")
+            st.warning("🎯 **Demo Mode Active**", icon="⚠️")
             st.write(f"{len(demo_files)} demo files active")
-            st.info("To use your own data: Remove all *_DEMO files from `data/01-input/`")
+            st.error("Ready for your own data? Remove *_DEMO files from `data/01-input/`")
         
         return True
     return False
