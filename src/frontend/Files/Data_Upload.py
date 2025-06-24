@@ -14,24 +14,57 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 # Helper Functions
 # -----------------------------------------------------------------------------
-def check_input_directory():
-    """Check if the input directory exists and return files found"""
+def categorize_files():
+    """Check if the input directory exists and categorize files found"""
     input_dir = "data/01-input"
     
     if not os.path.exists(input_dir):
-        return False, []
+        return False, {}, 0
     
-    # Look for common 1CHO file patterns
+    # Look for all files (including .asc, .021 and other extensions)
     file_patterns = [
-        "*.xlsx", "*.xls", "*.csv", "*.txt", "*.xml", "*.json"
+        "*.xlsx", "*.xls", "*.csv", "*.txt", "*.xml", "*.json", 
+        "*.asc", "*.021"
     ]
     
-    found_files = []
+    all_files = []
     for pattern in file_patterns:
         files = glob.glob(os.path.join(input_dir, pattern))
-        found_files.extend([os.path.basename(f) for f in files])
+        all_files.extend([os.path.basename(f) for f in files])
     
-    return len(found_files) > 0, sorted(found_files)
+    # Categorize files
+    categorized_files = {
+        "bestandsbeschrijvingen": [],
+        "decodeer_files": [],
+        "main_files": []
+    }
+    
+    for filename in all_files:
+        filename_lower = filename.lower()
+        
+        # Bestandsbeschrijvingen: .txt files with "bestandsbeschrijving" in name
+        if filename_lower.endswith('.txt') and 'bestandsbeschrijving' in filename_lower:
+            categorized_files["bestandsbeschrijvingen"].append(filename)
+        
+        # Decodeer Files: start with "Dec_"
+        elif filename.startswith('Dec_'):
+            categorized_files["decodeer_files"].append(filename)
+        
+        # Main Files: start with EV, VAKHAVW, Croho, or Croho_vest
+        elif (filename.startswith('EV') or 
+              filename.startswith('VAKHAVW') or 
+              filename.startswith('Croho') or 
+              filename.startswith('Croho_vest')):
+            categorized_files["main_files"].append(filename)
+    
+    # Sort each category
+    for category in categorized_files:
+        categorized_files[category].sort()
+    
+    total_files = len(all_files)
+    files_found = total_files > 0
+    
+    return files_found, categorized_files, total_files
 
 # -----------------------------------------------------------------------------
 # Header Section
@@ -43,8 +76,12 @@ Follow these steps to get started:
 
 1. **Copy your 1CHO files** to the `data/01-input` directory of this repository
 2. **Place files directly** in the folder (not in subfolders)
-3. **Refresh this page** to see your uploaded files
+3. **Refresh this page** to see your uploaded files categorized by type
 """)
+
+# Refresh button
+if st.button("🔄 Refresh Page"):
+    st.rerun()
 
 # -----------------------------------------------------------------------------
 # Example Directory Structure
@@ -54,7 +91,11 @@ with st.expander("📂 View Example Directory Structure"):
     ### Example Directory Structure
     
     Your `data/01-input` folder should look similar to the structure shown below. 
-    Note that the exact files may vary depending on your institution's specific requirements.
+    Files will be automatically categorized into three types:
+    
+    - **📄 Bestandsbeschrijvingen**: .txt files containing "bestandsbeschrijving" in the name
+    - **🔓 Decodeer Files**: Files starting with "Dec_"
+    - **📊 Main Files**: Files starting with "EV", "VAKHAVW", "Croho", or "Croho_vest"
     
     **Important:** Place files directly in the `data/01-input` folder, not in subfolders.
     """)
@@ -63,11 +104,10 @@ with st.expander("📂 View Example Directory Structure"):
     if os.path.exists("src/assets/example_files.png"):
         st.image("src/assets/example_files.png")
 
-
 # -----------------------------------------------------------------------------
-# File Detection Section
+# File Detection and Categorization Section
 # -----------------------------------------------------------------------------
-files_found, file_list = check_input_directory()
+files_found, categorized_files, total_files = categorize_files()
 
 if not files_found:
     st.error("""
@@ -77,32 +117,60 @@ if not files_found:
     """)
 else:
     st.success(f"""
-    ✅ **{len(file_list)} files detected in `data/01-input` directory**
+    ✅ **{total_files} files detected in `data/01-input` directory**
     
-    Files are ready for processing. You can now proceed with the "Match Files" step.
+    Files have been automatically categorized by type. Review the categories below to ensure all expected files are present.
     """)
     
-    # Show files in an expander
-    with st.expander(f"📁 View {len(file_list)} detected files"):
-        st.write("**Files found in `data/01-input`:**")
-        for i, filename in enumerate(file_list, 1):
-            st.write(f"{i}. `{filename}`")
-
-
-# -----------------------------------------------------------------------------
-# Next Steps Section
-# -----------------------------------------------------------------------------
-if files_found:
     st.markdown("---")
-    st.write("### 🚀 Ready to Continue?")
-    st.write("Your files have been detected. You can now proceed to the next step in your workflow.")
     
-    # You can add action buttons here
-    col1, col2 = st.columns(2)
+    # Display categorized files in uniform columns
+    col1, col2, col3 = st.columns(3)
+    
     with col1:
-        if st.button("🔍 Match Files", type="primary", use_container_width=True):
-            st.info("File matching functionality would be implemented here.")
+        st.markdown("#### 📄 Beschrijvingen")
+        count = len(categorized_files["bestandsbeschrijvingen"])
+        st.metric("Count", count)
+        
+        if count > 0:
+            with st.expander(f"View {count} files"):
+                for filename in categorized_files["bestandsbeschrijvingen"]:
+                    st.write(f"• `{filename}`")
+        else:
+            st.info("No files found")
     
     with col2:
-        if st.button("🔄 Refresh Page", use_container_width=True):
-            st.rerun()
+        st.markdown("#### 🔓 Decodeer Files")
+        count = len(categorized_files["decodeer_files"])
+        st.metric("Count", count)
+        
+        if count > 0:
+            with st.expander(f"View {count} files"):
+                for filename in categorized_files["decodeer_files"]:
+                    st.write(f"• `{filename}`")
+        else:
+            st.info("No files found")
+    
+    with col3:
+        st.markdown("#### 📊 Main Files")
+        count = len(categorized_files["main_files"])
+        st.metric("Count", count)
+        
+        if count > 0:
+            with st.expander(f"View {count} files"):
+                for filename in categorized_files["main_files"]:
+                    st.write(f"• `{filename}`")
+        else:
+            st.info("No files found")
+
+    # -----------------------------------------------------------------------------
+    # Next Steps Section
+    # -----------------------------------------------------------------------------
+    st.markdown("---")
+    
+    st.write("### 🚀 Ready to Continue?")
+    st.write("If you have verified that all expected files are present, you can continue to extract the file descriptions.")
+    
+
+    if st.button("📄 Extract Bestandsbeschrijvingen", type="primary", use_container_width=True):
+        st.info("Extracting file descriptions functionality would be implemented here.")
