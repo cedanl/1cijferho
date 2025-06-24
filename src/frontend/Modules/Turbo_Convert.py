@@ -231,7 +231,7 @@ else:
                 console_container.empty()
                 
                 # Rerun to update any button states
-                st.rerun()
+                # st.rerun()
                 
             except Exception as e:
                 st.session_state.convert_console_log += f"❌ Error: {str(e)}\n"

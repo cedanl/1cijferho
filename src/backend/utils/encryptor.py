@@ -55,5 +55,5 @@ def encryptor(input_dir="data/02-output", output_dir="data/02-output"):
     
     console.print("[bold green]Encryption completed![/]")
 
-# Call the function
-encryptor()
+if __name__ == "__main__":
+    encryptor()

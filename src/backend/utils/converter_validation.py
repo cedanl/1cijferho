@@ -74,7 +74,7 @@ def converter_validation(conversion_log_path="data/00-metadata/logs/(5)_conversi
     else:
         rprint("[red]Total files:", results["total_files"])
         rprint("[red]Successfully validated:", results["successful_conversions"])
-        rprint("[red]Failed validations:", results["failed_validations"])
+        rprint("[red]Failed validations:", results["failed_conversions"])
     
     return results
 

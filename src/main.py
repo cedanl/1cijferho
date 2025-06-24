@@ -19,7 +19,8 @@ data_upload_page = st.Page("frontend/Files/Upload_Data.py", icon="📁")
 extract_page = st.Page("frontend/Modules/Extract_Metadata.py", icon="🔍", title="Extract Metadata")
 validate_page = st.Page("frontend/Modules/Validate_Metadata.py", icon="🛡️", title="Validate Metadata")
 
-turbo_convert_page = st.Page("frontend/Modules/Turbo_Convert.py", icon="⚡")
+turbo_convert_page = st.Page("frontend/Modules/Turbo_Convert.py", icon="⚡", title="Turbo Convert")
+turbo_convert_debug_page = st.Page("frontend/Modules/Turbo_Convert_Debug.py", icon="⚡", title="Turbo Convert Debug")
 
 # -----------------------------------------------------------------------------
 # Sidebar Configuration
@@ -32,7 +33,7 @@ st.logo(LOGO_URL)
 pg = st.navigation ( {
     "Overview": [home_page],
     "Files": [data_upload_page],
-    "Modules": [extract_page, validate_page, turbo_convert_page],
+    "Modules": [extract_page, validate_page, turbo_convert_page, turbo_convert_debug_page],
 })
 
 # -----------------------------------------------------------------------------
