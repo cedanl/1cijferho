@@ -13,14 +13,13 @@ import streamlit as st
 # Pages Overview - YOU CAN ADD MORE PAGES HERE
 # -----------------------------------------------------------------------------
 home_page = st.Page("frontend/Overview/Home.py", icon=":material/home:")
+documentation_page = st.Page("frontend/Overview/Documentation.py", icon="📚", title="Documentation")
 
 data_upload_page = st.Page("frontend/Files/Upload_Data.py", icon="📁")
 
 extract_page = st.Page("frontend/Modules/Extract_Metadata.py", icon="🔍", title="Extract Metadata")
 validate_page = st.Page("frontend/Modules/Validate_Metadata.py", icon="🛡️", title="Validate Metadata")
-
 turbo_convert_page = st.Page("frontend/Modules/Turbo_Convert.py", icon="⚡", title="Turbo Convert")
-turbo_convert_debug_page = st.Page("frontend/Modules/Turbo_Convert_Debug.py", icon="⚡", title="Turbo Convert Debug")
 
 # -----------------------------------------------------------------------------
 # Sidebar Configuration
@@ -31,9 +30,9 @@ st.logo(LOGO_URL)
 
 # Initialize Navigation
 pg = st.navigation ( {
-    "Overview": [home_page],
+    "Overview": [home_page, documentation_page],
     "Files": [data_upload_page],
-    "Modules": [extract_page, validate_page, turbo_convert_page, turbo_convert_debug_page],
+    "Modules": [extract_page, validate_page, turbo_convert_page],
 })
 
 # -----------------------------------------------------------------------------

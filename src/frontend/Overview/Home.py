@@ -10,9 +10,46 @@ st.set_page_config(
 )
 
 # -----------------------------------------------------------------------------
+# Custom CSS for sleek banner
+# -----------------------------------------------------------------------------
+st.markdown("""
+<style>
+.hero-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 1.5rem;
+    border-radius: 8px;
+    color: white;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.hero-banner h1 {
+    margin: 0;
+    font-size: 2.2rem;
+    font-weight: 700;
+}
+
+.hero-banner p {
+    margin: 0.5rem 0 0 0;
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# -----------------------------------------------------------------------------
+# Hero Banner
+# -----------------------------------------------------------------------------
+st.markdown("""
+<div class="hero-banner">
+    <h1>🚀 Welcome to 1CijferHO</h1>
+    <p>Unlock the power of your educational datasets</p>
+</div>
+""", unsafe_allow_html=True)
+
+# -----------------------------------------------------------------------------
 # Main Content
 # -----------------------------------------------------------------------------
-st.title("🚀 1cijferho")
 
 # Intro text
 st.write("""
@@ -39,7 +76,7 @@ if data_upload_clicked:
     st.switch_page("frontend/Files/Upload_Data.py")  # Replace with your actual data upload page path
 
 if documentation_clicked:
-    st.switch_page("frontend/Documentation.py")  # Replace with your actual documentation page path
+    st.switch_page("frontend/Overview/Documentation.py")  # Replace with your actual documentation page path
 
 # Divider
 st.divider()
