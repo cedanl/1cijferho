@@ -1,3 +1,6 @@
+[tool.uv]
+cache-dir = "./.uv_cache"
+
 [project]
 name = "1cijferho"
 version = "0.1.0"

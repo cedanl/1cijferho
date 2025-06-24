@@ -3,7 +3,7 @@
 <div align="center">
   <h1>1CijferHO Tool</h1>
 
-  <p>🔍 An advanced data transformation tool that makes understanding your 1 Cijfer HO data simple and intuitive.</p>
+  <p>🚀 Transform DUO data into research insights</p>
 
   <p>
     <a href="#"><img src="https://custom-icon-badges.demolab.com/badge/Windows-0078D6?logo=windows11&logoColor=white" alt="Windows"></a>
@@ -21,19 +21,30 @@
 > [!NOTE]
 > No Python or technical knowledge required! This tool is designed for everyone, regardless of programming experience.
 
+**Transform DUO's complex educational data into research-ready insights in minutes, not hours.**
 
-1CijferHO Tool provides researchers and analysts with powerful data transformation capabilities, helping you uncover patterns and insights in your 1 Cijfer HO data. Particularly effective for analyzing:
+### 🚨 The Problem
+DUO data comes as:
+- Fixed-width ASCII files with no clear field separation
+- Unstructured .txt metadata files
+- Hours of manual processing required
+- High risk of errors and data loss
 
-- 1 Cijfer HO ASCII files
-- Decode files
-- Educational Data Sets
+### ✨ The Solution
+Automated pipeline that delivers:
+- ⚡ **Fast** - Process GB files in minutes using multiprocessing
+- 🎯 **Accurate** - Automated validation prevents errors
+- 🔒 **Secure** - Auto-anonymization of sensitive data (BSN, etc.)
+- 📊 **Ready** - Clean CSV/Parquet output for immediate analysis
 
 ## ✨ Features
-- [x] **Data Transformation**: Process and transform your 1 Cijfer HO data using advanced algorithms
-- [x] **Visual Data Representations**: Generate interactive visualizations of your educational data
-- [x] **Data Validation**: Comprehensive error checking and validation reporting
-- [x] **User-friendly Interface**: Streamlit-based UI requiring no coding knowledge
-- [x] **`uv` Powered Setup**: One-click installation that installs Python and all dependencies in seconds - no technical knowledge needed!
+- [x] **Smart Extraction** - Auto-finds field positions in messy .txt files
+- [x] **Intelligent Matching** - Links data files with metadata automatically  
+- [x] **Turbo Conversion** - Multiprocessing for blazing speed
+- [x] **Quality Validation** - Comprehensive error checking
+- [x] **File Optimization** - 60-80% size reduction via Parquet compression
+- [x] **Privacy Protection** - Cryptographic anonymization
+- [x] **Zero Setup** - `uv` handles all dependencies automatically
 
 <br>
 

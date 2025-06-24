@@ -6,7 +6,7 @@
 # -----------------------------------------------------------------------------
 """
 Extractor module for 1cijferho data. Contains functions for extracting tables from text files and converting them
-into a JSON format.
+into a JSON then XLSX format.
 
 Functions:
     [x] extract_tables_from_txt(txt_file_path, json_folder)
@@ -22,18 +22,18 @@ import os
 import json
 import re
 import polars as pl
+import datetime
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 
-def extract_tables_from_txt(txt_file_path, json_output_folder):
+def extract_tables_from_txt(txt_file, json_output_folder):
     """Extracts tables from a .txt file and saves them as JSON."""
     os.makedirs(json_output_folder, exist_ok=True)
     
     try:
-        with open(txt_file_path, 'r', encoding='latin-1') as file:
+        with open(txt_file, 'r', encoding='latin-1') as file:
             text = file.read()
     except Exception as e:
-        print(f"Error reading {txt_file_path}: {e}")
+        print(f"Error reading {txt_file}: {e}")
         return None
     
     # Process the text to find tables
@@ -85,7 +85,7 @@ def extract_tables_from_txt(txt_file_path, json_output_folder):
     
     # Save all tables to a single JSON file
     if all_tables:
-        base_filename = os.path.splitext(os.path.basename(txt_file_path))[0]
+        base_filename = os.path.splitext(os.path.basename(txt_file))[0]
         json_path = os.path.join(json_output_folder, f"{base_filename}.json")
         
         with open(json_path, 'w', encoding='latin-1') as json_file:
@@ -95,37 +95,87 @@ def extract_tables_from_txt(txt_file_path, json_output_folder):
     
     return None
 
+
 def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json"):
-    """Finds all .txt files containing 'Bestandsbeschrijving' and extracts tables from them."""
+    """Finds all .txt files containing 'Bestandsbeschrijving' in the root directory only and extracts tables from them."""
     os.makedirs(json_output_folder, exist_ok=True)
     
-    console = Console()
-    console.print(f"[cyan]Processing text files from: {input_folder}")
+    # Remove any existing json files
+    for file in os.listdir(json_output_folder):
+        if file.endswith(".json"):
+            os.remove(os.path.join(json_output_folder, file))
+
+    # Setup logging
+    log_folder = "data/00-metadata/logs"
+    os.makedirs(log_folder, exist_ok=True)
+    
+    # Create both timestamped and latest logs
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamped_log_file = os.path.join(log_folder, f"json_processing_log_{timestamp}.json")
+    latest_log_file = os.path.join(log_folder, "(1)_json_processing_log_latest.json")
+    
+    log_data = {
+        "timestamp": timestamp,
+        "input_folder": input_folder,
+        "output_folder": json_output_folder,
+        "status": "started",
+        "processed_files": [],
+        "total_files_processed": 0,
+        "total_files_extracted": 0
+    }
     
     filter_keyword = "Bestandsbeschrijving"
     extracted_files = []
-    for root, _, files in os.walk(input_folder):
-        for file in files:
-            if file.endswith(".txt") and filter_keyword in file:
-                txt_path = os.path.join(root, file)
-                console.print(f"[cyan]Processing file: {os.path.basename(txt_path)}")
-                json_path = extract_tables_from_txt(txt_path, json_output_folder)
+    
+    # Only process files in the root directory, not subdirectories
+    if os.path.exists(input_folder):
+        for file in os.listdir(input_folder):
+            file_path = os.path.join(input_folder, file)
+            # Check if it's a file (not a directory) and meets our criteria
+            if os.path.isfile(file_path) and file.endswith(".txt") and filter_keyword in file:
+                # Log file processing
+                file_log = {
+                    "file": file, 
+                    "status": "processing",
+                    "output": None
+                }
+                
+                json_path = extract_tables_from_txt(file_path, json_output_folder)
+                
+                # Update file status in log
+                file_log["status"] = "success" if json_path else "no_tables_found"
                 if json_path:
                     extracted_files.append(json_path)
-                    console.print(f"[green]Created JSON: {os.path.basename(json_path)}")
+                    file_log["output"] = os.path.basename(json_path)
+                
+                log_data["processed_files"].append(file_log)
     
-    if extracted_files:
-        console.print(f"[green]Successfully extracted {len(extracted_files)} JSON files ✨")
-    else:
-        console.print("[yellow]No tables found in any text files.")
+    # Update final log status
+    log_data["status"] = "completed"
+    log_data["total_files_processed"] = len(log_data["processed_files"])
+    log_data["total_files_extracted"] = len(extracted_files)
     
-    return extracted_files
+    # Save log file to both locations
+    with open(timestamped_log_file, "w", encoding="latin1") as f:
+        json.dump(log_data, f, indent=2)
+    with open(latest_log_file, "w", encoding="latin1") as f:
+        json.dump(log_data, f, indent=2)
+    
+    # Print summary to console
+    console = Console()
+    console.print(f"[green]Processed {log_data['total_files_processed']} text files")
+    console.print(f"[green]Extracted tables to {log_data['total_files_extracted']} JSON files")
+    console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}")
 
-def extract_excel_from_json(json_file_path, excel_output_folder):
+    return None
+
+def extract_excel_from_json(json_file, excel_output_folder):
     """
     Extracts tables from a JSON file and saves them as Excel files.
     Includes ID column and a column for comments (Opmerkingen) after Aantal posities.
     Returns detailed processing results for table reporting.
+    Sets specific data types for Excel columns: ID (int), Naam (str), Startpositie (int), 
+    Aantal posities (int), Opmerking (str).
     """
     # Initialize Rich console for better output
     console = Console()
@@ -138,7 +188,7 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
     
     # Load the JSON file with appropriate encoding
     try:
-        with open(json_file_path, 'r', encoding='latin1') as file:
+        with open(json_file, 'r', encoding='latin1') as file:
             data = json.load(file)
     except json.JSONDecodeError as e:
         # Handle JSON parsing errors
@@ -150,7 +200,7 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
         return [], 0, 0
     
     # Get the base filename without extension
-    base_filename = os.path.basename(json_file_path)
+    base_filename = os.path.basename(json_file)
     base_filename = os.path.splitext(base_filename)[0]
     
     # Extract the filename from the JSON if available
@@ -236,6 +286,9 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
             else:
                 rows.append(["ID", "Naam", "Startpositie", "Aantal posities", "Opmerking"])
             
+            # Count the number of valid content lines for later verification
+            valid_content_lines = 0
+            
             # Process each data line
             row_id = 1  # Start ID counter
             for line in content_array[1:]:
@@ -263,8 +316,10 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
                             comment = parts[3].strip()
                         
                         if field_name and start_pos.isdigit() and aantal_pos.isdigit():
-                            rows.append([row_id, field_name, start_pos, aantal_pos, comment])
+                            # Convert numeric fields to integers
+                            rows.append([int(row_id), field_name, int(start_pos), int(aantal_pos), comment])
                             row_id += 1  # Increment ID
+                            valid_content_lines += 1
                     continue
                 
                 # Extract field name - use a more precise approach that preserves all characters
@@ -319,8 +374,10 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
                 
                 # Add to rows if both numbers were found
                 if field_name and start_pos and aantal_pos:
-                    rows.append([row_id, field_name, start_pos, aantal_pos, comment])
+                    # Convert numeric fields to integers
+                    rows.append([int(row_id), field_name, int(start_pos), int(aantal_pos), comment])
                     row_id += 1  # Increment ID
+                    valid_content_lines += 1
             
             # Skip if no data rows were found
             if len(rows) <= 1:
@@ -335,6 +392,18 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
             # Write to Excel file
             try:
                 df = pl.DataFrame(rows[1:], schema=rows[0], orient="row")
+                df.write_excel(output_path, autofit=True)
+                
+                # Check if the number of rows in the DataFrame matches the expected count
+                df_row_count = df.shape[0]
+                if df_row_count != valid_content_lines:
+                    console.print(f"[yellow]Warning: Row count mismatch for table {table_title}.")
+                    console.print(f"[yellow]Expected {valid_content_lines} rows, got {df_row_count} rows in DataFrame.")
+                    table_result["notes"] += f" Row count mismatch: {valid_content_lines} valid content lines vs {df_row_count} DataFrame rows."
+                else:
+                    None
+                
+                # Write to Excel with specified datatypes
                 df.write_excel(output_path, autofit=True)
                 files_created += 1
                 results.append(table_result)
@@ -355,128 +424,113 @@ def extract_excel_from_json(json_file_path, excel_output_folder):
 
 
 def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_folder="data/00-metadata"):
-    """
-    Processes all JSON files in a folder, converting tables to Excel files.
-    Uses a table to display results instead of spinners/progress bars.
-    """
-    # Initialize Rich console for better output
-    console = Console()
-    from rich.table import Table
-    
-    # Create output directory if it doesn't exist
+    """Processes all JSON files in a folder, converting tables to Excel files."""
     os.makedirs(excel_output_folder, exist_ok=True)
     
-    console.print(f"[bold cyan]Processing JSON files from: {json_input_folder}")
+    # Remove any existing Excel files
+    for file in os.listdir(excel_output_folder):
+        if file.endswith(".xlsx"):
+            os.remove(os.path.join(excel_output_folder, file))
+
+    # Setup logging
+    log_folder = "data/00-metadata/logs"
+    os.makedirs(log_folder, exist_ok=True)
     
-    total_excel_files = 0
-    total_json_files = 0
+    # Create both a timestamped log and a latest log
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamped_log_file = os.path.join(log_folder, f"xlsx_processing_log_{timestamp}.json")
+    latest_log_file = os.path.join(log_folder, "(2)_xlsx_processing_log_latest.json")
+    
+    log_data = {
+        "timestamp": timestamp,
+        "input_folder": json_input_folder,
+        "output_folder": excel_output_folder,
+        "status": "started",
+        "processed_files": [],
+        "total_files_processed": 0,
+        "total_files_extracted": 0,
+        "row_count_mismatches": 0  # Track files with row count mismatches
+    }
     
     # Find all JSON files in the folder
-    json_files = []
-    for root, _, files in os.walk(json_input_folder):
-        for file in files:
-            if file.endswith(".json"):
-                json_files.append(os.path.join(root, file))
+    json_files = [os.path.join(root, file) 
+                  for root, _, files in os.walk(json_input_folder) 
+                  for file in files if file.endswith(".json")]
     
     total_json_files = len(json_files)
     if total_json_files == 0:
-        console.print("[yellow]Warning: No JSON files found in the specified folder.")
-        return 0, 0
+        log_data["status"] = "completed"
+        log_data["message"] = "No JSON files found"
+        # Save to both log files
+        with open(timestamped_log_file, "w", encoding="latin1") as f:
+            json.dump(log_data, f, indent=2)
+        with open(latest_log_file, "w", encoding="latin1") as f:
+            json.dump(log_data, f, indent=2)
+        return None
     
-    console.print(f"Found {total_json_files} JSON files")
-    
-    # Create a master results table
-    master_table = Table(title="JSON Processing Results")
-    master_table.add_column("JSON File", style="cyan")
-    master_table.add_column("Tables", style="blue")
-    master_table.add_column("Processed", style="green")
-    master_table.add_column("Skipped", style="yellow")
-    master_table.add_column("Errors", style="red")
-    master_table.add_column("Status", style="magenta")
-    
-    # Process each JSON file and collect results
-    all_detailed_results = []
+    # Process each JSON file
+    total_excel_files = 0
     processed_json_files = 0
+    total_row_mismatches = 0
     
     for json_file in json_files:
         file_name = os.path.basename(json_file)
-        console.print(f"\n[cyan]Processing file: {file_name}")
         
-        # Process the JSON file
+        # Log file processing
+        file_log = {
+            "file": file_name,
+            "status": "processing",
+            "tables": []
+        }
+        
+        # Extract tables from JSON file - now also gets detailed results
         table_results, files_created, tables_found = extract_excel_from_json(json_file, excel_output_folder)
         
-        # Count different statuses
-        processed = sum(1 for r in table_results if r["status"] == "Processed")
-        skipped = sum(1 for r in table_results if r["status"] == "Skipped")
-        errors = sum(1 for r in table_results if r["status"] == "Error")
-        
-        # Determine overall status
-        if errors > 0:
-            status = "Issues Encountered"
-        elif skipped > 0:
-            status = "Partially Processed"
-        elif processed > 0:
-            status = "Success"
-        else:
-            status = "No Tables Processed"
-        
-        # Add to the master table
-        master_table.add_row(
-            file_name, 
-            str(tables_found), 
-            str(processed), 
-            str(skipped),
-            str(errors),
-            status
-        )
-        
-        # Store detailed results for this file
-        file_detail = {
-            "file_name": file_name,
-            "tables_found": tables_found,
-            "processed": processed,
-            "skipped": skipped,
-            "errors": errors,
-            "table_results": table_results
-        }
-        all_detailed_results.append(file_detail)
-        
-        # Create a detailed table for this file
-        if table_results:
-            detail_table = Table(title=f"Detailed Results for {file_name}", show_header=True)
-            detail_table.add_column("Table #", style="cyan", justify="center")
-            detail_table.add_column("Title", style="blue")
-            detail_table.add_column("Status", style="green")
-            detail_table.add_column("Rows", style="magenta", justify="right")
-            detail_table.add_column("Output File", style="cyan")
-            detail_table.add_column("Notes", style="yellow")
-            
-            for result in table_results:
-                status_style = "green" if result["status"] == "Processed" else "red"
+        # Check for row count mismatches in any tables
+        file_has_mismatch = False
+        for table_result in table_results:
+            if "Row count mismatch" in table_result.get("notes", ""):
+                file_has_mismatch = True
+                total_row_mismatches += 1
                 
-                detail_table.add_row(
-                    str(result["table_number"]),
-                    result["table_title"],
-                    f"[{status_style}]{result['status']}[/{status_style}]",
-                    str(result["rows"]),
-                    result["output_file"],
-                    result["notes"]
-                )
-            
-            console.print(detail_table)
+            # Add table results to file log
+            file_log["tables"].append(table_result)
+        
+        # Update file status in log
+        file_log["status"] = "success" if files_created > 0 else "no_tables_extracted"
+        file_log["tables_found"] = tables_found
+        file_log["files_created"] = files_created
+        file_log["has_row_mismatch"] = file_has_mismatch
+        
+        log_data["processed_files"].append(file_log)
         
         # Update counters
         total_excel_files += files_created
         if files_created > 0:
             processed_json_files += 1
     
-    # Print the master summary table
-    console.print("\n")
-    console.print(master_table)
+    # Update final log status
+    log_data["status"] = "completed"
+    log_data["total_files_processed"] = total_json_files
+    log_data["total_files_extracted"] = processed_json_files
+    log_data["row_count_mismatches"] = total_row_mismatches
     
-    # Print summary
-    console.print("\n[bold]Summary:[/bold]")
-    console.print(f"Processed {total_json_files} JSON files: [green]{processed_json_files} with tables extracted[/green], [yellow]{total_json_files - processed_json_files} with no tables extracted[/yellow]")
-    console.print(f"[green]Created {total_excel_files} Excel files from tables.")
+    # Save log file to both locations
+    with open(timestamped_log_file, "w", encoding="latin1") as f:
+        json.dump(log_data, f, indent=2)
+    with open(latest_log_file, "w", encoding="latin1") as f:
+        json.dump(log_data, f, indent=2)
     
-    return total_excel_files, processed_json_files
+    # Print summary to console
+    console = Console()
+    console.print(f"[green]Processed {total_json_files} JSON files")
+    console.print(f"[green]Created {total_excel_files} Excel files from {processed_json_files} JSON files")
+    
+    if total_row_mismatches > 0:
+        console.print(f"[yellow]Warning: {total_row_mismatches} tables had row count mismatches. Check logs for details.")
+    else:
+        console.print(f"[green]All tables passed row count verification")
+        
+    console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}")
+
+    return None
