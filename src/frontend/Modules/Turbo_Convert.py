@@ -90,10 +90,11 @@ We'll now use the validated metadata to convert your main/dec files through a co
 
 What happens:
 - Convert fixed-width files to CSV format using validated field positions
+- Delimiter: Pipe | - Encoding: Latin-1
 - Validate the conversion results for accuracy
 - Compress CSV files to efficient Parquet format
 - Encrypt final files for secure storage
-- Save all processed files to `data/02-output/`
+- Save all processed files to `data/02-output/` + Balloons 🎈 when done!
 
 If any step fails, check the log below for details about which files had issues.
 """)
@@ -123,7 +124,7 @@ else:
             
             with tab2:
                 if skipped_pairs:
-                    st.write("**Files with validation failures - check logs (3) & (4)for details:**")
+                    st.write("**Files with validation failures - check 🛡️ Validate Metadata + logs (3) & (4) for details :**")
                     for pair in skipped_pairs:
                         st.write(f"• `{pair['input_file']}` ({pair['rows']:,} rows)")
                 else:
