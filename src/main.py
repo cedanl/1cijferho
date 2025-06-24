@@ -15,7 +15,10 @@ import streamlit as st
 home_page = st.Page("frontend/Overview/Home.py", icon=":material/home:")
 
 data_upload_page = st.Page("frontend/Files/Data_Upload.py", icon=":material/upload_file:")
-data_explorer_page = st.Page("frontend/Files/Data_Explorer.py", icon=":material/explore:")
+
+extract_page = st.Page("frontend/Modules/Extract_Metadata.py", icon="🔍", title="Extract Metadata")
+validate_page = st.Page("frontend/Modules/Validate_Metadata.py", icon="🛡️", title="Validate Metadata")
+
 magic_converter_page = st.Page("frontend/Files/Magic_Converter.py", icon="✨")
 
 
@@ -31,7 +34,7 @@ st.logo(LOGO_URL)
 pg = st.navigation ( {
     "Overview": [home_page],
     "Files": [data_upload_page],
-    "Modules": [data_explorer_page, magic_converter_page],
+    "Modules": [extract_page, validate_page, magic_converter_page],
 })
 
 # -----------------------------------------------------------------------------

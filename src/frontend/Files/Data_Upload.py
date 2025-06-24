@@ -17,20 +17,21 @@ st.set_page_config(
 def categorize_files():
     """Check if the input directory exists and categorize files found"""
     input_dir = "data/01-input"
+
+    # Create directory if it doesn't exist
+    os.makedirs(input_dir, exist_ok=True)
     
     if not os.path.exists(input_dir):
         return False, {}, 0
     
-    # Look for all files (including .asc, .021 and other extensions)
-    file_patterns = [
-        "*.xlsx", "*.xls", "*.csv", "*.txt", "*.xml", "*.json", 
-        "*.asc", "*.021"
-    ]
+    # Get all files in the directory (any extension, excluding .zip files)
+    all_files_paths = glob.glob(os.path.join(input_dir, "*"))
     
+    # Filter out directories and .zip files, keep only regular files
     all_files = []
-    for pattern in file_patterns:
-        files = glob.glob(os.path.join(input_dir, pattern))
-        all_files.extend([os.path.basename(f) for f in files])
+    for file_path in all_files_paths:
+        if os.path.isfile(file_path) and not file_path.lower().endswith('.zip'):
+            all_files.append(os.path.basename(file_path))
     
     # Categorize files
     categorized_files = {
@@ -79,9 +80,19 @@ Follow these steps to get started:
 3. **Refresh this page** to see your uploaded files categorized by type
 """)
 
-# Refresh button
-if st.button("🔄 Refresh Page"):
-    st.rerun()
+# Side-by-side buttons for refresh and extract
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("🔄 Refresh Page", type="primary", use_container_width=True):
+        st.rerun()
+
+with col2:
+    # Check if files exist to enable/disable the extract button
+    files_found, _, _ = categorize_files()
+    
+    if st.button("🔍 Extract Metadata", type="secondary", disabled=not files_found, use_container_width=True):
+        st.switch_page("frontend/Modules/Extract_Metadata.py")
 
 # -----------------------------------------------------------------------------
 # Example Directory Structure
@@ -119,9 +130,9 @@ else:
     st.success(f"""
     ✅ **{total_files} files detected in `data/01-input` directory**
     
-    Files have been automatically categorized by type. Review the categories below to ensure all expected files are present.
+    Files have been automatically categorized by type. Review the categories below to ensure all expected files are present. Use the Extract Metadata button above to continue.
     """)
-    
+
     st.markdown("---")
     
     # Display categorized files in uniform columns
@@ -162,15 +173,3 @@ else:
                     st.write(f"• `{filename}`")
         else:
             st.info("No files found")
-
-    # -----------------------------------------------------------------------------
-    # Next Steps Section
-    # -----------------------------------------------------------------------------
-    st.markdown("---")
-    
-    st.write("### 🚀 Ready to Continue?")
-    st.write("If you have verified that all expected files are present, you can continue to extract the file descriptions.")
-    
-
-    if st.button("📄 Extract Bestandsbeschrijvingen", type="primary", use_container_width=True):
-        st.info("Extracting file descriptions functionality would be implemented here.")
