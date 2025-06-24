@@ -8,6 +8,40 @@
 Main Entrypoint for the 1CIJFERHO App
 """
 import streamlit as st
+import glob
+import os
+
+# -----------------------------------------------------------------------------
+# App Configuration - Must be first Streamlit command
+# -----------------------------------------------------------------------------
+st.set_page_config(
+    page_title="1CijferHO | CEDA",
+    page_icon="🚀",
+    layout="centered",
+    initial_sidebar_state="expanded"
+)
+
+# -----------------------------------------------------------------------------
+# Demo Detection Function
+# -----------------------------------------------------------------------------
+def check_demo_files():
+    """Check if demo files exist in data/01-input directory"""
+    demo_files = glob.glob("data/01-input/*_DEMO*")
+    return len(demo_files) > 0, demo_files
+
+def show_demo_notifications():
+    """Show demo notifications in sidebar only"""
+    demo_exists, demo_files = check_demo_files()
+    
+    if demo_exists:
+        # Sidebar (persistent)
+        with st.sidebar:
+            st.warning("🎯 **Demo Mode**", icon="⚠️")
+            st.write(f"{len(demo_files)} demo files active")
+            st.info("To use your own data: Remove all *_DEMO files from `data/01-input/`")
+        
+        return True
+    return False
 
 # -----------------------------------------------------------------------------
 # Pages Overview - YOU CAN ADD MORE PAGES HERE
@@ -27,6 +61,9 @@ turbo_convert_page = st.Page("frontend/Modules/Turbo_Convert.py", icon="⚡", ti
 # Add Logo
 LOGO_URL = "src/assets/npuls_logo.png"
 st.logo(LOGO_URL)
+
+# Demo Detection
+show_demo_notifications()
 
 # Initialize Navigation
 pg = st.navigation ( {

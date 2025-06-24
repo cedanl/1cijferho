@@ -11,11 +11,11 @@ import contextlib
 # -----------------------------------------------------------------------------
 # Page Configuration
 # -----------------------------------------------------------------------------
-st.set_page_config(
-    page_title="⚡ Turbo Convert",
-    layout="centered",
-    initial_sidebar_state="expanded"
-)
+#st.set_page_config(
+#    page_title="⚡ Turbo Convert",
+#    layout="centered",
+#    initial_sidebar_state="expanded"
+#)
 
 # -----------------------------------------------------------------------------
 # Helper Functions

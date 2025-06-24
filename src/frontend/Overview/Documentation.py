@@ -2,16 +2,6 @@ import streamlit as st
 from pathlib import Path
 
 # -----------------------------------------------------------------------------
-# Page Configuration
-# -----------------------------------------------------------------------------
-st.set_page_config(
-    page_title="📚 Documentation",
-    page_icon="📚",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# -----------------------------------------------------------------------------
 # Custom CSS for better styling
 # -----------------------------------------------------------------------------
 st.markdown("""

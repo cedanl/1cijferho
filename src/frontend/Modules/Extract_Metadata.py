@@ -6,15 +6,6 @@ import io
 import contextlib
 
 # -----------------------------------------------------------------------------
-# Page Configuration
-# -----------------------------------------------------------------------------
-st.set_page_config(
-    page_title="🔍 Extract Metadata",
-    layout="centered",
-    initial_sidebar_state="expanded"
-)
-
-# -----------------------------------------------------------------------------
 # Helper Functions
 # -----------------------------------------------------------------------------
 def clear_existing_files():
