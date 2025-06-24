@@ -60,11 +60,22 @@ def clear_console_log():
     if 'convert_console_log' in st.session_state:
         del st.session_state['convert_console_log']
 
+def start_conversion():
+    """Callback function to start the conversion process"""
+    st.session_state.start_turbo_convert = True
+
 # -----------------------------------------------------------------------------
 # Initialize/Clear Console Log on Page Load
 # -----------------------------------------------------------------------------
 # Clear console log when page is loaded
 clear_console_log()
+
+# Initialize conversion trigger
+if 'start_turbo_convert' not in st.session_state:
+    st.session_state.start_turbo_convert = False
+
+# Set page initialization flag
+st.session_state.page_initialized_convert = True
 
 # -----------------------------------------------------------------------------
 # Main Content
@@ -122,10 +133,18 @@ else:
         col1, col2, col3 = st.columns([1, 2, 1])
         
         with col2:
-            convert_clicked = st.button("⚡ Start Turbo Convert 🚀", type="primary", use_container_width=True, key="turbo_convert_btn")
+            # Use callback-based button (recommended Streamlit pattern)
+            st.button("⚡ Start Turbo Convert 🚀", 
+                     type="primary", 
+                     use_container_width=True, 
+                     key="turbo_convert_btn",
+                     on_click=start_conversion)
 
-        # Handle conversion logic
-        if convert_clicked:
+        # Handle conversion logic using session state flag
+        if st.session_state.start_turbo_convert:
+            # Reset the flag immediately
+            st.session_state.start_turbo_convert = False
+            
             # Reset console log at the start of each conversion
             st.session_state.convert_console_log = ""
             
