@@ -2,6 +2,10 @@ import streamlit as st
 from pathlib import Path
 
 # -----------------------------------------------------------------------------
+# Documentation page optimized for centered layout
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
 # Custom CSS for better styling
 # -----------------------------------------------------------------------------
 st.markdown("""
@@ -85,9 +89,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# Main Content Tabs
+# Main Content - Optimized for Centered Layout
 # -----------------------------------------------------------------------------
-tab1, tab2, tab3, tab4 = st.tabs(["🎯 Overview", "⚡ How It Works", "🔧 Technical Details", "🚀 Getting Started"])
+tab1, tab2, tab3, tab4 = st.tabs(["🎯 Overview", "⚡ How It Works", "🔧 Technical", "🚀 Get Started"])
 
 with tab1:
     # The Problem Section
@@ -147,34 +151,30 @@ with tab1:
     # Impact Section
     st.markdown("## 🎉 The Impact")
     
-    col1, col2, col3 = st.columns(3)
+    # Single column layout for better readability in centered mode
+    st.markdown("""
+    <div class="feature-card">
+        <h3>⏱️ Time Savings</h3>
+        <p><strong>From months/days to minutes</strong></p>
+        <p>What used to take researchers days to months of manual work now takes minutes of automated processing.</p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    with col1:
-        st.markdown("""
-        <div class="feature-card">
-            <h3>⏱️ Time Savings</h3>
-            <p><strong>From months/days to minutes</strong></p>
-            <p>What used to take researchers days to months of manual work now takes minutes of automated processing.</p>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown("""
+    <div class="feature-card">
+        <h3>🎯 Accuracy</h3>
+        <p><strong>Error-free processing</strong></p>
+        <p>Automated validation catches mistakes that manual processing would miss, ensuring research integrity.</p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    with col2:
-        st.markdown("""
-        <div class="feature-card">
-            <h3>🎯 Accuracy</h3>
-            <p><strong>Error-free processing</strong></p>
-            <p>Automated validation catches mistakes that manual processing would miss, ensuring research integrity.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("""
-        <div class="feature-card">
-            <h3>🤝 Collaboration</h3>
-            <p><strong>Shared solutions</strong></p>
-            <p>Building towards standardized datasets that benefit the entire Dutch higher education research community.</p>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown("""
+    <div class="feature-card">
+        <h3>🤝 Collaboration</h3>
+        <p><strong>Shared solutions</strong></p>
+        <p>Building towards standardized datasets that benefit the entire Dutch higher education research community.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 with tab2:
     st.markdown("## ⚡ How It Works: The Magic Pipeline")
@@ -242,24 +242,19 @@ with tab2:
     # Performance metrics
     st.markdown("### 📈 Processing Speed")
     
-    col1, col2 = st.columns(2)
+    # Stack instead of side-by-side for better mobile/narrow view
+    st.markdown("""
+    **🚀 Average Runtime:**
+    - Process time with 1CijferHO: **A few seconds to a couple of minutes**
+    - Depends on your hardware specifications
+    - Multi-core acceleration automatically adapts to your system
     
-    with col1:
-        st.markdown("""
-        **🚀 Average Runtime:**
-        - Process time with 1CijferHO: **A few seconds to a couple of minutes**
-        - Depends on your hardware specifications
-        - Multi-core acceleration automatically adapts to your system
-        """)
-    
-    with col2:
-        st.markdown("""
-        **💾 Output Quality:**
-        - 100% data integrity as received from DUO*
-        - 60-80% file size reduction (Parquet compression)
-        - Cryptographically secure anonymization
-        - Research-ready CSV and Parquet formats
-        """)
+    **💾 Output Quality:**
+    - 100% data integrity as received from DUO*
+    - 60-80% file size reduction (Parquet compression)
+    - Cryptographically secure anonymization
+    - Research-ready CSV and Parquet formats
+    """)
         
     st.markdown("*Data integrity maintained exactly as delivered by DUO")
 
@@ -330,15 +325,14 @@ with tab3:
         }
     ]
     
-    cols = st.columns(2)
-    for i, module in enumerate(util_modules):
-        with cols[i % 2]:
-            st.markdown(f"""
-            <div class="feature-card">
-                <h4>📄 {module['name']}</h4>
-                <p>{module['purpose']}</p>
-            </div>
-            """, unsafe_allow_html=True)
+    # Single column layout for better readability
+    for module in util_modules:
+        st.markdown(f"""
+        <div class="feature-card">
+            <h4>📄 {module['name']}</h4>
+            <p>{module['purpose']}</p>
+        </div>
+        """, unsafe_allow_html=True)
     
     # Performance optimizations
     st.markdown("### ⚡ Performance Optimizations")
@@ -394,23 +388,17 @@ with tab4:
     # Prerequisites
     st.markdown("### 📋 What You Need")
     
-    col1, col2 = st.columns(2)
+    st.markdown("""
+    **📁 Required Files:**
+    - DUO main data files (fixed-width format)
+    - DUO decode files (if applicable)  
+    - DUO metadata .txt files (containing field positions)
     
-    with col1:
-        st.markdown("""
-        **📁 Required Files:**
-        - DUO main data files (fixed-width format)
-        - DUO decode files (if applicable)  
-        - DUO metadata .txt files (containing field positions)
-        """)
-    
-    with col2:
-        st.markdown("""
-        **💻 System Requirements:**
-        - Windows, macOS, or Linux
-        - 4GB+ RAM (8GB+ recommended for large files)
-        - 2GB+ free disk space
-        """)
+    **💻 System Requirements:**
+    - Windows, macOS, or Linux
+    - 4GB+ RAM (8GB+ recommended for large files)
+    - 2GB+ free disk space
+    """)
     
     # Simple getting started
     st.markdown("### ⚡ Ready to Start?")
@@ -430,25 +418,19 @@ with tab4:
     # Tips and best practices
     st.markdown("### 💡 Pro Tips & Best Practices")
     
-    tips_col1, tips_col2 = st.columns(2)
+    st.markdown("""
+    **⚡ Performance Tips:**
+    - Close Excel/spreadsheet programs before processing
+    - Use SSD storage for faster file I/O
+    - Process during off-peak hours for best performance
+    - Keep file paths short and simple
     
-    with tips_col1:
-        st.markdown("""
-        **⚡ Performance Tips:**
-        - Close Excel/spreadsheet programs before processing
-        - Use SSD storage for faster file I/O
-        - Process during off-peak hours for best performance
-        - Keep file paths short and simple
-        """)
-    
-    with tips_col2:
-        st.markdown("""
-        **🔒 Data Safety:**
-        - Always backup original files before processing
-        - Verify output row counts match input expectations  
-        - Check anonymized fields retain research utility
-        - Review validation logs for any warnings
-        """)
+    **🔒 Data Safety:**
+    - Always backup original files before processing
+    - Verify output row counts match input expectations  
+    - Check anonymized fields retain research utility
+    - Review validation logs for any warnings
+    """)
     
     # Common issues
     st.markdown("### 🔧 Troubleshooting")
