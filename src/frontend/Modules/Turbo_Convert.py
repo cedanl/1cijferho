@@ -60,6 +60,38 @@ def clear_console_log():
     if 'convert_console_log' in st.session_state:
         del st.session_state['convert_console_log']
 
+def get_output_files():
+    """Get all files from the output directory"""
+    output_dir = "data/02-output"
+    if not os.path.exists(output_dir):
+        return []
+    
+    files = []
+    for file in os.listdir(output_dir):
+        if os.path.isfile(os.path.join(output_dir, file)):
+            file_path = os.path.join(output_dir, file)
+            file_size = os.path.getsize(file_path)
+            files.append({
+                'name': file,
+                'size': file_size,
+                'size_formatted': format_file_size(file_size)
+            })
+    
+    # Sort files by name
+    files.sort(key=lambda x: x['name'])
+    return files
+
+def format_file_size(size_bytes):
+    """Format file size in human readable format"""
+    if size_bytes == 0:
+        return "0 B"
+    size_names = ["B", "KB", "MB", "GB"]
+    import math
+    i = int(math.floor(math.log(size_bytes, 1024)))
+    p = math.pow(1024, i)
+    s = round(size_bytes / p, 2)
+    return f"{s} {size_names[i]}"
+
 def start_conversion():
     """Callback function to start the conversion process"""
     st.session_state.start_turbo_convert = True
@@ -222,6 +254,32 @@ else:
                 
                 st.success("✅ **Processing completed!** Files converted, validated, compressed, and encrypted. Results saved to `data/02-output/`")
                 
+                # Show converted files
+                output_files = get_output_files()
+                if output_files:
+                    with st.expander(f"📁 Converted Files ({len(output_files)} files)", expanded=True):
+                        st.write("**Files successfully created in `data/02-output/`:**")
+                        
+                        # Group files by type for better organization
+                        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv')]
+                        parquet_files = [f for f in output_files if f['name'].endswith('.parquet')]
+                        encrypted_files = [f for f in output_files if f['name'].endswith('_encrypted.csv')]
+                        
+                        if csv_files:
+                            st.write("**📄 CSV Files (Converted):**")
+                            for file in csv_files:
+                                st.write(f"• `{file['name']}` ({file['size_formatted']})")
+                        
+                        if parquet_files:
+                            st.write("**🗜️ Parquet Files (Compressed):**")
+                            for file in parquet_files:
+                                st.write(f"• `{file['name']}` ({file['size_formatted']})")
+                        
+                        if encrypted_files:
+                            st.write("**🔒 Encrypted Files (Final):**")
+                            for file in encrypted_files:
+                                st.write(f"• `{file['name']}` ({file['size_formatted']})")
+                
                 # Celebrate with balloons!
                 st.balloons()
                 
@@ -252,6 +310,32 @@ with st.expander("📋 Console Log", expanded=True):
     else:
         st.info("No conversion process started yet. Click 'Start Turbo Convert' to begin.")
 
-# Warning about existing files
-if os.path.exists("data/02-output") and os.listdir("data/02-output"):
-    st.warning("⚠️ Conversion will overwrite existing files in `data/02-output/`")
+# Show existing converted files (if any)
+output_files = get_output_files()
+if output_files:
+    with st.expander(f"📁 Converted Files ({len(output_files)} files)", expanded=False):
+        st.write("**Files currently in `data/02-output/`:**")
+        
+        # Group files by type for better organization
+        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv')]
+        parquet_files = [f for f in output_files if f['name'].endswith('.parquet')]
+        encrypted_files = [f for f in output_files if f['name'].endswith('_encrypted.csv')]
+        
+        if csv_files:
+            st.write("**📄 CSV Files (Converted):**")
+            for file in csv_files:
+                st.write(f"• `{file['name']}` ({file['size_formatted']})")
+        
+        if parquet_files:
+            st.write("**🗜️ Parquet Files (Compressed):**")
+            for file in parquet_files:
+                st.write(f"• `{file['name']}` ({file['size_formatted']})")
+        
+        if encrypted_files:
+            st.write("**🔒 Encrypted Files (Final):**")
+            for file in encrypted_files:
+                st.write(f"• `{file['name']}` ({file['size_formatted']})")
+        
+        st.warning("⚠️ New conversion will overwrite these existing files.")
+else:
+    st.info("📁 No converted files found in `data/02-output/` yet.")
