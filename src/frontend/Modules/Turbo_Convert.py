@@ -304,11 +304,13 @@ else:
 
 # Console Log expander
 with st.expander("📋 Console Log", expanded=True):
-    st.info("💡 **Note**: Messages like 'Could not determine dtype for column X, falling back to string' are harmless - just a quirk of the Polars Excel library.")
+    st.caption("💡 Note: Messages like 'Could not determine dtype for column X, falling back to string' are harmless - just a quirk of the Polars Excel library.")
     if 'convert_console_log' in st.session_state and st.session_state.convert_console_log:
         st.code(st.session_state.convert_console_log, language=None)
     else:
         st.info("No conversion process started yet. Click 'Start Turbo Convert' to begin.")
+
+
 
 # Show existing converted files (if any)
 output_files = get_output_files()
@@ -336,6 +338,9 @@ if output_files:
             for file in encrypted_files:
                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
         
-        st.warning("⚠️ New conversion will overwrite these existing files.")
 else:
     st.info("📁 No converted files found in `data/02-output/` yet.")
+
+# Warning about existing files
+if os.path.exists("data/02-output") and os.listdir("data/02-output"):
+    st.warning("⚠️ New conversion will overwrite existing files in `data/02-output/`")
