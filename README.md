@@ -14,7 +14,8 @@
     <img src="https://img.shields.io/github/license/cedanl/1cijferho" alt="GitHub License">
   </p>
 
-  <p>🎬 Demo Video (Coming Soon!)</p>
+  #### 🎬 Demo Video
+  <img src="src/assets/demo.gif" alt="Demo" width="600">
 </div>
 
 ## 📋 Overview
