@@ -16,10 +16,101 @@ import os
 import json
 import polars as pl
 import datetime
+import argparse
+import re
+import unicodedata
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 
 # TODO: Add Test (Line Length, Add to table returned by converter_match.py)
+
+################################################################
+#                       UTILITY FUNCTIONS
+################################################################
+
+def normalize_text(text):
+    """
+    Normalize text by converting accents and special characters to ASCII equivalents
+    Examples: ó → o, ë → e, ñ → n, etc.
+    """
+    # Use NFD normalization to decompose characters
+    normalized = unicodedata.normalize('NFD', text)
+    # Filter out combining characters (accents, diacritics)
+    ascii_text = ''.join(char for char in normalized if unicodedata.category(char) != 'Mn')
+    return ascii_text
+
+def to_snake_case(name):
+    """
+    Convert a string to snake_case
+    """
+    # Replace spaces with underscores
+    name = name.replace(' ', '_')
+    # Convert camelCase to snake_case
+    name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    name = re.sub('([a-z0-9])([A-Z])', r'\1_\2', name)
+    # Replace multiple underscores with single underscore
+    name = re.sub('_+', '_', name)
+    # Remove leading/trailing underscores and convert to lowercase
+    return name.strip('_').lower()
+
+def to_camel_case(name):
+    """
+    Convert a string to camelCase
+    """
+    # First convert any existing camelCase/PascalCase to words
+    # Split on spaces, underscores, and capital letters
+    words = re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|\b)|\d+', name)
+    # Also split on spaces and underscores if no camelCase detected
+    if not words or len(words) == 1:
+        words = re.split(r'[\s_]+', name.strip())
+
+    # Filter out empty strings and clean words
+    words = [word.strip() for word in words if word.strip()]
+    if not words:
+        return name
+
+    # First word lowercase, rest title case
+    result = words[0].lower()
+    for word in words[1:]:
+        result += word.capitalize()
+    return result
+
+def to_pascal_case(name):
+    """
+    Convert a string to PascalCase
+    """
+    # First convert any existing camelCase/PascalCase to words
+    # Split on spaces, underscores, and capital letters
+    words = re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|\b)|\d+', name)
+    # Also split on spaces and underscores if no camelCase detected
+    if not words or len(words) == 1:
+        words = re.split(r'[\s_]+', name.strip())
+
+    # Filter out empty strings and clean words
+    words = [word.strip() for word in words if word.strip()]
+    if not words:
+        return name
+
+    # All words title case
+    result = ''.join(word.capitalize() for word in words)
+    return result
+
+def convert_case(name, case_style):
+    """
+    Convert a string to the specified case style
+    Always normalizes accents/special characters to ASCII first
+    """
+    # Always normalize accents and special characters first
+    normalized_name = normalize_text(name)
+
+    if case_style == 'snake_case':
+        return to_snake_case(normalized_name)
+    elif case_style == 'camelCase':
+        return to_camel_case(normalized_name)
+    elif case_style == 'PascalCase':
+        return to_pascal_case(normalized_name)
+    else:  # 'original' - keep original case but normalized
+        return normalized_name
 
 ################################################################
 #                       COMPUTER MAGIC
@@ -29,18 +120,18 @@ def process_chunk(chunk_data):
     """
     Process a chunk of lines and return the converted output
     """
-    positions, chunk = chunk_data
+    positions, chunk, separator = chunk_data
     output_lines = []
     for line in chunk:
         if isinstance(line, bytes):
             line = line.decode('latin1')  # Adjust encoding as needed
         if line.strip():  # Skip empty lines
             fields = [line[start:end].strip() for start, end in positions]
-            output_lines.append('|'.join(fields))
+            output_lines.append(separator.join(fields))
     return output_lines
 
 
-def converter(input_file, metadata_file):
+def converter(input_file, metadata_file, case_style='snake_case', separator=','):
 
     # Determine output file path - same name but in data/02-processed
     input_filename = os.path.basename(input_file)
@@ -60,6 +151,9 @@ def converter(input_file, metadata_file):
     widths = [int(w) for w in metadata_df["Aantal posities"].to_list()]
     column_names = metadata_df["Naam"].to_list()
 
+    # Convert column names to specified case style
+    column_names = [convert_case(name, case_style) for name in column_names]
+
     # Calculate positions for each field
     positions = [(sum(widths[:i]), sum(widths[:i+1])) for i in range(len(widths))]
 
@@ -69,7 +163,7 @@ def converter(input_file, metadata_file):
 
     # Write header first
     with open(output_file, 'w', encoding='latin1', newline='') as f_out:
-        f_out.write('|'.join(column_names) + '\n')
+        f_out.write(separator.join(column_names) + '\n')
 
     # Read the entire file into memory (if it's not too large)
     with open(input_file, 'r', encoding='latin1') as f_in:
@@ -86,7 +180,7 @@ def converter(input_file, metadata_file):
 
         # Split data into chunks
         chunks = [all_lines[i:i + chunk_size] for i in range(0, len(all_lines), chunk_size)]
-        chunk_data = [(positions, chunk) for chunk in chunks]
+        chunk_data = [(positions, chunk, separator) for chunk in chunks]
 
         # Process in parallel with proper cleanup
         with mp.Pool(processes=num_processes) as pool:
@@ -101,7 +195,7 @@ def converter(input_file, metadata_file):
                     lines_processed += len(result) if result else 0
     else:
         # Process the data serially if we're in a child process
-        results = process_chunk((positions, all_lines))
+        results = process_chunk((positions, all_lines, separator))
         with open(output_file, 'a', encoding='latin1', newline='') as f_out:
             if results:
                 f_out.write('\n'.join(results) + '\n')
@@ -109,10 +203,11 @@ def converter(input_file, metadata_file):
     return output_file, total_lines
 
 
-def run_conversions_from_matches(input_folder, metadata_folder="data/00-metadata", match_log_file = "data/00-metadata/logs/(4)_file_matching_log_latest.json"):
+def run_conversions_from_matches(input_folder, metadata_folder="data/00-metadata", match_log_file = "data/00-metadata/logs/(4)_file_matching_log_latest.json", case_style='snake_case', separator=','):
 
     console = Console()
     console.print(f"[cyan]Starting conversion based on match log: {match_log_file}")
+    console.print(f"[cyan]Settings: case_style={case_style}, separator='{separator}'")
 
     # Setup logging
     log_folder = "data/00-metadata/logs"
@@ -137,6 +232,10 @@ def run_conversions_from_matches(input_folder, metadata_folder="data/00-metadata
     results = {
         "timestamp": timestamp,
         "match_log_file": match_log_file,
+        "settings": {
+            "case_style": case_style,
+            "separator": separator
+        },
         "total_files": 0,
         "successful_conversions": 0,
         "failed_conversions": 0,
@@ -200,8 +299,8 @@ def run_conversions_from_matches(input_folder, metadata_folder="data/00-metadata
                         continue
 
                     try:
-                        # Call the converter function and capture both return values
-                        output_file, total_lines = converter(input_file_path, validation_file_path)
+                        # Call the converter function with new parameters
+                        output_file, total_lines = converter(input_file_path, validation_file_path, case_style, separator)
 
                         if output_file:
                             file_result["status"] = "success"
@@ -264,5 +363,29 @@ def run_conversions_from_matches(input_folder, metadata_folder="data/00-metadata
 
     return results  # Return the results
 
+def main():
+    """
+    Main function to handle command line arguments and run conversions
+    """
+    parser = argparse.ArgumentParser(description='Convert fixed-width files to CSV format')
+    parser.add_argument('--case-style', choices=['original', 'snake_case', 'camelCase', 'PascalCase'],
+                       default='snake_case',
+                       help='Case style for column names (default: snake_case)')
+    parser.add_argument('--separator', choices=[',', ';', '|'], default=',',
+                       help='CSV separator to use (default: comma)')
+    parser.add_argument('--input-folder', default='data/01-input',
+                       help='Input folder path (default: data/01-input)')
+
+    args = parser.parse_args()
+
+    # Run the conversion process
+    results = run_conversions_from_matches(
+        input_folder=args.input_folder,
+        case_style=args.case_style,
+        separator=args.separator
+    )
+
+    return results
+
 if __name__ == "__main__":
-    run_conversions_from_matches("data/01-input")
+    main()

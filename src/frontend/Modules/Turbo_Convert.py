@@ -122,7 +122,10 @@ We'll now use the validated metadata to convert your main/dec files through a co
 
 What happens:
 - Convert fixed-width files to CSV format using validated field positions
-- Delimiter: Pipe | - Encoding: Latin-1
+- **NEW:** Configure column naming style and CSV separator
+- **Default:** Comma separator (,) with snake_case column names
+- **Auto:** Accents and special characters (ó, ë, etc.) normalized to ASCII for database compatibility
+- Delimiter options: Comma (,), Semicolon (;), or Pipe (|) - Encoding: Latin-1
 - Validate the conversion results for accuracy
 - Compress CSV files to efficient Parquet format
 - Encrypt final files for secure storage
@@ -164,6 +167,38 @@ else:
 
     # Centered button - only show if there are successful pairs
     if successful_pairs:
+        # Configuration options
+        st.subheader("⚙️ Conversion Settings")
+
+        col_a, col_b = st.columns(2)
+
+        with col_a:
+            # Case style option - default snake_case
+            case_style = st.selectbox(
+                "🔤 Column Naming Style",
+                options=["original", "snake_case", "camelCase", "PascalCase"],
+                index=1,  # Default to snake_case
+                format_func=lambda x: {
+                    "original": "Originele casing (Student ID)",
+                    "snake_case": "snake_case (student_id)",
+                    "camelCase": "camelCase (studentId)",
+                    "PascalCase": "PascalCase (StudentId)"
+                }[x],
+                help="Choose the naming style for column headers. Note: Accents and special characters (ó, ë, etc.) are always normalized to ASCII equivalents for database compatibility."
+            )
+
+        with col_b:
+            # Separator option - default comma
+            separator = st.selectbox(
+                "📄 CSV Separator",
+                options=[",", ";", "|"],
+                index=0,  # Default to comma
+                format_func=lambda x: {"," : "Comma (,)", ";" : "Semicolon (;)", "|" : "Pipe (|)"}[x],
+                help="Choose the separator for the CSV output files"
+            )
+
+        st.markdown("---")
+
         col1, col2, col3 = st.columns([1, 2, 1])
 
         with col2:
@@ -197,15 +232,21 @@ else:
 
             try:
                 st.session_state.convert_console_log += "🔄 Starting conversion pipeline...\n"
+                st.session_state.convert_console_log += f"⚙️ Settings: case_style={case_style}, separator='{separator}'\n"
                 update_console()
                 progress_bar.progress(10)
                 status_text.text("⚡ Step 3: Converting fixed-width files...")
 
-                # Step 3: Convert Files
+                # Step 3: Convert Files - pass parameters
                 st.session_state.convert_console_log += "⚡ Step 3: Converting fixed-width files...\n"
                 update_console()
-                result = subprocess.run(["uv", "run", "src/backend/core/converter.py"],
-                                      capture_output=True, text=True, cwd=".")
+
+                # Build command with parameters
+                cmd = ["uv", "run", "src/backend/core/converter.py"]
+                cmd.extend(["--separator", separator])
+                cmd.extend(["--case-style", case_style])
+
+                result = subprocess.run(cmd, capture_output=True, text=True, cwd=".")
                 if result.stdout:
                     st.session_state.convert_console_log += result.stdout
                 if result.stderr:
