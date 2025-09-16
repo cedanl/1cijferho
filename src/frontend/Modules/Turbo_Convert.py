@@ -56,8 +56,8 @@ def get_matched_files():
     return successful_pairs, skipped_pairs
 
 def clear_console_log():
-    """Clear the console log in session state"""
-    if 'convert_console_log' in st.session_state:
+    """Clear the console log in session state (only if conversion not completed)"""
+    if 'convert_console_log' in st.session_state and not st.session_state.get('turbo_convert_completed', False):
         del st.session_state['convert_console_log']
 
 def get_output_files():
@@ -106,6 +106,10 @@ clear_console_log()
 if 'start_turbo_convert' not in st.session_state:
     st.session_state.start_turbo_convert = False
 
+# Initialize conversion completion flag
+if 'turbo_convert_completed' not in st.session_state:
+    st.session_state.turbo_convert_completed = False
+
 # Set page initialization flag
 st.session_state.page_initialized_convert = True
 
@@ -116,9 +120,9 @@ st.title("⚡ Turbo Convert")
 
 # Intro text
 st.write("""
-**Step 3: Final Converting & Processing Data**
+**Step 3: Converting & Processing Data**
 
-We'll now use the validated metadata to convert your main/dec files through a complete processing pipeline. This transforms your fixed-width data into encrypted, compressed, ready-to-use files.
+We'll now use the validated metadata to convert your main/dec files through a processing pipeline. This transforms your fixed-width data into CSV format, ready for the final combination step.
 
 What happens:
 - Convert fixed-width files to CSV format using validated field positions
@@ -129,7 +133,8 @@ What happens:
 - Validate the conversion results for accuracy
 - Compress CSV files to efficient Parquet format
 - Encrypt final files for secure storage
-- Save all processed files to `data/02-processed/` + Balloons 🎈 when done!
+- Save all processed files to `data/02-processed/`
+- Continue to Step 4 for combining with decoder files
 
 If any step fails, check the log below for details about which files had issues.
 """)
@@ -293,45 +298,15 @@ else:
                 progress_bar.progress(100)
                 status_text.text("✅ Processing completed successfully!")
 
-                st.success("✅ **Processing completed!** Files converted, validated, compressed, and encrypted. Results saved to `data/02-processed/`")
+                # Mark conversion as completed
+                st.session_state.turbo_convert_completed = True
 
-                # Show converted files
-                output_files = get_output_files()
-                if output_files:
-                    with st.expander(f"📁 Converted Files ({len(output_files)} files)", expanded=True):
-                        st.write("**Files successfully created in `data/02-processed/`:**")
-
-                        # Group files by type for better organization
-                        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv')]
-                        parquet_files = [f for f in output_files if f['name'].endswith('.parquet')]
-                        encrypted_files = [f for f in output_files if f['name'].endswith('_encrypted.csv')]
-
-                        if csv_files:
-                            st.write("**📄 CSV Files (Converted):**")
-                            for file in csv_files:
-                                st.write(f"• `{file['name']}` ({file['size_formatted']})")
-
-                        if parquet_files:
-                            st.write("**🗜️ Parquet Files (Compressed):**")
-                            for file in parquet_files:
-                                st.write(f"• `{file['name']}` ({file['size_formatted']})")
-
-                        if encrypted_files:
-                            st.write("**🔒 Encrypted Files (Final):**")
-                            for file in encrypted_files:
-                                st.write(f"• `{file['name']}` ({file['size_formatted']})")
-
-                # Celebrate with balloons!
-                st.balloons()
-
-                # Clear the progress indicators after a moment
-                import time
-                time.sleep(2)
+                # Clear the progress indicators
                 progress_bar.empty()
                 status_text.empty()
                 console_container.empty()
 
-                # Rerun to update any button states
+                # Rerun to show completion state
                 st.rerun()
 
             except Exception as e:
@@ -342,6 +317,46 @@ else:
                 st.error(f"❌ **Processing failed:** {str(e)}")
     else:
         st.warning("⚠️ No files ready for conversion. Please check validation results.")
+
+# Show success message and continue button if conversion completed
+if st.session_state.turbo_convert_completed:
+    st.success("✅ **Processing completed!** Files converted, validated, compressed, and encrypted. Results saved to `data/02-processed/`")
+
+    # Show converted files
+    output_files = get_output_files()
+    if output_files:
+        with st.expander(f"📁 Converted Files ({len(output_files)} files)", expanded=True):
+            st.write("**Files successfully created in `data/02-processed/`:**")
+
+            # Group files by type for better organization
+            csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv')]
+            parquet_files = [f for f in output_files if f['name'].endswith('.parquet')]
+            encrypted_files = [f for f in output_files if f['name'].endswith('_encrypted.csv')]
+
+            if csv_files:
+                st.write("**📄 CSV Files (Converted):**")
+                for file in csv_files:
+                    st.write(f"• `{file['name']}` ({file['size_formatted']})")
+
+            if parquet_files:
+                st.write("**🗜️ Parquet Files (Compressed):**")
+                for file in parquet_files:
+                    st.write(f"• `{file['name']}` ({file['size_formatted']})")
+
+            if encrypted_files:
+                st.write("**🔒 Encrypted Files (Final):**")
+                for file in encrypted_files:
+                    st.write(f"• `{file['name']}` ({file['size_formatted']})")
+
+    # Add continue button and reset button
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col1:
+        if st.button("🔄 Convert Again", type="secondary", use_container_width=True, key="reset_convert"):
+            st.session_state.turbo_convert_completed = False
+            st.rerun()
+    with col3:
+        if st.button("➡️ Continue to Step 4: Combine All", type="primary", use_container_width=True, key="continue_to_step4"):
+            st.switch_page("frontend/Modules/Combine_All.py")
 
 # Console Log expander
 with st.expander("📋 Console Log", expanded=True):

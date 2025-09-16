@@ -32,14 +32,14 @@ def check_demo_files():
 def show_demo_notifications():
     """Show demo notifications in sidebar only"""
     demo_exists, demo_files = check_demo_files()
-    
+
     if demo_exists:
         # Sidebar (persistent)
         with st.sidebar:
             st.warning("🎯 **Demo Mode Active**", icon="⚠️")
             st.write(f"{len(demo_files)} demo files active ")
             st.error("⚠️ Ready for your own data? Remove all *_DEMO files from `data/01-input/`")
-        
+
         return True
     return False
 
@@ -54,6 +54,7 @@ data_upload_page = st.Page("frontend/Files/Upload_Data.py", icon="📁", title="
 extract_page = st.Page("frontend/Modules/Extract_Metadata.py", icon="🔍", title="Extract Metadata")
 validate_page = st.Page("frontend/Modules/Validate_Metadata.py", icon="🛡️", title="Validate Metadata")
 turbo_convert_page = st.Page("frontend/Modules/Turbo_Convert.py", icon="⚡", title="Turbo Convert")
+combine_all_page = st.Page("frontend/Modules/Combine_All.py", icon="🔗", title="Combine All")
 
 # -----------------------------------------------------------------------------
 # Sidebar Configuration
@@ -69,7 +70,7 @@ show_demo_notifications()
 pg = st.navigation ( {
     "Overview": [home_page, documentation_page],
     "Files": [data_upload_page],
-    "Modules": [extract_page, validate_page, turbo_convert_page],
+    "Modules": [extract_page, validate_page, turbo_convert_page, combine_all_page],
 })
 
 # -----------------------------------------------------------------------------

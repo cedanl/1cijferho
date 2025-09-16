@@ -1,0 +1,435 @@
+# Configuratie voor het koppelen van decode bestanden aan hoofddata
+#
+# Structuur:
+# - main_column: kolom naam in de hoofddata (EV files)
+# - decoder_file: welk Dec_ bestand gebruiken
+# - join_column: kolom in decoder bestand om op te koppelen
+# - additional_columns: welke extra kolommen uit decoder bestand toe te voegen
+# - notes: eventuele opmerkingen over de koppeling
+
+decoder_mappings:
+
+  # =============================================================================
+  # LANDCODE KOPPELINGEN
+  # =============================================================================
+
+  geboorteland:
+    main_column: "Geboorteland"
+    decoder_file: "Dec_landcode.csv"
+    join_column: "Code land"
+    additional_columns:
+      - "Naam land"
+      #- "Etniciteit kort"
+      #- "Naam etniciteit kort"
+      #- "Etniciteit lang"
+      #- "Naam etniciteit lang"
+    notes: "Voor decodering van geboorteland"
+
+  geboorteland_ouder_1:
+    main_column: "Geboorteland ouder 1"
+    decoder_file: "Dec_landcode.csv"
+    join_column: "Code land"
+    additional_columns:
+      - "Naam land"
+      - "Etniciteit kort"
+      - "Naam etniciteit kort"
+      - "Etniciteit lang"
+      - "Naam etniciteit lang"
+    notes: "Voor decodering van geboorteland ouder 1"
+
+  geboorteland_ouder_2:
+    main_column: "Geboorteland ouder 2"
+    decoder_file: "Dec_landcode.csv"
+    join_column: "Code land"
+    additional_columns:
+      - "Naam land"
+      #- "Etniciteit kort"
+      #- "Naam etniciteit kort"
+      #- "Etniciteit lang"
+      #- "Naam etniciteit lang"
+    notes: "Voor decodering van geboorteland ouder 2"
+
+  herkomstland_volgens_cbs_definitie:
+    main_column: "Herkomstland volgens CBS-definitie"
+    decoder_file: "Dec_landcode.csv"
+    join_column: "Code land"
+    additional_columns:
+      - "Naam land"
+      #- "Etniciteit kort"
+      #- "Naam etniciteit kort"
+      #- "Etniciteit lang"
+      #- "Naam etniciteit lang"
+    notes: "Voor decodering van herkomstland volgens CBS-definitie"
+
+  # =============================================================================
+  # NATIONALITEIT KOPPELINGEN
+  # =============================================================================
+
+  nationaliteit_1:
+    main_column: "Nationaliteit 1"
+    decoder_file: "Dec_nationaliteitscode.csv"
+    join_column: "Code nationaliteit"
+    additional_columns:
+      - "Omschrijving nationaliteit"
+      #- "Etniciteit kort"
+      #- "Naam etniciteit kort"
+      #- "Etniciteit lang"
+      #- "Naam etniciteit lang"
+    notes: "Voor decodering van nationaliteit 1"
+
+  nationaliteit_2:
+    main_column: "Nationaliteit 2"
+    decoder_file: "Dec_nationaliteitscode.csv"
+    join_column: "Code nationaliteit"
+    additional_columns:
+      - "Omschrijving nationaliteit"
+      #- "Etniciteit kort"
+      #- "Naam etniciteit kort"
+      #- "Etniciteit lang"
+      #- "Naam etniciteit lang"
+    notes: "Voor decodering van nationaliteit 2"
+
+  nationaliteit_3:
+    main_column: "Nationaliteit 3"
+    decoder_file: "Dec_nationaliteitscode.csv"
+    join_column: "Code nationaliteit"
+    additional_columns:
+      - "Omschrijving nationaliteit"
+      #- "Etniciteit kort"
+      #- "Naam etniciteit kort"
+      #- "Etniciteit lang"
+      #- "Naam etniciteit lang"
+    notes: "Voor decodering van nationaliteit 3"
+
+  nationaliteit_eer_actueel:
+    main_column: "Nationaliteit gebruikt voor bepaling ind. EER actueel"
+    decoder_file: "Dec_nationaliteitscode.csv"
+    join_column: "Code nationaliteit"
+    additional_columns:
+      - "Omschrijving nationaliteit"
+      #- "Etniciteit kort"
+      #- "Naam etniciteit kort"
+      #- "Etniciteit lang"
+      #- "Naam etniciteit lang"
+    notes: "Voor decodering van nationaliteit voor EER bepaling actueel"
+
+  nationaliteit_eer_peildatum:
+    main_column: "Nationaliteit gebruikt voor bepaling ind. EER peildatum"
+    decoder_file: "Dec_nationaliteitscode.csv"
+    join_column: "Code nationaliteit"
+    additional_columns:
+      - "Omschrijving nationaliteit"
+      #- "Etniciteit kort"
+      #- "Naam etniciteit kort"
+      #- "Etniciteit lang"
+      #- "Naam etniciteit lang"
+    notes: "Voor decodering van nationaliteit voor EER bepaling peildatum"
+
+  # =============================================================================
+  # OPLEIDINGSCODE KOPPELINGEN (ISAT)
+  # =============================================================================
+
+  opleidingscode:
+    main_column: "Opleidingscode"
+    decoder_file: "Dec_isat.csv"
+    join_column: "ISAT-code"
+    additional_columns:
+      - "Naam opleiding"
+    notes: "Voor decodering van opleidingscode"
+
+  opleiding_actueel_equivalent:
+    main_column: "Opleiding actueel equivalent"
+    decoder_file: "Dec_isat.csv"
+    join_column: "ISAT-code"
+    additional_columns:
+      - "Naam opleiding"
+    notes: "Voor decodering van actueel equivalent opleiding"
+
+  opleiding_historisch_equivalent:
+    main_column: "Opleiding historisch equivalent"
+    decoder_file: "Dec_isat.csv"
+    join_column: "ISAT-code"
+    additional_columns:
+      - "Naam opleiding"
+    notes: "Voor decodering van historisch equivalent opleiding"
+
+  # =============================================================================
+  # VOOROPLEIDING KOPPELINGEN (VOPL)
+  # =============================================================================
+
+  hoogste_vooropleiding_voor_ho:
+    main_column: "Hoogste vooropleiding voor het HO"
+    decoder_file: "Dec_vopl.csv"
+    join_column: "Code vooropleiding"
+    additional_columns:
+      - "Omschrijving vooropleiding"
+    notes: "Voor decodering van hoogste vooropleiding voor het HO"
+
+  hoogste_vooropleiding_binnen_ho:
+    main_column: "Hoogste vooropleiding binnen het HO"
+    decoder_file: "Dec_vopl.csv"
+    join_column: "Code vooropleiding"
+    additional_columns:
+      - "Omschrijving vooropleiding"
+    notes: "Voor decodering van hoogste vooropleiding binnen het HO"
+
+  hoogste_vooropleiding:
+    main_column: "Hoogste vooropleiding"
+    decoder_file: "Dec_vopl.csv"
+    join_column: "Code vooropleiding"
+    additional_columns:
+      - "Omschrijving vooropleiding"
+    notes: "Voor decodering van hoogste vooropleiding"
+
+  # =============================================================================
+  # VOOROPLEIDING OORSPRONKELIJKE CODE KOPPELINGEN
+  # =============================================================================
+
+  hoogste_vooropleiding_voor_ho_oorspronkelijk:
+    main_column: "Hoogste vooropleiding voor het HO oorspronkelijke code"
+    decoder_file: "Dec_vooropl.csv"
+    join_column: "Code vooropleiding oorspr. code"
+    additional_columns:
+      - "Onderwijssector"
+      - "Omschrijving vooropleiding oorspr. code"
+    notes: "Voor decodering van vooropleiding voor het HO oorspronkelijke code"
+
+  hoogste_vooropleiding_binnen_ho_oorspronkelijk:
+    main_column: "Hoogste vooropleiding binnen het HO oorspronkelijke code"
+    decoder_file: "Dec_vooropl.csv"
+    join_column: "Code vooropleiding oorspr. code"
+    additional_columns:
+      - "Onderwijssector"
+      - "Omschrijving vooropleiding oorspr. code"
+    notes: "Voor decodering van vooropleiding binnen het HO oorspronkelijke code"
+
+  # =============================================================================
+  # HO INSTELLING KOPPELINGEN
+  # =============================================================================
+
+  instellingscode:
+    main_column: "Instellingscode"
+    decoder_file: "Dec_ho-inst.csv"
+    join_column: "Administratienummer OWI (instelling)"
+    additional_columns:
+      - "Naam instelling"
+    notes: "Voor decodering van instellingscode"
+
+  instelling_hoogste_vooropl_binnen_ho:
+    main_column: "Instelling van de hoogste vooropl. binnen het HO"
+    decoder_file: "Dec_ho-inst.csv"
+    join_column: "Administratienummer OWI (instelling)"
+    additional_columns:
+      - "Naam instelling"
+    notes: "Voor decodering van instelling hoogste vooropleiding binnen HO"
+
+  # =============================================================================
+  # ACTUELE INSTELLING KOPPELINGEN
+  # =============================================================================
+
+  actuele_instelling:
+    main_column: "Actuele instelling"
+    decoder_file: "Dec_actuele_instelling.csv"
+    join_column: "Actuele instelling"
+    additional_columns:
+      - "Naam actuele instelling"
+    notes: "Voor decodering van actuele instelling"
+
+  actuele_instelling_voor_besturenfusies:
+    main_column: "Actuele instelling voor besturenfusies"
+    decoder_file: "Dec_actuele_instelling.csv"
+    join_column: "Actuele instelling"
+    additional_columns:
+      - "Naam actuele instelling"
+    notes: "Voor decodering van actuele instelling voor besturenfusies"
+
+  # =============================================================================
+  # BRIN NUMMER KOPPELINGEN
+  # =============================================================================
+
+  instelling_hoogste_vooropl_voor_ho:
+    main_column: "Instelling van de hoogste vooropl. voor het HO"
+    decoder_file: "Dec_brinnummer.csv"
+    join_column: "Brinnummer"
+    additional_columns:
+      - "Naam"
+      #- "Postcodecijfers"
+      #- "Plaats"
+      #- "Datum oprichting"
+      #- "Datum opheffing"
+      #- "Code denominatie (= richting)"
+      #- "Naam denominatie (= richting)"
+    notes: "Voor decodering van instelling hoogste vooropleiding voor HO"
+
+  instelling_hoogste_vooropleiding:
+    main_column: "Instelling van de hoogste vooropleiding"
+    decoder_file: "Dec_brinnummer.csv"
+    join_column: "Brinnummer"
+    additional_columns:
+      - "Naam"
+      #- "Postcodecijfers"
+      #- "Plaats"
+      #- "Datum oprichting"
+      #- "Datum opheffing"
+      #- "Code denominatie (= richting)"
+      #- "Naam denominatie (= richting)"
+    notes: "Voor decodering van instelling hoogste vooropleiding"
+
+  # =============================================================================
+  # BRIN VESTIGING KOPPELINGEN (COMPLEXE JOINS)
+  # =============================================================================
+
+#  vestiging_hoogste_vooropl_voor_ho:
+#    main_column: "Vestigingsnummer van de hoogste vooropl. voor het HO"
+#    decoder_file: "Dec_brinvestigingsnummer.csv"
+#    join_columns:
+#      - "Brinnummer"  # gekoppeld aan "Instelling van de hoogste vooropl. voor het HO"
+#      - "Vestigingsnummer"
+#    additional_columns:
+#      - "Naam"
+#      - "Postcodecijfers"
+#      - "Plaats"
+#      - "Datum oprichting"
+#      - "Datum opheffing"
+#      - "Code denominatie (= richting)"
+#      - "Naam denominatie (= richting)"
+#    notes: "Voor decodering van vestiging hoogste vooropleiding voor HO (complexe join)"
+
+  # =============================================================================
+  # HO VESTIGING KOPPELINGEN
+  # =============================================================================
+
+#  vestigingsnummer:
+#    main_column: "Vestigingsnummer"
+#    decoder_file: "Dec_vestnr_ho.csv"
+#    join_columns:
+#      - "Brinnummer"  # gekoppeld aan "Instellingscode"
+#      - "Vestigingsnummer"
+#    additional_columns:
+#      - "Gemeentenaam volgens CROHO"
+#      - "Gemeentecode per 1 januari 2022"
+#      - "Gemeentenaam per 1 januari 2022"
+#    notes: "Voor decodering van vestigingsnummer (complexe join)"
+
+#  vestigingsnummer_diploma:
+#    main_column: "Vestigingsnummer diploma"
+#    decoder_file: "Dec_vestnr_ho.csv"
+#    join_columns:
+#      - "Brinnummer"  # gekoppeld aan "Instellingscode"
+#      - "Vestigingsnummer"
+#    additional_columns:
+#      - "Gemeentenaam volgens CROHO"
+#      - "Gemeentecode per 1 januari 2022"
+#      - "Gemeentenaam per 1 januari 2022"
+#    notes: "Voor decodering van vestigingsnummer diploma (complexe join)"
+
+#  vestigingsnummer_actueel:
+#    main_column: "Vestigingsnummer actueel"
+#    decoder_file: "Dec_vestnr_ho.csv"
+#    join_columns:
+#      - "Brinnummer"  # gekoppeld aan "Actuele instelling"
+#      - "Vestigingsnummer"
+#    additional_columns:
+#      - "Gemeentenaam volgens CROHO"
+#      - "Gemeentecode per 1 januari 2022"
+#      - "Gemeentenaam per 1 januari 2022"
+#    notes: "Voor decodering van vestigingsnummer actueel (complexe join)"
+
+#  vestigingsnummer_actueel_diploma:
+#    main_column: "Vestigingsnummer actueel diploma"
+#    decoder_file: "Dec_vestnr_ho.csv"
+#    join_columns:
+#      - "Brinnummer"  # gekoppeld aan "Actuele instelling"
+#      - "Vestigingsnummer"
+#    additional_columns:
+#      - "Gemeentenaam volgens CROHO"
+#      - "Gemeentecode per 1 januari 2022"
+#      - "Gemeentenaam per 1 januari 2022"
+#    notes: "Voor decodering van vestigingsnummer actueel diploma (complexe join)"
+
+  # =============================================================================
+  # HO VESTIGING COMPLEET KOPPELINGEN
+  # =============================================================================
+
+#  vestiging_hoogste_vooropl_binnen_ho:
+#    main_column: "Vestigingsnummer van de hoogste vooropl. binnen het HO"
+#    decoder_file: "Dec_vestnr_ho_compleet.csv"
+#    join_columns:
+#      - "Brinnummer"  # gekoppeld aan "Instelling van de hoogste vooropl. binnen het HO"
+#      - "Vestigingsnummer"
+#    additional_columns:
+#      - "Gemeentenaam volgens CROHO"
+#      - "Gemeentecode per 1 januari 2022"
+#      - "Gemeentenaam per 1 januari 2022"
+#    notes: "Voor decodering van vestiging hoogste vooropleiding binnen HO (complexe join)"
+
+  vestiging_hoogste_vooropleiding:
+    main_column: "Vestigingsnummer van de hoogste vooropleiding"
+    decoder_file: "Dec_vestnr_ho_compleet.csv"
+    join_columns:
+      - "Brinnummer"  # gekoppeld aan "Instelling van de hoogste vooropleiding"
+      - "Vestigingsnummer"
+    additional_columns:
+      - "Gemeentenaam volgens CROHO"
+#      - "Gemeentecode per 1 januari 2022"
+#      - "Gemeentenaam per 1 januari 2022"
+    notes: "Voor decodering van vestiging hoogste vooropleiding (complexe join)"
+
+  # =============================================================================
+  # POSTCODE KOPPELINGEN (JAAR AFHANKELIJK)
+  # =============================================================================
+
+  postcodecijfers_student:
+    main_column: "Postcodecijfers student op 1 oktober"
+    decoder_files:
+      - file: "Dec_postcodecijfers_2024.csv"
+    join_column: "Postcodecijfers"
+    additional_columns:
+#      - "Postbus J/N"
+#      - "Gemeentecode per 1 januari 2024"
+      - "Gemeentenaam per 1 januari 2024"
+    notes: "Voor decodering van postcode student - jaar afhankelijk bestand"
+
+  postcodecijfers_hoogste_vooropl_voor_ho:
+    main_column: "Postcodecijfers van de hoogste vooropl. voor het HO"
+    decoder_files:
+      - file: "Dec_postcodecijfers_2024.csv"
+    join_column: "Postcodecijfers"
+    additional_columns:
+#      - "Postbus J/N"
+#      - "Gemeentecode per 1 januari 2024"
+      - "Gemeentenaam per 1 januari 2024"
+    notes: "Voor decodering van postcode hoogste vooropleiding voor HO - jaar afhankelijk"
+
+# =============================================================================
+# CONFIGURATIE INSTELLINGEN
+# =============================================================================
+
+settings:
+  # Of dubbele kolommen moeten worden verwijderd na join
+  drop_duplicate_columns: true
+
+  # Of lege/missing values moeten worden bewaard
+  keep_missing_values: true
+
+  # Of debug informatie moet worden gelogd
+  debug_logging: true
+
+# =============================================================================
+# METADATA
+# =============================================================================
+
+metadata:
+  version: "1.0"
+  created_by: "Data Processing Pipeline"
+  created_date: "2025-09-15"
+  description: "Configuratie voor het automatisch koppelen van decoder bestanden aan hoofddata"
+  notes: |
+    Dit bestand definieert alle mogelijke koppelingen tussen de hoofddata (EV files)
+    en de decoder bestanden (Dec_*.asc).
+
+    Voor complexe joins (zoals vestigingsnummer combinaties) worden meerdere
+    join_columns gespecificeerd.
+
+    Voor jaar-afhankelijke bestanden (zoals postcode) kunnen meerdere decoder_files
+    worden gespecificeerd met condities.

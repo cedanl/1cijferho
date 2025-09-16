@@ -116,6 +116,45 @@ def convert_case(name, case_style):
 #                       COMPUTER MAGIC
 ################################################################
 
+def clean_field_for_separator(field, separator):
+    """
+    Clean field value to avoid conflicts with the chosen separator
+    """
+    if not field:
+        return field
+
+    # Strip problematic characters that cause CSV parsing issues
+    # Remove quotes, double quotes, and other special characters
+    cleaned = field.replace('"', '').replace("'", "").replace('\n', ' ').replace('\r', ' ')
+
+    # Replace conflicting separator characters based on user choice
+    if separator == ',':
+        # Replace commas in text with semicolons
+        cleaned = cleaned.replace(',', ';')
+    elif separator == ';':
+        # Replace semicolons in text with commas
+        cleaned = cleaned.replace(';', ',')
+    elif separator == '|':
+        # Replace pipes in text with spaces
+        cleaned = cleaned.replace('|', ' ')
+
+    return cleaned.strip()
+
+def clean_field(field):
+    """
+    Clean a field by removing problematic characters that cause CSV parsing issues
+    (Legacy function for backwards compatibility)
+    """
+    if not field:
+        return field
+
+    # Strip problematic characters that cause CSV parsing issues
+    # Remove quotes, double quotes, and other special characters
+    cleaned = field.replace('"', '').replace("'", "").replace('\n', ' ').replace('\r', ' ')
+
+    # Remove any remaining whitespace and return
+    return cleaned.strip()
+
 def process_chunk(chunk_data):
     """
     Process a chunk of lines and return the converted output
@@ -126,7 +165,8 @@ def process_chunk(chunk_data):
         if isinstance(line, bytes):
             line = line.decode('latin1')  # Adjust encoding as needed
         if line.strip():  # Skip empty lines
-            fields = [line[start:end].strip() for start, end in positions]
+            # Use the new separator-aware cleaning function
+            fields = [clean_field_for_separator(line[start:end].strip(), separator) for start, end in positions]
             output_lines.append(separator.join(fields))
     return output_lines
 
@@ -161,9 +201,10 @@ def converter(input_file, metadata_file, case_style='snake_case', separator=',')
     with open(input_file, 'rb') as f:
         total_lines = sum(1 for _ in f.readlines())
 
-    # Write header first
+    # Write header first (also clean column names for separator conflicts)
     with open(output_file, 'w', encoding='latin1', newline='') as f_out:
-        f_out.write(separator.join(column_names) + '\n')
+        cleaned_column_names = [clean_field_for_separator(col, separator) for col in column_names]
+        f_out.write(separator.join(cleaned_column_names) + '\n')
 
     # Read the entire file into memory (if it's not too large)
     with open(input_file, 'r', encoding='latin1') as f_in:
@@ -209,12 +250,12 @@ def run_conversions_from_matches(input_folder, metadata_folder="data/00-metadata
     console.print(f"[cyan]Starting conversion based on match log: {match_log_file}")
     console.print(f"[cyan]Settings: case_style={case_style}, separator='{separator}'")
 
-    # Setup logging
-    log_folder = "data/00-metadata/logs"
+    # Setup logging - schrijf naar 02-processed/logs
+    log_folder = "data/02-processed/logs"
     os.makedirs(log_folder, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     timestamped_log_file = os.path.join(log_folder, f"conversion_log_{timestamp}.json")
-    latest_log_file = os.path.join(log_folder, "(5)_conversion_log_latest.json")
+    latest_log_file = os.path.join(log_folder, "conversion_log_latest.json")
 
     # Check if log file exists
     if not os.path.exists(match_log_file):
