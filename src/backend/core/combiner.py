@@ -196,6 +196,242 @@ def load_decoder_data(decoder_file, input_dir="data/02-processed", logger=None):
         logger.print(f"[red]❌ Error loading decoder file {decoder_file}: {str(e)}")
         return None
 
+def load_mapping_tables_config(config_path="mapping_tables_config.yaml", logger=None):
+    """
+    Load and parse mapping tables configuration file
+    """
+    if logger is None:
+        logger = console
+
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+
+        # Extract active (non-commented) files from the mapping_tables list
+        active_files = []
+        if 'mapping_tables' in config:
+            active_files = [f for f in config['mapping_tables'] if f is not None]
+
+        logger.print(f"[green]✅ Mapping tables configuration loaded: {len(active_files)} active files")
+        return config, active_files
+    except FileNotFoundError:
+        logger.print(f"[yellow]⚠️  Mapping tables config not found: {config_path}, loading all files")
+        return None, None
+    except Exception as e:
+        logger.print(f"[red]❌ Error loading mapping tables config: {str(e)}")
+        return None, None
+
+def load_reference_data(reference_dir="data/reference", active_files=None, logger=None):
+    """
+    Load reference files from reference directory
+    If active_files is provided, only load those files that are active in the config
+    Returns dict of dataframes keyed by filename (without .csv extension)
+    """
+    if logger is None:
+        logger = console
+
+    reference_data = {}
+    reference_path = Path(reference_dir)
+
+    if not reference_path.exists():
+        logger.print(f"[yellow]⚠️  Reference directory not found: {reference_dir}")
+        return reference_data, [], []
+
+    # Find all CSV files in reference directory
+    all_csv_files = list(reference_path.glob("*.csv"))
+    all_filenames = [f.name for f in all_csv_files]
+
+    # If active_files is provided, check which ones exist and which are missing
+    if active_files is not None:
+        # Check which active files exist
+        existing_active_files = []
+        missing_active_files = []
+
+        for active_file in active_files:
+            if active_file in all_filenames:
+                existing_active_files.append(active_file)
+            else:
+                missing_active_files.append(active_file)
+
+        # Check which existing files are not in the config
+        files_not_in_config = [f for f in all_filenames if f not in active_files]
+
+        logger.print(f"[cyan]📚 Loading reference files from {reference_dir}")
+        logger.print(f"[cyan]Found {len(all_csv_files)} total files, {len(existing_active_files)} active in config")
+
+        if missing_active_files:
+            logger.print(f"[yellow]⚠️  Missing active files: {missing_active_files}")
+
+        if files_not_in_config:
+            logger.print(f"[blue]ℹ️  Files not in config (inactive): {files_not_in_config}")
+
+        # Only process existing active files
+        files_to_process = [f for f in all_csv_files if f.name in existing_active_files]
+    else:
+        # Load all files if no config provided
+        files_to_process = all_csv_files
+        existing_active_files = all_filenames
+        missing_active_files = []
+        files_not_in_config = []
+
+        logger.print(f"[cyan]📚 Loading all reference files from {reference_dir}")
+        logger.print(f"[cyan]Found {len(all_csv_files)} reference files")
+
+    # Load the files
+    for csv_file in files_to_process:
+        try:
+            # Load the reference file
+            df = pl.read_csv(csv_file, encoding='utf-8')
+
+            # Validate structure (should have 'value' and 'label' columns)
+            if 'value' not in df.columns or 'label' not in df.columns:
+                logger.print(f"[yellow]⚠️  Skipping {csv_file.name}: missing 'value' or 'label' columns")
+                continue
+
+            # Store with filename as key (without .csv extension)
+            key = csv_file.stem
+            reference_data[key] = df
+            logger.print(f"[green]  ✅ Loaded reference: {csv_file.name} ({len(df)} rows)")
+
+        except Exception as e:
+            logger.print(f"[red]❌ Error loading reference file {csv_file.name}: {str(e)}")
+
+    return reference_data, missing_active_files, files_not_in_config
+
+def find_matching_reference_column(column_name, reference_data, case_style="snake_case", logger=None):
+    """
+    Find a matching reference file for a given column name
+    Returns (reference_key, reference_df) if found, (None, None) if not found
+    """
+    if logger is None:
+        logger = console
+
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from converter import convert_case
+
+    # Clean column name and convert to snake_case for matching
+    clean_column = column_name.replace('_', ' ').strip()
+    snake_case_column = convert_case(clean_column, 'snake_case')
+
+    # Try exact match first
+    if snake_case_column in reference_data:
+        return snake_case_column, reference_data[snake_case_column]
+
+    # Try variations of the column name
+    variations = [
+        snake_case_column,
+        snake_case_column.replace('_', ''),  # Remove underscores
+        snake_case_column.replace('code_', ''),  # Remove 'code_' prefix
+        snake_case_column.replace('_code', ''),  # Remove '_code' suffix
+    ]
+
+    for variation in variations:
+        if variation in reference_data:
+            return variation, reference_data[variation]
+
+    return None, None
+
+def perform_reference_joins(df, reference_data, case_style="snake_case", logger=None):
+    """
+    Join reference data to add label columns for all matching columns
+    Returns (updated_df, successful_joins, failed_joins, non_working_files)
+    """
+    if logger is None:
+        logger = console
+
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from converter import convert_case
+
+    result_df = df.clone()
+    successful_joins = 0
+    failed_joins = 0
+    non_working_files = []
+
+    logger.print(f"[cyan]🔗 Adding reference labels to columns...")
+
+    # Process each column in the dataframe
+    for column in df.columns:
+        # Find matching reference file
+        ref_key, ref_df = find_matching_reference_column(column, reference_data, case_style, logger)
+
+        if ref_df is not None:
+            try:
+                # Generate label column name with proper case style
+                label_column_base = f"{column}_label"
+                label_column = convert_case(label_column_base, case_style) if case_style != 'original' else label_column_base
+
+                # Skip if label column already exists
+                if label_column in result_df.columns:
+                    continue
+
+                # Prepare reference data for join
+                ref_for_join = ref_df.select(['value', 'label']).rename({'label': label_column})
+
+                # Check for datatype compatibility
+                main_dtype = result_df[column].dtype
+                ref_dtype = ref_for_join['value'].dtype
+
+                if main_dtype != ref_dtype:
+                    # Try to cast reference 'value' column to match main data type
+                    try:
+                        ref_for_join = ref_for_join.with_columns(
+                            pl.col('value').cast(main_dtype)
+                        )
+                    except Exception:
+                        # Fall back to string casting for both
+                        ref_for_join = ref_for_join.with_columns(
+                            pl.col('value').cast(pl.String)
+                        )
+                        # Join will cast main column to string on-the-fly
+
+                # Perform left join
+                try:
+                    result_df = result_df.join(
+                        ref_for_join,
+                        left_on=column,
+                        right_on='value',
+                        how='left'
+                    )
+                    successful_joins += 1
+                    logger.print(f"[green]  ✅ Added {label_column} from {ref_key}.csv")
+
+                except Exception as join_error:
+                    # Try string fallback
+                    try:
+                        result_df = result_df.with_columns(
+                            pl.col(column).cast(pl.String).alias(f"{column}_str_temp")
+                        ).join(
+                            ref_for_join,
+                            left_on=f"{column}_str_temp",
+                            right_on='value',
+                            how='left'
+                        ).drop(f"{column}_str_temp")
+                        successful_joins += 1
+                        logger.print(f"[green]  ✅ Added {label_column} from {ref_key}.csv (string fallback)")
+                    except Exception as fallback_error:
+                        logger.print(f"[red]❌ Failed to join {ref_key}.csv to {column}: {str(fallback_error)}")
+                        failed_joins += 1
+                        non_working_files.append({
+                            'file': f"{ref_key}.csv",
+                            'column': column,
+                            'error': str(fallback_error)
+                        })
+
+            except Exception as e:
+                logger.print(f"[red]❌ Error processing reference {ref_key}.csv for {column}: {str(e)}")
+                failed_joins += 1
+                non_working_files.append({
+                    'file': f"{ref_key}.csv",
+                    'column': column,
+                    'error': str(e)
+                })
+
+    return result_df, successful_joins, failed_joins, non_working_files
+
 def check_unique_join_columns(df, join_columns):
     """
     Check if join columns form unique combinations
@@ -488,7 +724,8 @@ def perform_complex_join(main_df, decoder_df, mapping_config, case_style="snake_
     logger.print(f"[green]  ✅ Complex join: {len(additional_columns)} columns from {mapping_config.get('decoder_file', 'decoder')}")
     return result_df
 
-def combine_all_data(config_path="decoder_mapping_config.yaml",
+def combine_all_data(config_path="decoding_files_config.yaml",
+                    mapping_tables_config_path="mapping_tables_config.yaml",
                     processed_dir="data/02-processed",
                     input_dir="data/02-processed",
                     output_dir="data/03-combined",
@@ -502,7 +739,7 @@ def combine_all_data(config_path="decoder_mapping_config.yaml",
     logger.print("[bold blue]🔄 Starting data combination process...[/bold blue]")
     logger.print(f"[cyan]Settings: case_style={case_style}")
 
-    # Load configuration
+    # Load decoder configuration
     config = load_yaml_config(config_path, logger)
     mappings = config['decoder_mappings']
     settings = config.get('settings', {})
@@ -513,9 +750,27 @@ def combine_all_data(config_path="decoder_mapping_config.yaml",
         logger.print("[red]❌ No main data found")
         return
 
+    # Load mapping tables configuration and reference data
+    logger.print(f"\n[bold magenta]📚 Loading reference data configuration...[/bold magenta]")
+    mapping_config, active_files = load_mapping_tables_config(mapping_tables_config_path, logger)
+
+    # Determine reference directory
+    reference_dir = "data/reference"
+    if mapping_config and 'settings' in mapping_config and 'reference_dir' in mapping_config['settings']:
+        reference_dir = mapping_config['settings']['reference_dir']
+
+    # Load reference data with active file filtering
+    reference_data, missing_files, inactive_files = load_reference_data(reference_dir, active_files, logger)
+
     # Create output directory
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True)
+
+    # Global tracking for reference joins
+    all_non_working_files = []
+    total_reference_joins = 0
+    total_reference_successes = 0
+    total_reference_failures = 0
 
     # Process each main data file
     for data_name, main_df in main_data.items():
@@ -570,6 +825,18 @@ def combine_all_data(config_path="decoder_mapping_config.yaml",
 
                 progress.update(task, advance=1)
 
+        # Add reference data joins
+        logger.print(f"\n[bold magenta]📚 Adding reference labels for {data_name}...[/bold magenta]")
+        combined_df, ref_successes, ref_failures, non_working = perform_reference_joins(
+            combined_df, reference_data, case_style, logger
+        )
+
+        # Update global tracking
+        total_reference_joins += (ref_successes + ref_failures)
+        total_reference_successes += ref_successes
+        total_reference_failures += ref_failures
+        all_non_working_files.extend(non_working)
+
         # Save combined data
         output_file = output_path / f"{data_name}_combined.csv"
         combined_df.write_csv(output_file)
@@ -579,23 +846,59 @@ def combine_all_data(config_path="decoder_mapping_config.yaml",
         logger.print(f"  📊 Original columns: {len(main_df.columns)}")
         logger.print(f"  📊 Final columns: {len(combined_df.columns)}")
         logger.print(f"  📊 Added columns: {len(combined_df.columns) - len(main_df.columns)}")
-        logger.print(f"  ✅ Successful joins: {successful_joins}")
-        logger.print(f"  ❌ Failed joins: {failed_joins}")
+        logger.print(f"  ✅ Successful decoder joins: {successful_joins}")
+        logger.print(f"  ❌ Failed decoder joins: {failed_joins}")
+        logger.print(f"  ✅ Successful reference joins: {ref_successes}")
+        logger.print(f"  ❌ Failed reference joins: {ref_failures}")
         logger.print(f"  💾 Saved to: {output_file}")
+
+    # Final summary for reference data
+    logger.print(f"\n[bold magenta]📚 Reference Data Summary[/bold magenta]")
+    logger.print(f"  📊 Total reference files loaded: {len(reference_data)}")
+    logger.print(f"  ✅ Total successful reference joins: {total_reference_successes}")
+    logger.print(f"  ❌ Total failed reference joins: {total_reference_failures}")
+
+    # Report configuration status
+    if active_files is not None:
+        logger.print(f"  📋 Files configured as active: {len(active_files)}")
+        if missing_files:
+            logger.print(f"  ⚠️  Missing configured files: {missing_files}")
+        if inactive_files:
+            logger.print(f"  💤 Files not in config (inactive): {len(inactive_files)} files")
+
+    # Report non-working files
+    if all_non_working_files:
+        logger.print(f"\n[bold red]❌ Non-working reference files ({len(all_non_working_files)}):[/bold red]")
+        for nw in all_non_working_files:
+            logger.print(f"  [red]• {nw['file']} (column: {nw['column']}): {nw['error']}")
+    else:
+        logger.print(f"[bold green]🎉 All reference files processed successfully![/bold green]")
 
     # Save logs to files
     logger.save_logs()
 
-    # Return log info
-    return logger.get_log_files()
+    # Return log info with reference summary
+    log_info = logger.get_log_files()
+    log_info['reference_summary'] = {
+        'total_files': len(reference_data),
+        'successful_joins': total_reference_successes,
+        'failed_joins': total_reference_failures,
+        'non_working_files': all_non_working_files,
+        'missing_configured_files': missing_files,
+        'inactive_files': inactive_files,
+        'active_files_count': len(active_files) if active_files else 0
+    }
+    return log_info
 
 def main():
     """
     Command line entry point
     """
     parser = argparse.ArgumentParser(description='Combine main data with decoder files')
-    parser.add_argument('--config', default='decoder_mapping_config.yaml',
-                       help='Path to YAML configuration file')
+    parser.add_argument('--config', default='decoding_files_config.yaml',
+                       help='Path to YAML decoder configuration file')
+    parser.add_argument('--mapping-tables-config', default='mapping_tables_config.yaml',
+                       help='Path to YAML mapping tables configuration file')
     parser.add_argument('--processed-dir', default='data/02-processed',
                        help='Directory with processed main data')
     parser.add_argument('--input-dir', default='data/02-processed',
@@ -610,6 +913,7 @@ def main():
 
     log_info = combine_all_data(
         config_path=args.config,
+        mapping_tables_config_path=args.mapping_tables_config,
         processed_dir=args.processed_dir,
         input_dir=args.input_dir,
         output_dir=args.output_dir,

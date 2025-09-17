@@ -1,0 +1,83 @@
+# Configuration for reference mapping tables
+# Each file can be enabled/disabled by commenting/uncommenting
+# Files are automatically matched to column names in snake_case format
+
+mapping_tables:
+  # Beeindiging codes
+  - code_beeindiging.csv
+
+  # Examen resultaat codes
+  - code_examenresultaat.csv
+
+  # CROHO onderdelen
+  - croho_onderdeel_actuele_opleiding.csv
+  - croho_subonderdeel_actuele_opleiding.csv
+
+  # Demografische gegevens
+  #- etniciteit.csv
+  - generatie.csv
+  - geslacht.csv
+  - herkomst_indikking_volgens_cbs_definitie.csv
+  - indicatie_geboren.csv
+
+  # Activiteit en status indicaties
+  - indicatie_actief_op_peildatum.csv
+  - indicatie_eer_actueel.csv
+  - indicatie_eer_op_peildatum_1_oktober.csv
+  - indicatie_internationale_student.csv
+  - indicatie_soort_programma.csv
+  - indicatie_university_college.csv
+
+  # Eerstejaars indicaties
+  - indicatie_eerstejaars_actuele_instelling.csv
+  - indicatie_eerstejaars_actuele_opleiding_instelling.csv
+  #- indicatie_eerstejaars_continu_actuele_instelling.csv
+  #- indicatie_eerstejaars_continu_hoger_onderwijs.csv
+  #- indicatie_eerstejaars_continu_soort_ho.csv
+  #- indicatie_eerstejaars_continu_type_ho_binnen_ho.csv
+  - indicatie_eerstejaars_opleiding_actueel_equivalent.csv
+  #- indicatie_eerstejrs_act._inst_type_ho_binnen_soort_ho.csv
+
+  # Inschrijving en opleiding
+  - inschrijvingsvorm.csv
+  - opleidingsfase_actueel_van_het_diploma.csv
+  - opleidingsfase_actueel.csv
+  - opleidingsfase.csv
+  - opleidingsvorm.csv
+
+  # Postcode gegevens
+  - postcodecijfers_student_op_1_oktober.csv
+  - postcodecijfers_van_de_hoogste_vooropl._voor_het_ho.csv
+
+  # Soort diploma
+  - soort_diploma_hoger_onderwijs_internat.statistiek.csv
+  - soort_diploma_hoger_onderwijs.csv
+  - soort_diploma_instelling.csv
+  - soort_diploma_soort_hoger_onderwijs.csv
+
+  # Soort hoger onderwijs
+  - soort_hoger_onderwijs.csv
+
+  # Soort inschrijving
+  - soort_inschrijving_act._inst_type_ho_binnen_soort_ho.csv
+  - soort_inschrijving_actuele_instelling.csv
+  - soort_inschrijving_actuele_opleiding_instelling.csv
+  #- soort_inschrijving_continu_actuele_instelling.csv
+  #- soort_inschrijving_continu_hoger_onderwijs.csv
+  # - soort_inschrijving_continu_soort_ho.csv
+  - soort_inschrijving_continu_type_ho_binnen_ho.csv
+  - soort_inschrijving_hoger_onderwijs.csv
+  - soort_inschrijving_opleiding_actueel_equivalent.csv
+  - soort_inschrijving_soort_ho.csv
+  #- soort_inschrijving_type_ho_binnen_ho.csv
+  #- soort_inschrijving_type_ho_binnen_soort_ho.csv
+
+  # Type hoger onderwijs
+  - type_hoger_onderwijs_binnen_soort_hoger_onderwijs.csv
+
+# Settings for reference data processing
+settings:
+  reference_dir: "data/reference"
+  auto_match_columns: true
+  case_style_matching: true
+  create_label_columns: true

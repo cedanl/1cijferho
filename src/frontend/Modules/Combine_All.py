@@ -72,8 +72,10 @@ def format_file_size(size_bytes):
     return f"{s} {size_names[i]}"
 
 def check_yaml_config():
-    """Check if YAML configuration exists"""
-    return os.path.exists("decoder_mapping_config.yaml")
+    """Check if YAML configuration files exist"""
+    decoding_exists = os.path.exists("decoding_files_config.yaml")
+    mapping_exists = os.path.exists("mapping_tables_config.yaml")
+    return decoding_exists and mapping_exists
 
 def start_combination():
     """Callback function to start the combination process"""
@@ -120,7 +122,7 @@ What happens:
 - Verify uniqueness of join columns to prevent data duplication
 - Create enriched datasets in `data/03-combined/`
 
-The process uses the `decoder_mapping_config.yaml` file to determine which decoder files to join and how.
+The process uses the `decoding_files_config.yaml` and `mapping_tables_config.yaml` files to determine which decoder files to join and how.
 """)
 
 # Check prerequisites
@@ -129,7 +131,7 @@ yaml_exists = check_yaml_config()
 
 if not yaml_exists:
     st.error("🚨 **YAML Configuration Missing**")
-    st.info("💡 The `decoder_mapping_config.yaml` file is required. Please ensure it exists in the project root.")
+    st.info("💡 The `decoding_files_config.yaml` and `mapping_tables_config.yaml` files are required. Please ensure they exist in the project root.")
 elif not processed_files:
     st.error("🚨 **No processed files found**")
     st.info("💡 Please run the Turbo Convert process first to create processed CSV files.")
