@@ -319,18 +319,6 @@ def find_matching_reference_column(column_name, reference_data, case_style="snak
     if snake_case_column in reference_data:
         return snake_case_column, reference_data[snake_case_column]
 
-    # Try variations of the column name
-    variations = [
-        snake_case_column,
-        snake_case_column.replace('_', ''),  # Remove underscores
-        snake_case_column.replace('code_', ''),  # Remove 'code_' prefix
-        snake_case_column.replace('_code', ''),  # Remove '_code' suffix
-    ]
-
-    for variation in variations:
-        if variation in reference_data:
-            return variation, reference_data[variation]
-
     return None, None
 
 def perform_reference_joins(df, reference_data, case_style="snake_case", logger=None):
