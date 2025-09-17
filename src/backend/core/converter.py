@@ -43,6 +43,10 @@ def to_snake_case(name):
     """
     Convert a string to snake_case
     """
+    # First handle " - " pattern specifically
+    name = name.replace(' - ', '_')
+    # Replace single dashes with underscores
+    name = name.replace('-', '_')
     # Replace spaces with underscores
     name = name.replace(' ', '_')
     # Convert camelCase to snake_case
@@ -57,12 +61,14 @@ def to_camel_case(name):
     """
     Convert a string to camelCase
     """
+    # First handle " - " pattern specifically by removing it
+    name = name.replace(' - ', '')
     # First convert any existing camelCase/PascalCase to words
-    # Split on spaces, underscores, and capital letters
+    # Split on spaces, underscores, dashes, and capital letters
     words = re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|\b)|\d+', name)
-    # Also split on spaces and underscores if no camelCase detected
+    # Also split on spaces, underscores, and dashes if no camelCase detected
     if not words or len(words) == 1:
-        words = re.split(r'[\s_]+', name.strip())
+        words = re.split(r'[\s_\-]+', name.strip())
 
     # Filter out empty strings and clean words
     words = [word.strip() for word in words if word.strip()]
@@ -79,12 +85,14 @@ def to_pascal_case(name):
     """
     Convert a string to PascalCase
     """
+    # First handle " - " pattern specifically by removing it
+    name = name.replace(' - ', '')
     # First convert any existing camelCase/PascalCase to words
-    # Split on spaces, underscores, and capital letters
+    # Split on spaces, underscores, dashes, and capital letters
     words = re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|\b)|\d+', name)
-    # Also split on spaces and underscores if no camelCase detected
+    # Also split on spaces, underscores, and dashes if no camelCase detected
     if not words or len(words) == 1:
-        words = re.split(r'[\s_]+', name.strip())
+        words = re.split(r'[\s_\-]+', name.strip())
 
     # Filter out empty strings and clean words
     words = [word.strip() for word in words if word.strip()]
@@ -109,8 +117,10 @@ def convert_case(name, case_style):
         return to_camel_case(normalized_name)
     elif case_style == 'PascalCase':
         return to_pascal_case(normalized_name)
-    else:  # 'original' - keep original case but normalized
-        return normalized_name
+    else:  # 'original' - keep original case but normalized, replace " - " and "-" with single space
+        result = normalized_name.replace(' - ', ' ')
+        result = result.replace('-', ' ')
+        return result
 
 ################################################################
 #                       COMPUTER MAGIC
@@ -404,6 +414,326 @@ def run_conversions_from_matches(input_folder, metadata_folder="data/00-metadata
 
     return results  # Return the results
 
+
+################################################################
+#                    MAPPING TABLES GENERATOR
+################################################################
+
+def create_mapping_tables_from_bestandsbeschrijving(bestandsbeschrijving_path="data/01-input/Bestandsbeschrijving_1cyferho_2023_v1.2.txt",
+                                                  output_folder="data/reference"):
+    """
+    Parse the Bestandsbeschrijving text file and create mapping tables as CSV files.
+
+    Parameters:
+    - bestandsbeschrijving_path: Path to the text file
+    - output_folder: Folder where CSV files will be saved
+
+    Returns:
+    - Dictionary with results of the parsing process
+    """
+    console = Console()
+    console.print(f"[cyan]Creating mapping tables from: {bestandsbeschrijving_path}")
+
+    # Create output directory if it doesn't exist
+    os.makedirs(output_folder, exist_ok=True)
+
+    # Read the file with proper encoding detection
+    try:
+        # Try UTF-8 first, then fall back to latin1
+        try:
+            with open(bestandsbeschrijving_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+        except UnicodeDecodeError:
+            with open(bestandsbeschrijving_path, 'r', encoding='latin1') as f:
+                lines = f.readlines()
+    except Exception as e:
+        console.print(f"[red]Error reading file: {str(e)}")
+        return {"status": "failed", "reason": f"Error reading file: {str(e)}"}
+
+    results = {
+        "status": "completed",
+        "total_sections_found": 0,
+        "mapping_tables_created": 0,
+        "skipped_sections": 0,
+        "created_files": [],
+        "skipped_sections_details": []
+    }
+
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+
+        # Look for section titles (non-empty lines followed by dashes)
+        # BUT skip layout table entries (which contain numbers and spacing)
+        if line and i + 1 < len(lines):
+            next_line = lines[i + 1].strip()
+
+            # Skip if this looks like a layout table entry (contains numbers at the end)
+            # Layout entries look like: "Opleidingsvorm                                            30             1"
+            if len(line.split()) >= 3 and line.split()[-1].isdigit() and line.split()[-2].isdigit():
+                i += 1
+                continue
+
+            # Check if next line is only dashes and matches the length roughly
+            if next_line and all(c == '-' for c in next_line) and len(next_line) >= len(line) * 0.8:
+                section_title = line
+                results["total_sections_found"] += 1
+                # Quiet mode - only show created files
+                # console.print(f"[blue]Found section: {section_title}")
+
+                # Debug specific sections (disabled for normal operation)
+                debug_sections = []  # ["Opleidingsvorm", "Soort diploma instelling"]
+                is_debug_section = any(debug in section_title for debug in debug_sections)
+
+                # Look for "Mogelijke waarden:" in the following lines
+                j = i + 2
+                found_mogelijke_waarden = False
+
+                while j < len(lines):
+                    current_line = lines[j].strip()
+
+                    # Stop if we hit another section (title followed by dashes)
+                    if (j + 1 < len(lines) and current_line and
+                        len(current_line) > 3 and  # Avoid very short lines
+                        lines[j + 1].strip() and
+                        all(c == '-' for c in lines[j + 1].strip()) and
+                        len(lines[j + 1].strip()) >= len(current_line) * 0.8):
+                        break
+
+                    if current_line.startswith("Mogelijke waarden:"):
+                        found_mogelijke_waarden = True
+                        if is_debug_section:
+                            console.print(f"[magenta]DEBUG: Processing {section_title}...")
+
+                        # Check if there's "Zie bestand" in the next few lines before any values
+                        k = j + 1
+                        has_zie_bestand = False
+                        values_started = False
+
+                        while k < len(lines) and k < j + 10:  # Check next 10 lines max
+                            check_line = lines[k].strip()
+                            if not check_line:
+                                k += 1
+                                continue
+                            if '=' in check_line:
+                                values_started = True
+                                break
+                            if 'Zie bestand' in check_line:
+                                has_zie_bestand = True
+                                break
+                            # Stop if we hit another section
+                            if (k + 1 < len(lines) and check_line and
+                                len(check_line) > 3 and
+                                lines[k + 1].strip() and
+                                all(c == '-' for c in lines[k + 1].strip())):
+                                break
+                            k += 1
+
+                        if has_zie_bestand and not values_started:
+                            # console.print(f"[yellow]Skipping {section_title}: contains 'Zie bestand'")
+                            if is_debug_section:
+                                console.print(f"[magenta]DEBUG: {section_title} - Found 'Zie bestand'")
+                            results["skipped_sections"] += 1
+                            results["skipped_sections_details"].append({
+                                "section": section_title,
+                                "reason": "Contains 'Zie bestand'"
+                            })
+                            break
+
+                        # Parse the values
+                        values = []
+                        k = j + 1
+                        current_value = None
+                        current_label = ""
+                        seen_values = set()  # To detect duplicates
+
+                        while k < len(lines):
+                            value_line = lines[k].strip()
+
+                            # Stop if we hit another section
+                            if (k + 1 < len(lines) and value_line and
+                                len(value_line) > 3 and
+                                lines[k + 1].strip() and
+                                all(c == '-' for c in lines[k + 1].strip()) and
+                                len(lines[k + 1].strip()) >= len(value_line) * 0.8):
+                                break
+
+                            # Skip empty lines, but track if they appear between values
+                            if not value_line:
+                                k += 1
+                                continue
+
+                            # Skip NB: lines (notes that should be ignored)
+                            if value_line.startswith('NB:') or value_line.startswith('NB '):
+                                if is_debug_section:
+                                    console.print(f"[magenta]DEBUG: Skipping NB line: {value_line}")
+                                k += 1
+                                continue
+
+                            # Look for lines with "=" that represent value mappings
+                            if '=' in value_line and not value_line.startswith('['):
+                                # Save previous value if we have one
+                                if current_value is not None:
+                                    clean_value = normalize_text(current_value)
+                                    clean_label = normalize_text(current_label.strip())
+                                    # Replace commas with semicolons to prevent CSV issues (like other functions)
+                                    clean_value = clean_value.replace(',', ';')
+                                    clean_label = clean_label.replace(',', ';')
+                                    if is_debug_section:
+                                        console.print(f"[magenta]DEBUG: Adding value: '{clean_value}' -> '{clean_label}'")
+                                        if clean_value in seen_values:
+                                            console.print(f"[red]DEBUG: DUPLICATE VALUE DETECTED: '{clean_value}'")
+                                    values.append((clean_value, clean_label))
+                                    seen_values.add(clean_value)
+
+                                # Split on first '=' only
+                                parts = value_line.split('=', 1)
+                                if len(parts) == 2:
+                                    value = parts[0].strip()
+                                    label_part = parts[1].strip()
+
+                                    # Skip if value contains spaces (invalid codes)
+                                    if ' ' not in value and value:
+                                        current_value = value
+                                        current_label = label_part
+                                    else:
+                                        current_value = None
+                                        current_label = ""
+
+                            # Handle [leeg] cases
+                            elif value_line.startswith('[leeg]') and '=' in value_line:
+                                # Save previous value if we have one
+                                if current_value is not None:
+                                    clean_value = normalize_text(current_value)
+                                    clean_label = normalize_text(current_label.strip())
+                                    # Replace commas with semicolons to prevent CSV issues (like other functions)
+                                    clean_value = clean_value.replace(',', ';')
+                                    clean_label = clean_label.replace(',', ';')
+                                    if is_debug_section:
+                                        console.print(f"[magenta]DEBUG: Adding value: '{clean_value}' -> '{clean_label}'")
+                                        if clean_value in seen_values:
+                                            console.print(f"[red]DEBUG: DUPLICATE VALUE DETECTED: '{clean_value}'")
+                                    values.append((clean_value, clean_label))
+                                    seen_values.add(clean_value)
+
+                                parts = value_line.split('=', 1)
+                                if len(parts) == 2:
+                                    label = normalize_text(parts[1].strip())
+                                    # Replace commas with semicolons to prevent CSV issues
+                                    label = label.replace(',', ';')
+                                    values.append(('NA', label))
+                                    current_value = None
+                                    current_label = ""
+
+                            # If we have a current value, this might be a continuation line
+                            elif current_value is not None:
+                                # Add this line as continuation of the label
+                                current_label += " " + value_line
+
+                            k += 1
+
+                        # Save the last value if we have one
+                        if current_value is not None:
+                            clean_value = normalize_text(current_value)
+                            clean_label = normalize_text(current_label.strip())
+                            # Replace commas with semicolons to prevent CSV issues
+                            clean_value = clean_value.replace(',', ';')
+                            clean_label = clean_label.replace(',', ';')
+                            values.append((clean_value, clean_label))
+                            seen_values.add(clean_value)
+
+
+                        # Check for duplicate values by examining the actual list
+                        value_codes = [v[0] for v in values]
+                        unique_values = set(value_codes)
+
+                        if len(value_codes) != len(unique_values):
+                            # console.print(f"[yellow]Skipping {section_title}: contains duplicate values")
+                            if is_debug_section:
+                                console.print(f"[magenta]DEBUG: {section_title} - Found {len(value_codes)} values but {len(unique_values)} unique")
+                                console.print(f"[magenta]DEBUG: Values: {values}")
+                                console.print(f"[magenta]DEBUG: Value codes: {value_codes}")
+                                console.print(f"[magenta]DEBUG: Unique codes: {unique_values}")
+                                # Find duplicates
+                                duplicates = [v for v in value_codes if value_codes.count(v) > 1]
+                                console.print(f"[magenta]DEBUG: Duplicate codes: {set(duplicates)}")
+                            results["skipped_sections"] += 1
+                            results["skipped_sections_details"].append({
+                                "section": section_title,
+                                "reason": "Contains duplicate values"
+                            })
+                            break
+
+                        # Apply filters
+                        if len(values) < 2:
+                            # console.print(f"[yellow]Skipping {section_title}: only {len(values)} values (too few)")
+                            if is_debug_section:
+                                console.print(f"[magenta]DEBUG: {section_title} - Only {len(values)} values found")
+                                console.print(f"[magenta]DEBUG: Values: {values}")
+                            results["skipped_sections"] += 1
+                            results["skipped_sections_details"].append({
+                                "section": section_title,
+                                "reason": f"Only {len(values)} values (minimum 2 required)"
+                            })
+                            break
+
+                        # Create CSV file with normalized section title
+                        normalized_section_title = normalize_text(section_title)
+                        filename = convert_case(normalized_section_title, 'snake_case') + '.csv'
+                        filepath = os.path.join(output_folder, filename)
+
+                        try:
+                            with open(filepath, 'w', encoding='utf-8', newline='') as csvfile:
+                                csvfile.write('value,label\n')
+                                for value, label in values:
+                                    # Clean the label for CSV (already normalized and comma-cleaned)
+                                    # Escape quotes
+                                    clean_label = label.replace('"', '""')
+                                    csvfile.write(f'{value},{clean_label}\n')
+
+                            console.print(f"[green]Created: {filename} with {len(values)} mappings")
+                            results["mapping_tables_created"] += 1
+                            results["created_files"].append({
+                                "section": section_title,
+                                "filename": filename,
+                                "values_count": len(values)
+                            })
+
+                        except Exception as e:
+                            console.print(f"[red]Error creating CSV for {section_title}: {str(e)}")
+                            results["skipped_sections"] += 1
+                            results["skipped_sections_details"].append({
+                                "section": section_title,
+                                "reason": f"Error creating CSV: {str(e)}"
+                            })
+
+                        break
+
+                    j += 1
+
+                if not found_mogelijke_waarden:
+                    # console.print(f"[yellow]Skipping {section_title}: no 'Mogelijke waarden' found")
+                    results["skipped_sections"] += 1
+                    results["skipped_sections_details"].append({
+                        "section": section_title,
+                        "reason": "No 'Mogelijke waarden' section found"
+                    })
+
+        i += 1
+
+    # Print compact summary - detailed list removed for cleaner output during normal operation
+    console.print(f"\n[green]Summary:")
+    console.print(f"[green]Total sections found: {results['total_sections_found']}")
+    console.print(f"[green]Mapping tables created: {results['mapping_tables_created']}")
+    console.print(f"[yellow]Sections skipped: {results['skipped_sections']}")
+
+    if results["created_files"]:
+        console.print(f"\n[blue]Created files:")
+        for file_info in results["created_files"]:
+            console.print(f"[blue]  {file_info['filename']} ({file_info['values_count']} values)")
+
+    return results
+
 def main():
     """
     Main function to handle command line arguments and run conversions
@@ -419,6 +749,9 @@ def main():
 
     args = parser.parse_args()
 
+    # Generate mapping tables from Bestandsbeschrijving
+    mapping_results = create_mapping_tables_from_bestandsbeschrijving()
+
     # Run the conversion process
     results = run_conversions_from_matches(
         input_folder=args.input_folder,
@@ -427,6 +760,7 @@ def main():
     )
 
     return results
+
 
 if __name__ == "__main__":
     main()
