@@ -420,6 +420,202 @@ def perform_reference_joins(df, reference_data, case_style="snake_case", logger=
 
     return result_df, successful_joins, failed_joins, non_working_files
 
+def load_manual_mapping_config(config_path="manual_tables_config.yaml", logger=None):
+    """
+    Load and parse manual mapping tables configuration file
+    """
+    if logger is None:
+        logger = console
+
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+
+        # Extract active files from the manual_mapping_tables list
+        active_files = []
+        if 'manual_mapping_tables' in config:
+            active_files = [f for f in config['manual_mapping_tables'] if f is not None]
+
+        logger.print(f"[green]✅ Manual mapping config loaded: {len(active_files)} manual mapping files")
+        return config, active_files
+    except FileNotFoundError:
+        logger.print(f"[yellow]⚠️  Manual mapping config not found: {config_path}")
+        return None, None
+    except Exception as e:
+        logger.print(f"[red]❌ Error loading manual mapping config: {str(e)}")
+        return None, None
+
+def load_manual_mapping_data(manual_dir="data/reference/manual", active_files=None, logger=None):
+    """
+    Load manual mapping files from manual directory
+    Returns dict of dataframes keyed by filename (without .csv extension)
+    """
+    if logger is None:
+        logger = console
+
+    manual_data = {}
+    manual_path = Path(manual_dir)
+
+    if not manual_path.exists():
+        logger.print(f"[yellow]⚠️  Manual mapping directory not found: {manual_dir}")
+        return manual_data, []
+
+    # Find all CSV files in manual directory
+    all_csv_files = list(manual_path.glob("*.csv"))
+
+    if not all_csv_files:
+        logger.print(f"[yellow]⚠️  No CSV files found in manual directory: {manual_dir}")
+        return manual_data, []
+
+    # Filter files if active_files is provided
+    files_to_load = []
+    if active_files:
+        for csv_file in all_csv_files:
+            if csv_file.name in active_files:
+                files_to_load.append(csv_file)
+    else:
+        files_to_load = all_csv_files
+
+    missing_active_files = []
+    if active_files:
+        found_files = [f.name for f in files_to_load]
+        missing_active_files = [f for f in active_files if f not in found_files]
+
+    logger.print(f"[cyan]📁 Loading {len(files_to_load)} manual mapping files...")
+
+    for csv_file in files_to_load:
+        try:
+            # Read the manual mapping file
+            df = pl.read_csv(csv_file, separator=',')
+
+            # Validate that it has the expected columns
+            if not all(col in df.columns for col in ['value', 'label']):
+                logger.print(f"[yellow]⚠️  Manual mapping file {csv_file.name} missing required columns (value, label)")
+                continue
+
+            # Store with filename as key (without .csv extension)
+            key = csv_file.stem
+            manual_data[key] = df
+            logger.print(f"[green]  ✅ Loaded manual mapping: {csv_file.name} ({len(df)} mappings)")
+
+        except Exception as e:
+            logger.print(f"[red]❌ Error loading manual mapping file {csv_file.name}: {str(e)}")
+
+    if missing_active_files:
+        logger.print(f"[yellow]⚠️  Manual mapping files not found: {missing_active_files}")
+
+    return manual_data, missing_active_files
+
+def apply_manual_mappings(df, manual_data, logger=None):
+    """
+    Apply manual categorical mappings to dataframe columns
+    Creates new _cat columns based on manual mapping tables
+    """
+    if logger is None:
+        logger = console
+
+    result_df = df.clone()
+    successful_mappings = 0
+    failed_mappings = 0
+
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from converter import convert_case
+
+    # Process each column in the dataframe
+    for column in df.columns:
+        # Check if there's a manual mapping for this column
+        # Try different patterns:
+        # 1. Exact column name + "_cat", "_NL", "_profiel_cat", "_per_jaar", or "_per_5_jaar_cat"
+        # 2. Column name in snake_case + "_cat", "_NL", "_profiel_cat", "_per_jaar", or "_per_5_jaar_cat"
+
+        potential_keys = [
+            f"{column}_cat",
+            f"{column}_NL",
+            f"{column}_profiel_cat",
+            f"{column}_per_jaar",
+            f"{column}_per_5_jaar_cat",
+            f"{convert_case(column, 'snake_case')}_cat",
+            f"{convert_case(column, 'snake_case')}_NL",
+            f"{convert_case(column, 'snake_case')}_profiel_cat",
+            f"{convert_case(column, 'snake_case')}_per_jaar",
+            f"{convert_case(column, 'snake_case')}_per_5_jaar_cat"
+        ]
+
+        manual_mapping_found = False
+
+        for key in potential_keys:
+            if key in manual_data:
+                manual_df = manual_data[key]
+
+                try:
+                    # Create new column name based on mapping type
+                    if key.endswith('_NL'):
+                        new_column_name = f"{column}_NL"
+                    elif key.endswith('_profiel_cat'):
+                        new_column_name = f"{column}_profiel_cat"
+                    elif key.endswith('_per_jaar'):
+                        new_column_name = f"{column}_per_jaar_cat"
+                    elif key.endswith('_per_5_jaar_cat'):
+                        new_column_name = f"{column}_per_5_jaar_cat"
+                    else:
+                        new_column_name = f"{column}_cat"
+
+                    # Perform the mapping join
+                    result_df = result_df.join(
+                        manual_df.select([
+                            pl.col('value'),
+                            pl.col('label').alias(new_column_name)
+                        ]),
+                        left_on=column,
+                        right_on='value',
+                        how='left'
+                    )
+
+                    successful_mappings += 1
+                    logger.print(f"[green]  ✅ Added categorical mapping: {column} → {new_column_name}")
+                    manual_mapping_found = True
+                    # Don't break - allow multiple mappings per column
+
+                except Exception as e:
+                    # Try string fallback
+                    try:
+                        # Create new column name based on mapping type for fallback too
+                        if key.endswith('_NL'):
+                            new_column_name = f"{column}_NL"
+                        elif key.endswith('_profiel_cat'):
+                            new_column_name = f"{column}_profiel_cat"
+                        elif key.endswith('_per_jaar'):
+                            new_column_name = f"{column}_per_jaar_cat"
+                        elif key.endswith('_per_5_jaar_cat'):
+                            new_column_name = f"{column}_per_5_jaar_cat"
+                        else:
+                            new_column_name = f"{column}_cat"
+
+                        result_df = result_df.with_columns(
+                            pl.col(column).cast(pl.String).alias(f"{column}_str_temp")
+                        ).join(
+                            manual_df.select([
+                                pl.col('value').cast(pl.String),
+                                pl.col('label').alias(new_column_name)
+                            ]),
+                            left_on=f"{column}_str_temp",
+                            right_on='value',
+                            how='left'
+                        ).drop(f"{column}_str_temp")
+
+                        successful_mappings += 1
+                        logger.print(f"[green]  ✅ Added categorical mapping: {column} → {new_column_name} (string fallback)")
+                        manual_mapping_found = True
+                        # Don't break - allow multiple mappings per column
+
+                    except Exception as fallback_error:
+                        logger.print(f"[red]❌ Failed manual mapping {key} to {column}: {str(fallback_error)}")
+                        failed_mappings += 1
+
+    return result_df, successful_mappings, failed_mappings
+
 def check_unique_join_columns(df, join_columns):
     """
     Check if join columns form unique combinations
@@ -714,6 +910,7 @@ def perform_complex_join(main_df, decoder_df, mapping_config, case_style="snake_
 
 def combine_all_data(config_path="decoding_files_config.yaml",
                     mapping_tables_config_path="mapping_tables_config.yaml",
+                    manual_tables_config_path="manual_tables_config.yaml",
                     processed_dir="data/02-processed",
                     input_dir="data/02-processed",
                     output_dir="data/03-combined",
@@ -750,6 +947,18 @@ def combine_all_data(config_path="decoding_files_config.yaml",
     # Load reference data with active file filtering
     reference_data, missing_files, inactive_files = load_reference_data(reference_dir, active_files, logger)
 
+    # Load manual mapping tables configuration and data
+    logger.print(f"\n[bold yellow]🎯 Loading manual mapping configuration...[/bold yellow]")
+    manual_config, manual_active_files = load_manual_mapping_config(manual_tables_config_path, logger)
+
+    # Determine manual mapping directory
+    manual_dir = "data/reference/manual"
+    if manual_config and 'settings' in manual_config and 'manual_dir' in manual_config['settings']:
+        manual_dir = manual_config['settings']['manual_dir']
+
+    # Load manual mapping data
+    manual_data, manual_missing_files = load_manual_mapping_data(manual_dir, manual_active_files, logger)
+
     # Create output directory
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True)
@@ -759,6 +968,11 @@ def combine_all_data(config_path="decoding_files_config.yaml",
     total_reference_joins = 0
     total_reference_successes = 0
     total_reference_failures = 0
+
+    # Global tracking for manual mappings
+    total_manual_mappings = 0
+    total_manual_successes = 0
+    total_manual_failures = 0
 
     # Process each main data file
     for data_name, main_df in main_data.items():
@@ -825,6 +1039,17 @@ def combine_all_data(config_path="decoding_files_config.yaml",
         total_reference_failures += ref_failures
         all_non_working_files.extend(non_working)
 
+        # Apply manual categorical mappings
+        logger.print(f"\n[bold yellow]🎯 Applying manual categorical mappings for {data_name}...[/bold yellow]")
+        combined_df, manual_successes, manual_failures = apply_manual_mappings(
+            combined_df, manual_data, logger
+        )
+
+        # Update global manual mapping tracking
+        total_manual_mappings += (manual_successes + manual_failures)
+        total_manual_successes += manual_successes
+        total_manual_failures += manual_failures
+
         # Save combined data
         output_file = output_path / f"{data_name}_combined.csv"
         combined_df.write_csv(output_file)
@@ -838,6 +1063,8 @@ def combine_all_data(config_path="decoding_files_config.yaml",
         logger.print(f"  ❌ Failed decoder joins: {failed_joins}")
         logger.print(f"  ✅ Successful reference joins: {ref_successes}")
         logger.print(f"  ❌ Failed reference joins: {ref_failures}")
+        logger.print(f"  🎯 Successful manual mappings: {manual_successes}")
+        logger.print(f"  ❌ Failed manual mappings: {manual_failures}")
         logger.print(f"  💾 Saved to: {output_file}")
 
     # Final summary for reference data
@@ -853,6 +1080,18 @@ def combine_all_data(config_path="decoding_files_config.yaml",
             logger.print(f"  ⚠️  Missing configured files: {missing_files}")
         if inactive_files:
             logger.print(f"  💤 Files not in config (inactive): {len(inactive_files)} files")
+
+    # Final summary for manual mappings
+    logger.print(f"\n[bold yellow]🎯 Manual Mapping Summary[/bold yellow]")
+    logger.print(f"  📊 Total manual mapping files loaded: {len(manual_data)}")
+    logger.print(f"  ✅ Total successful manual mappings: {total_manual_successes}")
+    logger.print(f"  ❌ Total failed manual mappings: {total_manual_failures}")
+
+    # Report manual mapping configuration status
+    if manual_active_files is not None:
+        logger.print(f"  📋 Manual files configured as active: {len(manual_active_files)}")
+        if manual_missing_files:
+            logger.print(f"  ⚠️  Missing manual configured files: {manual_missing_files}")
 
     # Report non-working files
     if all_non_working_files:
@@ -887,6 +1126,8 @@ def main():
                        help='Path to YAML decoder configuration file')
     parser.add_argument('--mapping-tables-config', default='mapping_tables_config.yaml',
                        help='Path to YAML mapping tables configuration file')
+    parser.add_argument('--manual-tables-config', default='manual_tables_config.yaml',
+                       help='Path to YAML manual mapping tables configuration file')
     parser.add_argument('--processed-dir', default='data/02-processed',
                        help='Directory with processed main data')
     parser.add_argument('--input-dir', default='data/02-processed',
@@ -902,6 +1143,7 @@ def main():
     log_info = combine_all_data(
         config_path=args.config,
         mapping_tables_config_path=args.mapping_tables_config,
+        manual_tables_config_path=args.manual_tables_config,
         processed_dir=args.processed_dir,
         input_dir=args.input_dir,
         output_dir=args.output_dir,

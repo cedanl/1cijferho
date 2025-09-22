@@ -1,0 +1,32 @@
+# Configuration for manual categorische mapping tables
+# Each file maps original values to categorical versions (_cat)
+
+manual_mapping_tables:
+  # Leeftijd mappings - VU style en per jaar categorieën
+  - leeftijd_per_peildatum_1_oktober_cat.csv
+  - leeftijd_per_peildatum_1_oktober_per_5_jaar_cat.csv
+
+  # Postcode mappings met _NL suffix (speciale codes naar NA, reguliere postcodes naar zichzelf)
+  - postcodecijfers_student_op_1_oktober_NL.csv
+  - postcodecijfers_van_de_hoogste_vooropl._voor_het_ho_NL.csv
+
+  # Vooropleiding mappings - numerieke codes naar categorieën
+  - hoogste_vooropleiding_cat.csv
+  - hoogste_vooropleiding_voor_het_ho_profiel_cat.csv
+
+  # Profiel mapping (voor VWO profielen naar afkortingen) - INACTIVE: geen corresponderende kolom in 1CHO data
+  # - profiel_omschrijving_cat.csv
+
+# Settings for manual mapping processing
+settings:
+  manual_dir: "data/reference/manual"
+  auto_match_columns: true
+  case_style_matching: true
+  create_categorical_columns: true
+  categorical_suffix: "_cat"
+
+# Mapping types
+mapping_types:
+  simple: "1-on-1 mapping from value to label"
+  range: "Mapping based on numeric ranges"
+  special: "Custom logic for special cases (like postcodes)"
