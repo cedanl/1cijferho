@@ -677,9 +677,9 @@ def create_mapping_tables_from_bestandsbeschrijving(bestandsbeschrijving_path="d
                             })
                             break
 
-                        # Create CSV file with normalized section title
+                        # Create CSV file with normalized section title and _label suffix
                         normalized_section_title = normalize_text(section_title)
-                        filename = convert_case(normalized_section_title, 'snake_case') + '.csv'
+                        filename = convert_case(normalized_section_title, 'snake_case') + '_label.csv'
                         filepath = os.path.join(output_folder, filename)
 
                         try:

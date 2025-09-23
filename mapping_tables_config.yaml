@@ -4,76 +4,76 @@
 
 mapping_tables:
   # Beeindiging codes
-  - code_beeindiging.csv
+  - code_beeindiging_label.csv
 
   # Examen resultaat codes
-  - code_examenresultaat.csv
+  - code_examenresultaat_label.csv
 
   # CROHO onderdelen
-  - croho_onderdeel_actuele_opleiding.csv
-  - croho_subonderdeel_actuele_opleiding.csv
+  - croho_onderdeel_actuele_opleiding_label.csv
+  - croho_subonderdeel_actuele_opleiding_label.csv
 
   # Demografische gegevens
-  #- etniciteit.csv
-  - generatie.csv
-  - geslacht.csv
-  - herkomst_indikking_volgens_cbs_definitie.csv
-  - indicatie_geboren.csv
+  #- etniciteit_label.csv
+  - generatie_label.csv
+  - geslacht_label.csv
+  - herkomst_indikking_volgens_cbs_definitie_label.csv
+  - indicatie_geboren_label.csv
 
   # Activiteit en status indicaties
-  - indicatie_actief_op_peildatum.csv
-  - indicatie_eer_actueel.csv
-  - indicatie_eer_op_peildatum_1_oktober.csv
-  - indicatie_internationale_student.csv
-  - indicatie_soort_programma.csv
-  - indicatie_university_college.csv
+  - indicatie_actief_op_peildatum_label.csv
+  - indicatie_eer_actueel_label.csv
+  - indicatie_eer_op_peildatum_1_oktober_label.csv
+  - indicatie_internationale_student_label.csv
+  - indicatie_soort_programma_label.csv
+  - indicatie_university_college_label.csv
 
   # Eerstejaars indicaties
-  - indicatie_eerstejaars_actuele_instelling.csv
-  - indicatie_eerstejaars_actuele_opleiding_instelling.csv
-  #- indicatie_eerstejaars_continu_actuele_instelling.csv
-  #- indicatie_eerstejaars_continu_hoger_onderwijs.csv
-  #- indicatie_eerstejaars_continu_soort_ho.csv
-  #- indicatie_eerstejaars_continu_type_ho_binnen_ho.csv
-  - indicatie_eerstejaars_opleiding_actueel_equivalent.csv
-  #- indicatie_eerstejrs_act._inst_type_ho_binnen_soort_ho.csv
+  - indicatie_eerstejaars_actuele_instelling_label.csv
+  - indicatie_eerstejaars_actuele_opleiding_instelling_label.csv
+  #- indicatie_eerstejaars_continu_actuele_instelling_label.csv
+  #- indicatie_eerstejaars_continu_hoger_onderwijs_label.csv
+  #- indicatie_eerstejaars_continu_soort_ho_label.csv
+  #- indicatie_eerstejaars_continu_type_ho_binnen_ho_label.csv
+  - indicatie_eerstejaars_opleiding_actueel_equivalent_label.csv
+  #- indicatie_eerstejrs_act._inst_type_ho_binnen_soort_ho_label.csv
 
   # Inschrijving en opleiding
-  - inschrijvingsvorm.csv
-  - opleidingsfase_actueel_van_het_diploma.csv
-  - opleidingsfase_actueel.csv
-  - opleidingsfase.csv
-  - opleidingsvorm.csv
+  - inschrijvingsvorm_label.csv
+  - opleidingsfase_actueel_van_het_diploma_label.csv
+  - opleidingsfase_actueel_label.csv
+  - opleidingsfase_label.csv
+  - opleidingsvorm_label.csv
 
   # Postcode gegevens
-  - postcodecijfers_student_op_1_oktober.csv
-  - postcodecijfers_van_de_hoogste_vooropl._voor_het_ho.csv
+  - postcodecijfers_student_op_1_oktober_label.csv
+  - postcodecijfers_van_de_hoogste_vooropl._voor_het_ho_label.csv
 
   # Soort diploma
-  - soort_diploma_hoger_onderwijs_internat.statistiek.csv
-  - soort_diploma_hoger_onderwijs.csv
-  - soort_diploma_instelling.csv
-  - soort_diploma_soort_hoger_onderwijs.csv
+  - soort_diploma_hoger_onderwijs_internat.statistiek_label.csv
+  - soort_diploma_hoger_onderwijs_label.csv
+  - soort_diploma_instelling_label.csv
+  - soort_diploma_soort_hoger_onderwijs_label.csv
 
   # Soort hoger onderwijs
-  - soort_hoger_onderwijs.csv
+  - soort_hoger_onderwijs_label.csv
 
   # Soort inschrijving
-  - soort_inschrijving_act._inst_type_ho_binnen_soort_ho.csv
-  - soort_inschrijving_actuele_instelling.csv
-  - soort_inschrijving_actuele_opleiding_instelling.csv
-  #- soort_inschrijving_continu_actuele_instelling.csv
-  #- soort_inschrijving_continu_hoger_onderwijs.csv
-  # - soort_inschrijving_continu_soort_ho.csv
-  - soort_inschrijving_continu_type_ho_binnen_ho.csv
-  - soort_inschrijving_hoger_onderwijs.csv
-  - soort_inschrijving_opleiding_actueel_equivalent.csv
-  - soort_inschrijving_soort_ho.csv
-  #- soort_inschrijving_type_ho_binnen_ho.csv
-  #- soort_inschrijving_type_ho_binnen_soort_ho.csv
+  - soort_inschrijving_act._inst_type_ho_binnen_soort_ho_label.csv
+  - soort_inschrijving_actuele_instelling_label.csv
+  - soort_inschrijving_actuele_opleiding_instelling_label.csv
+  #- soort_inschrijving_continu_actuele_instelling_label.csv
+  #- soort_inschrijving_continu_hoger_onderwijs_label.csv
+  # - soort_inschrijving_continu_soort_ho_label.csv
+  - soort_inschrijving_continu_type_ho_binnen_ho_label.csv
+  - soort_inschrijving_hoger_onderwijs_label.csv
+  - soort_inschrijving_opleiding_actueel_equivalent_label.csv
+  - soort_inschrijving_soort_ho_label.csv
+  #- soort_inschrijving_type_ho_binnen_ho_label.csv
+  #- soort_inschrijving_type_ho_binnen_soort_ho_label.csv
 
   # Type hoger onderwijs
-  - type_hoger_onderwijs_binnen_soort_hoger_onderwijs.csv
+  - type_hoger_onderwijs_binnen_soort_hoger_onderwijs_label.csv
 
 # Settings for reference data processing
 settings:

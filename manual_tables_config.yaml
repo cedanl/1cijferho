@@ -3,19 +3,31 @@
 
 manual_mapping_tables:
   # Leeftijd mappings - VU style en per jaar categorieën
-  - leeftijd_per_peildatum_1_oktober_cat.csv
-  - leeftijd_per_peildatum_1_oktober_per_5_jaar_cat.csv
+  - file: "leeftijd_per_peildatum_1_oktober_cat.csv"
+    join_on: "leeftijd_per_peildatum_1_oktober"
+    output_column: "leeftijd_per_peildatum_1_oktober_cat"
+
+  - file: "leeftijd_per_peildatum_1_oktober_per_5_jaar_cat.csv"
+    join_on: "leeftijd_per_peildatum_1_oktober"
+    output_column: "leeftijd_per_peildatum_1_oktober_per_5_jaar_cat"
 
   # Postcode mappings met _NL suffix (speciale codes naar NA, reguliere postcodes naar zichzelf)
-  - postcodecijfers_student_op_1_oktober_NL.csv
-  - postcodecijfers_van_de_hoogste_vooropl._voor_het_ho_NL.csv
+  - file: "postcodecijfpostcodecijfers_alleen_NLers_student_op_1_oktober_NL.csv"
+    join_on: "postcodecijfers_student_op_1_oktober"
+    output_column: "postcodecijfers_student_op_1_oktober_NL"
+
+  - file: "postcodecijfers_alleen_NL.csv"
+    join_on: "postcodecijfers_van_de_hoogste_vooropl._voor_het_ho"
+    output_column: "postcodecijfers_van_de_hoogste_vooropl._voor_het_ho_NL"
 
   # Vooropleiding mappings - numerieke codes naar categorieën
-  - hoogste_vooropleiding_cat.csv
-  - hoogste_vooropleiding_voor_het_ho_profiel_cat.csv
+  - file: "hoogste_vooropleiding_cat.csv"
+    join_on: "hoogste_vooropleiding"
+    output_column: "hoogste_vooropleiding_cat"
 
-  # Profiel mapping (voor VWO profielen naar afkortingen) - INACTIVE: geen corresponderende kolom in 1CHO data
-  # - profiel_omschrijving_cat.csv
+  - file: "hoogste_vooropleiding_voor_het_ho_profiel_cat.csv"
+    join_on: "hoogste_vooropleiding_voor_het_ho"
+    output_column: "hoogste_vooropleiding_voor_het_ho_profiel_cat"
 
 # Settings for manual mapping processing
 settings:
