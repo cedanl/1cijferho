@@ -1,0 +1,31 @@
+value,label
+00,leraar basisonderwijs (*)
+01,n.v.t. (onderwijs)
+02,universitaire lerarenopleidingen
+03,lerarenopleidingen speciaal onderwijs
+04,opleidingen tot leraar vo van de eerste graad in algemene vakken
+05,n.v.t. (landbouw en natuurlijke omgeving)
+06,n.v.t. (natuur)
+07,n.v.t. (techniek)
+08,n.v.t. (gezondheidszorg)
+09,n.v.t. (economie)
+10,n.v.t. (recht)
+11,n.v.t. (gedrag en maatschappij)
+12,hogere kaderopleiding pedagogiek (**)
+13,n.v.t. (taal en cultuur)
+14,masteropleidingen op het gebied van de bouwkunst
+15,masteropleidingen op het gebied van de kunst
+16,bacheloropleidingen op het gebied van de kunst
+18,lerarenopleidingen op het gebied van de kunst
+20,sectoroverstijgend
+30,postinitiele master sectoroverstijgend
+31,postinitiele master onderwijs
+32,postinitiele master landbouw en natuurlijke omgeving
+33,postinitiele master natuur
+34,postinitiele master techniek
+35,postinitiele master gezondheidszorg
+36,postinitiele master economie
+37,postinitiele master recht
+38,postinitiele master gedrag en maatschappij
+39,postinitiele master taal en cultuur
+XX,opleiding telt niet mee (*) Associate degrees gelieerd aan de bachelor leraar basisonderwijs hebben ook dit subonderdeel. (**) Hoewel 44113 M Pedagogiek in het CROHO subonderdeel 11 heeft; wordt deze opleiding in 1 cijfer HO gerekend tot subonderdeel 12; omdat de voorganger van deze opleiding dit subonderdeel heeft.

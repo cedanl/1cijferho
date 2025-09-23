@@ -1,0 +1,15 @@
+value,label
+1,hoofdinschrijving binnen het domein actuele instelling
+2,neveninschrijving binnen het domein actuele instelling (combinatie opleiding-instelling komt NIET voor bij een andere inschrijving van de betreffende student) (echte neveninschrijving)
+3,inschrijving is niet actief op peildatum 1 oktober
+4,neveninschrijving binnen het domein actuele instelling (combinatie opleiding-instelling komt WEL voor bij een andere inschrijving van de betreffende student) (onechte neveninschrijving)
+5,opleiding telt niet mee
+6,uitwisselingsstudent: hoofdinschrijving binnen het domein actuele instelling
+7,uitwisselingsstudent: neveninschrijving binnen het domein actuele instelling (combinatie opleiding-instelling komt NIET voor bij een andere inschrijving van de betreffende student)
+8,uitwisselingsstudent: inschrijving is niet actief op peildatum 1 oktober
+9,uitwisselingsstudent: neveninschrijving binnen het domein actuele instelling (combinatie opleiding-instelling komt WEL voor bij een andere inschrijving van de betreffende student)
+A,aangewezen instelling: hoofdinschrijving binnen het domein actuele instelling
+B,aangewezen instelling: neveninschrijving binnen het domein actuele instelling (combinatie opleiding-instelling komt NIET voor bij een andere inschrijving van de betreffende student)
+C,aangewezen instelling: inschrijving is niet actief op peildatum 1 oktober
+D,aangewezen instelling: neveninschrijving binnen het domein actuele instelling (combinatie opleiding-instelling komt WEL voor bij een andere inschrijving van de betreffende student)
+E,aangewezen instelling: opleiding telt niet mee

@@ -12,7 +12,7 @@ manual_mapping_tables:
     output_column: "leeftijd_per_peildatum_1_oktober_per_5_jaar_cat"
 
   # Postcode mappings met _NL suffix (speciale codes naar NA, reguliere postcodes naar zichzelf)
-  - file: "postcodecijfpostcodecijfers_alleen_NLers_student_op_1_oktober_NL.csv"
+  - file: "postcodecijfpostcodecijfers_alleen_NL.csv"
     join_on: "postcodecijfers_student_op_1_oktober"
     output_column: "postcodecijfers_student_op_1_oktober_NL"
 
@@ -25,9 +25,9 @@ manual_mapping_tables:
     join_on: "hoogste_vooropleiding"
     output_column: "hoogste_vooropleiding_cat"
 
-  - file: "hoogste_vooropleiding_voor_het_ho_profiel_cat.csv"
+  - file: "hoogste_vooropleiding_voor_het_ho_profiel.csv"
     join_on: "hoogste_vooropleiding_voor_het_ho"
-    output_column: "hoogste_vooropleiding_voor_het_ho_profiel_cat"
+    output_column: "hoogste_vooropleiding_voor_het_ho_profiel"
 
 # Settings for manual mapping processing
 settings:

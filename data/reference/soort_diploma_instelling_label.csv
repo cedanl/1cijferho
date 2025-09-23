@@ -1,0 +1,17 @@
+value,label
+NA,geen diplomarecord aanwezig
+01,Hoofd-propedeuse-diploma binnen de actuele instelling
+02,Neven-propedeuse-diploma binnen de actuele instelling
+03,Hoofd-bachelor-diploma binnen de actuele instelling
+04,Neven-bachelor-diploma binnen de actuele instelling
+05,Hoofd-master-diploma binnen de actuele instelling
+06,Neven-master-diploma binnen de actuele instelling
+07,Hoofd-doctoraal-diploma binnen de actuele instelling
+08,Neven-doctoraal-diploma binnen de actuele instelling
+09,Hoofddiploma beroepsfase/voortgezet binnen de actuele instelling
+10,Nevendiploma beroepsfase/voortgezet binnen de actuele instelling
+13,Hoofddiploma associate degree binnen de actuele instelling
+14,Nevendiploma associate degree binnen de actuele instelling
+15,Hoofddiploma postinitiele master binnen de actuele instelling
+16,Nevendiploma postinitiele master binnen de actuele instelling
+99,Ongeldig diplomarecord of er bestaat in hetzelfde inschrijvingsjaar in dezelfde opleiding aan dezelfde instelling in dezelfde opleidingsfase actueel al eenzelfde diploma in een ander record

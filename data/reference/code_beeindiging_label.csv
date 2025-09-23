@@ -1,0 +1,11 @@
+value,label
+1,De student waarvan: inschrijvingen t/m studiejaar 1992-1993: - de inschrijving aan een WO-instelling tussentijds wordt beeindigd nadat het doctoraal examen (oude stijl of 1e fase) is behaald; - de inschrijving aan een HBO-instelling tussentijds wordt beeindigd nadat het afsluitend examen (hoofdfase) is behaald. inschrijvingen met ingang van studiejaar 1993-1994: - de inschrijving aan een WO- of HBO-instelling wordt beeindigd nadat het afsluitend examen is behaald.
+2,De student; waarvan de inschrijving aan de instelling tussentijds wordt beeindigd omdat hij; als gevolg van de inrichting van de opleiding wat betreft de volgtijdelijkheid van praktische oefeningen alsmede de momenten waarop deze gevolgd kunnen worden; gedurende enige tijd geen onderwijs kan volgen.
+3,- De student; waarvan de inschrijving aan de instelling tussentijds wordt beeindigd in de eerste twaalf  maanden van inschrijving voor opleidingsfase P (propedeuse); D (propdeuse bachelor) of B (bachelor) - De student; waarvan de inschrijving aan de instelling tussentijds wordt beeindigd in de bachelorfase zolang er nog geen 60 studiepunten zijn behaald.
+4,De student; waarvan de inschrijving middels een bindend studieadvies tussentijds door het instellingsbestuur wordt beeindigd zolang het propedeutisch examen nog niet behaald is.
+5,De student; waarvan de inschrijving aan de instelling tussentijds wordt beeindigd op grond van ziekte of bijzondere familieomstandigheden.
+6,De student; waarvan de inschrijving aan een WO-instelling tussentijds wordt beeindigd nadat een aanvullend doctoraal examen c.q. afsluitend examen is behaald.
+7,De coop-student; waarvan de inschrijving aan een HBO-instelling wordt beeindigd wegens aanvang van een werk-periode. Een inschrijving als coop-student is met ingang van 1 september 1999 niet meer mogelijk.
+8,De inschrijving wordt beeindigd wegens overlijden.
+9,De inschrijving is; na beoordeling van het instellingsbestuur; wegens redelijk verzoek beeindigd met ingang van de tweede hele maand volgend op de maand waarin betrokkene het verzoek tot uitschrijving heeft gedaan. De code beeindiging '9' mag gebruikt worden vanaf het inschrijvingsjaar 1996-1997.
+NA,geen waarde

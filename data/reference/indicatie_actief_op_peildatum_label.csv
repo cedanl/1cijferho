@@ -1,0 +1,5 @@
+value,label
+1,actief op peildatum 1 oktober (inschrijving)
+2,inschrijving beeindigd voor peildatum (uitschrijving)
+3,inschrijving nog niet begonnen op peildatum en combinatie opleiding-instelling (*) komt NIET voor bij een andere inschrijving van de betreffende student (echte na-inschrijving)
+4,inschrijving nog niet begonnen op peildatum en combinatie opleiding-instelling (*) komt WEL voor bij een andere inschrijving van de betreffende student (onechte na-inschrijving) (*) Deze combinatie betreft de velden Administratienummer OWI en Opleidingscode

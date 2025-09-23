@@ -1,0 +1,17 @@
+value,label
+NA,geen diplomarecord aanwezig
+01,Eerste propedeuse-diploma in het hoger onderwijs
+02,Niet eerste propedeuse-diploma in het hoger onderwijs
+03,Eerste bachelor-diploma in het hoger onderwijs
+04,Niet eerste bachelor-diploma in het hoger onderwijs
+05,Eerste master-diploma in het hoger onderwijs
+06,Niet eerste master-diploma in het hoger onderwijs
+07,EersGoedemorgen. te doctoraal-diploma in het hoger onderwijs
+08,Niet eerste doctoraal-diploma in het hoger onderwijs
+09,Eerste diploma beroepsfase/WO-postmaster in het hoger onderwijs
+10,Niet eerste diploma beroepsfase/WO-postmaster in het hoger onderwijs
+13,Eerste diploma associate degree in het hoger onderwijs
+14,Niet eerste diploma associate degree in het hoger onderwijs
+15,Eerste diploma postinitiele master in het hoger onderwijs
+16,Niet eerste diploma postinitiele master in het hoger onderwijs
+99,Ongeldig diplomarecord of er bestaat in hetzelfde inschrijvingsjaar in dezelfde opleiding aan dezelfde instelling in dezelfde opleidingsfase actueel al eenzelfde diploma in een ander record

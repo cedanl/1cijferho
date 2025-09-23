@@ -1,0 +1,15 @@
+value,label
+1,hoofdinschrijving binnen het domein hoger onderwijs
+2,neveninschrijving binnen het domein hoger onderwijs (combinatie opleiding-instelling komt NIET voor bij een andere inschrijving van de betreffende student) (echte neveninschrijving)
+3,inschrijving is niet actief in het betreffende inschrijvingsjaar
+4,neveninschrijving binnen het domein hoger onderwijs (combinatie opleiding-instelling komt WEL voor bij een andere inschrijving van de betreffende student) (onechte neveninschrijving)
+5,opleiding telt niet mee
+6,uitwisselingsstudent: hoofdinschrijving binnen het domein hoger onderwijs
+7,uitwisselingsstudent: neveninschrijving binnen het domein hoger onderwijs (combinatie opleiding-instelling komt NIET voor bij een andere inschrijving van de betreffende student)
+8,uitwisselingsstudent: inschrijving is niet actief in het betreffende inschrijvingsjaar
+9,uitwisselingsstudent: neveninschrijving binnen het domein hoger onderwijs (combinatie opleiding-instelling komt WEL voor bij een andere inschrijving van de betreffende student)
+A,aangewezen instelling: hoofdinschrijving binnen het domein hoger onderwijs
+B,aangewezen instelling: neveninschrijving binnen het domein hoger onderwijs (combinatie opleiding-instelling komt NIET voor bij een andere inschrijving van de betreffende student)
+C,aangewezen instelling: inschrijving is niet actief in het betreffende inschrijvingsjaar
+D,aangewezen instelling: neveninschrijving binnen het domein hoger onderwijs (combinatie opleiding-instelling komt WEL voor bij een andere inschrijving van de betreffende student)
+E,aangewezen instelling: opleiding telt niet mee
