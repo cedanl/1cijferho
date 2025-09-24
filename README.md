@@ -40,9 +40,13 @@ Automated pipeline that delivers:
 
 ## ✨ Features
 - [x] **Smart Extraction** - Auto-finds field positions in messy .txt files
-- [x] **Intelligent Matching** - Links data files with metadata automatically  
+- [x] **Intelligent Matching** - Links data files with metadata automatically
 - [x] **Turbo Conversion** - Multiprocessing for blazing speed
 - [x] **Quality Validation** - Comprehensive error checking
+- [x] **Advanced Data Combination** - YAML-configured joins with decoder files and reference tables
+- [x] **Research-Ready Enrichment** - 30+ calculated variables for academic analysis
+- [x] **Switch Analysis** - 27+ variables tracking student program switches
+- [x] **Smart Case Handling** - Supports snake_case, camelCase, PascalCase, and original formatting
 - [x] **File Optimization** - 60-80% size reduction via Parquet compression
 - [x] **Privacy Protection** - Cryptographic anonymization
 - [x] **Zero Setup** - `uv` handles all dependencies automatically
@@ -101,7 +105,7 @@ Ready to see the magic happen? Your 1CijferHO Tool is just one command away! ✨
 ### First, get to the right spot:
 
 Open a terminal in your `1cijferho` folder - it's super easy!
-- **Windows**: `Shift + Right-click` in folder → `Open in Windows Terminal` 
+- **Windows**: `Shift + Right-click` in folder → `Open in Windows Terminal`
 - **Mac**: `Right-click` folder → `New Terminal at Folder`
 - **VS Code**: Just click `Terminal` → `New Terminal`
 
