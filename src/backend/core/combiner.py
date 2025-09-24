@@ -25,6 +25,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 from io import StringIO
+from .converter import convert_case
 
 console = Console()
 
@@ -306,10 +307,6 @@ def find_matching_reference_column(column_name, reference_data, case_style="snak
     if logger is None:
         logger = console
 
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from converter import convert_case
 
     # Clean column name and convert to snake_case for matching
     clean_column = column_name.replace('_', ' ').strip()
@@ -330,10 +327,6 @@ def perform_reference_joins(df, reference_data, case_style="snake_case", logger=
     if logger is None:
         logger = console
 
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from converter import convert_case
 
     result_df = df.clone()
     successful_joins = 0
@@ -543,10 +536,6 @@ def apply_manual_mappings(df, manual_data, mapping_configs, logger=None):
     successful_mappings = 0
     failed_mappings = 0
 
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from converter import convert_case
 
     # Process each manual mapping configuration
     for key, manual_df in manual_data.items():
@@ -656,10 +645,6 @@ def generate_column_prefix(join_column, target_column, case_style="snake_case"):
     - PascalCase: {JoinColumn}{TargetColumn}
     - original: {join_column} {target_column}
     """
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from converter import convert_case
 
     # Clean up column names (remove special characters)
     join_clean = join_column.replace('(', '').replace(')', '').replace('-', ' ').strip()
@@ -699,10 +684,6 @@ def perform_simple_join(main_df, decoder_df, mapping_config, case_style="snake_c
     additional_columns = mapping_config['additional_columns']
 
     # Apply case conversion to column names for matching
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from converter import convert_case
     main_column_converted = convert_case(main_column, case_style)
     join_column_converted = convert_case(join_column, case_style)
     additional_columns_converted = [convert_case(col, case_style) for col in additional_columns]
@@ -825,10 +806,6 @@ def perform_complex_join(main_df, decoder_df, mapping_config, case_style="snake_
     join_columns = mapping_config['join_columns']
     additional_columns = mapping_config['additional_columns']
 
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from converter import convert_case
 
     # Apply case conversion
     main_column_converted = convert_case(main_column, case_style)
