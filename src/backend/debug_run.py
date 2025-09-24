@@ -24,11 +24,15 @@ subprocess.run(["uv", "run", "src/backend/core/converter.py"])
 # Step 4: Validate Conversion
 cv.converter_validation()
 
-# Step 5: Run Compressor
+# Step 5: Combine Data with Decoders
+subprocess.run(["uv", "run", "src/backend/core/combiner.py"])
+
+# Step 6: Enrich Data with Calculated Fields
+subprocess.run(["uv", "run", "src/backend/core/enricher.py"])
+
+# Step 7: Run Compressor
 co.convert_csv_to_parquet()
 
-# Step 6: Run Encryptor
+# Step 8: Run Encryptor
 en.encryptor()
-
-# Step 7: Run Decoder
 

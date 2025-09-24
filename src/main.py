@@ -55,6 +55,7 @@ extract_page = st.Page("frontend/Modules/Extract_Metadata.py", icon="🔍", titl
 validate_page = st.Page("frontend/Modules/Validate_Metadata.py", icon="🛡️", title="Validate Metadata")
 turbo_convert_page = st.Page("frontend/Modules/Turbo_Convert.py", icon="⚡", title="Turbo Convert")
 combine_all_page = st.Page("frontend/Modules/Combine_All.py", icon="🔗", title="Combine All")
+enrich_data_page = st.Page("frontend/Modules/Enrich_Data.py", icon="🧬", title="Enrich Data")
 
 # -----------------------------------------------------------------------------
 # Sidebar Configuration
@@ -70,7 +71,7 @@ show_demo_notifications()
 pg = st.navigation ( {
     "Overview": [home_page, documentation_page],
     "Files": [data_upload_page],
-    "Modules": [extract_page, validate_page, turbo_convert_page, combine_all_page],
+    "Modules": [extract_page, validate_page, turbo_convert_page, combine_all_page, enrich_data_page],
 })
 
 # -----------------------------------------------------------------------------
