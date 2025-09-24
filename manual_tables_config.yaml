@@ -1,8 +1,7 @@
-# Configuration for manual categorische mapping tables
-# Each file maps original values to categorical versions (_cat)
+# Configuration for manual categorical mapping tables
 
 manual_mapping_tables:
-  # Leeftijd mappings - VU style en per jaar categorieën
+  # Age mappings - VU style and per year categories
   - file: "leeftijd_per_peildatum_1_oktober_cat.csv"
     join_on: "leeftijd_per_peildatum_1_oktober"
     output_column: "leeftijd_per_peildatum_1_oktober_cat"
@@ -11,7 +10,7 @@ manual_mapping_tables:
     join_on: "leeftijd_per_peildatum_1_oktober"
     output_column: "leeftijd_per_peildatum_1_oktober_per_5_jaar_cat"
 
-  # Postcode mappings met _NL suffix (speciale codes naar NA, reguliere postcodes naar zichzelf)
+  # Postal code mappings with _NL suffix (special codes to NA, regular postal codes to themselves)
   - file: "postcodecijfpostcodecijfers_alleen_NL.csv"
     join_on: "postcodecijfers_student_op_1_oktober"
     output_column: "postcodecijfers_student_op_1_oktober_NL"
@@ -20,7 +19,7 @@ manual_mapping_tables:
     join_on: "postcodecijfers_van_de_hoogste_vooropl._voor_het_ho"
     output_column: "postcodecijfers_van_de_hoogste_vooropl._voor_het_ho_NL"
 
-  # Vooropleiding mappings - numerieke codes naar categorieën
+  # Prior education mappings - numeric codes to categories
   - file: "hoogste_vooropleiding_cat.csv"
     join_on: "hoogste_vooropleiding"
     output_column: "hoogste_vooropleiding_cat"

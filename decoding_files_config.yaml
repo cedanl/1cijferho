@@ -1,16 +1,16 @@
-# Configuratie voor het koppelen van decode bestanden aan hoofddata
+# Configuration for linking decoder files to main data
 #
-# Structuur:
-# - main_column: kolom naam in de hoofddata (EV files)
-# - decoder_file: welk Dec_ bestand gebruiken
-# - join_column: kolom in decoder bestand om op te koppelen
-# - additional_columns: welke extra kolommen uit decoder bestand toe te voegen
-# - notes: eventuele opmerkingen over de koppeling
+# Structure:
+# - main_column: column name in the main data (EV files)
+# - decoder_file: which Dec_ file to use
+# - join_column: column in decoder file to join on
+# - additional_columns: which additional columns from decoder file to add
+# - notes: optional remarks about the join
 
 decoder_mappings:
 
   # =============================================================================
-  # LANDCODE KOPPELINGEN
+  # COUNTRY CODE MAPPINGS
   # =============================================================================
 
   geboorteland:
@@ -23,7 +23,7 @@ decoder_mappings:
       #- "Naam etniciteit kort"
       #- "Etniciteit lang"
       #- "Naam etniciteit lang"
-    notes: "Voor decodering van geboorteland"
+    notes: "For decoding birth country"
 
   geboorteland_ouder_1:
     main_column: "Geboorteland ouder 1"
@@ -35,7 +35,7 @@ decoder_mappings:
       - "Naam etniciteit kort"
       - "Etniciteit lang"
       - "Naam etniciteit lang"
-    notes: "Voor decodering van geboorteland ouder 1"
+    notes: "For decoding birth country parent 1"
 
   geboorteland_ouder_2:
     main_column: "Geboorteland ouder 2"
@@ -47,7 +47,7 @@ decoder_mappings:
       #- "Naam etniciteit kort"
       #- "Etniciteit lang"
       #- "Naam etniciteit lang"
-    notes: "Voor decodering van geboorteland ouder 2"
+    notes: "For decoding birth country parent 2"
 
   herkomstland_volgens_cbs_definitie:
     main_column: "Herkomstland volgens CBS-definitie"
@@ -59,10 +59,10 @@ decoder_mappings:
       #- "Naam etniciteit kort"
       #- "Etniciteit lang"
       #- "Naam etniciteit lang"
-    notes: "Voor decodering van herkomstland volgens CBS-definitie"
+    notes: "For decoding country of origin according to CBS definition"
 
   # =============================================================================
-  # NATIONALITEIT KOPPELINGEN
+  # NATIONALITY MAPPINGS
   # =============================================================================
 
   nationaliteit_1:
@@ -75,7 +75,7 @@ decoder_mappings:
       #- "Naam etniciteit kort"
       #- "Etniciteit lang"
       #- "Naam etniciteit lang"
-    notes: "Voor decodering van nationaliteit 1"
+    notes: "For decoding nationality 1"
 
   nationaliteit_2:
     main_column: "Nationaliteit 2"
@@ -87,7 +87,7 @@ decoder_mappings:
       #- "Naam etniciteit kort"
       #- "Etniciteit lang"
       #- "Naam etniciteit lang"
-    notes: "Voor decodering van nationaliteit 2"
+    notes: "For decoding nationality 2"
 
   nationaliteit_3:
     main_column: "Nationaliteit 3"
@@ -99,7 +99,7 @@ decoder_mappings:
       #- "Naam etniciteit kort"
       #- "Etniciteit lang"
       #- "Naam etniciteit lang"
-    notes: "Voor decodering van nationaliteit 3"
+    notes: "For decoding nationality 3"
 
   nationaliteit_eer_actueel:
     main_column: "Nationaliteit gebruikt voor bepaling ind. EER actueel"
@@ -111,7 +111,7 @@ decoder_mappings:
       #- "Naam etniciteit kort"
       #- "Etniciteit lang"
       #- "Naam etniciteit lang"
-    notes: "Voor decodering van nationaliteit voor EER bepaling actueel"
+    notes: "For decoding nationality for current EEA determination"
 
   nationaliteit_eer_peildatum:
     main_column: "Nationaliteit gebruikt voor bepaling ind. EER peildatum"

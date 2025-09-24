@@ -3,24 +3,24 @@
 # Files are automatically matched to column names in snake_case format
 
 mapping_tables:
-  # Beeindiging codes
+  # Termination codes
   - code_beeindiging_label.csv
 
-  # Examen resultaat codes
+  # Exam result codes
   - code_examenresultaat_label.csv
 
-  # CROHO onderdelen
+  # CROHO components
   - croho_onderdeel_actuele_opleiding_label.csv
   - croho_subonderdeel_actuele_opleiding_label.csv
 
-  # Demografische gegevens
+  # Demographic data
   #- etniciteit_label.csv
   - generatie_label.csv
   - geslacht_label.csv
   - herkomst_indikking_volgens_cbs_definitie_label.csv
   - indicatie_geboren_label.csv
 
-  # Activiteit en status indicaties
+  # Activity and status indicators
   - indicatie_actief_op_peildatum_label.csv
   - indicatie_eer_actueel_label.csv
   - indicatie_eer_op_peildatum_1_oktober_label.csv
@@ -28,7 +28,7 @@ mapping_tables:
   - indicatie_soort_programma_label.csv
   - indicatie_university_college_label.csv
 
-  # Eerstejaars indicaties
+  # First-year indicators
   - indicatie_eerstejaars_actuele_instelling_label.csv
   - indicatie_eerstejaars_actuele_opleiding_instelling_label.csv
   #- indicatie_eerstejaars_continu_actuele_instelling_label.csv
@@ -38,14 +38,14 @@ mapping_tables:
   - indicatie_eerstejaars_opleiding_actueel_equivalent_label.csv
   #- indicatie_eerstejrs_act._inst_type_ho_binnen_soort_ho_label.csv
 
-  # Inschrijving en opleiding
+  # Registration and education
   - inschrijvingsvorm_label.csv
   - opleidingsfase_actueel_van_het_diploma_label.csv
   - opleidingsfase_actueel_label.csv
   - opleidingsfase_label.csv
   - opleidingsvorm_label.csv
 
-  # Postcode gegevens
+  # Postal code data
   - postcodecijfers_student_op_1_oktober_label.csv
   - postcodecijfers_van_de_hoogste_vooropl._voor_het_ho_label.csv
 
