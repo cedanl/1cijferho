@@ -15,6 +15,7 @@ Functions:
 """
 
 import os
+import sys
 import yaml
 import polars as pl
 import datetime
@@ -25,7 +26,12 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 from io import StringIO
-from .converter import convert_case
+
+# Add project root to Python path for imports
+project_root = Path(__file__).resolve().parents[3]  # Go up 3 levels: core -> backend -> src -> project_root
+sys.path.insert(0, str(project_root))
+
+from src.backend.core.converter import convert_case
 
 console = Console()
 

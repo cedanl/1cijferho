@@ -199,21 +199,20 @@ else:
         # Reset the flag immediately
         st.session_state.start_combine_all = False
 
-        # Reset console log at the start of each combination
-        st.session_state.combine_console_log = ""
+        # Reset console log at the start of each combination (but preserve errors)
+        if 'combine_console_log' not in st.session_state:
+            st.session_state.combine_console_log = ""
+        elif not ("❌ Process failed" in st.session_state.combine_console_log or "Error" in st.session_state.combine_console_log):
+            st.session_state.combine_console_log = ""
 
         # Create progress bar and status containers
         progress_bar = st.progress(0)
         status_text = st.empty()
-        console_container = st.empty()
 
+        # Don't create a separate console container - let it show in the main expander
         def update_console():
-            """Update the console display"""
-            with console_container.container():
-                if st.session_state.combine_console_log:
-                    st.code(st.session_state.combine_console_log, language=None)
-                else:
-                    st.info("Starting combination process...")
+            """Console will be shown in the main expander below"""
+            pass  # We'll rely on the main console log expander
 
         try:
             st.session_state.combine_console_log += "🔄 Starting data combination pipeline...\n"
@@ -252,35 +251,51 @@ else:
                         for file in combined_files:
                             st.write(f"• `{file['name']}` ({file['size_formatted']})")
 
-                # Celebrate with balloons - final step completed!
-                st.balloons()
+                # Balloons moved to after state cleanup
             else:
                 st.session_state.combine_console_log += f"❌ Process failed with return code: {result.returncode}\n"
+                st.session_state.combine_has_error = True  # Flag to persist error state
                 update_console()
                 progress_bar.progress(0)
                 status_text.text("❌ Combination failed")
                 st.error("❌ **Combination failed!** Check the console log for details.")
 
-            # Clear the progress indicators after a moment
-            import time
-            time.sleep(2)
+            # Clear progress indicators and set state
             progress_bar.empty()
             status_text.empty()
-            console_container.empty()
 
-            # Rerun to update any button states
-            st.rerun()
+            # Set completion state - no rerun, just balloons on success
+            if result.returncode == 0:
+                st.session_state.combine_has_error = False
+                st.balloons()  # Celebrate success but keep logs visible
+            else:
+                # On error, keep everything visible
+                st.session_state.combine_has_error = True
 
         except Exception as e:
             st.session_state.combine_console_log += f"❌ Error: {str(e)}\n"
+            st.session_state.combine_has_error = True  # Flag to persist error state
             update_console()
-            progress_bar.progress(0)
-            status_text.text("❌ Combination failed")
+            progress_bar.empty()  # Clear progress bar on exception
+            status_text.empty()   # Clear status text on exception
             st.error(f"❌ **Combination failed:** {str(e)}")
+            # No rerun on exception - keep error visible
 
 # Console Log expander
 with st.expander("📋 Console Log", expanded=True):
-    st.caption("�� Shows detailed information about the data combination process")
+    # Add clear button if there's content in the log
+    if 'combine_console_log' in st.session_state and st.session_state.combine_console_log:
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button("🗑️ Clear Log", key="clear_combine_log"):
+                st.session_state.combine_console_log = ""
+                st.session_state.combine_has_error = False
+                st.rerun()
+        with col2:
+            st.caption("💡 Shows detailed information about the data combination process")
+    else:
+        st.caption("💡 Shows detailed information about the data combination process")
+
     if 'combine_console_log' in st.session_state and st.session_state.combine_console_log:
         st.code(st.session_state.combine_console_log, language=None)
     else:
