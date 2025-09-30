@@ -465,6 +465,156 @@ def add_switch_derived_variables(df):
         console.print("[yellow]⚠️  Could not create derived switch variables")
         return df
 
+def add_categorical_switch_variables(df):
+    """
+    Add categorical switch variables for easy analysis
+    Creates studiewissel1jr, studiewissel3jr, and studiewissel
+    """
+    derived_cols = []
+
+    # Avans-style 1-year switch variable
+    derived_cols.append(
+        pl.when(pl.col("switch_binnen_1_jaar") == True)
+        .then(pl.lit("Gewisseld binnen 1 jaar"))
+        .otherwise(pl.lit("Niet gewisseld binnen 1 jaar"))
+        .alias("studiewissel1jr")
+    )
+
+    # Avans-style 3-year switch variable
+    derived_cols.append(
+        pl.when(pl.col("switch_binnen_3_jaar") == True)
+        .then(pl.lit("Gewisseld binnen 3 jaar"))
+        .otherwise(pl.lit("Niet gewisseld binnen 3 jaar"))
+        .alias("studiewissel3jr")
+    )
+
+    # Overall studiewissel variable (Avans style)
+    derived_cols.append(
+        pl.when(pl.col("switch_binnen_1_jaar") == True)
+        .then(pl.lit("Gewisseld binnen 1 jaar"))
+        .when(pl.col("switch_binnen_3_jaar") == True)
+        .then(pl.lit("Gewisseld in het 2e of 3e jaar"))
+        .otherwise(pl.lit("Niet gewisseld"))
+        .alias("studiewissel")
+    )
+
+    # Add all derived columns
+    if derived_cols:
+        return df.with_columns(derived_cols)
+    else:
+        console.print("[yellow]⚠️  Could not create categorical switch variables")
+        return df
+
+def add_switch_detail_variables(df):
+    """
+    Add detailed program information for students who switched
+    Creates opleidingscode/naam/vorm/niveau/sector_na_switch variables
+    """
+    # Check if categorical switch variables exist
+    if "studiewissel1jr" not in df.columns or "studiewissel3jr" not in df.columns:
+        console.print("[yellow]⚠️  Categorical switch variables not found, skipping switch details")
+        return df.with_columns([
+            pl.lit(None).alias("opleidingscode_na_switch1jr"),
+            pl.lit(None).alias("opleidingsnaam_na_switch1jr"),
+            pl.lit(None).alias("opleidingsvorm_na_switch1jr"),
+            pl.lit(None).alias("opleidingsniveau_na_switch1jr"),
+            pl.lit(None).alias("hbo_sector_na_switch1jr"),
+            pl.lit(None).alias("opleidingscode_na_switch3jr"),
+            pl.lit(None).alias("opleidingsnaam_na_switch3jr"),
+            pl.lit(None).alias("opleidingsvorm_na_switch3jr"),
+            pl.lit(None).alias("opleidingsniveau_na_switch3jr"),
+            pl.lit(None).alias("hbo_sector_na_switch3jr")
+        ])
+
+    # Find available program detail columns
+    opleidingscode_col = None
+    opleidingsnaam_col = None
+    opleidingsvorm_col = None
+    opleidingsniveau_col = None
+    hbo_sector_col = None
+
+    for col in df.columns:
+        if "opleidingscode" in col.lower() and "naam" not in col.lower():
+            opleidingscode_col = col
+        elif "opleidingscode_naam_opleiding" in col.lower():
+            opleidingsnaam_col = col
+        elif "opleidingsvorm" in col.lower() and "label" not in col.lower():
+            opleidingsvorm_col = col
+        elif "type_hoger_onderwijs_binnen_soort" in col.lower():
+            opleidingsniveau_col = col
+        elif "croho_onderdeel_actuele_opleiding" in col.lower() and "label" not in col.lower():
+            hbo_sector_col = col
+
+    derived_cols = []
+
+    # 1-year switch details
+    derived_cols.extend([
+        # Opleidingscode na switch 1jr
+        pl.when(pl.col("studiewissel1jr") == "Gewisseld binnen 1 jaar")
+        .then(pl.col(opleidingscode_col) if opleidingscode_col else None)
+        .otherwise(None)
+        .alias("opleidingscode_na_switch1jr"),
+
+        # Opleidingsnaam na switch 1jr
+        pl.when(pl.col("studiewissel1jr") == "Gewisseld binnen 1 jaar")
+        .then(pl.col(opleidingsnaam_col) if opleidingsnaam_col else None)
+        .otherwise(None)
+        .alias("opleidingsnaam_na_switch1jr"),
+
+        # Opleidingsvorm na switch 1jr
+        pl.when(pl.col("studiewissel1jr") == "Gewisseld binnen 1 jaar")
+        .then(pl.col(opleidingsvorm_col) if opleidingsvorm_col else None)
+        .otherwise(None)
+        .alias("opleidingsvorm_na_switch1jr"),
+
+        # Opleidingsniveau na switch 1jr
+        pl.when(pl.col("studiewissel1jr") == "Gewisseld binnen 1 jaar")
+        .then(pl.col(opleidingsniveau_col) if opleidingsniveau_col else None)
+        .otherwise(None)
+        .alias("opleidingsniveau_na_switch1jr"),
+
+        # HBO sector na switch 1jr
+        pl.when(pl.col("studiewissel1jr") == "Gewisseld binnen 1 jaar")
+        .then(pl.col(hbo_sector_col) if hbo_sector_col else None)
+        .otherwise(None)
+        .alias("hbo_sector_na_switch1jr")
+    ])
+
+    # 3-year switch details
+    derived_cols.extend([
+        # Opleidingscode na switch 3jr
+        pl.when(pl.col("studiewissel3jr") == "Gewisseld binnen 3 jaar")
+        .then(pl.col(opleidingscode_col) if opleidingscode_col else None)
+        .otherwise(None)
+        .alias("opleidingscode_na_switch3jr"),
+
+        # Opleidingsnaam na switch 3jr
+        pl.when(pl.col("studiewissel3jr") == "Gewisseld binnen 3 jaar")
+        .then(pl.col(opleidingsnaam_col) if opleidingsnaam_col else None)
+        .otherwise(None)
+        .alias("opleidingsnaam_na_switch3jr"),
+
+        # Opleidingsvorm na switch 3jr
+        pl.when(pl.col("studiewissel3jr") == "Gewisseld binnen 3 jaar")
+        .then(pl.col(opleidingsvorm_col) if opleidingsvorm_col else None)
+        .otherwise(None)
+        .alias("opleidingsvorm_na_switch3jr"),
+
+        # Opleidingsniveau na switch 3jr
+        pl.when(pl.col("studiewissel3jr") == "Gewisseld binnen 3 jaar")
+        .then(pl.col(opleidingsniveau_col) if opleidingsniveau_col else None)
+        .otherwise(None)
+        .alias("opleidingsniveau_na_switch3jr"),
+
+        # HBO sector na switch 3jr
+        pl.when(pl.col("studiewissel3jr") == "Gewisseld binnen 3 jaar")
+        .then(pl.col(hbo_sector_col) if hbo_sector_col else None)
+        .otherwise(None)
+        .alias("hbo_sector_na_switch3jr")
+    ])
+
+    return df.with_columns(derived_cols)
+
 def add_switch_sector_analysis(df):
     """
     Analyze switches between sectors/faculties/programs
@@ -551,6 +701,8 @@ def enrich_switch_data(df):
 
     # Derived variables
     df = add_switch_derived_variables(df)
+    df = add_categorical_switch_variables(df)
+    df = add_switch_detail_variables(df)
     df = add_switch_sector_analysis(df)
 
     console.print(f"[green]✅ Switch enrichment completed - {len(df.columns)} columns")

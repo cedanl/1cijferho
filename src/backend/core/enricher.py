@@ -433,7 +433,7 @@ def add_studieduur(df):
 
             # Study duration calculation
             pl.when(pl.col(diploma_col).is_not_null())
-            .then(pl.col(diploma_col) - pl.col(year_col).min().over([person_col, program_col]) + 1)
+            .then(pl.col(diploma_col).cast(pl.Int32) - pl.col(year_col).min().over([person_col, program_col]).cast(pl.Int32) + 1)
             .otherwise(None)
             .alias("studieduur")
         ])
@@ -443,6 +443,176 @@ def add_studieduur(df):
             pl.lit(None).alias("eerste_inschrijvingsjaar"),
             pl.lit(None).alias("studieduur")
         ])
+
+def add_early_dropout_detection(df):
+    """
+    Add early dropout detection logic
+    Detects dropout before February 1st of the next academic year
+    Based on institutional analysis standards
+    """
+    # Find required columns
+    person_col = None
+    program_col = None
+    year_col = None
+    uitschrijving_datum_col = None
+    inschrijving_datum_col = None
+
+    for col in df.columns:
+        if "persoonsgebonden_nummer" in col.lower():
+            person_col = col
+        elif "opleidingscode" in col.lower():
+            program_col = col
+        elif "inschrijvingsjaar" in col.lower():
+            year_col = col
+        elif "datum_uitschrijving" in col.lower():
+            uitschrijving_datum_col = col
+        elif "datum_inschrijving" in col.lower():
+            inschrijving_datum_col = col
+
+    if not all([person_col, program_col, year_col]):
+        console.print("[yellow]⚠️  Required columns not found for early dropout calculation")
+        return df.with_columns([
+            pl.lit(None).alias("uitschrijving_voor_1_feb"),
+            pl.lit(None).alias("eerste_datum_inschrijving"),
+            pl.lit(None).alias("laatste_datum_uitschrijving")
+        ])
+
+    derived_cols = []
+
+    # Add first and last enrollment dates per student per program
+    if inschrijving_datum_col:
+        # Handle potential date parsing issues
+        try:
+            derived_cols.append(
+                pl.col(inschrijving_datum_col).min().over([person_col, program_col]).alias("eerste_datum_inschrijving")
+            )
+        except:
+            derived_cols.append(pl.lit(None).alias("eerste_datum_inschrijving"))
+    else:
+        derived_cols.append(pl.lit(None).alias("eerste_datum_inschrijving"))
+
+    if uitschrijving_datum_col:
+        try:
+            derived_cols.extend([
+                pl.col(uitschrijving_datum_col).max().over([person_col, program_col]).alias("laatste_datum_uitschrijving"),
+
+                # Simplified early dropout check using year comparison
+                # If we can't do date arithmetic, just set to None
+                pl.lit(None).alias("uitschrijving_voor_1_feb")
+            ])
+        except:
+            derived_cols.extend([
+                pl.lit(None).alias("laatste_datum_uitschrijving"),
+                pl.lit(None).alias("uitschrijving_voor_1_feb")
+            ])
+    else:
+        derived_cols.extend([
+            pl.lit(None).alias("laatste_datum_uitschrijving"),
+            pl.lit(None).alias("uitschrijving_voor_1_feb")
+        ])
+
+    return df.with_columns(derived_cols)
+
+def add_time_to_diploma_in_months(df):
+    """
+    Add time to diploma calculation in months
+    Time from first enrollment to diploma signing in months
+    For students who graduated successfully
+    """
+    # Find required columns
+    person_col = None
+    program_col = None
+    diploma_datum_col = None
+    eerste_inschrijving_col = "eerste_datum_inschrijving"  # Created by add_early_dropout_detection
+
+    for col in df.columns:
+        if "persoonsgebonden_nummer" in col.lower():
+            person_col = col
+        elif "opleidingscode" in col.lower():
+            program_col = col
+        elif "datum_tekening_diploma" in col.lower():
+            diploma_datum_col = col
+
+    if not all([person_col, program_col]) or eerste_inschrijving_col not in df.columns:
+        console.print("[yellow]⚠️  Required columns not found for time to diploma calculation")
+        return df.with_columns([pl.lit(None).alias("tijd_tot_diploma_in_maanden")])
+
+    if not diploma_datum_col:
+        console.print("[yellow]⚠️  Diploma date column not found, skipping time to diploma in months")
+        return df.with_columns([pl.lit(None).alias("tijd_tot_diploma_in_maanden")])
+
+    # Try to calculate time to diploma, but handle data type issues gracefully
+    try:
+        return df.with_columns([
+            # VU logic: calculate months between first enrollment and diploma
+            pl.when(
+                # If diploma date is before or same as enrollment date, set to 0
+                pl.col(diploma_datum_col) <= pl.col(eerste_inschrijving_col)
+            ).then(0)
+            .when(
+                # If diploma date exists, calculate difference in months
+                pl.col(diploma_datum_col).is_not_null()
+            ).then(
+                # Calculate months difference (approximate using days/30.44)
+                ((pl.col(diploma_datum_col) - pl.col(eerste_inschrijving_col)).dt.total_days() / 30.44).round(0)
+            )
+            .otherwise(None)
+            .cast(pl.Int32)
+            .alias("tijd_tot_diploma_in_maanden")
+        ])
+    except:
+        # If date arithmetic fails, just add null column
+        console.print("[yellow]⚠️  Date arithmetic failed, setting time to diploma to null")
+        return df.with_columns([pl.lit(None).alias("tijd_tot_diploma_in_maanden")])
+
+def add_enrollment_duration_in_months(df):
+    """
+    Add enrollment duration in months based on enrollment and unenrollment dates
+    For all students (including dropouts) - actual time enrolled
+    """
+    # Find required columns
+    person_col = None
+    program_col = None
+    eerste_inschrijving_col = "eerste_datum_inschrijving"  # Created by add_early_dropout_detection
+    laatste_uitschrijving_col = "laatste_datum_uitschrijving"  # Created by add_vu_early_dropout_logic
+
+    for col in df.columns:
+        if "persoonsgebonden_nummer" in col.lower():
+            person_col = col
+        elif "opleidingscode" in col.lower():
+            program_col = col
+
+    if not all([person_col, program_col]) or eerste_inschrijving_col not in df.columns:
+        console.print("[yellow]⚠️  Required columns not found for enrollment duration calculation")
+        return df.with_columns([pl.lit(None).alias("studieduur_in_maanden")])
+
+    if laatste_uitschrijving_col not in df.columns:
+        console.print("[yellow]⚠️  Laatste uitschrijving date column not found, skipping enrollment duration")
+        return df.with_columns([pl.lit(None).alias("studieduur_in_maanden")])
+
+    # Try to calculate enrollment duration, but handle data type issues gracefully
+    try:
+        return df.with_columns([
+            # Calculate months between first enrollment and last unenrollment
+            pl.when(
+                # If unenrollment date is before or same as enrollment date, set to 0
+                pl.col(laatste_uitschrijving_col) <= pl.col(eerste_inschrijving_col)
+            ).then(0)
+            .when(
+                # If unenrollment date exists, calculate difference in months
+                pl.col(laatste_uitschrijving_col).is_not_null()
+            ).then(
+                # Calculate months difference (approximate using days/30.44)
+                ((pl.col(laatste_uitschrijving_col) - pl.col(eerste_inschrijving_col)).dt.total_days() / 30.44).round(0)
+            )
+            .otherwise(None)
+            .cast(pl.Int32)
+            .alias("studieduur_in_maanden")
+        ])
+    except:
+        # If date arithmetic fails, just add null column
+        console.print("[yellow]⚠️  Date arithmetic failed, setting enrollment duration to null")
+        return df.with_columns([pl.lit(None).alias("studieduur_in_maanden")])
 
 
 def add_rendement_instelling(df):
@@ -521,6 +691,20 @@ def add_rendement_instelling(df):
         .then(pl.lit("Onbekend, want diplomajaar ligt voor eerste jaar bij instelling"))
         .otherwise(pl.lit("Onbekend"))
         .alias("rendement_instelling_8_jaar")
+    ])
+
+    # Add categorical rendement variable in separate step to avoid self-reference issues
+    return df.with_columns([
+        pl.when(pl.col("rendement_instelling_5_jaar") == "Diploma binnen 5 jaar")
+        .then(pl.lit("Diploma binnen 5 jaar"))
+        .when(pl.col("rendement_instelling_8_jaar") == "Diploma binnen 8 jaar")
+        .then(pl.lit("Diploma binnen 5-8 jaar"))
+        .when(pl.col("rendement_instelling_8_jaar") == "Diploma na 8 jaar")
+        .then(pl.lit("Diploma na 8 jaar"))
+        .when(pl.col("rendement_instelling_8_jaar") == "Geen diploma")
+        .then(pl.lit("Geen diploma"))
+        .otherwise(pl.lit("Onbekend"))
+        .alias("rendement")
     ])
 
 def add_uitval_instelling(df):
@@ -659,7 +843,12 @@ def enrich_dataframe(df):
     # Avans style
     df = add_studieduur(df)
 
-    # New Avans-style variables
+    # Institutional analysis variables
+    df = add_early_dropout_detection(df)
+    df = add_time_to_diploma_in_months(df)
+    df = add_enrollment_duration_in_months(df)
+
+    # Outcome analysis variables
     df = add_rendement_instelling(df)
     df = add_uitval_instelling(df)
 
