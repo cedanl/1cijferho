@@ -4,8 +4,18 @@ cache-dir = "./.uv_cache"
 [project]
 name = "1cijferho"
 version = "0.1.0"
-description = "Add your description here"
+license = {text = "MIT"}
+description = "Professional tools for processing Dutch higher educational data (1CijferHO / ROD)"
 readme = "README.md"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Education"
+]
+keywords = ["education", "data-processing", "duo", "netherlands", "higher-education"]
 requires-python = ">=3.13"
 dependencies = [
     "fastexcel>=0.12.1",
@@ -14,9 +24,28 @@ dependencies = [
     "pandas>=2.2.3",
     "plotly>=6.0.0",
     "polars>=1.21.0",
+    "pyyaml>=6.0.0",
     "rich>=13.9.4",
     "ruff>=0.10.0",
     "streamlit>=1.41.1",
     "streamlit-extras>=0.6.0",
     "xlsxwriter>=3.2.2",
 ]
+
+[project.urls]
+Homepage = "https://github.com/cedanl/1cijferho"
+Repository = "https://github.com/cedanl/1cijferho.git"
+Issues = "https://github.com/cedanl/1cijferho/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+include = [
+    "src/cijferho/**/*.py",
+    "src/backend/**/*.py"  # Include backend code die package gebruikt
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cijferho", "src/backend"]
