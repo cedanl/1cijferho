@@ -51,6 +51,11 @@ Automated pipeline that delivers:
 - [x] **Privacy Protection** - Cryptographic anonymization
 - [x] **Zero Setup** - `uv` handles all dependencies automatically
 
+## Delivery
+- [x] **Streamlit app** - Extract, clean and combine data via clean, local app
+- [x] **Python package** - Import into your own code and pipelines
+- [x] **REST API** - HTTP endpoints for data service (preview on SURF Developer Platform)
+
 <br>
 
 ## 🔧 First Time Setup
