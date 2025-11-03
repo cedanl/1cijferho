@@ -4,6 +4,7 @@ from utils import converter_match as cm
 from utils import converter_validation as cv
 from utils import compressor as co
 from utils import encryptor as en
+from utils import converter_headers as ch
 import subprocess
 
 
@@ -27,10 +28,13 @@ cv.converter_validation()
 # Step 5: Run Compressor
 co.convert_csv_to_parquet()
 
-# Step 6: Run Encryptor
+# Step 6: Run Converter Headers (snake_case)
+ch.convert_csv_headers_to_snake_case()
+
+# Step 7: Run Encryptor
 en.encryptor()
 
-# Step 7: Run Decoder
+# Step 8: Run Decoder
 # Nog niet ontwikkeld
 
 # NOTE TO DEVS: Refactor en overweeg om een overstap te maken naar dash.plotly.com als de UI verbeterd moet worden. 

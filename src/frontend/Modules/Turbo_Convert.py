@@ -5,6 +5,7 @@ import subprocess
 import backend.utils.converter_validation as cv
 import backend.utils.compressor as co
 import backend.utils.encryptor as en
+import backend.utils.converter_headers as ch
 import io
 import contextlib
 
@@ -125,7 +126,8 @@ What happens:
 - Delimiter: Semicolon ; Encoding: Latin-1
 - Validate the conversion results for accuracy
 - Compress CSV files to efficient Parquet format
-- Encrypt final files for secure storage
+- Encrypt sensitive data in a copy of the main files (xxx_encrypted) 
+- Adds snake_case headers to final files
 - Save all processed files to `data/02-output/` + Balloons 🎈 when done!
 
 If any step fails, check the log below for details about which files had issues.
@@ -237,7 +239,7 @@ else:
                 st.session_state.convert_console_log += "✅ Compression completed\n"
                 update_console()
                 progress_bar.progress(75)
-                
+
                 # Step 6: Run Encryptor
                 status_text.text("🔒 Step 6: Encrypting final files...")
                 st.session_state.convert_console_log += "🔒 Step 6: Encrypting final files...\n"
@@ -249,7 +251,21 @@ else:
                 st.session_state.convert_console_log += "✅ Encryption completed\n"
                 st.session_state.convert_console_log += "🎉 Complete processing pipeline finished successfully!\n"
                 update_console()
+                progress_bar.progress(90)
+                
+                # Step 7: Run Converter Headers (snake_case)
+                status_text.text("🔨 Step 6: Converting headers to snake_case...")
+                st.session_state.convert_console_log += "🔨 Step 6: Converting headers to snake_case...\n"
+                update_console()
+                captured_output = io.StringIO()
+                with contextlib.redirect_stdout(captured_output):
+                    ch.convert_csv_headers_to_snake_case()
+                st.session_state.convert_console_log += captured_output.getvalue()
+                st.session_state.convert_console_log += "✅ Header conversion completed\n"
+                update_console()
                 progress_bar.progress(100)
+
+
                 status_text.text("✅ Processing completed successfully!")
                 
                 st.success("✅ **Processing completed!** Files converted, validated, compressed, and encrypted. Results saved to `data/02-output/`")
@@ -285,7 +301,7 @@ else:
                 
                 # Clear the progress indicators after a moment
                 import time
-                time.sleep(2)
+                time.sleep(300)
                 progress_bar.empty()
                 status_text.empty()
                 console_container.empty()

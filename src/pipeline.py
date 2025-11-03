@@ -4,6 +4,7 @@ from backend.utils import converter_match as cm
 from backend.utils import converter_validation as cv
 from backend.utils import compressor as co
 from backend.utils import encryptor as en
+from backend.utils import converter_headers as ch
 import subprocess
 import argparse
 
@@ -26,10 +27,12 @@ def run_pipeline(input_folder):
     
     # Step 5: Run Compressor
     co.convert_csv_to_parquet()
-    
-    # Step 6: Run Encryptor
-    en.encryptor()
 
+    # Step 6: Run Converter Headers (snake_case)
+    ch.convert_csv_headers_to_snake_case()
+
+    # Step 7: Run Encryptor
+    en.encryptor()
 
 def main():
     """Main function with command line argument parsing"""

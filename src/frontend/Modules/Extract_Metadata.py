@@ -63,12 +63,21 @@ st.write("""
 **Step 1: Extracting Data Structure**
 
 We'll now read your Bestandsbeschrijving files to find where each field is positioned in your main/dec files. This creates the "map" we need to properly split your fixed-width data.
-
+       
 What happens:
 - Extract field positions from your .txt files
 - Convert to JSON format, then Excel
 - Save to `data/00-metadata/` folder
 """)
+
+with st.expander("🚨 Existing Bestandbeschrijvingen"):
+    st.markdown("""
+    If you have received delimited Bestandbeschrijving files, please paste them in `data/00-metadata/` 
+    and continue to step 2. Do not run `start extraction`, the existing files will be overwritten.
+                
+    Please make sure to rename the files to match the input files, like `Dec_land_naar_herkomstindikking.asc.xlsx` 
+    with the columns `Startpositie`, `Aantal posities` and `Opmerking`."
+    """)
 
 # Get files and display status
 bestandsbeschrijvingen = get_bestandsbeschrijvingen()
