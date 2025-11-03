@@ -2,13 +2,12 @@ from core import extractor as ex
 from utils import extractor_validation as ex_val
 from utils import converter_match as cm
 from utils import converter_validation as cv
-from utils import check_dec_csv as cd
 from utils import compressor as co
 from utils import encryptor as en
 import subprocess
 
 # Step 0: Set Input Folder
-input_folder = "data/01-input"
+input_folder = "data/01-input/test"
 
 # Step 1: Extract Metadata from Bestandsbeschrijving files (txt -> JSON -> Excel)
 ex.process_txt_folder(input_folder)
@@ -19,16 +18,16 @@ ex_val.validate_metadata_folder()
 cm.match_files(input_folder)
 
 # Step 3: Convert Files
-subprocess.run(["uv", "run", "src/backend/core/converter.py"])
+subprocess.run(["uv", "run", "src/backend/core/converter.py", input_folder])
 
 # Step 4: Validate Conversion
-cv.converter_validation()
+#cv.converter_validation()
 
 # Step 5: Run Compressor
-co.convert_csv_to_parquet()
+#co.convert_csv_to_parquet()
 
 # Step 6: Run Encryptor
-en.encryptor()
+#en.encryptor()
 
 # Step 7: Run Decoder
 

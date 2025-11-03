@@ -12,6 +12,7 @@ Functions:
 """
 
 import multiprocessing as mp
+import sys
 import os
 import json
 import polars as pl
@@ -264,5 +265,12 @@ def run_conversions_from_matches(input_folder, metadata_folder="data/00-metadata
     
     return results  # Return the results
 
+
+
 if __name__ == "__main__":
-    run_conversions_from_matches("data/01-input")
+    if len(sys.argv) > 1:
+        input_folder = sys.argv[1]
+    else:
+        input_folder = "data/01-input"  # fallback
+    
+    run_conversions_from_matches(input_folder)
