@@ -28,11 +28,13 @@ def run_pipeline(input_folder):
     # Step 5: Run Compressor
     co.convert_csv_to_parquet()
 
-    # Step 6: Run Converter Headers (snake_case)
+    # Step 6: Run Encryptor
+    en.encryptor()
+
+    # Step 7: Run Converter Headers (snake_case)
     ch.convert_csv_headers_to_snake_case()
 
-    # Step 7: Run Encryptor
-    en.encryptor()
+
 
 def main():
     """Main function with command line argument parsing"""
