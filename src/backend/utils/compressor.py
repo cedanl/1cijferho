@@ -18,7 +18,7 @@ def convert_csv_to_parquet(input_dir="data/02-output"):
             
         parquet_file = csv_file.with_suffix(".parquet")
         try:
-            df = pl.read_csv(csv_file, separator="|", encoding="latin-1")
+            df = pl.read_csv(csv_file, separator=";", encoding="latin-1")
             df.write_parquet(parquet_file)
             console.print(f"[green]✓[/] {csv_file.name}")
         except Exception as e:

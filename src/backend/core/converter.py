@@ -37,7 +37,7 @@ def process_chunk(chunk_data):
             line = line.decode('latin1')  # Adjust encoding as needed
         if line.strip():  # Skip empty lines
             fields = [line[start:end].strip() for start, end in positions]
-            output_lines.append('|'.join(fields))
+            output_lines.append(';'.join(fields))
     return output_lines
 
 
@@ -70,7 +70,7 @@ def converter(input_file, metadata_file):
     
     # Write header first
     with open(output_file, 'w', encoding='latin1', newline='') as f_out:
-        f_out.write('|'.join(column_names) + '\n')
+        f_out.write(';'.join(column_names) + '\n')
     
     # Read the entire file into memory (if it's not too large)
     with open(input_file, 'r', encoding='latin1') as f_in:

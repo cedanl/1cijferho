@@ -22,7 +22,7 @@ def encryptor(input_dir="data/02-output", output_dir="data/02-output"):
     for csv_file in target_files:
         try:
             # Load CSV file
-            df = pl.read_csv(csv_file, separator="|", encoding="latin-1")
+            df = pl.read_csv(csv_file, separator=";", encoding="latin-1")
             
             # Check if any columns to encrypt exist in this file
             columns_found = [col for col in columns_to_encrypt if col in df.columns]

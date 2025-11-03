@@ -51,7 +51,7 @@ Transform complex DUO datasets into actionable insights in minutes, not months. 
 st.info("✨ v0.9 - All core features ready! Help us perfect it with your feedback.", icon="🎯")
 
 # Try the application section
-st.write("Ready to get started? Upload your 1CHO data and discover insights in minutes:")
+st.write("To get started, upload your data files below:")
 
 # Side-by-side buttons with equal width
 col1, col2 = st.columns(2)
@@ -76,7 +76,7 @@ st.divider()
 # Get Involved Section
 # -----------------------------------------------------------------------------
 st.subheader("📢 Get Involved")
-st.write("We're constantly improving based on your feedback! Share your ideas by emailing us at a.sewnandan@hhs.nl or t.iwan@vu.nl, or submit a feature request:")
+st.write("We're constantly improving based on your feedback! Questions or feature requests? Submit a feature request via Github Issues:")
 
 # GitHub issues link
 st.link_button("Submit Feature Request", url="https://github.nl/cedanl/1cijferho/issues", help="Opens our GitHub issues page")

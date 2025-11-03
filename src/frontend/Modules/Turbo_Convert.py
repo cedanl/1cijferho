@@ -122,7 +122,7 @@ We'll now use the validated metadata to convert your main/dec files through a co
 
 What happens:
 - Convert fixed-width files to CSV format using validated field positions
-- Delimiter: Pipe | - Encoding: Latin-1
+- Delimiter: Semicolon ; Encoding: Latin-1
 - Validate the conversion results for accuracy
 - Compress CSV files to efficient Parquet format
 - Encrypt final files for secure storage

@@ -6,8 +6,9 @@ from utils import compressor as co
 from utils import encryptor as en
 import subprocess
 
+
 # Step 0: Set Input Folder
-input_folder = "data/01-input/test"
+input_folder = "data/01-input/"
 
 # Step 1: Extract Metadata from Bestandsbeschrijving files (txt -> JSON -> Excel)
 ex.process_txt_folder(input_folder)
@@ -21,13 +22,16 @@ cm.match_files(input_folder)
 subprocess.run(["uv", "run", "src/backend/core/converter.py", input_folder])
 
 # Step 4: Validate Conversion
-#cv.converter_validation()
+cv.converter_validation()
 
 # Step 5: Run Compressor
-#co.convert_csv_to_parquet()
+co.convert_csv_to_parquet()
 
 # Step 6: Run Encryptor
-#en.encryptor()
+en.encryptor()
 
 # Step 7: Run Decoder
+# Nog niet ontwikkeld
 
+# NOTE TO DEVS: Refactor en overweeg om een overstap te maken naar dash.plotly.com als de UI verbeterd moet worden. 
+# Streamlit is een geweldige tool, maar is niet geoptimaliseerd voor multi-page apps.
