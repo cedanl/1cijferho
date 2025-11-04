@@ -10,6 +10,9 @@ Main Entrypoint for the 1CIJFERHO App
 import streamlit as st
 import glob
 import os
+import requests
+from pathlib import Path
+import requests
 
 # -----------------------------------------------------------------------------
 # App Configuration - Must be first Streamlit command
@@ -43,6 +46,38 @@ def show_demo_notifications():
         return True
     return False
 
+
+
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def check_repo_version():
+    """Check if local version matches latest GitHub release"""
+    try:
+        local_version = Path("VERSION").read_text().strip()
+        response = requests.get(
+            "https://api.github.com/repos/cedanl/1cijferho/releases/latest",
+            timeout=5
+        )
+        
+        if response.status_code == 200:
+            latest_version = response.json()["tag_name"]
+            return {
+                "is_latest": local_version == latest_version,
+                "local_version": local_version,
+                "latest_version": latest_version
+            }
+    except:
+        return None
+
+def show_version_notification():
+    """Show version notification in sidebar"""
+    version_info = check_repo_version()
+    
+    if version_info and not version_info["is_latest"]:
+        with st.sidebar:
+            st.info(f"🔄 Update: `{version_info['local_version']}` → `{version_info['latest_version']}`")
+            st.link_button("⬇️ Download", "https://github.com/cedanl/1cijferho/releases/latest", use_container_width=True)
+        return True
+    return False
 # -----------------------------------------------------------------------------
 # Pages Overview - YOU CAN ADD MORE PAGES HERE
 # -----------------------------------------------------------------------------
@@ -65,6 +100,8 @@ st.logo(LOGO_URL)
 
 # Demo Detection
 show_demo_notifications()
+check_repo_version()
+show_version_notification()
 
 # Initialize Navigation
 pg = st.navigation ( {
