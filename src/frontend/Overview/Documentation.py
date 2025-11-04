@@ -14,7 +14,7 @@ st.markdown("""
 
 st.markdown("""
 <div class="hero-section">
-    <h1>Documentation</h1>
+    <h1>📚 Documentation</h1>
 </div>
 """, unsafe_allow_html=True)
 

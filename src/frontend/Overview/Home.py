@@ -79,7 +79,7 @@ st.subheader("📢 Get Involved")
 st.write("We're constantly improving based on your feedback! Questions or feature requests? Submit a feature request via Github Issues:")
 
 # GitHub issues link
-st.link_button("Submit Feature Request", url="https://github.nl/cedanl/1cijferho/issues", help="Opens our GitHub issues page")
+st.link_button("Submit Feature Request", url="https://github.nl/cedanl/1cijferho/issues", help="Opens our GitHub issues page", type="primary")
 
 # -----------------------------------------------------------------------------
 # Footer Section
