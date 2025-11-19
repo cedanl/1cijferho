@@ -1,6 +1,9 @@
 [tool.uv]
 cache-dir = "./.uv_cache"
 
+[browser]
+gatherUsageStats = false
+
 [project]
 name = "1cijferho"
 version = "0.1.0"
