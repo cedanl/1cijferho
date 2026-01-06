@@ -21,3 +21,10 @@ dependencies = [
     "streamlit-extras>=0.6.0",
     "xlsxwriter>=3.2.2",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "ydata-profiling>=4.10",
+    "sweetviz>=2.3",
+    "jupyter>=1.0",
+]
