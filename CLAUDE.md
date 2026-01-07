@@ -50,21 +50,6 @@ Use the built-in skills for data validation:
 - `/profile` - Generate a data profiling report for a file
 - `/compare` - Compare two datasets side-by-side
 
-### CLI Commands
-```bash
-# Profiling report (ydata-profiling)
-uv run python dev/validation/profile_data.py data/02-output/file.csv
-uv run python dev/validation/profile_data.py data/02-output/file.csv --minimal
-
-# Compare datasets (sweetviz)
-uv run python dev/validation/compare_data.py file1.csv file2.csv
-
-# Interactive validation
-uv run jupyter notebook dev/notebooks/validate_output.ipynb
-```
-
-Reports are saved to `dev/reports/` (not tracked in git).
-
 ## Data Pipeline Flow
 1. **Upload** - Place DUO files in `data/01-input/`
 2. **Extract Metadata** - Parse field positions from .txt metadata files
