@@ -5,17 +5,97 @@ services:
     image: fastapi
     ports:
       - "8000:8000"
-    #environment:
-    #   the variables should come from an .env file
-    #  - MINIO_WO_SECRET_KEY=${MINIO_SECRET_KEY}
+    environment:
+      - STORAGE_BACKEND=${STORAGE_BACKEND:-disk}
+      - STORAGE_DISK_BASE_PATH=/data
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET=${MINIO_BUCKET:-1cijferho}
+      - MINIO_SECURE=false
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DATABASE=${POSTGRES_DATABASE:-cijferho}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
     networks:
       - default
     build:
       context: .
       dockerfile: Dockerfile
-    # command: ["sleep", "infinity"]
+    depends_on:
+      - minio
+      - postgres
     command: ["uv", "run", "/src/main.py"]
     volumes:
       - type: bind
         source: src
         target: /src
+      - type: bind
+        source: data
+        target: /data
+
+  minio:
+    container_name: minio
+    hostname: minio
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-minioadmin}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    container_name: minio-init
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+      mc mb local/$${MINIO_BUCKET} --ignore-existing;
+      mc anonymous set download local/$${MINIO_BUCKET};
+      exit 0;
+      "
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET=${MINIO_BUCKET:-1cijferho}
+    networks:
+      - default
+
+  postgres:
+    container_name: postgres
+    hostname: postgres
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DATABASE:-cijferho}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  minio_data:
+  postgres_data:

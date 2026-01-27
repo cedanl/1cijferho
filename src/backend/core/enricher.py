@@ -855,58 +855,72 @@ def enrich_dataframe(df):
     console.print(f"[green]✅ Enrichment completed - {len(df.columns)} columns")
     return df
 
-def enrich_all_data(input_dir="data/03-combined", output_dir="data/03-combined"):
+def enrich_all_data(input_dir: str | None = None, output_dir: str | None = None):
     """
     Apply enrichment to all CSV files in input directory
+
+    Uses the storage abstraction layer to support disk, MinIO, and PostgreSQL backends.
+    Set STORAGE_BACKEND environment variable to switch backends.
+
+    Args:
+        input_dir: Input directory path. Defaults to STORAGE_COMBINED_DIR env var or "03-combined".
+        output_dir: Output directory path. Defaults to STORAGE_COMBINED_DIR env var or "03-combined".
     """
-    input_path = Path(input_dir)
-    output_path = Path(output_dir)
+    from backend.io import storage_context, get_config
 
-    if not input_path.exists():
-        console.print(f"[red]❌ Input directory not found: {input_dir}")
-        return
+    config = get_config()
+    input_dir = input_dir or config.paths.combined_dir
+    output_dir = output_dir or config.paths.combined_dir
 
-    output_path.mkdir(parents=True, exist_ok=True)
+    with storage_context() as storage:
+        # Find CSV files using storage backend
+        csv_files = storage.list_files(input_dir, "*.csv")
+        csv_files = [f for f in csv_files if not Path(f).name.startswith('Dec_')]
 
-    # Find CSV files
-    csv_files = list(input_path.glob("*.csv"))
-    csv_files = [f for f in csv_files if not f.name.startswith('Dec_')]
+        if not csv_files:
+            console.print(f"[yellow]Warning: No CSV files found in {input_dir}")
+            return
 
-    if not csv_files:
-        console.print(f"[yellow]⚠️  No CSV files found in {input_dir}")
-        return
+        console.print(f"[bold blue]Starting data enrichment process...[/bold blue]")
+        console.print(f"[cyan]Found {len(csv_files)} files to enrich")
 
-    console.print(f"[bold blue]🔄 Starting data enrichment process...[/bold blue]")
-    console.print(f"[cyan]Found {len(csv_files)} files to enrich")
+        # Ensure output directory exists
+        storage.makedirs(output_dir)
 
-    for csv_file in csv_files:
-        try:
-            console.print(f"\n[cyan]📊 Processing: {csv_file.name}")
+        for csv_file in csv_files:
+            try:
+                filename = Path(csv_file).name
+                console.print(f"\n[cyan]Processing: {filename}")
 
-            # Load data
-            df = pl.read_csv(csv_file)
-            console.print(f"[green]  ✅ Loaded: {len(df)} rows, {len(df.columns)} columns")
+                # Load data via storage backend
+                df = storage.read_dataframe(csv_file, format="csv")
+                console.print(f"[green]  Loaded: {len(df)} rows, {len(df.columns)} columns")
 
-            # Apply enrichment
-            df_enriched = enrich_dataframe(df)
+                # Apply enrichment (pure transformation, unchanged)
+                df_enriched = enrich_dataframe(df)
 
-            # Save enriched data
-            output_file = output_path / csv_file.name
-            df_enriched.write_csv(output_file)
-            console.print(f"[green]  ✅ Saved enriched data: {output_file}")
+                # Save enriched data via storage backend
+                output_file = f"{output_dir}/{filename}"
+                storage.write_dataframe(df_enriched, output_file, format="csv")
+                console.print(f"[green]  Saved enriched data: {output_file}")
 
-        except Exception as e:
-            console.print(f"[red]  ❌ Error processing {csv_file.name}: {str(e)}")
+            except Exception as e:
+                console.print(f"[red]  Error processing {csv_file}: {str(e)}")
 
 def main():
     """
     Command line entry point
     """
+    import os
+
+    # Get defaults from environment
+    default_combined = os.getenv("STORAGE_COMBINED_DIR", "03-combined")
+
     parser = argparse.ArgumentParser(description='Enrich combined data with calculated fields')
-    parser.add_argument('--input-dir', default='data/03-combined',
-                       help='Input directory with combined data')
-    parser.add_argument('--output-dir', default='data/03-combined',
-                       help='Output directory for enriched data')
+    parser.add_argument('--input-dir', default=None,
+                       help=f'Input directory (default: STORAGE_COMBINED_DIR or "{default_combined}")')
+    parser.add_argument('--output-dir', default=None,
+                       help=f'Output directory (default: STORAGE_COMBINED_DIR or "{default_combined}")')
 
     args = parser.parse_args()
 
