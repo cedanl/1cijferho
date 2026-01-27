@@ -25,7 +25,15 @@ import polars as pl
 import datetime
 from rich.console import Console
 
-def extract_tables_from_txt(txt_file, json_output_folder):
+# files
+JSON_OUTPUT_DIR = "data/00-metadata/json"
+JSON_INPUT_DIR = "data/00-metadata/json"
+
+LOG_DIR = "data/00-metadata/logs"
+INPUT_DIR = 
+EXCEL_OUTPUT_DIR = "data/00-metadata"
+
+def extract_tables_from_txt(txt_file, json_output_folder=JSON_OUTPUT):
     """Extracts tables from a .txt file and saves them as JSON."""
     os.makedirs(json_output_folder, exist_ok=True)
     
@@ -96,7 +104,7 @@ def extract_tables_from_txt(txt_file, json_output_folder):
     return None
 
 
-def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json"):
+def process_txt_folder(input_folder=INPUT_DIR, json_output_folder=JSON_OUTPUT):
     """Finds all .txt files containing 'Bestandsbeschrijving' in the root directory only and extracts tables from them."""
     os.makedirs(json_output_folder, exist_ok=True)
     
@@ -106,13 +114,12 @@ def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json")
             os.remove(os.path.join(json_output_folder, file))
 
     # Setup logging
-    log_folder = "data/00-metadata/logs"
-    os.makedirs(log_folder, exist_ok=True)
+    os.makedirs(LOG_DIR, exist_ok=True)
     
     # Create both timestamped and latest logs
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    timestamped_log_file = os.path.join(log_folder, f"json_processing_log_{timestamp}.json")
-    latest_log_file = os.path.join(log_folder, "(1)_json_processing_log_latest.json")
+    timestamped_log_file = os.path.join(LOG_DIR, f"json_processing_log_{timestamp}.json")
+    latest_log_file = os.path.join(LOG_DIR, "(1)_json_processing_log_latest.json")
     
     log_data = {
         "timestamp": timestamp,
@@ -165,11 +172,11 @@ def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json")
     console = Console()
     console.print(f"[green]Processed {log_data['total_files_processed']} text files")
     console.print(f"[green]Extracted tables to {log_data['total_files_extracted']} JSON files")
-    console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}")
+    console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {LOG_DIR}")
 
     return None
 
-def extract_excel_from_json(json_file, excel_output_folder):
+def extract_excel_from_json(json_file, excel_output_folder=JSON_OUTPUT_DIR):
     """
     Extracts tables from a JSON file and saves them as Excel files.
     Includes ID column and a column for comments (Opmerkingen) after Aantal posities.
@@ -423,7 +430,7 @@ def extract_excel_from_json(json_file, excel_output_folder):
     return results, files_created, total_tables
 
 
-def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_folder="data/00-metadata"):
+def process_json_folder(json_input_folder=JSON_INPUT_DIR, excel_output_folder=EXCEL_OUTPUT_DIR):
     """Processes all JSON files in a folder, converting tables to Excel files."""
     os.makedirs(excel_output_folder, exist_ok=True)
     
@@ -433,13 +440,12 @@ def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_
             os.remove(os.path.join(excel_output_folder, file))
 
     # Setup logging
-    log_folder = "data/00-metadata/logs"
-    os.makedirs(log_folder, exist_ok=True)
+    os.makedirs(LOG_DIR, exist_ok=True)
     
     # Create both a timestamped log and a latest log
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    timestamped_log_file = os.path.join(log_folder, f"xlsx_processing_log_{timestamp}.json")
-    latest_log_file = os.path.join(log_folder, "(2)_xlsx_processing_log_latest.json")
+    timestamped_log_file = os.path.join(LOG_DIR, f"xlsx_processing_log_{timestamp}.json")
+    latest_log_file = os.path.join(LOG_DIR, "(2)_xlsx_processing_log_latest.json")
     
     log_data = {
         "timestamp": timestamp,
@@ -531,6 +537,6 @@ def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_
     else:
         console.print(f"[green]All tables passed row count verification")
         
-    console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}")
+    console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {LOG_DIR}")
 
     return None

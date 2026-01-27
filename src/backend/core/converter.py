@@ -22,6 +22,11 @@ import unicodedata
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 
+INPUT_DIR = "data/01-input"
+METADATA_DIR = "data/00-metadata"
+PROCESSED_DIR = "data/02-processed"
+LOG_DIR = PROCESSED_DIR + "/logs"
+
 # TODO: Add Test (Line Length, Add to table returned by converter_match.py)
 
 ################################################################
@@ -186,7 +191,7 @@ def converter(input_file, metadata_file, case_style='snake_case', separator=',')
     # Determine output file path - same name but in data/02-processed
     input_filename = os.path.basename(input_file)
     base_name = os.path.splitext(input_filename)[0]  # Get filename without extension
-    output_file = f"data/02-processed/{base_name}.csv"
+    output_file = f"{PROCESSED_DIR}/{base_name}.csv"
 
 
     # Create output directory if it doesn't exist
@@ -254,18 +259,17 @@ def converter(input_file, metadata_file, case_style='snake_case', separator=',')
     return output_file, total_lines
 
 
-def run_conversions_from_matches(input_folder, metadata_folder="data/00-metadata", match_log_file = "data/00-metadata/logs/(4)_file_matching_log_latest.json", case_style='snake_case', separator=','):
+def run_conversions_from_matches(input_folder, metadata_folder=METADATA_DIR, match_log_file = METADATA_DIR + "/logs/(4)_file_matching_log_latest.json", case_style='snake_case', separator=','):
 
     console = Console()
     console.print(f"[cyan]Starting conversion based on match log: {match_log_file}")
     console.print(f"[cyan]Settings: case_style={case_style}, separator='{separator}'")
 
     # Setup logging - schrijf naar 02-processed/logs
-    log_folder = "data/02-processed/logs"
-    os.makedirs(log_folder, exist_ok=True)
+    os.makedirs(LOG_DIR, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    timestamped_log_file = os.path.join(log_folder, f"conversion_log_{timestamp}.json")
-    latest_log_file = os.path.join(log_folder, "conversion_log_latest.json")
+    timestamped_log_file = os.path.join(LOG_DIR, f"conversion_log_{timestamp}.json")
+    latest_log_file = os.path.join(LOG_DIR, "conversion_log_latest.json")
 
     # Check if log file exists
     if not os.path.exists(match_log_file):
@@ -410,7 +414,7 @@ def run_conversions_from_matches(input_folder, metadata_folder="data/00-metadata
         for idx, skipped in enumerate(results["skipped_file_pairs"], 1):
             console.print(f"[yellow] {idx}. Input: {skipped['input_file']} - Reason: {skipped['reason']}[/yellow]")
 
-    console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and conversion_log_{timestamp}.json in {log_folder}")
+    console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and conversion_log_{timestamp}.json in {LOG_DIR}")
 
     return results  # Return the results
 
@@ -744,8 +748,8 @@ def main():
                        help='Case style for column names (default: snake_case)')
     parser.add_argument('--separator', choices=[',', ';', '|'], default=',',
                        help='CSV separator to use (default: comma)')
-    parser.add_argument('--input-folder', default='data/01-input',
-                       help='Input folder path (default: data/01-input)')
+    parser.add_argument('--input-folder', default=INPUT_DIR,
+                       help='Input folder path (default: ' + INPUT_DIR + ')')
 
     args = parser.parse_args()
 
