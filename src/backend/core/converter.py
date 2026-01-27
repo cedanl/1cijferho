@@ -2,6 +2,9 @@
 Fixed-width to CSV converter for 1CHO data files. Contains functionality for efficient conversion
 of fixed-width format files to CSV format using multiprocessing.
 
+Uses the storage abstraction layer to support disk, MinIO, and PostgreSQL backends.
+Set STORAGE_BACKEND environment variable to switch backends.
+
 Functions:
     [x] process_chunk(chunk_data) - Processes a chunk of lines in a fixed-width file
         - Process a chunk of lines and return the converted output
@@ -13,6 +16,7 @@ Functions:
 
 import multiprocessing as mp
 import os
+import io
 import json
 import polars as pl
 import datetime
@@ -22,10 +26,7 @@ import unicodedata
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 
-INPUT_DIR = "data/01-input"
-METADATA_DIR = "data/00-metadata"
-PROCESSED_DIR = "data/02-processed"
-LOG_DIR = PROCESSED_DIR + "/logs"
+from backend.io import storage_context, get_config
 
 # TODO: Add Test (Line Length, Add to table returned by converter_match.py)
 
@@ -186,190 +187,237 @@ def process_chunk(chunk_data):
     return output_lines
 
 
-def converter(input_file, metadata_file, case_style='snake_case', separator=','):
+def converter(input_file: str, metadata_file: str, case_style: str = 'snake_case',
+              separator: str = ',', output_dir: str | None = None):
+    """
+    Convert a fixed-width file to CSV using multiprocessing for better performance.
 
-    # Determine output file path - same name but in data/02-processed
+    Uses storage abstraction layer for file operations.
+
+    Note: For disk backend, multiprocessing is used. For other backends (MinIO, PostgreSQL),
+    files are processed serially to avoid complications with remote storage.
+    """
+    config = get_config()
+    processed_dir = output_dir or config.paths.processed_dir
+
+    # Determine output file path - same name but in processed directory
     input_filename = os.path.basename(input_file)
     base_name = os.path.splitext(input_filename)[0]  # Get filename without extension
-    output_file = f"{PROCESSED_DIR}/{base_name}.csv"
+    output_file = f"{processed_dir}/{base_name}.csv"
 
+    with storage_context() as storage:
+        # Create output directory if it doesn't exist
+        storage.makedirs(processed_dir)
 
-    # Create output directory if it doesn't exist
-    output_dir = os.path.dirname(output_file)
-    if output_dir and not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+        # Load metadata from Excel file
+        # For non-disk backends, read Excel as bytes and use BytesIO
+        if config.backend == "disk":
+            full_metadata_path = storage.get_full_path(metadata_file)
+            metadata_df = pl.read_excel(full_metadata_path)
+        else:
+            metadata_bytes = storage.read_bytes(metadata_file)
+            metadata_df = pl.read_excel(io.BytesIO(metadata_bytes))
 
-    # Load metadata from Excel file
-    metadata_df = pl.read_excel(metadata_file)
+        # Convert widths to integers explicitly
+        widths = [int(w) for w in metadata_df["Aantal posities"].to_list()]
+        column_names = metadata_df["Naam"].to_list()
 
-    # Convert widths to integers explicitly
-    widths = [int(w) for w in metadata_df["Aantal posities"].to_list()]
-    column_names = metadata_df["Naam"].to_list()
+        # Convert column names to specified case style
+        column_names = [convert_case(name, case_style) for name in column_names]
 
-    # Convert column names to specified case style
-    column_names = [convert_case(name, case_style) for name in column_names]
+        # Calculate positions for each field
+        positions = [(sum(widths[:i]), sum(widths[:i+1])) for i in range(len(widths))]
 
-    # Calculate positions for each field
-    positions = [(sum(widths[:i]), sum(widths[:i+1])) for i in range(len(widths))]
+        # Read the input file
+        if config.backend == "disk":
+            full_input_path = storage.get_full_path(input_file)
+            with open(full_input_path, 'rb') as f:
+                total_lines = sum(1 for _ in f.readlines())
+            with open(full_input_path, 'r', encoding='latin1') as f_in:
+                all_lines = f_in.readlines()
+        else:
+            input_bytes = storage.read_bytes(input_file)
+            input_text = input_bytes.decode('latin1')
+            all_lines = input_text.splitlines(keepends=True)
+            total_lines = len(all_lines)
 
-    # Count total lines
-    with open(input_file, 'rb') as f:
-        total_lines = sum(1 for _ in f.readlines())
-
-    # Write header first (also clean column names for separator conflicts)
-    with open(output_file, 'w', encoding='latin1', newline='') as f_out:
+        # Prepare header
         cleaned_column_names = [clean_field_for_separator(col, separator) for col in column_names]
-        f_out.write(separator.join(cleaned_column_names) + '\n')
+        header_line = separator.join(cleaned_column_names) + '\n'
 
-    # Read the entire file into memory (if it's not too large)
-    with open(input_file, 'r', encoding='latin1') as f_in:
-        all_lines = f_in.readlines()
+        # Guard to prevent recursive multiprocessing
+        # This will only allow multiprocessing in the main process
+        is_main_process = mp.current_process().name == 'MainProcess'
 
-    # Guard to prevent recursive multiprocessing
-    # This will only allow multiprocessing in the main process
-    is_main_process = mp.current_process().name == 'MainProcess'
+        # Use multiprocessing only for disk backend in main process
+        if config.backend == "disk" and is_main_process:
+            full_output_path = storage.get_full_path(output_file)
 
-    if is_main_process:
-        # Determine chunk size and number of processes
-        num_processes = max(1, mp.cpu_count() - 1)  # Leave one core free
-        chunk_size = max(1, len(all_lines) // (num_processes * 4))  # Create 4x as many chunks as processes
+            # Write header first
+            with open(full_output_path, 'w', encoding='latin1', newline='') as f_out:
+                f_out.write(header_line)
 
-        # Split data into chunks
-        chunks = [all_lines[i:i + chunk_size] for i in range(0, len(all_lines), chunk_size)]
-        chunk_data = [(positions, chunk, separator) for chunk in chunks]
+            # Determine chunk size and number of processes
+            num_processes = max(1, mp.cpu_count() - 1)  # Leave one core free
+            chunk_size = max(1, len(all_lines) // (num_processes * 4))
 
-        # Process in parallel with proper cleanup
-        with mp.Pool(processes=num_processes) as pool:
-            results_iter = pool.imap_unordered(process_chunk, chunk_data)
+            # Split data into chunks
+            chunks = [all_lines[i:i + chunk_size] for i in range(0, len(all_lines), chunk_size)]
+            chunk_data = [(positions, chunk, separator) for chunk in chunks]
 
-            # Write results as they come in
-            lines_processed = 0
-            with open(output_file, 'a', encoding='latin1', newline='') as f_out:
-                for result in results_iter:
-                    if result:
-                        f_out.write('\n'.join(result) + '\n')
-                    lines_processed += len(result) if result else 0
-    else:
-        # Process the data serially if we're in a child process
-        results = process_chunk((positions, all_lines, separator))
-        with open(output_file, 'a', encoding='latin1', newline='') as f_out:
+            # Process in parallel with proper cleanup
+            with mp.Pool(processes=num_processes) as pool:
+                results_iter = pool.imap_unordered(process_chunk, chunk_data)
+
+                # Write results as they come in
+                with open(full_output_path, 'a', encoding='latin1', newline='') as f_out:
+                    for result in results_iter:
+                        if result:
+                            f_out.write('\n'.join(result) + '\n')
+        else:
+            # Process the data serially (for non-disk backends or child processes)
+            results = process_chunk((positions, all_lines, separator))
+
+            # Build complete CSV content
+            csv_content = header_line
             if results:
-                f_out.write('\n'.join(results) + '\n')
+                csv_content += '\n'.join(results) + '\n'
+
+            # Write using storage abstraction
+            storage.write_bytes(csv_content.encode('latin1'), output_file)
 
     return output_file, total_lines
 
 
-def run_conversions_from_matches(input_folder, metadata_folder=METADATA_DIR, match_log_file = METADATA_DIR + "/logs/(4)_file_matching_log_latest.json", case_style='snake_case', separator=','):
+def run_conversions_from_matches(input_folder: str | None = None,
+                                 metadata_folder: str | None = None,
+                                 match_log_file: str | None = None,
+                                 case_style: str = 'snake_case',
+                                 separator: str = ','):
+    """
+    Run the converter for each valid match in the JSON log.
+
+    Uses storage abstraction layer for file operations.
+    """
+    config = get_config()
+    input_folder = input_folder or config.paths.input_dir
+    metadata_folder = metadata_folder or config.paths.metadata_dir
+    match_log_file = match_log_file or f"{config.paths.metadata_dir}/logs/(4)_file_matching_log_latest.json"
+    log_dir = f"{config.paths.processed_dir}/logs"
 
     console = Console()
     console.print(f"[cyan]Starting conversion based on match log: {match_log_file}")
     console.print(f"[cyan]Settings: case_style={case_style}, separator='{separator}'")
 
-    # Setup logging - schrijf naar 02-processed/logs
-    os.makedirs(LOG_DIR, exist_ok=True)
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    timestamped_log_file = os.path.join(LOG_DIR, f"conversion_log_{timestamp}.json")
-    latest_log_file = os.path.join(LOG_DIR, "conversion_log_latest.json")
+    with storage_context() as storage:
+        # Setup logging
+        storage.makedirs(log_dir)
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamped_log_file = f"{log_dir}/conversion_log_{timestamp}.json"
+        latest_log_file = f"{log_dir}/conversion_log_latest.json"
 
-    # Check if log file exists
-    if not os.path.exists(match_log_file):
-        console.print(f"[red]Match log file not found: {match_log_file}")
-        return {"status": "failed", "reason": "Log file not found"}
+        # Check if log file exists
+        if not storage.exists(match_log_file):
+            console.print(f"[red]Match log file not found: {match_log_file}")
+            return {"status": "failed", "reason": "Log file not found"}
 
-    # Load the JSON log file
-    try:
-        with open(match_log_file, 'r') as f:
-            log_data = json.load(f)
-    except Exception as e:
-        console.print(f"[red]Error loading JSON log file: {str(e)}")
-        return {"status": "failed", "reason": f"Error loading JSON: {str(e)}"}
+        # Load the JSON log file
+        try:
+            log_data = storage.read_json(match_log_file)
+        except Exception as e:
+            console.print(f"[red]Error loading JSON log file: {str(e)}")
+            return {"status": "failed", "reason": f"Error loading JSON: {str(e)}"}
 
-    results = {
-        "timestamp": timestamp,
-        "match_log_file": match_log_file,
-        "settings": {
-            "case_style": case_style,
-            "separator": separator
-        },
-        "total_files": 0,
-        "successful_conversions": 0,
-        "failed_conversions": 0,
-        "skipped_files": 0,
-        "details": [],
-        "skipped_file_pairs": []  # Add this to track skipped file pairs
-    }
+        results = {
+            "timestamp": timestamp,
+            "match_log_file": match_log_file,
+            "settings": {
+                "case_style": case_style,
+                "separator": separator
+            },
+            "total_files": 0,
+            "successful_conversions": 0,
+            "failed_conversions": 0,
+            "skipped_files": 0,
+            "details": [],
+            "skipped_file_pairs": []  # Add this to track skipped file pairs
+        }
 
-    # Iterate through processed files in the log
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[cyan]Processing files..."),
-        BarColumn(),
-        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-        TimeElapsedColumn(),
-        console=console,
-    ) as progress:
-        # Count files with successful validation
-        valid_files = [f for f in log_data["processed_files"]
-                      if f["status"] == "matched" and
-                      any(m["validation_status"] == "success" for m in f["matches"])]
+        # Iterate through processed files in the log
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[cyan]Processing files..."),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            # Count files with successful validation
+            valid_files = [f for f in log_data["processed_files"]
+                          if f["status"] == "matched" and
+                          any(m["validation_status"] == "success" for m in f["matches"])]
 
-        total_files = len(valid_files)
-        results["total_files"] = total_files
+            total_files = len(valid_files)
+            results["total_files"] = total_files
 
-        task = progress.add_task("", total=total_files)
+            task = progress.add_task("", total=total_files)
 
-        for file_info in log_data["processed_files"]:
-            input_file_name = file_info["input_file"]
-            file_result = {
-                "input_file": input_file_name,
-                "status": "skipped",
-                "reason": ""
-            }
+            for file_info in log_data["processed_files"]:
+                input_file_name = file_info["input_file"]
+                file_result = {
+                    "input_file": input_file_name,
+                    "status": "skipped",
+                    "reason": ""
+                }
 
-            # Check if file has matches with successful validation
-            if file_info["status"] == "matched":
-                valid_matches = [m for m in file_info["matches"] if m["validation_status"] == "success"]
+                # Check if file has matches with successful validation
+                if file_info["status"] == "matched":
+                    valid_matches = [m for m in file_info["matches"] if m["validation_status"] == "success"]
 
-                if valid_matches:
-                    # Take the first successful match for processing
-                    validation_file_name = valid_matches[0]["validation_file"]
+                    if valid_matches:
+                        # Take the first successful match for processing
+                        validation_file_name = valid_matches[0]["validation_file"]
 
-                    # Construct full paths
-                    input_file_path = os.path.join(input_folder, input_file_name)
-                    validation_file_path = os.path.join(metadata_folder, validation_file_name)
+                        # Construct full paths using storage paths
+                        input_file_path = f"{input_folder}/{input_file_name}"
+                        validation_file_path = f"{metadata_folder}/{validation_file_name}"
 
-                    # Check if files exist
-                    if not os.path.exists(input_file_path):
-                        console.print(f"[red]Input file not found: {input_file_path}")
-                        file_result["status"] = "failed"
-                        file_result["reason"] = "Input file not found"
-                        results["failed_conversions"] += 1
-                        continue
-
-                    if not os.path.exists(validation_file_path):
-                        console.print(f"[red]Validation file not found: {validation_file_path}")
-                        file_result["status"] = "failed"
-                        file_result["reason"] = "Validation file not found"
-                        results["failed_conversions"] += 1
-                        continue
-
-                    try:
-                        # Call the converter function with new parameters
-                        output_file, total_lines = converter(input_file_path, validation_file_path, case_style, separator)
-
-                        if output_file:
-                            file_result["status"] = "success"
-                            file_result["output_file"] = output_file
-                            file_result["total_lines"] = total_lines  # Add total lines to the file result
-                            results["successful_conversions"] += 1
-                        else:
+                        # Check if files exist using storage
+                        if not storage.exists(input_file_path):
+                            console.print(f"[red]Input file not found: {input_file_path}")
                             file_result["status"] = "failed"
-                            file_result["reason"] = "Conversion returned None"
+                            file_result["reason"] = "Input file not found"
                             results["failed_conversions"] += 1
-                    except Exception as e:
-                        file_result["status"] = "failed"
-                        file_result["reason"] = f"Error during conversion: {str(e)}"
-                        results["failed_conversions"] += 1
+                            results["details"].append(file_result)
+                            progress.update(task, advance=1)
+                            continue
+
+                        if not storage.exists(validation_file_path):
+                            console.print(f"[red]Validation file not found: {validation_file_path}")
+                            file_result["status"] = "failed"
+                            file_result["reason"] = "Validation file not found"
+                            results["failed_conversions"] += 1
+                            results["details"].append(file_result)
+                            progress.update(task, advance=1)
+                            continue
+
+                        try:
+                            # Call the converter function with new parameters
+                            output_file, total_lines = converter(input_file_path, validation_file_path, case_style, separator)
+
+                            if output_file:
+                                file_result["status"] = "success"
+                                file_result["output_file"] = output_file
+                                file_result["total_lines"] = total_lines  # Add total lines to the file result
+                                results["successful_conversions"] += 1
+                            else:
+                                file_result["status"] = "failed"
+                                file_result["reason"] = "Conversion returned None"
+                                results["failed_conversions"] += 1
+                        except Exception as e:
+                            file_result["status"] = "failed"
+                            file_result["reason"] = f"Error during conversion: {str(e)}"
+                            results["failed_conversions"] += 1
                 else:
                     file_result["reason"] = "No valid validation files found"
                     results["skipped_files"] += 1
@@ -387,34 +435,32 @@ def run_conversions_from_matches(input_folder, metadata_folder=METADATA_DIR, mat
                     "reason": f"File status is {file_info['status']}"
                 })
 
-            results["details"].append(file_result)
-            progress.update(task, advance=1)
+                results["details"].append(file_result)
+                progress.update(task, advance=1)
 
-    # Set final status
-    results["status"] = "completed"
+        # Set final status
+        results["status"] = "completed"
 
-    # Save log file to both locations
-    with open(timestamped_log_file, "w", encoding="latin1") as f:
-        json.dump(results, f, indent=2)
-    with open(latest_log_file, "w", encoding="latin1") as f:
-        json.dump(results, f, indent=2)
+        # Save log file to both locations using storage
+        storage.write_json(results, timestamped_log_file)
+        storage.write_json(results, latest_log_file)
 
-    # Print summary
-    console.print(f"[green]Conversion process completed")
-    console.print(f"[green]Total files: {results['total_files']}")
-    console.print(f"[green]Successfully converted: {results['successful_conversions']}")
+        # Print summary
+        console.print(f"[green]Conversion process completed")
+        console.print(f"[green]Total files: {results['total_files']}")
+        console.print(f"[green]Successfully converted: {results['successful_conversions']}")
 
-    if results["failed_conversions"] > 0:
-        console.print(f"[red]Failed conversions: {results['failed_conversions']}")
+        if results["failed_conversions"] > 0:
+            console.print(f"[red]Failed conversions: {results['failed_conversions']}")
 
-    if results["skipped_files"] > 0:
-        console.print(f"[yellow]Skipped files: {results['skipped_files']}")
+        if results["skipped_files"] > 0:
+            console.print(f"[yellow]Skipped files: {results['skipped_files']}")
 
-        # Display skipped file pairs
-        for idx, skipped in enumerate(results["skipped_file_pairs"], 1):
-            console.print(f"[yellow] {idx}. Input: {skipped['input_file']} - Reason: {skipped['reason']}[/yellow]")
+            # Display skipped file pairs
+            for idx, skipped in enumerate(results["skipped_file_pairs"], 1):
+                console.print(f"[yellow] {idx}. Input: {skipped['input_file']} - Reason: {skipped['reason']}[/yellow]")
 
-    console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and conversion_log_{timestamp}.json in {LOG_DIR}")
+        console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and conversion_log_{timestamp}.json in {log_dir}")
 
     return results  # Return the results
 
@@ -423,10 +469,12 @@ def run_conversions_from_matches(input_folder, metadata_folder=METADATA_DIR, mat
 #                    MAPPING TABLES GENERATOR
 ################################################################
 
-def create_mapping_tables_from_bestandsbeschrijving(bestandsbeschrijving_path="data/01-input/Bestandsbeschrijving_1cyferho_2023_v1.2.txt",
-                                                  output_folder="data/reference"):
+def create_mapping_tables_from_bestandsbeschrijving(bestandsbeschrijving_path: str | None = None,
+                                                  output_folder: str | None = None):
     """
     Parse the Bestandsbeschrijving text file and create mapping tables as CSV files.
+
+    Uses storage abstraction layer for file operations.
 
     Parameters:
     - bestandsbeschrijving_path: Path to the text file
@@ -435,53 +483,58 @@ def create_mapping_tables_from_bestandsbeschrijving(bestandsbeschrijving_path="d
     Returns:
     - Dictionary with results of the parsing process
     """
+    config = get_config()
+    bestandsbeschrijving_path = bestandsbeschrijving_path or f"{config.paths.input_dir}/Bestandsbeschrijving_1cyferho_2023_v1.2.txt"
+    output_folder = output_folder or config.paths.reference_dir
+
     console = Console()
     console.print(f"[cyan]Creating mapping tables from: {bestandsbeschrijving_path}")
 
-    # Create output directory if it doesn't exist
-    os.makedirs(output_folder, exist_ok=True)
+    with storage_context() as storage:
+        # Create output directory if it doesn't exist
+        storage.makedirs(output_folder)
 
-    # Read the file with proper encoding detection
-    try:
-        # Try UTF-8 first, then fall back to latin1
+        # Read the file with proper encoding detection
         try:
-            with open(bestandsbeschrijving_path, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-        except UnicodeDecodeError:
-            with open(bestandsbeschrijving_path, 'r', encoding='latin1') as f:
-                lines = f.readlines()
-    except Exception as e:
-        console.print(f"[red]Error reading file: {str(e)}")
-        return {"status": "failed", "reason": f"Error reading file: {str(e)}"}
+            file_bytes = storage.read_bytes(bestandsbeschrijving_path)
+            # Try UTF-8 first, then fall back to latin1
+            try:
+                text = file_bytes.decode('utf-8')
+            except UnicodeDecodeError:
+                text = file_bytes.decode('latin1')
+            lines = text.splitlines(keepends=True)
+        except Exception as e:
+            console.print(f"[red]Error reading file: {str(e)}")
+            return {"status": "failed", "reason": f"Error reading file: {str(e)}"}
 
-    results = {
-        "status": "completed",
-        "total_sections_found": 0,
-        "mapping_tables_created": 0,
-        "skipped_sections": 0,
-        "created_files": [],
-        "skipped_sections_details": []
-    }
+        results = {
+            "status": "completed",
+            "total_sections_found": 0,
+            "mapping_tables_created": 0,
+            "skipped_sections": 0,
+            "created_files": [],
+            "skipped_sections_details": []
+        }
 
-    i = 0
-    while i < len(lines):
-        line = lines[i].strip()
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
 
-        # Look for section titles (non-empty lines followed by dashes)
-        # BUT skip layout table entries (which contain numbers and spacing)
-        if line and i + 1 < len(lines):
-            next_line = lines[i + 1].strip()
+            # Look for section titles (non-empty lines followed by dashes)
+            # BUT skip layout table entries (which contain numbers and spacing)
+            if line and i + 1 < len(lines):
+                next_line = lines[i + 1].strip()
 
-            # Skip if this looks like a layout table entry (contains numbers at the end)
-            # Layout entries look like: "Opleidingsvorm                                            30             1"
-            if len(line.split()) >= 3 and line.split()[-1].isdigit() and line.split()[-2].isdigit():
-                i += 1
-                continue
+                # Skip if this looks like a layout table entry (contains numbers at the end)
+                # Layout entries look like: "Opleidingsvorm                                            30             1"
+                if len(line.split()) >= 3 and line.split()[-1].isdigit() and line.split()[-2].isdigit():
+                    i += 1
+                    continue
 
-            # Check if next line is only dashes and matches the length roughly
-            if next_line and all(c == '-' for c in next_line) and len(next_line) >= len(line) * 0.8:
-                section_title = line
-                results["total_sections_found"] += 1
+                # Check if next line is only dashes and matches the length roughly
+                if next_line and all(c == '-' for c in next_line) and len(next_line) >= len(line) * 0.8:
+                    section_title = line
+                    results["total_sections_found"] += 1
                 # Quiet mode - only show created files
                 # console.print(f"[blue]Found section: {section_title}")
 
@@ -684,16 +737,19 @@ def create_mapping_tables_from_bestandsbeschrijving(bestandsbeschrijving_path="d
                         # Create CSV file with normalized section title and _label suffix
                         normalized_section_title = normalize_text(section_title)
                         filename = convert_case(normalized_section_title, 'snake_case') + '_label.csv'
-                        filepath = os.path.join(output_folder, filename)
+                        filepath = f"{output_folder}/{filename}"
 
                         try:
-                            with open(filepath, 'w', encoding='utf-8', newline='') as csvfile:
-                                csvfile.write('value,label\n')
-                                for value, label in values:
-                                    # Clean the label for CSV (already normalized and comma-cleaned)
-                                    # Escape quotes
-                                    clean_label = label.replace('"', '""')
-                                    csvfile.write(f'{value},{clean_label}\n')
+                            # Build CSV content
+                            csv_content = 'value,label\n'
+                            for value, label in values:
+                                # Clean the label for CSV (already normalized and comma-cleaned)
+                                # Escape quotes
+                                clean_label = label.replace('"', '""')
+                                csv_content += f'{value},{clean_label}\n'
+
+                            # Write using storage abstraction
+                            storage.write_bytes(csv_content.encode('utf-8'), filepath)
 
                             console.print(f"[green]Created: {filename} with {len(values)} mappings")
                             results["mapping_tables_created"] += 1
@@ -740,16 +796,20 @@ def create_mapping_tables_from_bestandsbeschrijving(bestandsbeschrijving_path="d
 
 def main():
     """
-    Main function to handle command line arguments and run conversions
+    Main function to handle command line arguments and run conversions.
+
+    Uses environment variable defaults from config.paths.
     """
+    config = get_config()
+
     parser = argparse.ArgumentParser(description='Convert fixed-width files to CSV format')
     parser.add_argument('--case-style', choices=['original', 'snake_case', 'camelCase', 'PascalCase'],
                        default='snake_case',
                        help='Case style for column names (default: snake_case)')
     parser.add_argument('--separator', choices=[',', ';', '|'], default=',',
                        help='CSV separator to use (default: comma)')
-    parser.add_argument('--input-folder', default=INPUT_DIR,
-                       help='Input folder path (default: ' + INPUT_DIR + ')')
+    parser.add_argument('--input-folder', default=None,
+                       help=f'Input folder path (default: {config.paths.input_dir})')
 
     args = parser.parse_args()
 

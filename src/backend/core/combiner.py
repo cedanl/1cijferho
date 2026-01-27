@@ -2,6 +2,9 @@
 Data combiner for joining decoder files with main data.
 Reads YAML configuration and performs all specified joins.
 
+Uses the storage abstraction layer to support disk, MinIO, and PostgreSQL backends.
+Set STORAGE_BACKEND environment variable to switch backends.
+
 Functions:
     [M] load_yaml_config() - Load and parse YAML configuration
     [M] load_main_data() - Load processed main data from 02-processed
@@ -14,17 +17,14 @@ Functions:
     [M] main() - Command line entry point
 """
 
-import os
 import sys
 import yaml
 import polars as pl
 import datetime
 import argparse
-import json
 from pathlib import Path
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
-from rich.table import Table
 from io import StringIO
 
 # Add project root to Python path for imports
@@ -32,30 +32,36 @@ project_root = Path(__file__).resolve().parents[3]  # Go up 3 levels: core -> ba
 sys.path.insert(0, str(project_root))
 
 from src.backend.core.converter import convert_case
+from backend.io import storage_context, get_config
 
 console = Console()
 
 class CombinerLogger:
     """
-    Logger class for capturing combiner output to both console and log files
+    Logger class for capturing combiner output to both console and log files.
+    Uses storage abstraction layer for file operations.
     """
-    def __init__(self, output_dir="data/03-combined"):
-        self.output_dir = Path(output_dir)
-        self.log_dir = self.output_dir / "logs"
-        self.log_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self, output_dir: str | None = None):
+        config = get_config()
+        self.output_dir = output_dir or config.paths.combined_dir
+        self.log_dir = f"{self.output_dir}/logs"
 
         # Create timestamp
         self.timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        # Setup log files
-        self.timestamped_log_file = self.log_dir / f"combiner_log_{self.timestamp}.txt"
-        self.latest_log_file = self.log_dir / f"combiner_log_latest.txt"
+        # Setup log file paths (relative to storage base)
+        self.timestamped_log_file = f"{self.log_dir}/combiner_log_{self.timestamp}.txt"
+        self.latest_log_file = f"{self.log_dir}/combiner_log_latest.txt"
 
         # Initialize log content
         self.log_content = StringIO()
 
         # Setup console with file capture
         self.console = Console(file=self.log_content, width=120)
+
+        # Create log directory via storage backend
+        with storage_context() as storage:
+            storage.makedirs(self.log_dir)
 
     def print(self, *args, **kwargs):
         """Print to both console and log file"""
@@ -65,86 +71,106 @@ class CombinerLogger:
         self.console.print(*args, **kwargs)
 
     def save_logs(self):
-        """Save captured logs to files"""
+        """Save captured logs to files via storage backend"""
         log_text = self.log_content.getvalue()
+        log_bytes = log_text.encode('utf-8')
 
-        # Write timestamped log
-        with open(self.timestamped_log_file, 'w', encoding='utf-8') as f:
-            f.write(log_text)
+        with storage_context() as storage:
+            # Write timestamped log
+            storage.write_bytes(log_bytes, self.timestamped_log_file)
+            # Write latest log
+            storage.write_bytes(log_bytes, self.latest_log_file)
 
-        # Write latest log
-        with open(self.latest_log_file, 'w', encoding='utf-8') as f:
-            f.write(log_text)
-
-        console.print(f"[green]📝 Logs saved to: {self.timestamped_log_file}")
-        console.print(f"[green]📝 Latest log: {self.latest_log_file}")
+        console.print(f"[green]Logs saved to: {self.timestamped_log_file}")
+        console.print(f"[green]Latest log: {self.latest_log_file}")
 
     def get_log_files(self):
         """Return paths to the log files"""
         return {
-            "timestamped_log": str(self.timestamped_log_file),
-            "latest_log": str(self.latest_log_file),
+            "timestamped_log": self.timestamped_log_file,
+            "latest_log": self.latest_log_file,
             "timestamp": self.timestamp
         }
 
-def load_yaml_config(config_path="decoder_mapping_config.yaml", logger=None):
+def load_yaml_config(config_path: str | None = None, logger=None):
     """
-    Load and parse YAML configuration file
+    Load and parse YAML configuration file via storage backend.
+
+    Args:
+        config_path: Path to YAML config. Defaults to STORAGE_METADATA_DIR/decoder_mapping_config.yaml
     """
     if logger is None:
         logger = console
+
+    config_settings = get_config()
+    if config_path is None:
+        config_path = f"{config_settings.paths.metadata_dir}/decoder_mapping_config.yaml"
 
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f)
-        logger.print(f"[green]✅ YAML configuration loaded: {len(config['decoder_mappings'])} mappings found")
+        with storage_context() as storage:
+            yaml_bytes = storage.read_bytes(config_path)
+            config = yaml.safe_load(yaml_bytes.decode('utf-8'))
+        logger.print(f"[green]YAML configuration loaded: {len(config['decoder_mappings'])} mappings found")
         return config
     except Exception as e:
-        logger.print(f"[red]❌ Error loading YAML config: {str(e)}")
+        logger.print(f"[red]Error loading YAML config: {str(e)}")
         raise
 
-def load_main_data(processed_dir="data/02-processed", logger=None):
+def load_main_data(processed_dir: str | None = None, logger=None):
     """
-    Load main data files from processed directory
-    Returns dict of dataframes keyed by filename
+    Load main data files from processed directory via storage backend.
+    Returns dict of dataframes keyed by filename.
+
+    Args:
+        processed_dir: Directory path. Defaults to STORAGE_PROCESSED_DIR env var.
     """
     if logger is None:
         logger = console
 
+    config = get_config()
+    processed_dir = processed_dir or config.paths.processed_dir
+
     main_data = {}
-    processed_path = Path(processed_dir)
 
-    if not processed_path.exists():
-        logger.print(f"[red]❌ Processed directory not found: {processed_dir}")
-        return main_data
+    with storage_context() as storage:
+        # Check if directory exists
+        if not storage.exists(processed_dir):
+            logger.print(f"[red]Processed directory not found: {processed_dir}")
+            return main_data
 
-    # Find CSV files (converted main data) - exclude decoder files
-    csv_files = list(processed_path.glob("*.csv"))
-    csv_files = [f for f in csv_files if not f.name.endswith('_encrypted.csv') and not f.name.startswith('Dec_')]
+        # Find CSV files (converted main data) - exclude decoder files
+        csv_files = storage.list_files(processed_dir, "*.csv")
+        csv_files = [f for f in csv_files
+                     if not Path(f).name.endswith('_encrypted.csv')
+                     and not Path(f).name.startswith('Dec_')]
 
-    logger.print(f"[cyan]📂 Loading main data files from {processed_dir}")
+        logger.print(f"[cyan]Loading main data files from {processed_dir}")
 
-    for csv_file in csv_files:
-        try:
-            # Detect case style from first few column names
-            df_preview = pl.read_csv(csv_file, n_rows=0)
-            logger.print(f"[green]  ✅ Loaded: {csv_file.name} ({len(df_preview.columns)} columns)")
+        for csv_file in csv_files:
+            try:
+                filename = Path(csv_file).name
+                filestem = Path(csv_file).stem
 
-            # Load full data
-            df = pl.read_csv(csv_file)
-            main_data[csv_file.stem] = df
+                # Load data via storage backend
+                df = storage.read_dataframe(csv_file, format="csv")
+                logger.print(f"[green]  Loaded: {filename} ({len(df.columns)} columns)")
 
-        except Exception as e:
-            logger.print(f"[red]  ❌ Error loading {csv_file.name}: {str(e)}")
+                main_data[filestem] = df
+
+            except Exception as e:
+                logger.print(f"[red]  Error loading {csv_file}: {str(e)}")
 
     return main_data
 
-def detect_csv_separator(file_path):
+def detect_csv_separator(storage, file_path: str) -> str:
     """
-    Automatically detect CSV separator by checking the first line
+    Automatically detect CSV separator by checking the first line.
+    Uses storage backend to read the file.
     """
-    with open(file_path, 'r', encoding='latin1') as f:
-        first_line = f.readline().strip()
+    # Read first chunk of file to get the first line
+    file_bytes = storage.read_bytes(file_path)
+    # Decode and get first line
+    first_line = file_bytes.decode('latin1').split('\n')[0].strip()
 
     # Count occurrences of potential separators
     separators = [';', ',', '|']
@@ -154,154 +180,183 @@ def detect_csv_separator(file_path):
     best_separator = max(separator_counts, key=separator_counts.get)
     return best_separator if separator_counts[best_separator] > 0 else ','
 
-def load_decoder_data(decoder_file, input_dir="data/02-processed", logger=None):
+def load_decoder_data(decoder_file: str, input_dir: str | None = None, logger=None):
     """
-    Load and process a decoder file with automatic separator detection
-    """
-    if logger is None:
-        logger = console
+    Load and process a decoder file with automatic separator detection.
+    Uses storage backend for file operations.
 
-    decoder_path = Path(input_dir) / decoder_file
-
-    if not decoder_path.exists():
-        logger.print(f"[red]❌ Decoder file not found: {decoder_file}")
-        return None
-
-    try:
-        # Auto-detect separator
-        separator = detect_csv_separator(decoder_path)
-        logger.print(f"[cyan]🔍 Detected separator '{separator}' for {decoder_file}")
-
-        # Special handling for Dec_vooropl.csv - force first column as string
-        if 'vooropl' in decoder_file.lower():
-            # Get column names by reading just the header
-            with open(decoder_path, 'r', encoding='latin1') as f:
-                header_line = f.readline().strip()
-            first_col = header_line.split(separator)[0]
-
-            # Create schema with first column as string, others auto-detect
-            schema_overrides = {first_col: pl.String}
-
-            logger.print(f"[yellow]📝 Forcing first column '{first_col}' to string type for {decoder_file}")
-
-            df = pl.read_csv(decoder_path,
-                           encoding='latin1',
-                           separator=separator,
-                           schema_overrides=schema_overrides,
-                           try_parse_dates=False)
-        else:
-            # Standard loading for other files
-            df = pl.read_csv(decoder_path,
-                           encoding='latin1',
-                           separator=separator,
-                           try_parse_dates=False,
-                           infer_schema_length=None)
-
-        logger.print(f"[green]  ✅ Loaded decoder: {decoder_file} ({len(df.columns)} columns, {len(df)} rows)")
-        return df
-    except Exception as e:
-        logger.print(f"[red]❌ Error loading decoder file {decoder_file}: {str(e)}")
-        return None
-
-def load_mapping_tables_config(config_path="mapping_tables_config.yaml", logger=None):
-    """
-    Load and parse mapping tables configuration file
+    Args:
+        decoder_file: Name of decoder file
+        input_dir: Directory path. Defaults to STORAGE_PROCESSED_DIR env var.
     """
     if logger is None:
         logger = console
 
+    config = get_config()
+    input_dir = input_dir or config.paths.processed_dir
+    decoder_path = f"{input_dir}/{decoder_file}"
+
+    with storage_context() as storage:
+        if not storage.exists(decoder_path):
+            logger.print(f"[red]Decoder file not found: {decoder_file}")
+            return None
+
+        try:
+            # Auto-detect separator
+            separator = detect_csv_separator(storage, decoder_path)
+            logger.print(f"[cyan]Detected separator '{separator}' for {decoder_file}")
+
+            # Read file bytes for processing
+            file_bytes = storage.read_bytes(decoder_path)
+            file_content = file_bytes.decode('latin1')
+
+            # Special handling for Dec_vooropl.csv - force first column as string
+            if 'vooropl' in decoder_file.lower():
+                # Get column names from header
+                header_line = file_content.split('\n')[0].strip()
+                first_col = header_line.split(separator)[0]
+
+                # Create schema with first column as string, others auto-detect
+                schema_overrides = {first_col: pl.String}
+
+                logger.print(f"[yellow]Forcing first column '{first_col}' to string type for {decoder_file}")
+
+                # Use StringIO for Polars to read from string
+                from io import StringIO
+                df = pl.read_csv(StringIO(file_content),
+                               separator=separator,
+                               schema_overrides=schema_overrides,
+                               try_parse_dates=False)
+            else:
+                # Standard loading for other files
+                from io import StringIO
+                df = pl.read_csv(StringIO(file_content),
+                               separator=separator,
+                               try_parse_dates=False,
+                               infer_schema_length=None)
+
+            logger.print(f"[green]  Loaded decoder: {decoder_file} ({len(df.columns)} columns, {len(df)} rows)")
+            return df
+        except Exception as e:
+            logger.print(f"[red]Error loading decoder file {decoder_file}: {str(e)}")
+            return None
+
+def load_mapping_tables_config(config_path: str | None = None, logger=None):
+    """
+    Load and parse mapping tables configuration file via storage backend.
+
+    Args:
+        config_path: Path to config. Defaults to STORAGE_METADATA_DIR/mapping_tables_config.yaml
+    """
+    if logger is None:
+        logger = console
+
+    config_settings = get_config()
+    if config_path is None:
+        config_path = f"{config_settings.paths.metadata_dir}/mapping_tables_config.yaml"
+
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f)
+        with storage_context() as storage:
+            if not storage.exists(config_path):
+                logger.print(f"[yellow]Mapping tables config not found: {config_path}, loading all files")
+                return None, None
+
+            yaml_bytes = storage.read_bytes(config_path)
+            config = yaml.safe_load(yaml_bytes.decode('utf-8'))
 
         # Extract active (non-commented) files from the mapping_tables list
         active_files = []
         if 'mapping_tables' in config:
             active_files = [f for f in config['mapping_tables'] if f is not None]
 
-        logger.print(f"[green]✅ Mapping tables configuration loaded: {len(active_files)} active files")
+        logger.print(f"[green]Mapping tables configuration loaded: {len(active_files)} active files")
         return config, active_files
-    except FileNotFoundError:
-        logger.print(f"[yellow]⚠️  Mapping tables config not found: {config_path}, loading all files")
-        return None, None
     except Exception as e:
-        logger.print(f"[red]❌ Error loading mapping tables config: {str(e)}")
+        logger.print(f"[red]Error loading mapping tables config: {str(e)}")
         return None, None
 
-def load_reference_data(reference_dir="data/reference", active_files=None, logger=None):
+def load_reference_data(reference_dir: str | None = None, active_files=None, logger=None):
     """
-    Load reference files from reference directory
-    If active_files is provided, only load those files that are active in the config
-    Returns dict of dataframes keyed by filename (without .csv extension)
+    Load reference files from reference directory via storage backend.
+    If active_files is provided, only load those files that are active in the config.
+    Returns dict of dataframes keyed by filename (without .csv extension).
+
+    Args:
+        reference_dir: Directory path. Defaults to STORAGE_REFERENCE_DIR env var.
     """
     if logger is None:
         logger = console
 
+    config = get_config()
+    reference_dir = reference_dir or config.paths.reference_dir
+
     reference_data = {}
-    reference_path = Path(reference_dir)
 
-    if not reference_path.exists():
-        logger.print(f"[yellow]⚠️  Reference directory not found: {reference_dir}")
-        return reference_data, [], []
+    with storage_context() as storage:
+        if not storage.exists(reference_dir):
+            logger.print(f"[yellow]Reference directory not found: {reference_dir}")
+            return reference_data, [], []
 
-    # Find all CSV files in reference directory
-    all_csv_files = list(reference_path.glob("*.csv"))
-    all_filenames = [f.name for f in all_csv_files]
+        # Find all CSV files in reference directory
+        all_csv_files = storage.list_files(reference_dir, "*.csv")
+        all_filenames = [Path(f).name for f in all_csv_files]
 
-    # If active_files is provided, check which ones exist and which are missing
-    if active_files is not None:
-        # Check which active files exist
-        existing_active_files = []
-        missing_active_files = []
+        # If active_files is provided, check which ones exist and which are missing
+        if active_files is not None:
+            # Check which active files exist
+            existing_active_files = []
+            missing_active_files = []
 
-        for active_file in active_files:
-            if active_file in all_filenames:
-                existing_active_files.append(active_file)
-            else:
-                missing_active_files.append(active_file)
+            for active_file in active_files:
+                if active_file in all_filenames:
+                    existing_active_files.append(active_file)
+                else:
+                    missing_active_files.append(active_file)
 
-        # Check which existing files are not in the config
-        files_not_in_config = [f for f in all_filenames if f not in active_files]
+            # Check which existing files are not in the config
+            files_not_in_config = [f for f in all_filenames if f not in active_files]
 
-        logger.print(f"[cyan]📚 Loading reference files from {reference_dir}")
-        logger.print(f"[cyan]Found {len(all_csv_files)} total files, {len(existing_active_files)} active in config")
+            logger.print(f"[cyan]Loading reference files from {reference_dir}")
+            logger.print(f"[cyan]Found {len(all_csv_files)} total files, {len(existing_active_files)} active in config")
 
-        if missing_active_files:
-            logger.print(f"[yellow]⚠️  Missing active files: {missing_active_files}")
+            if missing_active_files:
+                logger.print(f"[yellow]Missing active files: {missing_active_files}")
 
-        if files_not_in_config:
-            logger.print(f"[blue]ℹ️  Files not in config (inactive): {files_not_in_config}")
+            if files_not_in_config:
+                logger.print(f"[blue]Files not in config (inactive): {files_not_in_config}")
 
-        # Only process existing active files
-        files_to_process = [f for f in all_csv_files if f.name in existing_active_files]
-    else:
-        # Load all files if no config provided
-        files_to_process = all_csv_files
-        existing_active_files = all_filenames
-        missing_active_files = []
-        files_not_in_config = []
+            # Only process existing active files
+            files_to_process = [f for f in all_csv_files if Path(f).name in existing_active_files]
+        else:
+            # Load all files if no config provided
+            files_to_process = all_csv_files
+            existing_active_files = all_filenames
+            missing_active_files = []
+            files_not_in_config = []
 
-        logger.print(f"[cyan]📚 Loading all reference files from {reference_dir}")
-        logger.print(f"[cyan]Found {len(all_csv_files)} reference files")
+            logger.print(f"[cyan]Loading all reference files from {reference_dir}")
+            logger.print(f"[cyan]Found {len(all_csv_files)} reference files")
 
-    # Load the files
-    for csv_file in files_to_process:
-        try:
-            # Load the reference file
-            df = pl.read_csv(csv_file, encoding='utf-8')
+        # Load the files
+        for csv_file in files_to_process:
+            try:
+                filename = Path(csv_file).name
+                filestem = Path(csv_file).stem
 
-            # Validate structure (should have 'value' and 'label' columns)
-            if 'value' not in df.columns or 'label' not in df.columns:
-                logger.print(f"[yellow]⚠️  Skipping {csv_file.name}: missing 'value' or 'label' columns")
-                continue
+                # Load the reference file via storage backend
+                df = storage.read_dataframe(csv_file, format="csv")
 
-            # Store with filename as key (without .csv extension)
-            key = csv_file.stem
-            reference_data[key] = df
-            logger.print(f"[green]  ✅ Loaded reference: {csv_file.name} ({len(df)} rows)")
+                # Validate structure (should have 'value' and 'label' columns)
+                if 'value' not in df.columns or 'label' not in df.columns:
+                    logger.print(f"[yellow]Skipping {filename}: missing 'value' or 'label' columns")
+                    continue
 
-        except Exception as e:
-            logger.print(f"[red]❌ Error loading reference file {csv_file.name}: {str(e)}")
+                # Store with filename as key (without .csv extension)
+                reference_data[filestem] = df
+                logger.print(f"[green]  Loaded reference: {filename} ({len(df)} rows)")
+
+            except Exception as e:
+                logger.print(f"[red]Error loading reference file {csv_file}: {str(e)}")
 
     return reference_data, missing_active_files, files_not_in_config
 
@@ -420,16 +475,28 @@ def perform_reference_joins(df, reference_data, case_style="snake_case", logger=
 
     return result_df, successful_joins, failed_joins, non_working_files
 
-def load_manual_mapping_config(config_path="manual_tables_config.yaml", logger=None):
+def load_manual_mapping_config(config_path: str | None = None, logger=None):
     """
-    Load and parse manual mapping tables configuration file
+    Load and parse manual mapping tables configuration file via storage backend.
+
+    Args:
+        config_path: Path to config. Defaults to STORAGE_METADATA_DIR/manual_tables_config.yaml
     """
     if logger is None:
         logger = console
 
+    config_settings = get_config()
+    if config_path is None:
+        config_path = f"{config_settings.paths.metadata_dir}/manual_tables_config.yaml"
+
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f)
+        with storage_context() as storage:
+            if not storage.exists(config_path):
+                logger.print(f"[yellow]Manual mapping config not found: {config_path}")
+                return None, None
+
+            yaml_bytes = storage.read_bytes(config_path)
+            config = yaml.safe_load(yaml_bytes.decode('utf-8'))
 
         # Extract active mappings from the manual_mapping_tables list
         active_mappings = []
@@ -448,85 +515,91 @@ def load_manual_mapping_config(config_path="manual_tables_config.yaml", logger=N
                         # New format - dict with configuration
                         active_mappings.append(mapping)
 
-        logger.print(f"[green]✅ Manual mapping config loaded: {len(active_mappings)} manual mapping configurations")
+        logger.print(f"[green]Manual mapping config loaded: {len(active_mappings)} manual mapping configurations")
         return config, active_mappings
-    except FileNotFoundError:
-        logger.print(f"[yellow]⚠️  Manual mapping config not found: {config_path}")
-        return None, None
     except Exception as e:
-        logger.print(f"[red]❌ Error loading manual mapping config: {str(e)}")
+        logger.print(f"[red]Error loading manual mapping config: {str(e)}")
         return None, None
 
-def load_manual_mapping_data(manual_dir="data/reference/manual", active_mappings=None, logger=None):
+def load_manual_mapping_data(manual_dir: str | None = None, active_mappings=None, logger=None):
     """
-    Load manual mapping files from manual directory
-    Returns dict of dataframes keyed by filename (without .csv extension), and mapping configurations
+    Load manual mapping files from manual directory via storage backend.
+    Returns dict of dataframes keyed by filename (without .csv extension), and mapping configurations.
+
+    Args:
+        manual_dir: Directory path. Defaults to STORAGE_REFERENCE_DIR/manual.
     """
     if logger is None:
         logger = console
 
+    config = get_config()
+    manual_dir = manual_dir or f"{config.paths.reference_dir}/manual"
+
     manual_data = {}
     mapping_configs = {}
-    manual_path = Path(manual_dir)
 
-    if not manual_path.exists():
-        logger.print(f"[yellow]⚠️  Manual mapping directory not found: {manual_dir}")
-        return manual_data, mapping_configs, []
+    with storage_context() as storage:
+        if not storage.exists(manual_dir):
+            logger.print(f"[yellow]Manual mapping directory not found: {manual_dir}")
+            return manual_data, mapping_configs, []
 
-    # Find all CSV files in manual directory
-    all_csv_files = list(manual_path.glob("*.csv"))
+        # Find all CSV files in manual directory
+        all_csv_files = storage.list_files(manual_dir, "*.csv")
 
-    if not all_csv_files:
-        logger.print(f"[yellow]⚠️  No CSV files found in manual directory: {manual_dir}")
-        return manual_data, mapping_configs, []
+        if not all_csv_files:
+            logger.print(f"[yellow]No CSV files found in manual directory: {manual_dir}")
+            return manual_data, mapping_configs, []
 
-    # Filter files based on active_mappings configurations
-    files_to_load = []
-    missing_active_files = []
+        # Filter files based on active_mappings configurations
+        files_to_load = []
+        missing_active_files = []
 
-    if active_mappings:
-        for mapping_config in active_mappings:
-            filename = mapping_config['file']
-            file_path = manual_path / filename
+        if active_mappings:
+            for mapping_config in active_mappings:
+                filename = mapping_config['file']
+                file_path = f"{manual_dir}/{filename}"
 
-            if file_path.exists():
-                files_to_load.append((file_path, mapping_config))
-            else:
-                missing_active_files.append(filename)
-    else:
-        # Load all files if no config provided
-        for csv_file in all_csv_files:
-            # Create default mapping config
-            default_config = {
-                'file': csv_file.name,
-                'join_on': None,  # Will be auto-detected
-                'output_column': None  # Will be auto-generated
-            }
-            files_to_load.append((csv_file, default_config))
+                if storage.exists(file_path):
+                    files_to_load.append((file_path, mapping_config))
+                else:
+                    missing_active_files.append(filename)
+        else:
+            # Load all files if no config provided
+            for csv_file in all_csv_files:
+                filename = Path(csv_file).name
+                # Create default mapping config
+                default_config = {
+                    'file': filename,
+                    'join_on': None,  # Will be auto-detected
+                    'output_column': None  # Will be auto-generated
+                }
+                files_to_load.append((csv_file, default_config))
 
-    logger.print(f"[cyan]📁 Loading {len(files_to_load)} manual mapping files...")
+        logger.print(f"[cyan]Loading {len(files_to_load)} manual mapping files...")
 
-    for csv_file, mapping_config in files_to_load:
-        try:
-            # Read the manual mapping file
-            df = pl.read_csv(csv_file, separator=',')
+        for csv_file, mapping_config in files_to_load:
+            try:
+                filename = Path(csv_file).name
+                filestem = Path(csv_file).stem
 
-            # Validate that it has the expected columns
-            if not all(col in df.columns for col in ['value', 'label']):
-                logger.print(f"[yellow]⚠️  Manual mapping file {csv_file.name} missing required columns (value, label)")
-                continue
+                # Read the manual mapping file via storage backend
+                df = storage.read_dataframe(csv_file, format="csv")
 
-            # Store with filename as key (without .csv extension)
-            key = csv_file.stem
-            manual_data[key] = df
-            mapping_configs[key] = mapping_config
-            logger.print(f"[green]  ✅ Loaded manual mapping: {csv_file.name} ({len(df)} mappings)")
+                # Validate that it has the expected columns
+                if not all(col in df.columns for col in ['value', 'label']):
+                    logger.print(f"[yellow]Manual mapping file {filename} missing required columns (value, label)")
+                    continue
 
-        except Exception as e:
-            logger.print(f"[red]❌ Error loading manual mapping file {csv_file.name}: {str(e)}")
+                # Store with filename as key (without .csv extension)
+                manual_data[filestem] = df
+                mapping_configs[filestem] = mapping_config
+                logger.print(f"[green]  Loaded manual mapping: {filename} ({len(df)} mappings)")
 
-    if missing_active_files:
-        logger.print(f"[yellow]⚠️  Manual mapping files not found: {missing_active_files}")
+            except Exception as e:
+                logger.print(f"[red]Error loading manual mapping file {csv_file}: {str(e)}")
+
+        if missing_active_files:
+            logger.print(f"[yellow]Manual mapping files not found: {missing_active_files}")
 
     return manual_data, mapping_configs, missing_active_files
 
@@ -900,16 +973,30 @@ def perform_complex_join(main_df, decoder_df, mapping_config, case_style="snake_
     logger.print(f"[green]  ✅ Complex join: {len(additional_columns)} columns from {mapping_config.get('decoder_file', 'decoder')}")
     return result_df
 
-def combine_all_data(config_path="decoding_files_config.yaml",
-                    mapping_tables_config_path="mapping_tables_config.yaml",
-                    manual_tables_config_path="manual_tables_config.yaml",
-                    processed_dir="data/02-processed",
-                    input_dir="data/02-processed",
-                    output_dir="data/03-combined",
-                    case_style="snake_case"):
+def combine_all_data(config_path: str | None = None,
+                    mapping_tables_config_path: str | None = None,
+                    manual_tables_config_path: str | None = None,
+                    processed_dir: str | None = None,
+                    input_dir: str | None = None,
+                    output_dir: str | None = None,
+                    case_style: str = "snake_case"):
     """
-    Main function to combine all data according to YAML configuration
+    Main function to combine all data according to YAML configuration.
+
+    Uses the storage abstraction layer for all file I/O operations.
+    Defaults are loaded from environment variables via config.paths.
     """
+    # Get configuration for defaults
+    config = get_config()
+
+    # Apply defaults from environment configuration
+    config_path = config_path or "decoding_files_config.yaml"
+    mapping_tables_config_path = mapping_tables_config_path or "mapping_tables_config.yaml"
+    manual_tables_config_path = manual_tables_config_path or "manual_tables_config.yaml"
+    processed_dir = processed_dir or config.paths.processed_dir
+    input_dir = input_dir or config.paths.processed_dir
+    output_dir = output_dir or config.paths.combined_dir
+
     # Initialize logger
     logger = CombinerLogger(output_dir)
 
@@ -951,113 +1038,114 @@ def combine_all_data(config_path="decoding_files_config.yaml",
     # Load manual mapping data with configurations
     manual_data, mapping_configs, manual_missing_files = load_manual_mapping_data(manual_dir, manual_active_mappings, logger)
 
-    # Create output directory
-    output_path = Path(output_dir)
-    output_path.mkdir(exist_ok=True)
+    # Use storage abstraction for output operations
+    with storage_context() as storage:
+        # Create output directory
+        storage.makedirs(output_dir)
 
-    # Global tracking for reference joins
-    all_non_working_files = []
-    total_reference_joins = 0
-    total_reference_successes = 0
-    total_reference_failures = 0
+        # Global tracking for reference joins
+        all_non_working_files = []
+        total_reference_joins = 0
+        total_reference_successes = 0
+        total_reference_failures = 0
 
-    # Global tracking for manual mappings
-    total_manual_mappings = 0
-    total_manual_successes = 0
-    total_manual_failures = 0
+        # Global tracking for manual mappings
+        total_manual_mappings = 0
+        total_manual_successes = 0
+        total_manual_failures = 0
 
-    # Process each main data file
-    for data_name, main_df in main_data.items():
-        logger.print(f"\n[bold cyan]📊 Processing: {data_name}[/bold cyan]")
+        # Process each main data file
+        for data_name, main_df in main_data.items():
+            logger.print(f"\n[bold cyan]📊 Processing: {data_name}[/bold cyan]")
 
-        combined_df = main_df.clone()
-        successful_joins = 0
-        failed_joins = 0
+            combined_df = main_df.clone()
+            successful_joins = 0
+            failed_joins = 0
 
-        # Process each mapping
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[cyan]Applying joins..."),
-            BarColumn(),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            TimeElapsedColumn(),
-            console=console,
-        ) as progress:
+            # Process each mapping
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[cyan]Applying joins..."),
+                BarColumn(),
+                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                TimeElapsedColumn(),
+                console=console,
+            ) as progress:
 
-            task = progress.add_task("", total=len(mappings))
+                task = progress.add_task("", total=len(mappings))
 
-            for mapping_name, mapping_config in mappings.items():
-                decoder_file = mapping_config.get('decoder_file')
-                decoder_files = mapping_config.get('decoder_files')
+                for mapping_name, mapping_config in mappings.items():
+                    decoder_file = mapping_config.get('decoder_file')
+                    decoder_files = mapping_config.get('decoder_files')
 
-                # Handle both single decoder_file and multiple decoder_files
-                files_to_process = []
-                if decoder_file:
-                    files_to_process.append(decoder_file)
-                elif decoder_files:
-                    # For simplified version, just take the first file
-                    files_to_process.append(decoder_files[0]['file'])
+                    # Handle both single decoder_file and multiple decoder_files
+                    files_to_process = []
+                    if decoder_file:
+                        files_to_process.append(decoder_file)
+                    elif decoder_files:
+                        # For simplified version, just take the first file
+                        files_to_process.append(decoder_files[0]['file'])
 
-                for dec_file in files_to_process:
-                    # Load decoder data
-                    decoder_df = load_decoder_data(dec_file, input_dir, logger)
-                    if decoder_df is None:
-                        failed_joins += 1
-                        continue
+                    for dec_file in files_to_process:
+                        # Load decoder data
+                        decoder_df = load_decoder_data(dec_file, input_dir, logger)
+                        if decoder_df is None:
+                            failed_joins += 1
+                            continue
 
-                    try:
-                        # Check if it's a complex join
-                        if 'join_columns' in mapping_config:
-                            combined_df = perform_complex_join(combined_df, decoder_df, mapping_config, case_style, logger)
-                        else:
-                            combined_df = perform_simple_join(combined_df, decoder_df, mapping_config, case_style, logger)
+                        try:
+                            # Check if it's a complex join
+                            if 'join_columns' in mapping_config:
+                                combined_df = perform_complex_join(combined_df, decoder_df, mapping_config, case_style, logger)
+                            else:
+                                combined_df = perform_simple_join(combined_df, decoder_df, mapping_config, case_style, logger)
 
-                        successful_joins += 1
-                    except Exception as e:
-                        logger.print(f"[red]❌ Join failed for {mapping_name}: {str(e)}")
-                        failed_joins += 1
+                            successful_joins += 1
+                        except Exception as e:
+                            logger.print(f"[red]❌ Join failed for {mapping_name}: {str(e)}")
+                            failed_joins += 1
 
-                progress.update(task, advance=1)
+                    progress.update(task, advance=1)
 
-        # Add reference data joins
-        logger.print(f"\n[bold magenta]📚 Adding reference labels for {data_name}...[/bold magenta]")
-        combined_df, ref_successes, ref_failures, non_working = perform_reference_joins(
-            combined_df, reference_data, case_style, logger
-        )
+            # Add reference data joins
+            logger.print(f"\n[bold magenta]📚 Adding reference labels for {data_name}...[/bold magenta]")
+            combined_df, ref_successes, ref_failures, non_working = perform_reference_joins(
+                combined_df, reference_data, case_style, logger
+            )
 
-        # Update global tracking
-        total_reference_joins += (ref_successes + ref_failures)
-        total_reference_successes += ref_successes
-        total_reference_failures += ref_failures
-        all_non_working_files.extend(non_working)
+            # Update global tracking
+            total_reference_joins += (ref_successes + ref_failures)
+            total_reference_successes += ref_successes
+            total_reference_failures += ref_failures
+            all_non_working_files.extend(non_working)
 
-        # Apply manual categorical mappings
-        logger.print(f"\n[bold yellow]🎯 Applying manual categorical mappings for {data_name}...[/bold yellow]")
-        combined_df, manual_successes, manual_failures = apply_manual_mappings(
-            combined_df, manual_data, mapping_configs, logger
-        )
+            # Apply manual categorical mappings
+            logger.print(f"\n[bold yellow]🎯 Applying manual categorical mappings for {data_name}...[/bold yellow]")
+            combined_df, manual_successes, manual_failures = apply_manual_mappings(
+                combined_df, manual_data, mapping_configs, logger
+            )
 
-        # Update global manual mapping tracking
-        total_manual_mappings += (manual_successes + manual_failures)
-        total_manual_successes += manual_successes
-        total_manual_failures += manual_failures
+            # Update global manual mapping tracking
+            total_manual_mappings += (manual_successes + manual_failures)
+            total_manual_successes += manual_successes
+            total_manual_failures += manual_failures
 
-        # Save combined data
-        output_file = output_path / f"{data_name}_combined.csv"
-        combined_df.write_csv(output_file)
+            # Save combined data using storage abstraction
+            output_file = f"{output_dir}/{data_name}_combined.csv"
+            storage.write_dataframe(combined_df, output_file, format="csv")
 
-        # Summary
-        logger.print(f"\n[bold green]✅ Completed: {data_name}[/bold green]")
-        logger.print(f"  📊 Original columns: {len(main_df.columns)}")
-        logger.print(f"  📊 Final columns: {len(combined_df.columns)}")
-        logger.print(f"  📊 Added columns: {len(combined_df.columns) - len(main_df.columns)}")
-        logger.print(f"  ✅ Successful decoder joins: {successful_joins}")
-        logger.print(f"  ❌ Failed decoder joins: {failed_joins}")
-        logger.print(f"  ✅ Successful reference joins: {ref_successes}")
-        logger.print(f"  ❌ Failed reference joins: {ref_failures}")
-        logger.print(f"  🎯 Successful manual mappings: {manual_successes}")
-        logger.print(f"  ❌ Failed manual mappings: {manual_failures}")
-        logger.print(f"  💾 Saved to: {output_file}")
+            # Summary
+            logger.print(f"\n[bold green]✅ Completed: {data_name}[/bold green]")
+            logger.print(f"  📊 Original columns: {len(main_df.columns)}")
+            logger.print(f"  📊 Final columns: {len(combined_df.columns)}")
+            logger.print(f"  📊 Added columns: {len(combined_df.columns) - len(main_df.columns)}")
+            logger.print(f"  ✅ Successful decoder joins: {successful_joins}")
+            logger.print(f"  ❌ Failed decoder joins: {failed_joins}")
+            logger.print(f"  ✅ Successful reference joins: {ref_successes}")
+            logger.print(f"  ❌ Failed reference joins: {ref_failures}")
+            logger.print(f"  🎯 Successful manual mappings: {manual_successes}")
+            logger.print(f"  ❌ Failed manual mappings: {manual_failures}")
+            logger.print(f"  💾 Saved to: {output_file}")
 
     # Final summary for reference data
     logger.print(f"\n[bold magenta]📚 Reference Data Summary[/bold magenta]")
@@ -1111,8 +1199,13 @@ def combine_all_data(config_path="decoding_files_config.yaml",
 
 def main():
     """
-    Command line entry point
+    Command line entry point.
+
+    Uses environment variable defaults from config.paths when no arguments provided.
     """
+    # Get config for environment-based defaults
+    config = get_config()
+
     parser = argparse.ArgumentParser(description='Combine main data with decoder files')
     parser.add_argument('--config', default='decoding_files_config.yaml',
                        help='Path to YAML decoder configuration file')
@@ -1120,12 +1213,12 @@ def main():
                        help='Path to YAML mapping tables configuration file')
     parser.add_argument('--manual-tables-config', default='manual_tables_config.yaml',
                        help='Path to YAML manual mapping tables configuration file')
-    parser.add_argument('--processed-dir', default='data/02-processed',
-                       help='Directory with processed main data')
-    parser.add_argument('--input-dir', default='data/02-processed',
-                       help='Directory with decoder files')
-    parser.add_argument('--output-dir', default='data/03-combined',
-                       help='Output directory for combined data')
+    parser.add_argument('--processed-dir', default=None,
+                       help=f'Directory with processed main data (default: {config.paths.processed_dir})')
+    parser.add_argument('--input-dir', default=None,
+                       help=f'Directory with decoder files (default: {config.paths.processed_dir})')
+    parser.add_argument('--output-dir', default=None,
+                       help=f'Output directory for combined data (default: {config.paths.combined_dir})')
     parser.add_argument('--case-style', default='snake_case',
                        choices=['original', 'snake_case', 'camelCase', 'PascalCase'],
                        help='Case style used in processed data')
