@@ -1,0 +1,21 @@
+services:
+  fastapi:
+    container_name: fastapi
+    hostname: fastapi
+    image: fastapi
+    ports:
+      - "8000:8000"
+    #environment:
+    #   the variables should come from an .env file
+    #  - MINIO_WO_SECRET_KEY=${MINIO_SECRET_KEY}
+    networks:
+      - default
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # command: ["sleep", "infinity"]
+    command: ["uv", "run", "/src/main.py"]
+    volumes:
+      - type: bind
+        source: src
+        target: /src
