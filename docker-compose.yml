@@ -26,7 +26,7 @@ services:
     depends_on:
       - minio
       - postgres
-    command: ["uv", "run", "/src/main.py"]
+    command: ["streamlit", "run", "/src/main.py", "--server.port=8000", "--server.address=0.0.0.0"]
     volumes:
       - type: bind
         source: src

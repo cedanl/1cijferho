@@ -36,4 +36,4 @@ ENV UV_CACHE_DIR=/.cache
 RUN uv sync --frozen --no-dev --extra api # This will install the packages without starting the app yet.
 ENV PATH="/.venv/bin:$PATH"
 
-CMD ["uv", "run", "src/main.py"]
+CMD ["streamlit", "run", "src/main.py", "--server.port=8000", "--server.address=0.0.0.0"]
