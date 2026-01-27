@@ -261,6 +261,12 @@ class MinIOBackend(StorageBackend):
         """Delete object from MinIO"""
         obj_path = self._normalize_path(path)
 
+        # Check if object exists first (S3 remove_object doesn't error on missing objects)
+        try:
+            self.client.stat_object(self.bucket, obj_path)
+        except Exception:
+            return False
+
         try:
             self.client.remove_object(self.bucket, obj_path)
             return True

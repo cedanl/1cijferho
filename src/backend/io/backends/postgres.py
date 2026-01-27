@@ -391,7 +391,7 @@ class PostgresBackend(StorageBackend):
 
     def close(self) -> None:
         """Close database connection"""
-        if self._conn and not self._conn.closed:
+        if hasattr(self, "_conn") and self._conn and not self._conn.closed:
             self._conn.close()
             self._conn = None
 
