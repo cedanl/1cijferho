@@ -1,7 +1,14 @@
 from pathlib import Path
+import unicodedata
 import polars as pl
 import janitor.polars  # noqa: F401 - registers clean_names method
 from rich.console import Console
+
+
+def strip_accents(text: str) -> str:
+    """Remove accents from text (e.g., 'vóór' -> 'voor')."""
+    normalized = unicodedata.normalize('NFKD', text)
+    return ''.join(c for c in normalized if not unicodedata.combining(c))
 
 console = Console()
 
@@ -62,6 +69,9 @@ def convert_csv_headers_to_snake_case(
             
             # Clean column names using pyjanitor
             df_cleaned = df.clean_names(remove_special=True)
+
+            # Strip accents from column names (e.g., 'vóór' -> 'voor')
+            df_cleaned = df_cleaned.rename({col: strip_accents(col) for col in df_cleaned.columns})
             
             # Get new column names
             new_columns = df_cleaned.columns
@@ -85,7 +95,7 @@ def convert_csv_headers_to_snake_case(
             with open(csv_file, 'w', encoding=encoding) as f:
                 f.write(csv_string)
             
-            console.print(f"  [green]✓ Updated successfully[/green]\n")
+            console.print("  [green]✓ Updated successfully[/green]\n")
             
         except Exception as e:
             console.print(f"  [red]✗ Error processing {csv_file.name}: {e}[/red]\n")
