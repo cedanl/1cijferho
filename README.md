@@ -24,6 +24,12 @@ De 1CijferHO Tool automatiseert het verwerken van 1cijferHO-data, zoals:
 
 Met deze tool kun je in enkele minuten grote hoeveelheden data verwerken, zonder risico op fouten of verlies van gegevens.
 
+### 📑 Congrespresentatie(s)
+
+Tijdens de DAIR-conferentie in 2025 hebben we de 1CijferHO Tool gepresenteerd. Bekijk de slides van de presentatie hieronder:
+
+[📂 Presentatie DAIR 2025](presentatie-DAIR-2025.pdf)
+
 
 ## Waarom is dit belangrijk?
 
@@ -76,3 +82,4 @@ Dank aan alle mensen die hebben bijgedragen aan de ontwikkeling van de 1CijferHO
 [![](https://github.com/asewnandan.png?size=50)](https://github.com/asewnandan)
 [![](https://github.com/tin900.png?size=50)](https://github.com/tin900)
 [![](https://github.com/Tomeriko96.png?size=50)](https://github.com/Tomeriko96)
+
