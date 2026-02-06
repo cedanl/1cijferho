@@ -24,7 +24,6 @@ De 1CijferHO Tool automatiseert het verwerken van 1cijferHO-data, zoals:
 
 Met deze tool kun je in enkele minuten grote hoeveelheden data verwerken, zonder risico op fouten of verlies van gegevens.
 
----
 
 ## Waarom is dit belangrijk?
 
@@ -34,7 +33,6 @@ Met deze tool kun je in enkele minuten grote hoeveelheden data verwerken, zonder
 - **Veilig werkt**: Anonimiseert gevoelige gegevens, zoals BSN’s.
 - **Gebruiksklaar**: Levert schone CSV- of Parquet-bestanden voor directe analyse.
 
----
 
 ## Hoe werkt het?
 
@@ -42,7 +40,6 @@ Met deze tool kun je in enkele minuten grote hoeveelheden data verwerken, zonder
 2. **Upload je bestanden** (data en metadata).
 3. **Bekijk de resultaten**: Je krijgt direct schone, geoptimaliseerde bestanden.
 
----
 
 ## Aan de slag
 
@@ -64,21 +61,6 @@ uv run streamlit run src/main.py
 ```
 De applicatie opent automatisch in je browser.
 
----
-
-## Ondersteuning
-
-Heb je vragen of loop je ergens tegenaan? Neem contact met ons op via:
-- **E-mail**: a.sewnandan@hhs.nl | t.iwan@vu.nl
-- **GitHub Issues**: [Probleem melden](https://github.com/cedanl/1cijferho/issues)
-
----
-
-## Over dit project
-
-De 1CijferHO Tool is ontwikkeld door [CEDA & Npuls](https://community-data-ai.npuls.nl/groups/view/44d20066-53a8-48c2-b4e9-be348e05d273/project-center-for-educational-data-analytics-ceda) met dank aan [Ash Sewnandan](https://github.com/asewnandan) en [Tomer Iwan](https://github.com/Tomeriko96).
-
----
 
 ## 🎬 Demo Video
 
@@ -86,7 +68,6 @@ Bekijk hieronder een korte demonstratie van hoe de 1CijferHO Tool werkt:
 
 ![Demo](src/assets/demo.gif)
 
----
 
 ## 🫂 Bijdragers
 
