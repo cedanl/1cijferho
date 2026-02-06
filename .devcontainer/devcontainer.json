@@ -1,0 +1,8 @@
+{
+  "name": "1CijferHO",
+  "build": { "dockerfile": "Dockerfile" },
+  "extensions": ["ms-python.python"],
+  "postCreateCommand": "uv sync",
+  "forwardPorts": [8501]
+}
+
