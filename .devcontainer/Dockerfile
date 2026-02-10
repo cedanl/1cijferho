@@ -1,5 +1,11 @@
 FROM python:3.12-slim
 
+# Set user and home as ENV variables
+ENV USERNAME=ceda \
+    WORKSPACE=/workspace \
+    USERHOME=/home/ceda
+
+
 # Install EVERYTHING - no more missing deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Core compilers & tools
@@ -23,9 +29,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Skip arrow-dev (pyarrow uses wheels)
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv globally
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.local/bin:${PATH}"
 
-WORKDIR /workspace
+# Create non-root user with home directory, and ensure /workspace exists before chown
+RUN useradd -m "$USERNAME" -s /bin/bash \
+    && mkdir -p "$WORKSPACE" \
+    && chown -R "$USERNAME":"$USERNAME" "$WORKSPACE"
+
+# Install uv for the user
+USER $USERNAME
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="$USERHOME/.local/bin:${PATH}"
+
+WORKDIR $WORKSPACE
+USER $USERNAME
 

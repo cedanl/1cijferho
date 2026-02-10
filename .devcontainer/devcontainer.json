@@ -1,7 +1,12 @@
 {
   "name": "1CijferHO",
   "build": { "dockerfile": "Dockerfile" },
-  "extensions": ["ms-python.python"],
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python"]
+    }
+  },
+  "remoteUser": "ceda",
   "postCreateCommand": "uv sync",
   "forwardPorts": [8501]
 }
