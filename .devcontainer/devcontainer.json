@@ -1,6 +1,8 @@
 {
   "name": "1CijferHO",
-  "build": { "dockerfile": "Dockerfile" },
+  "dockerComposeFile": "docker-compose.yaml",
+  "service": "app",
+  "workspaceFolder": "/workspace/vscode",
   "customizations": {
     "vscode": {
       "extensions": ["ms-python.python"]
@@ -8,6 +10,5 @@
   },
   "remoteUser": "ceda",
   "postCreateCommand": "uv sync",
-  "forwardPorts": [8501]
 }
 

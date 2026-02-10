@@ -1,0 +1,30 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspace/vscode
+    depends_on:
+      - db
+    ports:
+      - 8501:8501
+    hostname: 1cijfer-app
+    # To connect to the database, use host 'db' in your connection string
+
+  db:
+    image: postgres:latest
+    restart: unless-stopped
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_DB: testdb
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+    volumes:
+      - postgres-data:/var/lib/postgresql-data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    hostname: db
+
+volumes:
+  postgres-data:

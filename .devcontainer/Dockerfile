@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 # Set user and home as ENV variables
 ENV USERNAME=ceda \
-    WORKSPACE=/workspace \
+    WORKSPACE=/workspace/vscode \
     USERHOME=/home/ceda
 
 
@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 
-# Create non-root user with home directory, and ensure /workspace exists before chown
+# Create non-root user with home directory, and ensure workspace exists before chown
 RUN useradd -m "$USERNAME" -s /bin/bash \
     && mkdir -p "$WORKSPACE" \
     && chown -R "$USERNAME":"$USERNAME" "$WORKSPACE"
@@ -40,6 +40,9 @@ USER $USERNAME
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="$USERHOME/.local/bin:${PATH}"
 
+
 WORKDIR $WORKSPACE
-USER $USERNAME
+
+# Keep the container running
+CMD ["tail", "-f", "/dev/null"]
 
