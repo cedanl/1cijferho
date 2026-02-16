@@ -33,8 +33,8 @@ st.markdown("""
 # -----------------------------------------------------------------------------
 st.markdown("""
 <div class="hero-banner">
-    <h1>🚀 Welcome to 1CijferHO</h1>
-    <p>Unlock the power of your educational datasets</p>
+    <h1>🚀 Welkom bij 1CijferHO</h1>
+    <p>Ontgrendel de kracht van uw onderwijsdatasets</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -44,23 +44,23 @@ st.markdown("""
 
 # Intro text
 st.write("""
-Transform complex DUO datasets into actionable insights in minutes, not months. Our application decodes and delimits all 1CHO files, enabling researchers to access educational data without technical expertise.
+Maak van DUO-bestanden snel duidelijke informatie. Met deze tool kun je 1CHO-bestanden makkelijk openen en gebruiken, zonder technische kennis.
 """)
 
 # Beta version info
-st.info("✨ v0.9 - All core features ready! Help us perfect it with your feedback.", icon="🎯")
+st.info("✨ v0.9 - Alle kernfuncties gereed! Help ons verbeteren met uw feedback.", icon="🎯")
 
 # Try the application section
-st.write("To get started, upload your data files below:")
+st.write("Begin door uw databestanden hieronder te uploaden:")
 
 # Side-by-side buttons with equal width
 col1, col2 = st.columns(2)
 
 with col1:
-    data_upload_clicked = st.button("📁 Upload Data", type="primary", use_container_width=True)
+    data_upload_clicked = st.button("📁 Bestanden uploaden", type="primary", use_container_width=True)
 
 with col2:
-    documentation_clicked = st.button("📚 Documentation", type="secondary", use_container_width=True)
+    documentation_clicked = st.button("📚 Documentatie", type="secondary", use_container_width=True)
 
 # Handle button clicks
 if data_upload_clicked:
@@ -75,13 +75,13 @@ st.divider()
 # -----------------------------------------------------------------------------
 # Get Involved Section
 # -----------------------------------------------------------------------------
-st.subheader("📢 Get Involved")
-st.write("We're constantly improving based on your feedback! Questions or feature requests? Submit a feature request via Github Issues:")
+st.subheader("📢 Doe mee")
+st.write("We verbeteren continu op basis van uw feedback! Vragen of suggesties? Dien een verzoek in via GitHub Issues:")
 
 # GitHub issues link
-st.link_button("Submit Feature Request", url="https://github.nl/cedanl/1cijferho/issues", help="Opens our GitHub issues page", type="primary")
+st.link_button("Dien een verzoek in", url="https://github.nl/cedanl/1cijferho/issues", help="Opent onze GitHub issues pagina", type="primary")
 
 # -----------------------------------------------------------------------------
 # Footer Section
 # -----------------------------------------------------------------------------
-st.caption("© 2025 CEDA | Bridging institutions, sharing solutions, advancing education.")
+st.caption("© 2025 CEDA | Verbinding tussen instellingen, kennisdeling, vooruitgang in onderwijs.")

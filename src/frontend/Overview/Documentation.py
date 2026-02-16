@@ -14,73 +14,73 @@ st.markdown("""
 
 st.markdown("""
 <div class="hero-section">
-    <h1>📚 Documentation</h1>
+    <h1>📚 Documentatie</h1>
 </div>
 """, unsafe_allow_html=True)
 
-tab1, tab2, tab3 = st.tabs(["Overview", "How to Use", "Technical"])
+tab1, tab2, tab3 = st.tabs(["Overzicht", "Gebruik", "Technisch"])
 
 with tab1:
-    st.markdown("## The Problem")
+    st.markdown("## Het probleem")
     
     st.markdown("""
-    DUO delivers educational data as fixed-width ASCII files with separate decode files and unstructured metadata:
+    DUO levert onderwijsdata als ASCII-bestanden met vaste breedte, aparte decodeerbestanden en ongestructureerde metadata:
     
-    - Fixed-width strings: `821PL21PL506451B090    J2006Swo 50645...`
-    - Decode files: `5001Canada`, `5002Frankrijk` 
-    - Field positions buried in .txt files
-    - Manual processing takes hours to days
+    - Vaste-breedte strings: `821PL21PL506451B090    J2006Swo 50645...`
+    - Decodeerbestanden: `5001Canada`, `5002Frankrijk`
+    - Veldposities verstopt in .txt-bestanden
+    - Handmatige verwerking kost uren tot dagen
     """)
     
-    st.markdown("## What We Do")
+    st.markdown("## Wat doen wij?")
     
     st.markdown("""
-    Automatically parse DUO files to CSV/Parquet format ready for analysis.
+    Automatisch DUO-bestanden omzetten naar CSV/Parquet-formaat, klaar voor analyse.
     """)
     
     st.code("""
-Before: 821PL21PL506451B090    J20NLSwo 50645...
+Voor: 821PL21PL506451B090    J20NLSwo 50645...
 
-After:  Persoonsgebonden_nummer: 821PL21PL506
+Na:    Persoonsgebonden_nummer: 821PL21PL506
         Type: J20
         Landcode: NL
     """, language=None)
 
 with tab2:
-    st.markdown("## Required Files")
+    st.markdown("## Vereiste bestanden")
     
     st.markdown("""
-    - DUO Main Files (EV, VAKHAVW, CROHO, CROHO_VEST)
-    - DUO Bestandsbeschrijvingen
-    - DUO Dec Files
+    - DUO hoofdbestanden (EV, VAKHAVW, CROHO, CROHO_VEST)
+    - DUO bestandsbeschrijvingen
+    - DUO dec-bestanden
     """)
     
-    st.markdown("## Process")
+    st.markdown("## Proces")
     
     st.markdown("""
-    1. Upload your DUO files to `data/01-input/`
-    2. Run Extract Metadata
-    3. Run Validation
-    4. Run Turbo Convert
-    5. Find your files in `data/02-output/`
+    1. Upload uw DUO-bestanden naar `data/01-input/`
+    2. Voer Extract Metadata uit
+    3. Voer Validatie uit
+    4. Voer Turbo Conversie uit
+    5. Vind uw bestanden in `data/02-output/`
                 
     """)
     
-    st.markdown("## Troubleshooting")
+    st.markdown("## Problemen oplossen")
     
     with st.expander("Common Issues"):
         st.markdown("""
-        **No tables found in metadata file**  
-        Check that .txt file contains "Startpositie" and "Aantal posities"
+        **Geen tabellen gevonden in metadata-bestand**  
+        Controleer of het .txt-bestand "Startpositie" en "Aantal posities" bevat
         
-        **File matching failed**  
-        Verify data file names match metadata file names
+        **Bestandskoppeling mislukt**  
+        Controleer of de bestandsnamen overeenkomen
         
-        **Processing is slow**  
-        Close unnecessary applications, check disk space
+        **Verwerking is traag**  
+        Sluit onnodige applicaties, controleer schijfruimte
         
-        **Permission denied**  
-        Close Excel files in output directory, check write permissions
+        **Toegang geweigerd**  
+        Sluit Excel-bestanden in de outputmap, controleer schrijfrechten
         """)
 
 with tab3:
@@ -90,17 +90,17 @@ with tab3:
     Python 3.13+ • Streamlit • Polars • uv
     """)
     
-    st.markdown("## Architecture")
+    st.markdown("## Architectuur")
     
     st.markdown("""
-    **Core Modules**
+    **Kernmodules**
     
     - `src/backend/core/`
     - `extractor.py` — Extract field positions from metadata .txt files
     - `converter.py` — Convert fixed-width to CSV using multiprocessing
     - `decoder.py` — Process decode files (roadmap)
     
-    **Utilities**
+    **Hulpmiddelen**
     
     - `src/backend/utils/`
     - `converter_match.py` — Match data files to metadata
@@ -122,36 +122,36 @@ with tab3:
 
     """)
     
-    st.markdown("## Data Flow")
+    st.markdown("## Datastroom")
     
     st.code("""
-Raw DUO Files
+Ruwe DUO-bestanden
     ↓
-Metadata Extraction (extractor.py)
+Metadata extractie (extractor.py)
     ↓
-Table Structuring (JSON → Excel)
+Tabelstructurering (JSON → Excel)
     ↓
-File Matching (converter_match.py)
+Bestandskoppeling (converter_match.py)
     ↓
-Parallel Conversion (converter.py)
+Parallelle conversie (converter.py)
     ↓
-Validation (converter_validation.py)
+Validatie (converter_validation.py)
     ↓
-Compression (compressor.py)
+Compressie (compressor.py)
     ↓
-Anonymization (encryptor.py)
+Anonimisering (encryptor.py)
     ↓
-Research-Ready Output
+Onderzoeksklare output
     """, language=None)
     
-    st.markdown("## Performance")
+    st.markdown("## Prestaties")
     
     st.markdown("""
-    - Uses n-1 CPU cores for parallel processing
-    - Streams large files to manage memory
-    - Parquet compression reduces file size 60-80%
-    - Cryptographic hashing for privacy
+    - Gebruikt n-1 CPU-kernen voor parallelle verwerking
+    - Streamt grote bestanden om geheugen te beheren
+    - Parquet-compressie verkleint bestanden met 60-80%
+    - Cryptografische hashing voor privacy
     """)
 
 st.markdown("---")
-st.markdown("Built by CEDA • Questions: a.sewnandan@hhs.nl | t.iwan@vu.nl")
+st.markdown("Gemaakt door CEDA • Vragen: a.sewnandan@hhs.nl | t.iwan@vu.nl")
