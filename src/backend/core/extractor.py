@@ -25,6 +25,61 @@ import polars as pl
 import datetime
 from rich.console import Console
 
+# Constants for table extraction
+MAX_LOOKAHEAD_LINES_FOR_DECODING_SECTION = 20  # Lines to search for "Ten behoeve van de decodering" section
+MAX_LOOKAHEAD_LINES_FOR_VARIABLE_LIST = 50     # Lines to search for bullet-pointed variable list (longer because list can be extended)
+
+def extract_decoding_variables(lines, start_index):
+    """
+    Extract decoding variables from lines starting at start_index.
+    
+    Looks for "Ten behoeve van de decodering" section and extracts bullet-pointed variables.
+    
+    Args:
+        lines: List of text lines to search
+        start_index: Index to start searching from
+        
+    Returns:
+        List of decoding variable names
+    """
+    decoding_variables = []
+    j = start_index
+    
+    # Look for "Ten behoeve van de decodering" or "Ten behoeve van de vertaling" section
+    while j < len(lines) and j < start_index + MAX_LOOKAHEAD_LINES_FOR_DECODING_SECTION:
+        current_line = lines[j].strip().lower()
+
+        # Check if we've found the decoding/vertaling section
+        if ("ten behoeve van de decodering" in current_line) or ("ten behoeve van de vertaling" in current_line):
+            # Now collect all the bullet points (lines starting with *)
+            j += 1
+            while j < len(lines) and j < start_index + MAX_LOOKAHEAD_LINES_FOR_VARIABLE_LIST:
+                var_line = lines[j].strip()
+                if var_line.startswith('*'):
+                    # Extract the variable name after the asterisk
+                    var_name = var_line[1:].strip()
+                    if var_name:
+                        decoding_variables.append(var_name)
+                    j += 1
+                elif not var_line:
+                    # Empty line, continue to check for more
+                    j += 1
+                elif var_line.startswith('NB:') or var_line.startswith('Opmerking:') or var_line.startswith('Mogelijke'):
+                    # Stop when we hit notes or remarks
+                    break
+                else:
+                    # Stop if we hit non-empty line that's not a bullet point or empty line
+                    break
+            break
+
+        # Stop if we hit another table or section divider
+        if current_line.startswith('==') or "startpositie" in current_line:
+            break
+
+        j += 1
+    
+    return decoding_variables
+
 def extract_tables_from_txt(txt_file, json_output_folder):
     """Extracts tables from a .txt file and saves them as JSON."""
     os.makedirs(json_output_folder, exist_ok=True)
@@ -65,10 +120,15 @@ def extract_tables_from_txt(txt_file, json_output_folder):
         elif found:
             if not line.strip():
                 found = False
+                
+                # Extract decoding variables using helper function
+                decoding_variables = extract_decoding_variables(lines, i + 1)
+                
                 all_tables.append({
                     "table_number": tables_found,
                     "table_title": table_title,
-                    "content": table_content
+                    "content": table_content,
+                    "decoding_variables": decoding_variables
                 })
                 table_content = []
                 continue
@@ -77,10 +137,15 @@ def extract_tables_from_txt(txt_file, json_output_folder):
     
     # Check if the last table extends to the end of the file
     if found and table_content:
+        # Extract decoding variables for the last table using helper function
+        start_idx = len(lines) - len(table_content)
+        decoding_variables = extract_decoding_variables(lines, start_idx + len(table_content))
+        
         all_tables.append({
             "table_number": tables_found,
             "table_title": table_title,
-            "content": table_content
+            "content": table_content,
+            "decoding_variables": decoding_variables
         })
     
     # Save all tables to a single JSON file
@@ -126,28 +191,36 @@ def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json")
     
     filter_keyword = "Bestandsbeschrijving"
     extracted_files = []
-    
+
     # Only process files in the root directory, not subdirectories
     if os.path.exists(input_folder):
         for file in os.listdir(input_folder):
             file_path = os.path.join(input_folder, file)
-            # Check if it's a file (not a directory) and meets our criteria
+            # Process Bestandsbeschrijving .txt files
             if os.path.isfile(file_path) and file.endswith(".txt") and filter_keyword in file:
-                # Log file processing
                 file_log = {
-                    "file": file, 
+                    "file": file,
                     "status": "processing",
                     "output": None
                 }
-                
                 json_path = extract_tables_from_txt(file_path, json_output_folder)
-                
-                # Update file status in log
                 file_log["status"] = "success" if json_path else "no_tables_found"
                 if json_path:
                     extracted_files.append(json_path)
                     file_log["output"] = os.path.basename(json_path)
-                
+                log_data["processed_files"].append(file_log)
+            # Also process all .asc files (DEC files)
+            elif os.path.isfile(file_path) and file.endswith(".asc"):
+                file_log = {
+                    "file": file,
+                    "status": "processing",
+                    "output": None
+                }
+                json_path = extract_tables_from_txt(file_path, json_output_folder)
+                file_log["status"] = "success" if json_path else "no_tables_found"
+                if json_path:
+                    extracted_files.append(json_path)
+                    file_log["output"] = os.path.basename(json_path)
                 log_data["processed_files"].append(file_log)
     
     # Update final log status
@@ -173,6 +246,7 @@ def extract_excel_from_json(json_file, excel_output_folder):
     """
     Extracts tables from a JSON file and saves them as Excel files.
     Includes ID column and a column for comments (Opmerkingen) after Aantal posities.
+    Also extracts and stores decoding variables information in a separate sheet.
     Returns detailed processing results for table reporting.
     Sets specific data types for Excel columns: ID (int), Naam (str), Startpositie (int), 
     Aantal posities (int), Opmerking (str).
@@ -295,11 +369,11 @@ def extract_excel_from_json(json_file, excel_output_folder):
                 # Skip empty lines
                 if not line.strip():
                     continue
-                
+
                 # Skip if the line is shorter than our reference indices
                 if len(line) <= start_pos_index:
                     continue
-                
+
                 # Handle lines that might contain both header keywords
                 if "Startpositie" in line and "Aantal posities" in line:
                     modified_line = line.replace("Startpositie", "|Startpositie")
@@ -309,75 +383,86 @@ def extract_excel_from_json(json_file, excel_output_folder):
                         field_name = parts[0].strip()
                         start_pos = parts[1].replace("Startpositie", "").strip()
                         aantal_pos = parts[2].replace("Aantal posities", "").strip()
-                        
+
                         # Extract comment if any (content after Aantal posities)
                         comment = ""
                         if len(parts) > 3:
                             comment = parts[3].strip()
-                        
+
+                        # Only add row if both start_pos and aantal_pos are valid digits
                         if field_name and start_pos.isdigit() and aantal_pos.isdigit():
-                            # Convert numeric fields to integers
-                            rows.append([int(row_id), field_name, int(start_pos), int(aantal_pos), comment])
-                            row_id += 1  # Increment ID
-                            valid_content_lines += 1
+                            try:
+                                rows.append([row_id, field_name, int(start_pos), int(aantal_pos), comment])
+                                row_id += 1
+                                valid_content_lines += 1
+                            except Exception as e:
+                                console.print(f"[red]Row creation error: {e} | field_name={field_name}, start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}")
+                        else:
+                            # Debug log for invalid row
+                            if not (field_name and start_pos.isdigit() and aantal_pos.isdigit()):
+                                console.print(f"[yellow]Skipping row: field_name={field_name}, start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}")
                     continue
-                
+
                 # Extract field name - use a more precise approach that preserves all characters
                 field_name = ""
                 pos_start = None
-                
+
                 # Find where the actual digits of start position begin
                 for j in range(start_pos_index, len(line)):
                     if line[j].isdigit():
                         pos_start = j
                         break
-                
+
                 # If we found the start of the position digits, extract the field name before it
                 if pos_start is not None:
                     field_name = line[:pos_start].rstrip()
                 else:
-                    # Fallback to the original approach if we can't find digits
                     field_name = line[:start_pos_index].rstrip()
-                
+
                 # Extract start position
-                start_pos = ""
+                start_pos = None
                 i = start_pos_index
-                # Skip to the first digit
+                start_digits = ""
                 while i < len(line) and not line[i].isdigit():
                     i += 1
-                # Collect all consecutive digits
                 while i < len(line) and line[i].isdigit():
-                    start_pos += line[i]
+                    start_digits += line[i]
                     i += 1
-                
+                if start_digits:
+                    start_pos = int(start_digits)
+
                 # Extract aantal posities
-                aantal_pos = ""
+                aantal_pos = None
                 comment = ""
                 if len(line) > aantal_pos_index:
                     i = aantal_pos_index
-                    # Skip to the first digit
+                    aantal_digits = ""
                     while i < len(line) and not line[i].isdigit():
                         i += 1
-                    # Collect all consecutive digits
                     while i < len(line) and line[i].isdigit():
-                        aantal_pos += line[i]
+                        aantal_digits += line[i]
                         i += 1
-                    
+                    if aantal_digits:
+                        aantal_pos = int(aantal_digits)
                     # Improved comment extraction to preserve all characters
                     if i < len(line):
-                        # Skip any whitespace after the digits
                         while i < len(line) and line[i].isspace():
                             i += 1
-                        # The rest is the comment, preserve all characters including parentheses
                         if i < len(line):
                             comment = line[i:].strip()
-                
-                # Add to rows if both numbers were found
-                if field_name and start_pos and aantal_pos:
-                    # Convert numeric fields to integers
-                    rows.append([int(row_id), field_name, int(start_pos), int(aantal_pos), comment])
-                    row_id += 1  # Increment ID
-                    valid_content_lines += 1
+
+                # Only add row if both start_pos and aantal_pos are not None
+                if field_name and start_pos is not None and aantal_pos is not None:
+                    try:
+                        rows.append([row_id, field_name, start_pos, aantal_pos, comment])
+                        row_id += 1
+                        valid_content_lines += 1
+                    except Exception as e:
+                        console.print(f"[red]Row creation error: {e} | field_name={field_name}, start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}")
+                else:
+                    # Debug log for invalid row
+                    if not (field_name and start_pos is not None and aantal_pos is not None):
+                        console.print(f"[yellow]Skipping row: field_name={field_name}, start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}")
             
             # Skip if no data rows were found
             if len(rows) <= 1:
@@ -388,23 +473,36 @@ def extract_excel_from_json(json_file, excel_output_folder):
             
             # Record the number of data rows
             table_result["rows"] = len(rows) - 1  # Subtract header row
-                
-            # Write to Excel file
+            
+            # Add decoding variables information if available
+            decoding_variables = table.get("decoding_variables", [])
+            if decoding_variables:
+                # Store info about decoding variables in the table result
+                table_result["decoding_variables"] = decoding_variables
+                table_result["notes"] += f" Includes {len(decoding_variables)} decoding variable(s)."
+
+            # Write to Excel file (main sheet: only valid column rows)
             try:
-                df = pl.DataFrame(rows[1:], schema=rows[0], orient="row")
-                df.write_excel(output_path, autofit=True)
-                
+                import pandas as pd
+                # Only keep rows with valid ID (int) for the main table
+                main_rows = [row for row in rows if isinstance(row[0], int)]
+                df_main = pd.DataFrame(main_rows, columns=rows[0])
+
+                # Prepare decoding variables DataFrame if present
+                if decoding_variables:
+                    df_decoding = pd.DataFrame({"DecodingVariables": decoding_variables})
+                    with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
+                        df_main.to_excel(writer, index=False, sheet_name="Table")
+                        df_decoding.to_excel(writer, index=False, sheet_name="DecodingVariables")
+                else:
+                    df_main.to_excel(output_path, index=False)
+
                 # Check if the number of rows in the DataFrame matches the expected count
-                df_row_count = df.shape[0]
+                df_row_count = df_main.shape[0]
                 if df_row_count != valid_content_lines:
                     console.print(f"[yellow]Warning: Row count mismatch for table {table_title}.")
                     console.print(f"[yellow]Expected {valid_content_lines} rows, got {df_row_count} rows in DataFrame.")
                     table_result["notes"] += f" Row count mismatch: {valid_content_lines} valid content lines vs {df_row_count} DataFrame rows."
-                else:
-                    None
-                
-                # Write to Excel with specified datatypes
-                df.write_excel(output_path, autofit=True)
                 files_created += 1
                 results.append(table_result)
             except PermissionError:
