@@ -2,16 +2,16 @@ import streamlit as st
 
 st.title("💡 Tip")
          
-st.write("**📊 Reading CSV & Parquet Files**")
+st.write("**📊 CSV- en Parquet-bestanden lezen**")
 
-st.markdown("Simple examples for reading files faster with **semicolon delimiter** and **latin-1 encoding**")
+st.markdown("Eenvoudige voorbeelden om bestanden sneller te lezen met **puntkomma als scheidingsteken** en **latin-1 codering**")
 # Create two columns for Python and R
 col1, col2 = st.columns(2)
 
 with col1:
     st.header("🐍 Python")
     
-    st.subheader("CSV with semicolon delimiter")
+    st.subheader("CSV met puntkomma als scheidingsteken")
     st.code("""
 import polars as pl
 
@@ -21,7 +21,7 @@ df = pl.read_csv('file.csv',
                  encoding='latin1')
 """, language="python")
     
-    st.subheader("Parquet")
+    st.subheader("Parquet-bestand")
     st.code("""
 import polars as pl
 
@@ -35,7 +35,7 @@ df = pl.read_parquet('file.parquet')
 with col2:
     st.header("📈 R")
     
-    st.subheader("CSV with semicolon delimiter")
+    st.subheader("CSV met puntkomma als scheidingsteken")
     st.code("""
 library(data.table)
 
@@ -45,7 +45,7 @@ df <- fread('file.csv',
             encoding = 'Latin-1')
 """, language="r")
     
-    st.subheader("Parquet")
+    st.subheader("Parquet-bestand")
     st.code("""
 library(arrow)
 
@@ -53,6 +53,6 @@ library(arrow)
 df <- read_parquet('file.parquet')
 """, language="r")
     
-    st.markdown("**R Libraries:**")
+    st.markdown("**R-pakketten:**")
     st.markdown("- [data.table](https://rdatatable.gitlab.io/data.table/)")
     st.markdown("- [arrow](https://arrow.apache.org/docs/r/) (for parquet)")

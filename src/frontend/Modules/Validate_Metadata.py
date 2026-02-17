@@ -119,20 +119,20 @@ if 'page_initialized' not in st.session_state:
 # -----------------------------------------------------------------------------
 # Main Content
 # -----------------------------------------------------------------------------
-st.title("🛡️ Validate Metadata")
+st.title("🛡️ Metadata valideren")
 
 # Intro text
 st.write("""
-**Step 2: Validating & Matching Files**
+**Stap 2: Bestanden valideren & koppelen**
 
-We'll check your extracted Excel files for errors (DUO occasionally makes mistakes) and match them to your main/dec files so we know which structure belongs to which data.
+We controleren uw geëxtraheerde Excel-bestanden op fouten (DUO maakt soms fouten) en koppelen ze aan uw hoofd- en dec-bestanden zodat duidelijk is welke structuur bij welke data hoort.
 
-What happens:
-- Validate Excel metadata for issues
-- Match Excel files to main/dec files
-- Save validation reports to `data/00-metadata/logs/`
+Wat gebeurt er:
+- Excel-metadata valideren op problemen
+- Excel-bestanden koppelen aan hoofd- en dec-bestanden
+- Validatierapporten opslaan in `data/00-metadata/logs/`
 
-If validation or matching fails, you can edit the .xlsx files in `data/00-metadata/` and `data/01-input/` respectively. Check the log below to see which files need attention.
+Als validatie of koppeling faalt, kunt u de .xlsx-bestanden aanpassen in `data/00-metadata/` en `data/01-input`. Bekijk het log hieronder om te zien welke bestanden aandacht nodig hebben.
 """)
 # Get files and display status
 metadata_files = get_metadata_files()
@@ -141,16 +141,16 @@ metadata_files = get_metadata_files()
 input_folder = "data/01-input"
 
 if not metadata_files:
-    st.error("🚨 **No metadata files found in `data/00-metadata`**")
-    st.info("💡 Please run the extraction process first to generate metadata files.")
+    st.error("🚨 **Geen metadata-bestanden gevonden in `data/00-metadata`**")
+    st.info("💡 Voer eerst het extractieproces uit om metadata-bestanden te genereren.")
 else:
-    st.success(f"✅ **{len(metadata_files)} Bestandsbeschrijving Metadata file(s) found**")
-    st.info("💡 You are able to proceed, even if you have errors - do this with caution!")
+    st.success(f"✅ **{len(metadata_files)} Bestandsbeschrijving-metadata gevonden**")
+    st.info("💡 U kunt doorgaan, ook als er fouten zijn - doe dit met voorzichtigheid!")
     # Side-by-side buttons with equal width
     col1, col2 = st.columns(2)
     
     with col1:
-        validate_clicked = st.button("🛡️ Start Validation", type="primary", use_container_width=True, key="validate_btn")
+        validate_clicked = st.button("🛡️ Start met validatie", type="primary", use_container_width=True, key="validate_btn")
     
     with col2:
         # Check if validation results exist to enable/disable the next page button
@@ -163,7 +163,7 @@ else:
             matching_log_files = glob.glob(os.path.join(logs_dir, "*file_matching_log_latest.json"))
             validation_complete = len(xlsx_log_files) > 0 and len(matching_log_files) > 0
         
-        next_page_clicked = st.button("➡️ Continue to Step 3", type="secondary", disabled=not validation_complete, use_container_width=True, key="next_step_btn")
+        next_page_clicked = st.button("➡️ Ga door naar stap 3", type="secondary", disabled=not validation_complete, use_container_width=True, key="next_step_btn")
     
     # Handle next page button click
     if next_page_clicked:
@@ -174,7 +174,7 @@ else:
     
     # Show validation issues (no tabs, stacked vertically)
     if xlsx_failures:
-        st.warning(f"⚠️ **{len(xlsx_failures)} validation failure(s)** - Check console log below for details or rerun validation") 
+        st.warning(f"⚠️ **{len(xlsx_failures)} validatiefouten** - Bekijk het log hieronder voor details of voer de validatie opnieuw uit") 
     
     # Show file matching issues
     unmatched_input = [f for f in matching_failures if f['type'] == 'Unmatched input file']
@@ -182,7 +182,7 @@ else:
     total_unmatched = len(unmatched_input) + len(unmatched_metadata)
     
     if total_unmatched > 0:
-        st.warning(f"⚠️ **{total_unmatched} unmatched file(s)** - Check console log below for details or rerun validation")
+        st.warning(f"⚠️ **{total_unmatched} niet-gekoppelde bestanden** - Bekijk het log hieronder voor details of voer de validatie opnieuw uit")
     
     # Handle validation logic
     if validate_clicked:
@@ -190,7 +190,7 @@ else:
         clear_console_log()
         st.session_state.validate_console_log = ""
         
-        with st.spinner("Validating..."):
+        with st.spinner("Bezig met valideren..."):
             try:
                 st.session_state.validate_console_log += "🔄 Starting validation process...\n"
                 st.session_state.validate_console_log += "🛡️ Validating metadata files...\n"
@@ -211,21 +211,21 @@ else:
                 st.session_state.validate_console_log += "✅ File matching completed\n"
                 st.session_state.validate_console_log += "🎉 Validation completed successfully!\n"
                 
-                st.success("✅ **Validation completed!** Results saved to `data/00-metadata/logs/`. You can now proceed to the next step.")
+                st.success("✅ **Validatie voltooid!** Resultaten opgeslagen in `data/00-metadata/logs/`. U kunt nu doorgaan naar de volgende stap.")
                 # Rerun to update the next step button state and show new warnings
                 st.rerun()
                 
             except Exception as e:
                 st.session_state.validate_console_log += f"❌ Error: {str(e)}\n"
-                st.error(f"❌ **Validation failed:** {str(e)}")
+                st.error(f"❌ **Validatie mislukt:** {str(e)}")
 
     # Console Log expander
     with st.expander("📋 Console Log", expanded=True):
         if 'validate_console_log' in st.session_state and st.session_state.validate_console_log:
             st.code(st.session_state.validate_console_log, language=None)
         else:
-            st.info("No validation process started yet. Click 'Start Validation' to begin.")
+            st.info("Nog geen validatieproces gestart. Klik op 'Start met validatie' om te beginnen.")
     
     # Warning about existing validation results
     if os.path.exists("data/00-metadata/logs") and os.listdir("data/00-metadata/logs"):
-        st.warning("⚠️ Validation will overwrite existing validation results in `data/00-metadata/logs/`")
+        st.warning("⚠️ Validatie zal bestaande resultaten in `data/00-metadata/logs/` overschrijven")
