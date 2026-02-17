@@ -5,8 +5,8 @@ Code land                                           1             4
 Naam land                                           5            40
 Migratieachtergrond kort                           45             1
 Naam migratieachtergrond kort                      46            12
-Migratieachtergrond lang                           48             2
-Naam migratieachtergrond lang                      50            32
+Migratieachtergrond lang                           58             2
+Naam migratieachtergrond lang                      60            42
 
 Ten behoeve van de decodering van de velden:
 * Geboorteland
@@ -24,8 +24,8 @@ Code nationaliteit                                  1             4
 Omschrijving nationaliteit                          5            50
 Migratieachtergrond kort                           55             1
 Naam migratieachtergrond kort                      56            12
-Migratieachtergrond lang                           58             2
-Naam migratieachtergrond lang                      60            32
+Migratieachtergrond lang                           68             2
+Naam migratieachtergrond lang                      70            32
 
 Ten behoeve van de decodering van de velden:
 * Nationaliteit 1
@@ -53,7 +53,7 @@ Code vooropleiding                                  1             5
 Omschrijving vooropleiding                          6            72
 
 Ten behoeve van de decodering van de velden:
-* Hoogste vooropleiding vóór het HO
+* Hoogste vooropleiding vï¿½ï¿½r het HO
 * Hoogste vooropleiding binnen het HO
 * Hoogste vooropleiding
 
@@ -66,7 +66,7 @@ Onderwijssector                                     6             3
 Omschrijving vooropleiding oorspr. code             9           180
 
 Ten behoeve van de decodering van de velden:
-* Hoogste Vooropleiding vóór het HO oorspr. code
+* Hoogste Vooropleiding vï¿½ï¿½r het HO oorspr. code
 * Hoogste vooropleiding binnen het HO oorspr. code
 
 Mogelijke waarden veld onderwijssector:
@@ -110,7 +110,7 @@ Code denominatie (= richting)                      79             3
 Naam denominatie (= richting)                      82            30
 
 Ten behoeve van de decodering van de velden:
-* Instelling van de hoogste vooropl. vóór het HO
+* Instelling van de hoogste vooropl. vï¿½ï¿½r het HO
 * Instelling van de hoogste vooropleiding
 
 Opmerking: In deze tabel staan alle instellingscodes die in de diverse incarnaties van
@@ -132,7 +132,7 @@ Code denominatie (= richting)                      81             3
 Naam denominatie (= richting)                      84            30
 
 Ten behoeve van de decodering van de velden:
-* Instellingscode + Vestigingsnummer van de hoogste vooropl. vóór het HO
+* Instellingscode + Vestigingsnummer van de hoogste vooropl. vï¿½ï¿½r het HO
 
 Opmerking: In deze tabel staan alle vestigingscodes die in de diverse
 incarnaties van RIO hebben bestaan. Het huidige RIO bevat alleen instellingen
@@ -184,7 +184,7 @@ Gemeentenaam per 1 januari 2024                    10            36
 
 Ten behoeve van de vertaling naar gemeentecode van de velden:
 * Postcodecijfers student op 1 oktober
-* Postcodecijfers van de hoogste vooropl. vóór het HO
+* Postcodecijfers van de hoogste vooropl. vï¿½ï¿½r het HO
 
 
 Dec_postcodecijfers_2025.asc
@@ -197,7 +197,7 @@ Gemeentenaam per 1 januari 2025                    10            36
 
 Ten behoeve van de vertaling naar gemeentecode van de velden:
 * Postcodecijfers student op 1 oktober
-* Postcodecijfers van de hoogste vooropl. vóór het HO
+* Postcodecijfers van de hoogste vooropl. vï¿½ï¿½r het HO
 
 
 Dec_ho_ISCED.asc
