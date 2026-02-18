@@ -1,5 +1,9 @@
-import streamlit as st
+import polars as pl
 import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
+from backend.core import decoder
+import streamlit as st
 import glob
 import subprocess
 import backend.utils.converter_validation as cv
@@ -126,8 +130,9 @@ What happens:
 - Delimiter: Semicolon ; Encoding: Latin-1
 - Validate the conversion results for accuracy
 - Compress CSV files to efficient Parquet format
-- Encrypt sensitive data in a copy of the main files (xxx_encrypted) 
+- Encrypt sensitive data in a copy of the main files (xxx_encrypted)
 - Adds snake_case headers to final files
+- **Decodes main EV* and VAKHAVW* files using Dec_* tables and appends decoded columns (see _decoded.csv files)**
 - Save all processed files to `data/02-output/` + Balloons 🎈 when done!
 
 If any step fails, check the log below for details about which files had issues.
@@ -215,6 +220,62 @@ else:
                 st.session_state.convert_console_log += "✅ File conversion completed\n"
                 update_console()
                 progress_bar.progress(30)
+
+                # --- Decoding step for EV* and VAKHAVW* files ---
+                st.session_state.convert_console_log += "🔤 Step 3b: Decoding main files (EV*, VAKHAVW*)...\n"
+                update_console()
+                dec_json = os.path.join("data/00-metadata/json/Bestandsbeschrijving_Dec-bestanden_DEMO.json")
+                dec_dir = "data/02-output"
+                decoded_count = 0
+                for file in os.listdir(dec_dir):
+                    if (file.startswith("EV") or file.startswith("VAKHAVW")) and file.endswith(".csv") and not file.endswith("_decoded.csv"):
+                        file_path = os.path.join(dec_dir, file)
+                        try:
+                            main_df = pl.read_csv(file_path, separator=';')
+                            dec_tables = decoder.load_dec_tables_from_metadata(dec_json, dec_dir)
+                            def snake_case(name):
+                                import re
+                                name = name.lower()
+                                name = re.sub(r'[^a-z0-9]+', '_', name)
+                                name = re.sub(r'_+', '_', name).strip('_')
+                                return name
+                            decoded_df = decoder.decode_fields(main_df, dec_json, dec_tables, naming_func=snake_case)
+                            # Debug: print shape and columns before writing
+                            st.session_state.convert_console_log += f"[debug] Decoded DataFrame for {file}: shape={decoded_df.shape}, columns={decoded_df.columns}\n"
+                            update_console()
+                            # If empty, print join keys for diagnosis
+                            if decoded_df.shape[0] == 0:
+                                st.session_state.convert_console_log += f"[debug] Decoded DataFrame for {file} is EMPTY!\n"
+                                st.session_state.convert_console_log += f"[debug] Main DataFrame columns: {main_df.columns}\n"
+                                st.session_state.convert_console_log += f"[debug] Main DataFrame first 5 rows:\n{main_df.head(5)}\n"
+                                update_console()
+                            # Write decoded file with debug messages before and after
+                            decoded_file = file_path.replace('.csv', '_decoded.csv')
+                            st.session_state.convert_console_log += f"[debug] Attempting to write decoded CSV: {decoded_file} (shape={decoded_df.shape})\n"
+                            update_console()
+                            try:
+                                decoded_df.write_csv(decoded_file, separator=';')
+                                st.session_state.convert_console_log += f"[debug] Successfully wrote decoded CSV: {decoded_file} (size={os.path.getsize(decoded_file)} bytes)\n"
+                            except Exception as e:
+                                st.session_state.convert_console_log += f"[debug] Failed to write decoded CSV: {decoded_file} ({e})\n"
+                            update_console()
+                            # Also write decoded Parquet file directly
+                            decoded_parquet = file_path.replace('.csv', '_decoded.parquet')
+                            st.session_state.convert_console_log += f"[debug] Attempting to write decoded Parquet: {decoded_parquet} (shape={decoded_df.shape})\n"
+                            update_console()
+                            try:
+                                decoded_df.write_parquet(decoded_parquet)
+                                st.session_state.convert_console_log += f"[debug] Successfully wrote decoded Parquet: {decoded_parquet} (size={os.path.getsize(decoded_parquet)} bytes)\n"
+                            except Exception as e:
+                                st.session_state.convert_console_log += f"[debug] Failed to write decoded Parquet: {decoded_parquet} ({e})\n"
+                            update_console()
+                            decoded_count += 1
+                        except Exception as e:
+                            st.session_state.convert_console_log += f"Warning: Decoding failed for {file}: {e}\n"
+                            update_console()
+                st.session_state.convert_console_log += f"✅ Decoding completed for {decoded_count} file(s)\n"
+                update_console()
+                progress_bar.progress(40)
                 
                 # Step 4: Validate Conversion
                 status_text.text("🔍 Step 4: Validating conversion results...")
@@ -277,20 +338,26 @@ else:
                         st.write("**Files successfully created in `data/02-output/`:**")
                         
                         # Group files by type for better organization
-                        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv')]
+                        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv') and not f['name'].endswith('_decoded.csv')]
+                        decoded_files = [f for f in output_files if f['name'].endswith('_decoded.csv')]
                         parquet_files = [f for f in output_files if f['name'].endswith('.parquet')]
                         encrypted_files = [f for f in output_files if f['name'].endswith('_encrypted.csv')]
-                        
+
                         if csv_files:
                             st.write("**📄 CSV Files (Converted):**")
                             for file in csv_files:
                                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
-                        
+
+                        if decoded_files:
+                            st.write("**🔤 Decoded Files (Main files with decoded columns):**")
+                            for file in decoded_files:
+                                st.write(f"• `{file['name']}` ({file['size_formatted']})")
+
                         if parquet_files:
                             st.write("**🗜️ Parquet Files (Compressed):**")
                             for file in parquet_files:
                                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
-                        
+
                         if encrypted_files:
                             st.write("**🔒 Encrypted Files (Final):**")
                             for file in encrypted_files:

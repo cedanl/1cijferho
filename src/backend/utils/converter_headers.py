@@ -72,7 +72,14 @@ def convert_csv_headers_to_snake_case(
 
             # Strip accents from column names (e.g., 'vóór' -> 'voor')
             df_cleaned = df_cleaned.rename({col: strip_accents(col) for col in df_cleaned.columns})
-            
+
+            # --- Clean all string columns for latin-1 compatibility ---
+            try:
+                from backend.core.decoder import clean_for_latin1
+                df_cleaned = clean_for_latin1(df_cleaned)
+            except Exception as e:
+                console.print(f"  [yellow]Warning: Could not apply clean_for_latin1: {e}[/yellow]")
+
             # Get new column names
             new_columns = df_cleaned.columns
             

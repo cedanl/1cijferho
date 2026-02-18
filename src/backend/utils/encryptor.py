@@ -44,7 +44,9 @@ def encryptor(input_dir="data/02-output", output_dir="data/02-output"):
                 
                 # Create output filename with _encrypted suffix
                 output_file = output_path / f"{csv_file.stem}_encrypted.csv"
-                
+                # Clean for latin-1 compatibility before writing
+                from backend.core.decoder import clean_for_latin1
+                df = clean_for_latin1(df)
                 df.write_csv(output_file, separator=";")
                 console.print(f"[green]✓[/] Encrypted {len(columns_found)} columns in {csv_file.name}")
             else:
