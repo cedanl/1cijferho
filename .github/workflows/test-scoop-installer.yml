@@ -186,34 +186,38 @@ jobs:
 
           # Test if the main module can be imported
           Write-Host "Testing Python imports..." -ForegroundColor Yellow
-          $testImport = @"
+
+          # Create a temporary Python test script
+          $testScript = @'
 import sys
 import importlib.util
 
-print('Python path:', sys.executable)
-print('Testing imports...')
+print("Python path:", sys.executable)
+print("Testing imports...")
 
 # Test streamlit import
 try:
     import streamlit
-    print('✓ streamlit imported successfully')
+    print("✓ streamlit imported successfully")
 except Exception as e:
-    print(f'✗ Failed to import streamlit: {e}')
+    print(f"✗ Failed to import streamlit: {e}")
     sys.exit(1)
 
 # Check if main.py exists and can be accessed
 import os
-if os.path.exists('src/main.py'):
-    print('✓ src/main.py exists')
+if os.path.exists("src/main.py"):
+    print("✓ src/main.py exists")
 else:
-    print('✗ src/main.py not found')
+    print("✗ src/main.py not found")
     sys.exit(1)
 
-print('✓ All imports successful')
-"@
+print("✓ All imports successful")
+'@
+
+          $testScript | Out-File -FilePath "test_imports.py" -Encoding utf8
 
           try {
-            $testImport | uv run python -
+            uv run python test_imports.py
             if ($LASTEXITCODE -eq 0) {
               Write-Host "✓ Application imports verified" -ForegroundColor Green
             } else {
@@ -223,6 +227,8 @@ print('✓ All imports successful')
           } catch {
             Write-Host "✗ Failed to test imports: $_" -ForegroundColor Red
             exit 1
+          } finally {
+            Remove-Item -Path "test_imports.py" -ErrorAction SilentlyContinue
           }
           Write-Host ""
 
