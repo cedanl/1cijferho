@@ -230,7 +230,7 @@ else:
                     if (file.startswith("EV") or file.startswith("VAKHAVW")) and file.endswith(".csv") and not file.endswith("_decoded.csv"):
                         file_path = os.path.join(dec_dir, file)
                         try:
-                            main_df = pl.read_csv(file_path, separator=';')
+                            main_df = pl.read_csv(file_path, separator=';', encoding='latin1')
                             dec_tables = decoder.load_dec_tables_from_metadata(dec_json, dec_dir)
                             def snake_case(name):
                                 import re
@@ -253,7 +253,13 @@ else:
                             st.session_state.convert_console_log += f"[debug] Attempting to write decoded CSV: {decoded_file} (shape={decoded_df.shape})\n"
                             update_console()
                             try:
-                                decoded_df.write_csv(decoded_file, separator=';')
+                                # Write decoded CSV using a string buffer, then write to file with encoding='utf-8' (like originals)
+                                import io
+                                csv_buffer = io.StringIO()
+                                decoded_df.write_csv(csv_buffer, separator=';')
+                                csv_content = csv_buffer.getvalue()
+                                with open(decoded_file, 'w', encoding='latin1', newline='') as f_out:
+                                    f_out.write(csv_content)
                                 st.session_state.convert_console_log += f"[debug] Successfully wrote decoded CSV: {decoded_file} (size={os.path.getsize(decoded_file)} bytes)\n"
                             except Exception as e:
                                 st.session_state.convert_console_log += f"[debug] Failed to write decoded CSV: {decoded_file} ({e})\n"
