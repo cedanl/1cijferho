@@ -119,23 +119,22 @@ st.session_state.page_initialized_convert = True
 # -----------------------------------------------------------------------------
 st.title("⚡ Turbo Convert")
 
-# Intro text
+# Introductie
 st.write("""
-**Step 3: Final Converting & Processing Data**
+**Stap 3: Data omzetten en verwerken**
 
-We'll now use the validated metadata to convert your main/dec files through a complete processing pipeline. This transforms your fixed-width data into encrypted, compressed, ready-to-use files.
+We gebruiken de gevalideerde metadata om je hoofd- en dec-bestanden om te zetten. Je vaste-breedte data wordt zo omgezet naar veilige, gecomprimeerde en direct bruikbare bestanden.
 
-What happens:
-- Convert fixed-width files to CSV format using validated field positions
-- Delimiter: Semicolon ; Encoding: Latin-1
-- Validate the conversion results for accuracy
-- Compress CSV files to efficient Parquet format
-- Encrypt sensitive data in a copy of the main files (xxx_encrypted)
-- Adds snake_case headers to final files
-- **Decodes main EV* and VAKHAVW* files using Dec_* tables and appends decoded columns (see _decoded.csv files)**
-- Save all processed files to `data/02-output/` + Balloons 🎈 when done!
+Wat gebeurt er:
+- Bestanden omzetten naar CSV met de juiste velden
+- Scheidingsteken: puntkomma ; Codering: Latin-1
+- Resultaten controleren op fouten
+- CSV-bestanden comprimeren naar Parquet
+- Gevoelige gegevens versleutelen in een kopie (xxx_encrypted)
+- snake_case kolomnamen toevoegen
+- Alles opslaan in `data/02-output/` + ballonnen 🎈 als het klaar is!
 
-If any step fails, check the log below for details about which files had issues.
+Gaat er iets mis? Kijk dan hieronder in het log voor details.
 """)
 
 # Get files and display status
@@ -143,31 +142,31 @@ successful_pairs, skipped_pairs = get_matched_files()
 total_pairs = len(successful_pairs) + len(skipped_pairs)
 
 if total_pairs == 0:
-    st.error("🚨 **No matched files found**")
-    st.info("💡 Please run the validation process first to ensure your files are ready for conversion.")
+    st.error("🚨 **Geen gekoppelde bestanden gevonden**")
+    st.info("💡 Voer eerst de validatie uit zodat je bestanden klaar zijn voor conversie.")
 else:
-    st.success(f"✅ **{len(successful_pairs)} file pair(s) ready for conversion** ({len(skipped_pairs)} skipped validation)")
+    st.success(f"✅ **{len(successful_pairs)} bestandparen klaar voor conversie** ({len(skipped_pairs)} overgeslagen validatie)")
     
     # Show file pairs in compact expander - closed by default
     if successful_pairs or skipped_pairs:
-        with st.expander(f"📁 File Details ({len(successful_pairs)} ready, {len(skipped_pairs)} skipped)", expanded=False):
-            tab1, tab2 = st.tabs([f"✅ Ready ({len(successful_pairs)})", f"❌ Skipped ({len(skipped_pairs)})"])
+        with st.expander(f"📁 Bestanddetails ({len(successful_pairs)} klaar, {len(skipped_pairs)} overgeslagen)", expanded=False):
+            tab1, tab2 = st.tabs([f"✅ Klaar ({len(successful_pairs)})", f"❌ Overgeslagen ({len(skipped_pairs)})"])
             
             with tab1:
                 if successful_pairs:
-                    st.write("**Files ready for conversion:**")
+                    st.write("**Bestanden klaar voor conversie:**")
                     for pair in successful_pairs:
-                        st.write(f"• `{pair['input_file']}` ({pair['rows']:,} rows)")
+                        st.write(f"• `{pair['input_file']}` ({pair['rows']:,} rijen)")
                 else:
-                    st.info("No files ready for conversion.")
+                    st.info("Geen bestanden klaar voor conversie.")
             
             with tab2:
                 if skipped_pairs:
-                    st.write("**Files with validation failures - check 🛡️ Validate Metadata + logs (3) & (4) for details :**")
+                    st.write("**Bestanden met validatiefouten - kijk bij 🛡️ Metadata valideren + logs (3) & (4) voor details:**")
                     for pair in skipped_pairs:
-                        st.write(f"• `{pair['input_file']}` ({pair['rows']:,} rows)")
+                        st.write(f"• `{pair['input_file']}` ({pair['rows']:,} rijen)")
                 else:
-                    st.info("No validation failures.")
+                    st.info("Geen validatiefouten.")
     
     # Centered button - only show if there are successful pairs
     if successful_pairs:
@@ -200,16 +199,16 @@ else:
                     if st.session_state.convert_console_log:
                         st.code(st.session_state.convert_console_log, language=None)
                     else:
-                        st.info("Starting conversion process...")
+                        st.info("Start conversie process...")
             
             try:
-                st.session_state.convert_console_log += "🔄 Starting conversion pipeline...\n"
+                st.session_state.convert_console_log += "🔄 Start conversie pipeline...\n"
                 update_console()
                 progress_bar.progress(10)
-                status_text.text("⚡ Step 3: Converting fixed-width files...")
+                status_text.text("⚡ Stap 3: Converting fixed-width files...")
                 
                 # Step 3: Convert Files
-                st.session_state.convert_console_log += "⚡ Step 3: Converting fixed-width files...\n"
+                st.session_state.convert_console_log += "⚡ Stap 3: Converting fixed-width files...\n"
                 update_console()
                 result = subprocess.run(["uv", "run", "src/backend/core/converter.py"], 
                                       capture_output=True, text=True, cwd=".")
@@ -278,8 +277,8 @@ else:
                 progress_bar.progress(40)
                 
                 # Step 4: Validate Conversion
-                status_text.text("🔍 Step 4: Validating conversion results...")
-                st.session_state.convert_console_log += "🔍 Step 4: Validating conversion results...\n"
+                status_text.text("🔍 Stap 4: Validating conversion results...")
+                st.session_state.convert_console_log += "🔍 Stap 4: Validating conversion results...\n"
                 update_console()
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
@@ -290,8 +289,8 @@ else:
                 progress_bar.progress(50)
                 
                 # Step 5: Run Compressor
-                status_text.text("🗜️ Step 5: Compressing to Parquet format...")
-                st.session_state.convert_console_log += "🗜️ Step 5: Compressing to Parquet format...\n"
+                status_text.text("🗜️ Stap 5: Compressing to Parquet format...")
+                st.session_state.convert_console_log += "🗜️ Stap 5: Compressing to Parquet format...\n"
                 update_console()
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
@@ -302,40 +301,40 @@ else:
                 progress_bar.progress(75)
 
                 # Step 6: Run Encryptor
-                status_text.text("🔒 Step 6: Encrypting final files...")
-                st.session_state.convert_console_log += "🔒 Step 6: Encrypting final files...\n"
+                status_text.text("🔒 Stap 6: Encrypting final files...")
+                st.session_state.convert_console_log += "🔒 Stap 6: Encrypting final files...\n"
                 update_console()
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
                     en.encryptor()
                 st.session_state.convert_console_log += captured_output.getvalue()
-                st.session_state.convert_console_log += "✅ Encryption completed\n"
-                st.session_state.convert_console_log += "🎉 Complete processing pipeline finished successfully!\n"
+                st.session_state.convert_console_log += "✅ Encryptie afgerond\n"
+                st.session_state.convert_console_log += "🎉 Complete processing pipeline succesvol afgerond!\n"
                 update_console()
                 progress_bar.progress(90)
                 
                 # Step 7: Run Converter Headers (snake_case)
-                status_text.text("🔨 Step 6: Converting headers to snake_case...")
-                st.session_state.convert_console_log += "🔨 Step 6: Converting headers to snake_case...\n"
+                status_text.text("🔨 Stap 7: Converteer headers naar snake_case...")
+                st.session_state.convert_console_log += "🔨 Stap 7: Converteer headers naar snake_case...\n"
                 update_console()
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
                     ch.convert_csv_headers_to_snake_case()
                 st.session_state.convert_console_log += captured_output.getvalue()
-                st.session_state.convert_console_log += "✅ Header conversion completed\n"
+                st.session_state.convert_console_log += "✅ Header conversie afgerond\n"
                 update_console()
                 progress_bar.progress(100)
 
 
-                status_text.text("✅ Processing completed successfully!")
+                status_text.text("✅ Verwerking succesvol voltooid!")
                 
-                st.success("✅ **Processing completed!** Files converted, validated, compressed, and encrypted. Results saved to `data/02-output/`")
+                st.success("✅ **Verwerking voltooid!** Bestanden geconverteerd, gevalideerd, gecomprimeerd en versleuteld. Resultaten opgeslagen in `data/02-output/`")
                 
                 # Show converted files
                 output_files = get_output_files()
                 if output_files:
                     with st.expander(f"📁 Converted Files ({len(output_files)} files)", expanded=True):
-                        st.write("**Files successfully created in `data/02-output/`:**")
+                        st.write("**Bestanden succesvol aangemaakt in `data/02-output/`:**")
                         
                         # Group files by type for better organization
                         csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv') and not f['name'].endswith('_decoded.csv')]
@@ -344,7 +343,7 @@ else:
                         encrypted_files = [f for f in output_files if f['name'].endswith('_encrypted.csv')]
 
                         if csv_files:
-                            st.write("**📄 CSV Files (Converted):**")
+                            st.write("**📄 CSV-bestanden (geconverteerd):**")
                             for file in csv_files:
                                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
 
@@ -354,12 +353,12 @@ else:
                                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
 
                         if parquet_files:
-                            st.write("**🗜️ Parquet Files (Compressed):**")
+                            st.write("**🗜️ Parquet-bestanden (gecomprimeerd):**")
                             for file in parquet_files:
                                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
 
                         if encrypted_files:
-                            st.write("**🔒 Encrypted Files (Final):**")
+                            st.write("**🔒 Versleutelde bestanden (definitief):**")
                             for file in encrypted_files:
                                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
                 
@@ -380,26 +379,26 @@ else:
                 st.session_state.convert_console_log += f"❌ Error: {str(e)}\n"
                 update_console()
                 progress_bar.progress(0)
-                status_text.text("❌ Processing failed")
-                st.error(f"❌ **Processing failed:** {str(e)}")
+                status_text.text("❌ Verwerking mislukt")
+                st.error(f"❌ **Verwerking mislukt:** {str(e)}")
     else:
-        st.warning("⚠️ No files ready for conversion. Please check validation results.")
+        st.warning("⚠️ Geen bestanden klaar voor conversie. Controleer de validatieresultaten.")
 
 # Console Log expander
 with st.expander("📋 Console Log", expanded=True):
-    st.caption("💡 Note: Messages like 'Could not determine dtype for column X, falling back to string' are harmless - just a quirk of the Polars Excel library.")
+    st.caption("💡 Let op: Meldingen zoals 'Could not determine dtype for column X, falling back to string' zijn onschuldig - dit is een eigenaardigheid van de Polars Excel-bibliotheek.")
     if 'convert_console_log' in st.session_state and st.session_state.convert_console_log:
         st.code(st.session_state.convert_console_log, language=None)
     else:
-        st.info("No conversion process started yet. Click 'Start Turbo Convert' to begin.")
+        st.info("Nog geen conversieproces gestart. Klik op 'Start Turbo Conversie' om te beginnen.")
 
 
 
 # Show existing converted files (if any)
 output_files = get_output_files()
 if output_files:
-    with st.expander(f"📁 Converted Files ({len(output_files)} files)", expanded=False):
-        st.write("**Files currently in `data/02-output/`:**")
+    with st.expander(f"📁 Geconverteerde bestanden ({len(output_files)} files)", expanded=False):
+        st.write("**Bestanden momenteel in `data/02-output/`:**")
         
         # Group files by type for better organization
         csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv')]
@@ -407,23 +406,23 @@ if output_files:
         encrypted_files = [f for f in output_files if f['name'].endswith('_encrypted.csv')]
         
         if csv_files:
-            st.write("**📄 CSV Files (Converted):**")
+            st.write("**📄 CSV-bestanden (geconverteerd):**")
             for file in csv_files:
                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
         
         if parquet_files:
-            st.write("**🗜️ Parquet Files (Compressed):**")
+            st.write("**🗜️ Parquet-bestanden (gecomprimeerd):**")
             for file in parquet_files:
                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
         
         if encrypted_files:
-            st.write("**🔒 Encrypted Files (Final):**")
+            st.write("**🔒 Versleutelde bestanden (definitief):**")
             for file in encrypted_files:
                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
         
 else:
-    st.info("📁 No converted files found in `data/02-output/` yet.")
+    st.info("📁 Nog geen geconverteerde bestanden gevonden in `data/02-output/`.")
 
 # Warning about existing files
 if os.path.exists("data/02-output") and os.listdir("data/02-output"):
-    st.warning("⚠️ New conversion will overwrite existing files in `data/02-output/`")
+    st.warning("⚠️ Nieuwe conversie zal bestaande bestanden in `data/02-output/` overschrijven")

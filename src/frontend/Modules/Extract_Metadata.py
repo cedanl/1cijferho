@@ -56,43 +56,43 @@ def get_bestandsbeschrijvingen():
 # -----------------------------------------------------------------------------
 # Main Content
 # -----------------------------------------------------------------------------
-st.title("🔍 Extract Metadata")
+st.title("🔍 Metadata extraheren")
 
 # Intro text
 st.write("""
-**Step 1: Extracting Data Structure**
+**Stap 1: Structuur van data extraheren**
 
-We'll now read your Bestandsbeschrijving files to find where each field is positioned in your main/dec files. This creates the "map" we need to properly split your fixed-width data.
-       
-What happens:
-- Extract field positions from your .txt files
-- Convert to JSON format, then Excel
-- Save to `data/00-metadata/` folder
+We lezen nu uw Bestandsbeschrijving-bestanden om te bepalen waar elk veld staat in uw hoofd- en dec-bestanden. Dit vormt de "kaart" die nodig is om uw vaste-breedte data correct te splitsen.
+
+Wat gebeurt er:
+- Veldposities extraheren uit uw .txt-bestanden
+- Omzetten naar JSON-formaat, daarna Excel
+- Opslaan in de map `data/00-metadata/`
 """)
 
-with st.expander("🚨 Existing Bestandbeschrijvingen"):
+with st.expander("🚨 Bestaande Bestandbeschrijvingen"):
     st.markdown("""
-    If you have received delimited Bestandbeschrijving files, please paste them in `data/00-metadata/` 
-    and continue to step 2. Do not run `start extraction`, the existing files will be overwritten.
+    Heeft u reeds gestructureerde Bestandbeschrijving-bestanden ontvangen? Plaats deze dan in `data/00-metadata/` 
+    en ga door naar stap 2. Voer niet `start extraction` uit, want bestaande bestanden worden overschreven.
                 
-    Please make sure to rename the files to match the input files, like `Dec_land_naar_herkomstindikking.asc.xlsx` 
-    with the columns `Startpositie`, `Aantal posities` and `Opmerking`."
+    Zorg ervoor dat de bestandsnamen overeenkomen met de inputbestanden, bijvoorbeeld `Dec_land_naar_herkomstindikking.asc.xlsx` 
+    met de kolommen `Startpositie`, `Aantal posities` en `Opmerking`.
     """)
 
 # Get files and display status
 bestandsbeschrijvingen = get_bestandsbeschrijvingen()
 
 if not bestandsbeschrijvingen:
-    st.error("🚨 **No Bestandsbeschrijving files found in `data/01-input`**")
+    st.error("🚨 **Geen Bestandsbeschrijving-bestanden gevonden in `data/01-input`**")
 else:
-    st.success(f"✅ **{len(bestandsbeschrijvingen)} Bestandsbeschrijving file(s) found**")
-    st.info("💡 You are able to proceed, even with errors - do this with caution!")
+    st.success(f"✅ **{len(bestandsbeschrijvingen)} Bestandsbeschrijving-bestanden gevonden**")
+    st.info("💡 U kunt doorgaan, ook als er fouten zijn - doe dit met voorzichtigheid!")
     
     # Side-by-side buttons with equal width
     col1, col2 = st.columns(2)
     
     with col1:
-        extract_clicked = st.button("🔍 Start Extraction", type="primary", use_container_width=True)
+        extract_clicked = st.button("🔍 Start met extraheren", type="primary", use_container_width=True)
     
     with col2:
         # Check if metadata exists to enable/disable the validate button
@@ -104,7 +104,7 @@ else:
             xlsx_processing_log_files = glob.glob(os.path.join(logs_dir, "*xlsx_processing_log_latest.json"))
             extraction_complete = len(xlsx_processing_log_files) > 0
         
-        validate_clicked = st.button("➡️ Continue to Step 2", type="secondary", disabled=not extraction_complete, use_container_width=True)
+        validate_clicked = st.button("➡️ Ga door naar stap 2", type="secondary", disabled=not extraction_complete, use_container_width=True)
     
     # Handle validate button click
     if validate_clicked:
@@ -115,7 +115,7 @@ else:
         # Reset console log at the start of each extraction
         st.session_state.extract_console_log = ""
         
-        with st.spinner("Extracting..."):
+        with st.spinner("Bezig met extraheren..."):
             try:
                 st.session_state.extract_console_log += "🔄 Starting extraction process...\n"
                 
@@ -145,22 +145,22 @@ else:
                 st.session_state.extract_console_log += "✅ JSON conversion completed\n"
                 st.session_state.extract_console_log += "🎉 Extraction completed successfully!\n"
                 
-                st.success("✅ **Extraction completed!** Files saved to `data/00-metadata/`, Logs saved to `data/00-metadata/logs/`, You can now validate the metadata.")
+                st.success("✅ **Extractie voltooid!** Bestanden opgeslagen in `data/00-metadata/`, logs in `data/00-metadata/logs/`. U kunt nu de metadata valideren.")
                 
                 # Rerun to update the validate button state
                 st.rerun()
                 
             except Exception as e:
                 st.session_state.extract_console_log += f"❌ Error: {str(e)}\n"
-                st.error(f"❌ **Extraction failed:** Logs saved to `data/00-metadata/logs/` {str(e)}")
+                st.error(f"❌ **Extractie mislukt:** Logs opgeslagen in `data/00-metadata/logs/` {str(e)}")
 
     # Console Log expander
     with st.expander("📋 Console Log", expanded=True):
         if 'extract_console_log' in st.session_state and st.session_state.extract_console_log:
             st.code(st.session_state.extract_console_log, language=None)
         else:
-            st.info("No extraction process started yet. Click 'Start Extraction' to begin.")
+            st.info("Nog geen extractieproces gestart. Klik op 'Start met extraheren' om te beginnen.")
     
     # Warning about existing files
     if os.path.exists("data/00-metadata") and os.listdir("data/00-metadata"):
-        st.warning("⚠️ Extraction will overwrite existing files in `data/00-metadata/`")
+        st.warning("⚠️ Extractie zal bestaande bestanden in `data/00-metadata/` overschrijven")

@@ -62,44 +62,43 @@ def categorize_files():
 # Header Section
 # -----------------------------------------------------------------------------
 # Main header and subtitle
-st.title("📂 Data Upload")
+st.title("📂 Bestanden uploaden")
 st.write("""
-Follow these steps to get started:
+Volg deze stappen om te beginnen:
 
-1. **Copy your 1CHO files** to the `data/01-input` directory of this repository
-2. **Place files directly** in the folder (not in subfolders)
-3. **Refresh this page** to see your uploaded files categorized by type
+1. **Kopieer uw 1CHO-bestanden** naar de map `data/01-input` van deze applicatie
+2. **Plaats bestanden direct** in de map (niet in submappen)
+3. **Ververs deze pagina** om uw geüploade bestanden per type te bekijken
 """)
 
 # Side-by-side buttons for refresh and extract
 col1, col2 = st.columns(2)
 
 with col1:
-    if st.button("🔄 Refresh Page", type="primary", use_container_width=True):
+    if st.button("🔄 Pagina verversen", type="primary", use_container_width=True):
         st.rerun()
 
 with col2:
     # Check if files exist to enable/disable the extract button
     files_found, _, _ = categorize_files()
     
-    if st.button("➡️ Continue to Step 1", type="secondary", disabled=not files_found, use_container_width=True):
+    if st.button("➡️ Ga door naar stap 1", type="secondary", disabled=not files_found, use_container_width=True):
         st.switch_page("frontend/Modules/Extract_Metadata.py")
 
 # -----------------------------------------------------------------------------
 # Example Directory Structure
 # -----------------------------------------------------------------------------
-with st.expander("📂 View Example Directory Structure"):
+with st.expander("📂 Voorbeeld mapstructuur"):
     st.write("""
-    ### Example Directory Structure
+    ### Voorbeeld mapstructuur
     
-    Your `data/01-input` folder should look similar to the structure shown below. 
-    Files will be automatically categorized into three types:
+    Uw `data/01-input` map moet eruitzien zoals hieronder. Bestanden worden automatisch ingedeeld in drie types:
     
-    - **📄 Bestandsbeschrijvingen**: .txt files containing "bestandsbeschrijving" in the name
-    - **🔓 Decodeer Files**: Files starting with "Dec_"
-    - **📊 Main Files**: Files starting with "EV", "VAKHAVW", "Croho", or "Croho_vest"
+    - **📄 Bestandsbeschrijvingen**: .txt-bestanden met "bestandsbeschrijving" in de naam
+    - **🔓 Decodeerbestanden**: Bestanden die beginnen met "Dec_"
+    - **📊 Hoofdbestanden**: Bestanden die beginnen met "EV", "VAKHAVW", "Croho" of "Croho_vest"
     
-    **Important:** Place files directly in the `data/01-input` folder, not in subfolders.
+    **Belangrijk:** Plaats bestanden direct in de map `data/01-input`, niet in submappen.
     """)
     
     # Path to the image (if it exists)
@@ -113,15 +112,15 @@ files_found, categorized_files, total_files = categorize_files()
 
 if not files_found:
     st.error("""
-    🚨 **No files found in `data/01-input` directory**
+    🚨 **Geen bestanden gevonden in de map `data/01-input`**
     
-    Please copy your unzipped 1CHO files to the `data/01-input` directory and refresh this page.
+    Kopieer uw uitgepakte 1CHO-bestanden naar de map `data/01-input` en ververs deze pagina.
     """)
 else:
     st.success(f"""
-    ✅ **{total_files} files detected in `data/01-input` directory**
+    ✅ **{total_files} bestanden gevonden in de map `data/01-input`**
     
-    Files have been automatically categorized by type. Review the categories below to ensure all expected files are present.
+    Bestanden zijn automatisch ingedeeld per type. Controleer hieronder of alle verwachte bestanden aanwezig zijn.
     """)
 
     st.markdown("---")
@@ -130,37 +129,37 @@ else:
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.markdown("#### 📄 Beschrijvingen")
+        st.markdown("#### 📄 Bestandsbeschrijvingen")
         count = len(categorized_files["bestandsbeschrijvingen"])
         st.metric("Count", count)
         
         if count > 0:
-            with st.expander(f"View {count} files"):
+            with st.expander(f"Bekijk {count} bestanden"):
                 for filename in categorized_files["bestandsbeschrijvingen"]:
                     st.write(f"• `{filename}`")
         else:
-            st.info("No files found")
+            st.info("Geen bestanden gevonden")
     
     with col2:
-        st.markdown("#### 🔓 Decodeer Files")
+        st.markdown("#### 🔓 Decodeerbestanden")
         count = len(categorized_files["decodeer_files"])
         st.metric("Count", count)
         
         if count > 0:
-            with st.expander(f"View {count} files"):
+            with st.expander(f"Bekijk {count} bestanden"):
                 for filename in categorized_files["decodeer_files"]:
                     st.write(f"• `{filename}`")
         else:
-            st.info("No files found")
+            st.info("Geen bestanden gevonden")
     
     with col3:
-        st.markdown("#### 📊 Main Files")
+        st.markdown("#### 📊 Hoofdbestanden")
         count = len(categorized_files["main_files"])
         st.metric("Count", count)
         
         if count > 0:
-            with st.expander(f"View {count} files"):
+            with st.expander(f"Bekijk {count} bestanden"):
                 for filename in categorized_files["main_files"]:
                     st.write(f"• `{filename}`")
         else:
-            st.info("No files found")
+            st.info("Geen bestanden gevonden")

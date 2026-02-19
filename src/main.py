@@ -39,9 +39,9 @@ def show_demo_notifications():
     if demo_exists:
         # Sidebar (persistent)
         with st.sidebar:
-            st.warning("🎯 **Demo Mode Active**", icon="⚠️")
-            st.write(f"{len(demo_files)} demo files active ")
-            st.error("⚠️ Ready for your own data? Remove all *_DEMO files from `data/01-input/`")
+            st.warning("🎯 **Demo modus actief**", icon="⚠️")
+            st.write(f"{len(demo_files)} demo-bestanden actief")
+            st.error("⚠️ Klaar om uw eigen data te gebruiken? Verwijder alle *_DEMO bestanden uit `data/01-input/`.")
         
         return True
     return False
@@ -74,21 +74,21 @@ def show_version_notification():
     
     if version_info and not version_info["is_latest"]:
         with st.sidebar:
-            st.info(f"🔄 Update: `{version_info['local_version']}` → `{version_info['latest_version']}`")
-            st.link_button("⬇️ Download", "https://github.com/cedanl/1cijferho/releases/latest", use_container_width=True)
+            st.info(f"🔄 Update beschikbaar: `{version_info['local_version']}` → `{version_info['latest_version']}`")
+            st.link_button("⬇️ Download nieuwste versie", "https://github.com/cedanl/1cijferho/releases/latest", use_container_width=True)
         return True
     return False
 # -----------------------------------------------------------------------------
 # Pages Overview - YOU CAN ADD MORE PAGES HERE
 # -----------------------------------------------------------------------------
-home_page = st.Page("frontend/Overview/Home.py", icon="🏠", title="Home")
-documentation_page = st.Page("frontend/Overview/Documentation.py", icon="📚", title="Documentation")
+home_page = st.Page("frontend/Overview/Home.py", icon="🏠", title="Startpagina")
+documentation_page = st.Page("frontend/Overview/Documentation.py", icon="📚", title="Documentatie")
 
-data_upload_page = st.Page("frontend/Files/Upload_Data.py", icon="📁", title="Upload Data")
+data_upload_page = st.Page("frontend/Files/Upload_Data.py", icon="📁", title="Bestanden uploaden")
 
-extract_page = st.Page("frontend/Modules/Extract_Metadata.py", icon="🔍", title="Extract Metadata")
-validate_page = st.Page("frontend/Modules/Validate_Metadata.py", icon="🛡️", title="Validate Metadata")
-turbo_convert_page = st.Page("frontend/Modules/Turbo_Convert.py", icon="⚡", title="Turbo Convert")
+extract_page = st.Page("frontend/Modules/Extract_Metadata.py", icon="🔍", title="Metadata extraheren")
+validate_page = st.Page("frontend/Modules/Validate_Metadata.py", icon="🛡️", title="Metadata valideren")
+turbo_convert_page = st.Page("frontend/Modules/Turbo_Convert.py", icon="⚡", title="Turbo Conversie")
 tip_page = st.Page("frontend/Modules/Tip.py", icon="💡", title="Tip")
 
 # -----------------------------------------------------------------------------
