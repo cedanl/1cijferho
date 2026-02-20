@@ -1,21 +1,5 @@
-# Ensure project root is in sys.path for backend imports
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
-
-"""
-Fixed-width to CSV converter for 1CHO data files. Contains functionality for efficient conversion 
-of fixed-width format files to CSV format using multiprocessing.
-
-Functions:
-    [x] process_chunk(chunk_data) - Processes a chunk of lines in a fixed-width file
-        - Process a chunk of lines and return the converted output
-    [M] converter(input_file, metadata_file) - Converts a fixed-width file to CSV using a metadata specification
-        - Convert fixed-width file to CSV using multiprocessing for better performance
-    [N] run_conversions_from_matches(input_folder, metadata_folder, match_log_fileatch_log_file) - Run the converter for each valid match in the JSON log
-        - Processes all valid matches in the JSON file, applying the converter function
-"""
-
 import multiprocessing as mp
 import json
 import polars as pl
@@ -23,11 +7,18 @@ import datetime
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 
-# TODO: Add Test (Line Length, Add to table returned by converter_match.py)
+"""
+Fixed-width to CSV converter for 1CHO data files. Contains functionality for efficient conversion
+of fixed-width format files to CSV format using multiprocessing.
 
-################################################################
-#                       COMPUTER MAGIC                          
-################################################################
+Functions:
+    [x] process_chunk(chunk_data) - Processes a chunk of lines in a fixed-width file
+        - Process a chunk of lines and return the converted output
+    [M] converter(input_file, metadata_file) - Converts a fixed-width file to CSV using a metadata specification
+        - Convert fixed-width file to CSV using multiprocessing for better performance
+    [N] run_conversions_from_matches(input_folder, metadata_folder, match_log_file) - Run the converter for each valid match in the JSON log
+        - Processes all valid matches in the JSON file, applying the converter function
+"""
 
 def process_chunk(chunk_data):
     """

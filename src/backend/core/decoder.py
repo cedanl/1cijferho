@@ -1,7 +1,7 @@
 import polars as pl
 import json
-from backend.utils.converter_headers import normalize_name, clean_header_name
 import os
+from backend.utils.converter_headers import normalize_name, clean_header_name
 
 def load_dec_tables_from_metadata(metadata_json_path, dec_output_dir, naming_func=None):
 	"""

@@ -1,6 +1,9 @@
-# --- Normalization and header cleaning utilities ---
 import re
 import unicodedata
+from pathlib import Path
+import polars as pl
+from rich.console import Console
+
 def normalize_name(name, naming_func=None):
     """
     Normalize variable names using the provided naming convention function (e.g., snake_case).
@@ -24,12 +27,6 @@ def clean_header_name(name):
     name = name.encode('utf-8', errors='replace').decode('utf-8')
     name = name.strip()
     return name
-from pathlib import Path
-import unicodedata
-import polars as pl
-import janitor.polars  # noqa: F401 - registers clean_names method
-from rich.console import Console
-
 
 def strip_accents(text: str) -> str:
     """Remove accents from text (e.g., 'vóór' -> 'voor')."""
