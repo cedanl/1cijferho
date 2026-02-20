@@ -10,6 +10,7 @@ Deze roadmap beschrijft vooral zaken die de eindgebruiker gaat merken. Planning 
 ### Hierna
 - Valideren van installaties op Windows via een VM of Docker-image om Scoop-installatie te testen ([#41](https://github.com/cedanl/1cijferho/issues/41), [#42](https://github.com/cedanl/1cijferho/issues/42), [#40](https://github.com/cedanl/1cijferho/issues/40)).
 - Functies krijgen een kleinere, duidelijkere scope: data-invoer en verwerking worden gescheiden en herbruikbaar gemaakt. Additioneel werken aan het omzetten in library call. ([#21](https://github.com/cedanl/1cijferho/issues/21)).
+- Onderzoek naar transitie van applicatie in huidige vorm (localhost) naar formeel volwaardige desktop applicatie (en/of centrale hosting via SURF)
 - Streamlit-projecten integreren in een cloud-omgeving ([#29](https://github.com/cedanl/1cijferho/issues/29)).
 
 ### Later / ideeën
