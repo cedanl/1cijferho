@@ -63,31 +63,17 @@ def converter(input_file, metadata_file):
     # Convert widths to integers explicitly
     widths = [int(w) for w in metadata_df["Aantal posities"].to_list()]
     column_names = metadata_df["Naam"].to_list()
-
-    # Clean/normalize column names to avoid encoding issues
-    import unicodedata
-    def clean_header_name(name):
-        # Normalize to NFKD, remove diacritics, replace problematic chars
-        name = unicodedata.normalize('NFKD', str(name))
-        name = ''.join(c for c in name if not unicodedata.combining(c))
-        name = name.replace('\u2044', '/')  # Replace fraction slash if present
-        name = name.replace('�', 'e')  # Replace common corruption with 'e'
-        name = name.replace('3a3', 'a')  # Fix specific corruption pattern
-        name = name.encode('utf-8', errors='replace').decode('utf-8')
-        name = name.strip()
-        return name
-    column_names_clean = [clean_header_name(col) for col in column_names]
-
+    
     # Calculate positions for each field
     positions = [(sum(widths[:i]), sum(widths[:i+1])) for i in range(len(widths))]
-
+    
     # Count total lines
     with open(input_file, 'rb') as f:
         total_lines = sum(1 for _ in f.readlines())
-
+    
     # Write header first
     with open(output_file, 'w', encoding='utf-8', newline='') as f_out:
-        f_out.write(';'.join(column_names_clean) + '\n')
+        f_out.write(';'.join(column_names) + '\n')
     
     # Read the entire file into memory (if it's not too large)
     with open(input_file, 'r', encoding='latin1') as f_in:
@@ -258,10 +244,10 @@ def run_conversions_from_matches(input_folder, metadata_folder="data/00-metadata
     results["status"] = "completed"
     
     # Save log file to both locations
-    with open(timestamped_log_file, "w", encoding="latin1") as f:
-        json.dump(results, f, indent=2)
-    with open(latest_log_file, "w", encoding="latin1") as f:
-        json.dump(results, f, indent=2)
+    with open(timestamped_log_file, "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
+    with open(latest_log_file, "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
     
     # Print summary
     console.print(f"[green]Conversion process completed")
@@ -288,27 +274,14 @@ def convert_dec_files(input_folder, metadata_folder="data/00-metadata", output_f
     Only processes files with .asc extension and a matching Bestandsbeschrijving_*.txt in metadata_folder.
     """
     dec_files = [f for f in os.listdir(input_folder) if f.startswith("Dec_") and f.endswith(".asc")]
-    # Fallback metadata file (in input_folder)
-    fallback_meta = None
-    fallback_candidates = [m for m in os.listdir(input_folder) if m.lower().startswith("bestandsbeschrijving_dec-bestanden") and (m.endswith(".xlsx") or m.endswith(".txt"))]
-    if fallback_candidates:
-        fallback_meta = os.path.join(input_folder, fallback_candidates[0])
     for dec_file in dec_files:
         base = os.path.splitext(dec_file)[0]
         # Try to find a metadata file for this Dec file (.xlsx preferred, fallback to .txt)
-        meta_candidates = []
-        # Check both metadata_folder and input_folder for specific metadata
-        for folder in [metadata_folder, input_folder]:
-            if os.path.isdir(folder):
-                meta_candidates += [os.path.join(folder, m) for m in os.listdir(folder) if m.lower().startswith(f"bestandsbeschrijving_{base.lower()}") and (m.endswith(".xlsx") or m.endswith(".txt"))]
-        if meta_candidates:
-            meta_file = meta_candidates[0]
-        elif fallback_meta:
-            print(f"[converter] Info: No specific metadata for {dec_file}, using fallback {os.path.basename(fallback_meta)}.")
-            meta_file = fallback_meta
-        else:
+        meta_candidates = [m for m in os.listdir(metadata_folder) if m.lower().startswith(f"bestandsbeschrijving_{base.lower()}") and (m.endswith(".xlsx") or m.endswith(".txt"))]
+        if not meta_candidates:
             print(f"[converter] Warning: No metadata found for {dec_file}, skipping.")
             continue
+        meta_file = os.path.join(metadata_folder, meta_candidates[0])
         input_path = os.path.join(input_folder, dec_file)
         try:
             converter(input_path, meta_file)

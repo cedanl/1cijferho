@@ -1,3 +1,29 @@
+# --- Normalization and header cleaning utilities ---
+import re
+import unicodedata
+def normalize_name(name, naming_func=None):
+    """
+    Normalize variable names using the provided naming convention function (e.g., snake_case).
+    If no function is provided, defaults to snake_case.
+    """
+    if naming_func:
+        return naming_func(name)
+    # Default: snake_case, remove special chars
+    name = name.lower()
+    name = re.sub(r'[^a-z0-9]+', '_', name)
+    name = re.sub(r'_+', '_', name).strip('_')
+    return name
+
+def clean_header_name(name):
+    # Normalize to NFKD, remove diacritics, replace problematic chars
+    name = unicodedata.normalize('NFKD', str(name))
+    name = ''.join(c for c in name if not unicodedata.combining(c))
+    name = name.replace('\u2044', '/')  # Replace fraction slash if present
+    name = name.replace('�', 'e')  # Replace common corruption with 'e'
+    name = name.replace('3a3', 'a')  # Fix specific corruption pattern
+    name = name.encode('utf-8', errors='replace').decode('utf-8')
+    name = name.strip()
+    return name
 from pathlib import Path
 import unicodedata
 import polars as pl

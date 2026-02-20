@@ -1,23 +1,7 @@
-# Ensure project root is in sys.path for backend imports
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 import polars as pl
 import json
-import re
-
-def normalize_name(name, naming_func=None):
-	"""
-	Normalize variable names using the provided naming convention function (e.g., snake_case).
-	If no function is provided, defaults to snake_case.
-	"""
-	if naming_func:
-		return naming_func(name)
-	# Default: snake_case, remove special chars
-	name = name.lower()
-	name = re.sub(r'[^a-z0-9]+', '_', name)
-	name = re.sub(r'_+', '_', name).strip('_')
-	return name
+from backend.utils.converter_headers import normalize_name, clean_header_name
+import os
 
 def load_dec_tables_from_metadata(metadata_json_path, dec_output_dir, naming_func=None):
 	"""
@@ -65,14 +49,11 @@ def decode_fields(df, metadata_json_path, dec_tables, naming_func=None):
 	norm_map = {normalize_name(col, naming_func): col for col in orig_columns}
 	norm_columns = list(norm_map.keys())
 	norm_df = df.rename({v: k for k, v in norm_map.items()})
-	print(f"[decoder] Main DataFrame columns (normalized): {norm_columns}")
 	decode_summary = []
 	dec_tables_used = set()
 	dec_tables_not_used = set(dec_tables.keys())
 	result_df = norm_df.clone()
 	import difflib
-	# First, decode as before for tables with decoding_variables
-	print("[decode_fields][DEBUG] --- Decoding fields: ---")
 	for table in meta['tables']:
 		dec_vars = table.get('decoding_variables', [])
 		for table in meta['tables']:
@@ -141,7 +122,7 @@ def decode_fields(df, metadata_json_path, dec_tables, naming_func=None):
 							print(f"[decode_fields][DEBUG] Unmatched codes for {var} with {table['table_title']}: {sample_codes}")
 					except Exception as e:
 						print(f"[decode_fields][DEBUG] Error decoding {var} with {table['table_title']}: {e}")
-	print("[decode_fields][DEBUG] --- Vakkenbestanden patch: checking Opmerking for decode instructions ---")
+	# Vakkenbestanden patch: checking Opmerking for decode instructions
 	for table in meta['tables']:
 		if table.get('decoding_variables', []):
 			continue  # Already handled
@@ -296,13 +277,7 @@ def decode_fields(df, metadata_json_path, dec_tables, naming_func=None):
 						print(f"[decoder][vakken] Unmatched codes for {naam} with {dec_table_title}: {sample_codes}")
 				except Exception as e:
 					print(f"[decoder][vakken] Error decoding {naam} with {dec_table_title}: {e}")
-	print(f"[decoder] Decoding summary: {decode_summary}")
-	print("[decoder] DEC tables used for decoding:")
-	for t in sorted(dec_tables_used):
-		print(f"  - {t}")
-	print("[decoder] DEC tables NOT used for decoding:")
-	for t in sorted(dec_tables_not_used):
-		print(f"  - {t}")
+	# Decoding summary and DEC tables used/not used can be logged elsewhere if needed
 	# --- Restore original column names for output ---
 	result_df = result_df.rename({k: v for k, v in norm_map.items() if k in result_df.columns})
 	return result_df
