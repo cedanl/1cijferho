@@ -1,3 +1,4 @@
+import polars as pl
 import re
 import unicodedata
 from pathlib import Path
@@ -16,6 +17,12 @@ def normalize_name(name, naming_func=None):
     name = re.sub(r'[^a-z0-9]+', '_', name)
     name = re.sub(r'_+', '_', name).strip('_')
     return name
+
+def normalize_polars_columns(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Rename all columns of a Polars DataFrame using normalize_name and strip_accents.
+    """
+    return df.rename({col: strip_accents(normalize_name(col)) for col in df.columns})
 
 def clean_header_name(name):
     # Normalize to NFKD, remove diacritics, replace problematic chars
@@ -90,11 +97,9 @@ def convert_csv_headers_to_snake_case(
             # Get original column names
             original_columns = df.columns
             
-            # Clean column names using pyjanitor
-            df_cleaned = df.clean_names(remove_special=True)
 
-            # Strip accents from column names (e.g., 'vóór' -> 'voor')
-            df_cleaned = df_cleaned.rename({col: strip_accents(col) for col in df_cleaned.columns})
+            # Clean column names using project-standard normalization
+            df_cleaned = normalize_polars_columns(df)
 
             # --- Clean all string columns for latin-1 compatibility ---
             try:
