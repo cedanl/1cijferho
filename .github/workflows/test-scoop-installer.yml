@@ -183,54 +183,20 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "=== Testing Application Import ===" -ForegroundColor Cyan
-
-          # Test if the main module can be imported
           Write-Host "Testing Python imports..." -ForegroundColor Yellow
 
-          # Create a temporary Python test script
-          $testScript = @'
-import sys
-import importlib.util
+          uv run python -c "import sys; print('Python path:', sys.executable)"
+          if ($LASTEXITCODE -ne 0) { Write-Host "Failed to run Python" -ForegroundColor Red; exit 1 }
 
-print("Python path:", sys.executable)
-print("Testing imports...")
+          uv run python -c "import streamlit; print('streamlit', streamlit.__version__, 'imported successfully')"
+          if ($LASTEXITCODE -ne 0) { Write-Host "Failed to import streamlit" -ForegroundColor Red; exit 1 }
+          Write-Host "streamlit imported successfully" -ForegroundColor Green
 
-# Test streamlit import
-try:
-    import streamlit
-    print("✓ streamlit imported successfully")
-except Exception as e:
-    print(f"✗ Failed to import streamlit: {e}")
-    sys.exit(1)
+          uv run python -c "import os, sys; sys.exit(0 if os.path.exists('src/main.py') else 1)"
+          if ($LASTEXITCODE -ne 0) { Write-Host "src/main.py not found" -ForegroundColor Red; exit 1 }
+          Write-Host "src/main.py verified" -ForegroundColor Green
 
-# Check if main.py exists and can be accessed
-import os
-if os.path.exists("src/main.py"):
-    print("✓ src/main.py exists")
-else:
-    print("✗ src/main.py not found")
-    sys.exit(1)
-
-print("✓ All imports successful")
-'@
-
-          $testScript | Out-File -FilePath "test_imports.py" -Encoding utf8
-
-          try {
-            uv run python test_imports.py
-            if ($LASTEXITCODE -eq 0) {
-              Write-Host "✓ Application imports verified" -ForegroundColor Green
-            } else {
-              Write-Host "✗ Application import test failed" -ForegroundColor Red
-              exit 1
-            }
-          } catch {
-            Write-Host "✗ Failed to test imports: $_" -ForegroundColor Red
-            exit 1
-          } finally {
-            Remove-Item -Path "test_imports.py" -ErrorAction SilentlyContinue
-          }
-          Write-Host ""
+          Write-Host "All imports successful" -ForegroundColor Green
 
       - name: Test Streamlit Installation
         shell: pwsh
