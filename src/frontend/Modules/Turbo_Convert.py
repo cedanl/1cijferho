@@ -1,6 +1,6 @@
-import streamlit as st
 import os
 import glob
+import streamlit as st
 import subprocess
 import backend.utils.converter_validation as cv
 import backend.utils.compressor as co
@@ -215,6 +215,14 @@ else:
                 st.session_state.convert_console_log += "✅ File conversion completed\n"
                 update_console()
                 progress_bar.progress(30)
+
+                # --- Decoding step for EV* and VAKHAVW* files ---
+                # Decoding is now handled in backend/core/pipeline.py
+                import backend.core.pipeline as pipeline
+                log, output_files = pipeline.run_turbo_convert_pipeline(progress_callback=progress_bar.progress, status_callback=status_text.text)
+                st.session_state.convert_console_log += log
+                update_console()
+                progress_bar.progress(100)
                 
                 # Step 4: Validate Conversion
                 status_text.text("🔍 Stap 4: Validating conversion results...")
@@ -277,20 +285,26 @@ else:
                         st.write("**Bestanden succesvol aangemaakt in `data/02-output/`:**")
                         
                         # Group files by type for better organization
-                        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv')]
+                        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv') and not f['name'].endswith('_decoded.csv')]
+                        decoded_files = [f for f in output_files if f['name'].endswith('_decoded.csv')]
                         parquet_files = [f for f in output_files if f['name'].endswith('.parquet')]
                         encrypted_files = [f for f in output_files if f['name'].endswith('_encrypted.csv')]
-                        
+
                         if csv_files:
                             st.write("**📄 CSV-bestanden (geconverteerd):**")
                             for file in csv_files:
                                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
-                        
+
+                        if decoded_files:
+                            st.write("**🔤 Decoded Files (Main files with decoded columns):**")
+                            for file in decoded_files:
+                                st.write(f"• `{file['name']}` ({file['size_formatted']})")
+
                         if parquet_files:
                             st.write("**🗜️ Parquet-bestanden (gecomprimeerd):**")
                             for file in parquet_files:
                                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
-                        
+
                         if encrypted_files:
                             st.write("**🔒 Versleutelde bestanden (definitief):**")
                             for file in encrypted_files:

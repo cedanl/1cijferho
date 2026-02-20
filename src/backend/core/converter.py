@@ -1,5 +1,14 @@
+import sys
+import os
+import multiprocessing as mp
+import json
+import polars as pl
+import datetime
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+
 """
-Fixed-width to CSV converter for 1CHO data files. Contains functionality for efficient conversion 
+Fixed-width to CSV converter for 1CHO data files. Contains functionality for efficient conversion
 of fixed-width format files to CSV format using multiprocessing.
 
 Functions:
@@ -7,24 +16,9 @@ Functions:
         - Process a chunk of lines and return the converted output
     [M] converter(input_file, metadata_file) - Converts a fixed-width file to CSV using a metadata specification
         - Convert fixed-width file to CSV using multiprocessing for better performance
-    [N] run_conversions_from_matches(input_folder, metadata_folder, match_log_fileatch_log_file) - Run the converter for each valid match in the JSON log
+    [N] run_conversions_from_matches(input_folder, metadata_folder, match_log_file) - Run the converter for each valid match in the JSON log
         - Processes all valid matches in the JSON file, applying the converter function
 """
-
-import multiprocessing as mp
-import sys
-import os
-import json
-import polars as pl
-import datetime
-from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
-
-# TODO: Add Test (Line Length, Add to table returned by converter_match.py)
-
-################################################################
-#                       COMPUTER MAGIC                          
-################################################################
 
 def process_chunk(chunk_data):
     """
@@ -69,7 +63,7 @@ def converter(input_file, metadata_file):
         total_lines = sum(1 for _ in f.readlines())
     
     # Write header first
-    with open(output_file, 'w', encoding='latin1', newline='') as f_out:
+    with open(output_file, 'w', encoding='utf-8', newline='') as f_out:
         f_out.write(';'.join(column_names) + '\n')
     
     # Read the entire file into memory (if it's not too large)
@@ -95,7 +89,7 @@ def converter(input_file, metadata_file):
             
             # Write results as they come in
             lines_processed = 0
-            with open(output_file, 'a', encoding='latin1', newline='') as f_out:
+            with open(output_file, 'a', encoding='utf-8', newline='') as f_out:
                 for result in results_iter:
                     if result:
                         f_out.write('\n'.join(result) + '\n')
@@ -103,7 +97,7 @@ def converter(input_file, metadata_file):
     else:
         # Process the data serially if we're in a child process
         results = process_chunk((positions, all_lines))
-        with open(output_file, 'a', encoding='latin1', newline='') as f_out:
+        with open(output_file, 'a', encoding='utf-8', newline='') as f_out:
             if results:
                 f_out.write('\n'.join(results) + '\n')
     
@@ -241,10 +235,10 @@ def run_conversions_from_matches(input_folder, metadata_folder="data/00-metadata
     results["status"] = "completed"
     
     # Save log file to both locations
-    with open(timestamped_log_file, "w", encoding="latin1") as f:
-        json.dump(results, f, indent=2)
-    with open(latest_log_file, "w", encoding="latin1") as f:
-        json.dump(results, f, indent=2)
+    with open(timestamped_log_file, "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
+    with open(latest_log_file, "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
     
     # Print summary
     console.print(f"[green]Conversion process completed")
@@ -265,6 +259,28 @@ def run_conversions_from_matches(input_folder, metadata_folder="data/00-metadata
     
     return results  # Return the results
 
+def convert_dec_files(input_folder, metadata_folder="data/00-metadata", output_folder="data/02-output"):
+    """
+    Convert all Dec_* files in the input folder using their corresponding metadata, even if unmatched.
+    Only processes files with .asc extension and a matching Bestandsbeschrijving_*.txt in metadata_folder.
+    """
+    dec_files = [f for f in os.listdir(input_folder) if f.startswith("Dec_") and f.endswith(".asc")]
+    for dec_file in dec_files:
+        base = os.path.splitext(dec_file)[0]
+        # Try to find a metadata file for this Dec file (.xlsx preferred, fallback to .txt)
+        meta_candidates = [m for m in os.listdir(metadata_folder) if m.lower().startswith(f"bestandsbeschrijving_{base.lower()}") and (m.endswith(".xlsx") or m.endswith(".txt"))]
+        if not meta_candidates:
+            print(f"[converter] Warning: No metadata found for {dec_file}, skipping.")
+            continue
+        meta_file = os.path.join(metadata_folder, meta_candidates[0])
+        input_path = os.path.join(input_folder, dec_file)
+        try:
+            converter(input_path, meta_file)
+            print(f"[converter] Converted Dec file: {dec_file}")
+        except Exception as e:
+            print(f"[converter] Warning: Could not convert {dec_file}: {e}")
+
+
 
 
 if __name__ == "__main__":
@@ -273,4 +289,7 @@ if __name__ == "__main__":
     else:
         input_folder = "data/01-input"  # fallback
     
+    # Run main conversion pipeline
     run_conversions_from_matches(input_folder)
+    # Always convert Dec_* files, even if unmatched
+    convert_dec_files(input_folder)

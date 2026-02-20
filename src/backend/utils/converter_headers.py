@@ -1,9 +1,39 @@
-from pathlib import Path
-import unicodedata
 import polars as pl
-import janitor.polars  # noqa: F401 - registers clean_names method
+import re
+import unicodedata
+from pathlib import Path
+import polars as pl
 from rich.console import Console
 
+def normalize_name(name, naming_func=None):
+    """
+    Normalize variable names using the provided naming convention function (e.g., snake_case).
+    If no function is provided, defaults to snake_case.
+    """
+    if naming_func:
+        return naming_func(name)
+    # Default: snake_case, remove special chars
+    name = name.lower()
+    name = re.sub(r'[^a-z0-9]+', '_', name)
+    name = re.sub(r'_+', '_', name).strip('_')
+    return name
+
+def normalize_polars_columns(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Rename all columns of a Polars DataFrame using normalize_name and strip_accents.
+    """
+    return df.rename({col: strip_accents(normalize_name(col)) for col in df.columns})
+
+def clean_header_name(name):
+    # Normalize to NFKD, remove diacritics, replace problematic chars
+    name = unicodedata.normalize('NFKD', str(name))
+    name = ''.join(c for c in name if not unicodedata.combining(c))
+    name = name.replace('\u2044', '/')  # Replace fraction slash if present
+    name = name.replace('�', 'e')  # Replace common corruption with 'e'
+    name = name.replace('3a3', 'a')  # Fix specific corruption pattern
+    name = name.encode('utf-8', errors='replace').decode('utf-8')
+    name = name.strip()
+    return name
 
 def strip_accents(text: str) -> str:
     """Remove accents from text (e.g., 'vóór' -> 'voor')."""
@@ -67,12 +97,17 @@ def convert_csv_headers_to_snake_case(
             # Get original column names
             original_columns = df.columns
             
-            # Clean column names using pyjanitor
-            df_cleaned = df.clean_names(remove_special=True)
 
-            # Strip accents from column names (e.g., 'vóór' -> 'voor')
-            df_cleaned = df_cleaned.rename({col: strip_accents(col) for col in df_cleaned.columns})
-            
+            # Clean column names using project-standard normalization
+            df_cleaned = normalize_polars_columns(df)
+
+            # --- Clean all string columns for latin-1 compatibility ---
+            try:
+                from backend.core.decoder import clean_for_latin1
+                df_cleaned = clean_for_latin1(df_cleaned)
+            except Exception as e:
+                console.print(f"  [yellow]Warning: Could not apply clean_for_latin1: {e}[/yellow]")
+
             # Get new column names
             new_columns = df_cleaned.columns
             
