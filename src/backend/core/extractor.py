@@ -240,6 +240,39 @@ def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json")
     console.print(f"[green]Extracted tables to {log_data['total_files_extracted']} JSON files")
     console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}")
 
+    # --- PATCH: Merge Dec_vakcode table from Vakkenbestanden JSON into Dec-bestanden JSON ---
+    vakken_json = os.path.join(json_output_folder, "Bestandsbeschrijving_Vakkenbestanden_DEMO.json")
+    dec_json = os.path.join(json_output_folder, "Bestandsbeschrijving_Dec-bestanden_DEMO.json")
+    if os.path.exists(vakken_json) and os.path.exists(dec_json):
+        try:
+            with open(vakken_json, "r", encoding="latin-1") as f_vak:
+                vak_data = json.load(f_vak)
+            with open(dec_json, "r", encoding="latin-1") as f_dec:
+                dec_data = json.load(f_dec)
+            # Find Dec_vakcode table in vak_data
+            vakcode_tables = [t for t in vak_data.get("tables", []) if "vakcode" in t.get("table_title", "").lower()]
+            if vakcode_tables:
+                # Only add if not already present in dec_data
+                existing_titles = [t.get("table_title", "").lower() for t in dec_data.get("tables", [])]
+                max_table_number = max([t.get("table_number", 0) for t in dec_data.get("tables", [])] or [0])
+                for t in vakcode_tables:
+                    # Set correct table_title and unique table_number
+                    t["table_title"] = "Dec_vakcode.asc"
+                    max_table_number += 1
+                    t["table_number"] = max_table_number
+                    # If decoding_variables is empty, set to ["Vakcode"]
+                    if not t.get("decoding_variables"):
+                        t["decoding_variables"] = ["Vakcode"]
+                    if t["table_title"].lower() not in existing_titles:
+                        dec_data["tables"].append(t)
+                        existing_titles.append(t["table_title"].lower())
+                # Save back
+                with open(dec_json, "w", encoding="latin-1") as f_dec:
+                    json.dump(dec_data, f_dec, indent=2, ensure_ascii=False)
+                console.print(f"[cyan]Patched: Added Dec_vakcode table(s) from Vakkenbestanden JSON to Dec-bestanden JSON with correct title and table_number.")
+        except Exception as e:
+            console.print(f"[red]Error patching Dec_vakcode into Dec-bestanden JSON: {e}")
+
     return None
 
 def extract_excel_from_json(json_file, excel_output_folder):
