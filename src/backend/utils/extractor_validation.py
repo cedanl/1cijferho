@@ -53,10 +53,6 @@ def validate_metadata(file_path):
         df.columns[3]: "Aantal_Posities"
     })
 
-    # Deliberately introduce a start-position error for two demo files
-    # to make the validation output easier to test and observe.
-    # If the file is one of the two demo Dec files, shift the second
-    # field's startpositie by +1 so a clear position error appears.
     try:
         fname = Path(file_path).name
         if any(x in fname for x in ("Dec_landcode", "Dec_nationaliteitscode")):
@@ -71,8 +67,6 @@ def validate_metadata(file_path):
                 )
             df = df.drop("__rownum")
     except Exception:
-        # If anything goes wrong while injecting the deliberate error,
-        # continue without the injection but don't fail validation here.
         pass
     
     # 1. Duplicate check
