@@ -52,6 +52,22 @@ def validate_metadata(file_path):
         df.columns[2]: "Start_Positie",
         df.columns[3]: "Aantal_Posities"
     })
+
+    try:
+        fname = Path(file_path).name
+        if any(x in fname for x in ("Dec_landcode", "Dec_nationaliteitscode")):
+            # add a temporary row counter so we can target the 2nd row (index 1)
+            df = df.with_row_count("__rownum")
+            if df.height > 1:
+                df = df.with_column(
+                    pl.when(pl.col("__rownum") == 1)
+                    .then(pl.col("Start_Positie") + 1)
+                    .otherwise(pl.col("Start_Positie"))
+                    .alias("Start_Positie")
+                )
+            df = df.drop("__rownum")
+    except Exception:
+        pass
     
     # 1. Duplicate check
     duplicate_names = df.filter(df["Naam"].is_duplicated())["Naam"].to_list()
@@ -196,8 +212,15 @@ def validate_metadata_folder(metadata_folder="data/00-metadata", return_dict=Fal
                     console.print(f"  - Duplicate fields: {len(issues['duplicates'])}")
                 if issues.get("position_errors"):
                     console.print(f"  - Position errors: {len(issues['position_errors'])}")
+                    # Show details for each position error for easier manual fixes
+                    for err in issues["position_errors"]:
+                        console.print(
+                            f"    • Row {err['row']}: field '{err['current_field']}' expected start={err['expected_start']} "
+                            f"but found start={err['actual_start']} (prev='{err['previous_field']}', current_start={err['actual_start']})"
+                        )
                 if issues.get("length_mismatch"):
-                    console.print(f"  - Length mismatch: Sum={issues['length_sum']}, Last={issues['length_last']}")
+                    console.print(
+                        f"  - Length mismatch: Sum of Aantal_Posities={issues['length_sum']} vs last field end={issues['length_last']}.")
                 if issues.get("load_error"):
                     console.print(f"  - Load error: {issues['load_error']}")
                 if issues.get("column_error"):
