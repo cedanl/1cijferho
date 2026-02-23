@@ -57,9 +57,9 @@ jobs:
             exit 1
           }
 
-          # Display Scoop info
+          # Display Scoop status
           Write-Host "`n=== Scoop Configuration ===" -ForegroundColor Cyan
-          scoop info scoop
+          scoop config
           Write-Host ""
 
       - name: Configure Scoop and Add Buckets
@@ -71,9 +71,9 @@ jobs:
           Write-Host "Updating Scoop..." -ForegroundColor Yellow
           scoop update
 
-          # Add main bucket (usually added by default, but ensure it's there)
+          # Add main bucket (may already exist from install, so ignore errors)
           Write-Host "`nAdding main bucket..." -ForegroundColor Yellow
-          scoop bucket add main
+          scoop bucket add main 2>&1 | Write-Host
 
           # List available buckets
           Write-Host "`n=== Available Buckets ===" -ForegroundColor Cyan
