@@ -11,6 +11,8 @@ jobs:
   test-scoop-installation:
     name: Test Scoop + uv Installation
     runs-on: windows-latest
+    env:
+      UV_PYTHON: "3.13"
 
     steps:
       - name: Checkout Repository
