@@ -91,7 +91,8 @@ def convert_csv_headers_to_snake_case(
                 separator=delimiter,
                 encoding=encoding,
                 quote_char=quote_char,
-                infer_schema_length=infer_schema_length
+                infer_schema_length=infer_schema_length,
+                truncate_ragged_lines=True
             )
             
             # Get original column names
