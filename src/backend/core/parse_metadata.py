@@ -1,21 +1,15 @@
 #!/usr/bin/env python3
 """
-Parse a metadata file into structured JSON.
-
-This script reads a metadata description text file,
-extracts variable names, descriptions, and 'Mogelijke waarden' sections,
-and outputs them as structured JSON.
-Handles key-value pairs, lists, and references.
-Optionally, writes a git diff for review.
+Parse metadata file into structured JSON (moved from dev/parse_metadata_to_json.py).
+Provides `parse_metadata_file(path)` for programmatic use.
 """
 
-import argparse
 import json
 import os
 import re
 import subprocess
-import sys
 from typing import List, Dict, Any
+
 
 def parse_metadata_file(path: str) -> List[Dict[str, Any]]:
     """Parse metadata text file for variable descriptions and possible values."""
@@ -92,35 +86,19 @@ def parse_metadata_file(path: str) -> List[Dict[str, Any]]:
                     notes_lines.append(s)
                     i += 1
                     continue
-                # Match key = value lines (allows keys with spaces except
-                # equals/signs in the original more permissive form).
                 m = re.match(r'^([^=<>`]+?)\s*=\s*(.+)$', s)
                 if m:
-                    # If the '=' occurs far into the line it's likely part of
-                    # an explanatory parenthetical and not a true key/value
-                    # pair (these continuation lines often contain '=' inside
-                    # parentheses). Use the original raw line (including
-                    # indentation) to check position of '='.
-                    eq_pos = raw.find('=')
-                    if eq_pos is not None and eq_pos > 40:
-                        # Treat as continuation instead of a new key
-                        if last_key:
-                            cont = re.sub(r'\s+', ' ', s).strip()
-                            values[last_key] = values[last_key].rstrip() + ' ' + cont
-                        else:
-                            values_lines.append(s)
+                    key = m.group(1).strip()
+                    val = m.group(2).strip()
+                    # Special handling for Indicatie geboren, value 99
+                    if name == "Indicatie geboren" and key == "99":
+                        # Force the canonical value and prevent following lines
+                        # from being appended as continuations for this key.
+                        values[key] = "Onbekend"
+                        last_key = None
                     else:
-                        key = m.group(1).strip()
-                        val = m.group(2).strip()
-                        # Special handling for Indicatie geboren, value 99
-                        if name == "Indicatie geboren" and key == "99":
-                            # Force the canonical value and prevent following lines
-                            # from being appended as continuations for this key.
-                            values[key] = "Onbekend"
-                            last_key = None
-                        else:
-                            values[key] = val
-                            last_key = key
+                        values[key] = val
+                        last_key = key
                 else:
                     # If previous key exists, treat as continuation
                     if last_key:
@@ -148,52 +126,17 @@ def parse_metadata_file(path: str) -> List[Dict[str, Any]]:
             i += 1
     return vars_out
 
-def run_git_diff(base: str = "main") -> str:
-    """Return git diff output between base and HEAD."""
-    try:
-        diff = subprocess.run(["git", "diff", f"{base}...HEAD"],
-                              capture_output=True, text=True, check=False)
-        return diff.stdout or diff.stderr
-    except Exception as e:
-        return f"Error running git diff: {e}"
 
-def main():
-    parser = argparse.ArgumentParser(description="Parse metadata file into JSON format.")
-    parser.add_argument(
-        "infile", nargs="?",
-        default=os.path.join("data", "01-input", "Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.txt"),
-        help="Path to metadata input file"
-    )
-    parser.add_argument(
-        "-o", "--output",
-        default=os.path.join("data", "02-output", "variables_with_values.json"),
-        help="Path to output JSON file"
-    )
-    parser.add_argument(
-        "--no-git", action="store_true",
-        help="Skip writing git diff output"
-    )
+if __name__ == '__main__':
+    # Provide a simple CLI for backward compatibility
+    import argparse
+    parser = argparse.ArgumentParser(description='Parse metadata file into JSON format.')
+    parser.add_argument('infile', nargs='?', default=os.path.join('data', '01-input', 'Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.txt'))
+    parser.add_argument('-o', '--output', default=os.path.join('data', '02-output', 'variables_with_values.json'))
     args = parser.parse_args()
 
-    if not os.path.exists(args.infile):
-        print(f"[ERROR] Input file not found: {args.infile}", file=sys.stderr)
-        sys.exit(2)
-
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
-
-    print(f"Parsing {args.infile} ...")
     parsed = parse_metadata_file(args.infile)
-
-    with open(args.output, "w", encoding="utf-8") as w:
+    with open(args.output, 'w', encoding='utf-8') as w:
         json.dump(parsed, w, ensure_ascii=False, indent=2)
-
-    print(f"[OK] Wrote {len(parsed)} variables to {args.output}")
-
-    if not args.no_git:
-        diff_out = run_git_diff()
-        with open("git_diff_main...HEAD.txt", "w", encoding="utf8") as gf:
-            gf.write(diff_out)
-        print("[OK] Git diff written to git_diff_main...HEAD.txt")
-
-if __name__ == "__main__":
-    main()
+    print(f'Wrote {len(parsed)} variables to {args.output}')

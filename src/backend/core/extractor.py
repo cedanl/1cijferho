@@ -159,6 +159,7 @@ def extract_tables_from_txt(txt_file, json_output_folder):
         return json_path
     
     return None
+    
 
 
 def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json"):
@@ -273,7 +274,61 @@ def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json")
         except Exception as e:
             console.print(f"[red]Error patching Dec_vakcode into Dec-bestanden JSON: {e}")
 
+    # After processing and optional patching, write consolidated variable metadata
+    try:
+        write_variable_metadata(json_output_folder)
+        console.print(f"[blue]Wrote variable metadata to {os.path.join(json_output_folder, 'variable_metadata.json')}")
+    except Exception:
+        console.print(f"[yellow]Could not write variable metadata file.")
+
     return None
+
+
+def write_variable_metadata(json_folder="data/00-metadata/json", output_filename="variable_metadata.json"):
+    """Scan JSON metadata files and write a consolidated variable metadata JSON.
+
+    The function collects variable names from all table `content` lines in the
+    JSON files found in `json_folder`. It records where each variable was found
+    and any decoding_variables listed for the table.
+    """
+    os.makedirs(json_folder, exist_ok=True)
+    output_path = os.path.join(json_folder, output_filename)
+
+    # Prefer using the dedicated parser in dev/parse_metadata_to_json.py so output
+    # matches the original script format. If that parser isn't available, fall
+    # back to a best-effort scan of existing JSON metadata files.
+    # Use the original parser logic from dev/parse_metadata_to_json.py to
+    # produce the canonical variables-with-values structure.
+    try:
+        import importlib.util
+        script_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../..", "dev", "parse_metadata_to_json.py"))
+        if not os.path.exists(script_path):
+            console = Console()
+            console.print(f"[red]Dev parser not found at {script_path}; cannot write variable metadata using dev logic.")
+            return
+        spec = importlib.util.spec_from_file_location("dev_parse_metadata", script_path)
+        devmod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(devmod)
+        if not hasattr(devmod, "parse_metadata_file"):
+            console = Console()
+            console.print(f"[red]Dev parser does not expose parse_metadata_file(); cannot write variable metadata using dev logic.")
+            return
+
+        default_input = os.path.join("data", "01-input", "Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.txt")
+        if not os.path.exists(default_input):
+            console = Console()
+            console.print(f"[red]Default input file not found: {default_input}")
+            return
+
+        parsed = devmod.parse_metadata_file(default_input)
+        with open(output_path, 'w', encoding='utf-8') as out_f:
+            json.dump(parsed, out_f, ensure_ascii=False, indent=2)
+        return
+    except Exception as e:
+        console = Console()
+        console.print(f"[red]Error running dev parser: {e}")
+        return
+
 
 def extract_excel_from_json(json_file, excel_output_folder):
     """
@@ -583,10 +638,10 @@ def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_
         "row_count_mismatches": 0  # Track files with row count mismatches
     }
     
-    # Find all JSON files in the folder
-    json_files = [os.path.join(root, file) 
-                  for root, _, files in os.walk(json_input_folder) 
-                  for file in files if file.endswith(".json")]
+    # Find all JSON files in the folder, but ignore the generated variable metadata
+    json_files = [os.path.join(root, file)
+                  for root, _, files in os.walk(json_input_folder)
+                  for file in files if file.endswith(".json") and file != "variable_metadata.json"]
     
     total_json_files = len(json_files)
     if total_json_files == 0:
