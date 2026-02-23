@@ -48,6 +48,11 @@ jobs:
             exit 1
           }
 
+          # Persist Scoop shims directory to PATH for subsequent steps
+          $scoopShims = "$env:USERPROFILE\scoop\shims"
+          Write-Host "Adding $scoopShims to GITHUB_PATH" -ForegroundColor Yellow
+          Add-Content -Path $env:GITHUB_PATH -Value $scoopShims
+
           # Verify Scoop installation
           $scoopVersion = scoop --version
           if ($LASTEXITCODE -eq 0) {
