@@ -3,6 +3,65 @@ import json
 import os
 from backend.utils.converter_headers import normalize_name, clean_header_name
 
+
+def load_variable_mappings(variable_metadata_path=None, naming_func=None):
+	"""
+	Load variable-level value mappings from a variable metadata JSON file.
+	Returns dict: {normalized_variable_name: {raw_code: label, ...}}
+	Tries sensible default locations when `variable_metadata_path` is None.
+	"""
+	candidates = []
+	if variable_metadata_path:
+		candidates.append(variable_metadata_path)
+	# common project-relative location
+	candidates.append(os.path.join(os.getcwd(), 'data', '00-metadata', 'json', 'variable_metadata.json'))
+	# next to the primary metadata file (if caller passed one of its paths)
+	# caller may provide metadata_json_path directory instead
+	for p in candidates:
+		if os.path.exists(p):
+			path = p
+			break
+	else:
+		return {}
+	try:
+		with open(path, encoding='utf-8') as f:
+			items = json.load(f)
+	except Exception as e:
+		print(f"[decoder] Warning: could not load variable metadata {path}: {e}")
+		return {}
+	maps = {}
+	for item in items:
+		name = item.get('name')
+		values = item.get('values') or {}
+		if not name or not isinstance(values, dict):
+			continue
+		norm = normalize_name(name, naming_func)
+		entry = {}
+		for k, v in values.items():
+			# keep raw key as-is (including markers like '[leeg]') but strip surrounding whitespace
+			if isinstance(k, str):
+				kk = k.strip()
+			else:
+				kk = str(k)
+			entry[kk] = v
+		if entry:
+			# store original name and mapping for richer diagnostics
+			maps[norm] = {"orig_name": name, "mapping": entry}
+	# Logging: show how many variable mappings were loaded
+	if maps:
+		try:
+			print(f"[decoder] Loaded {len(maps)} variable mappings from {path}")
+			# print a small sample of variable names and key counts
+			sample = list(maps.items())[:5]
+			for k, v in sample:
+				try:
+					print(f"[decoder]  - {v.get('orig_name')} (normalized: {k}) -> {len(v.get('mapping', {}))} keys")
+				except Exception:
+					pass
+		except Exception:
+			pass
+	return maps
+
 def load_dec_tables_from_metadata(metadata_json_path, dec_output_dir, naming_func=None):
 	"""
 	Load Dec_* tables as Polars DataFrames based on metadata JSON.
@@ -278,6 +337,137 @@ def decode_fields(df, metadata_json_path, dec_tables, naming_func=None):
 				except Exception as e:
 					print(f"[decoder][vakken] Error decoding {naam} with {dec_table_title}: {e}")
 	# Decoding summary and DEC tables used/not used can be logged elsewhere if needed
+	# --- Apply variable-level mappings from variable_metadata.json (if present) ---
+	try:
+		var_maps = load_variable_mappings(None, naming_func=naming_func)
+		if var_maps:
+			import difflib as _difflib
+			print(f"[decode_fields][VAR_MAP] Applying variable mappings to DataFrame columns...")
+			for var_norm, info in var_maps.items():
+				mapping = info.get('mapping') if isinstance(info, dict) else info
+				orig_name = info.get('orig_name') if isinstance(info, dict) else None
+				# If exact normalized column not present, try fuzzy matching against cleaned/original headers
+				chosen_col = var_norm
+				if var_norm not in result_df.columns:
+					# Candidates: normalized result_df columns and normalized original headers
+					candidates = list(result_df.columns)
+					# also include normalized versions of original headers (from norm_map)
+					candidates += list(norm_map.keys())
+					# also try cleaning original headers and normalizing
+					cleaned_candidates = []
+					for orig in orig_columns:
+						try:
+							cn = normalize_name(clean_header_name(orig), naming_func)
+							cleaned_candidates.append(cn)
+						except Exception:
+							pass
+					candidates += cleaned_candidates
+					closest = _difflib.get_close_matches(var_norm, candidates, n=3)
+					if closest:
+						# prefer a candidate that is actually a column in result_df
+						pick = None
+						for c in closest:
+							if c in result_df.columns:
+								pick = c
+								break
+						if pick is None and closest[0] in norm_map:
+							pick = closest[0]
+						if pick is None:
+							pick = closest[0]
+						chosen_col = pick
+						print(f"[decode_fields][VAR_MAP] Mapping for '{var_norm}' (orig: '{orig_name}') not found; using closest match '{chosen_col}'")
+					else:
+						print(f"[decode_fields][VAR_MAP] Mapping for '{var_norm}' (orig: '{orig_name}') present but column missing. Closest columns: {closest}")
+						continue
+				try:
+					# Ensure code column is string and stripped
+					result_df = result_df.with_columns(
+						pl.col(chosen_col).cast(pl.Utf8).str.strip_chars().alias(chosen_col)
+					)
+					# sample up to 10 distinct values from the column for diagnostics
+					try:
+						sample_vals = result_df[chosen_col].unique().to_list()[:10]
+					except Exception:
+						sample_vals = []
+					map_keys = list(mapping.keys()) if isinstance(mapping, dict) else []
+					sample_map_keys = map_keys[:10]
+					# compute simple intersection counts (case-insensitive)
+					lower_map_keys = {k.lower() for k in map_keys if isinstance(k, str)}
+					matched = 0
+					matched_examples = []
+					for sv in sample_vals:
+						if sv is None:
+							continue
+						s = str(sv).strip()
+						if s in mapping or s.lower() in lower_map_keys:
+							matched += 1
+							matched_examples.append(s)
+					print(f"[decode_fields][VAR_MAP][DIAG] '{var_norm}' (orig: '{orig_name}') sample_values={sample_vals[:5]} sample_map_keys={sample_map_keys} matched_sample_count={matched}/{len(sample_vals)}")
+					# Replace original column values with mapped labels (no extra _label column)
+					try:
+						src_vals = result_df[chosen_col].to_list()
+					except Exception:
+						src_vals = []
+					mapped_vals = []
+					unq_unmapped_examples = []
+					total_non_null = 0
+					mapped_count = 0
+					seen_unmapped = set()
+					for v in src_vals:
+						if v is None:
+							mapped_vals.append(None)
+							continue
+						s = str(v).strip()
+						if s == '':
+							total_non_null += 1
+							found = None
+							for k in mapping:
+								if 'leeg' in k.lower():
+									found = mapping[k]
+									break
+							# preserve original value if no mapping found
+							mapped_vals.append(found if found is not None else s)
+							if found is None:
+								if s not in seen_unmapped:
+									unq_unmapped_examples.append(s)
+									seen_unmapped.add(s)
+							else:
+								mapped_count += 1
+							continue
+						total_non_null += 1
+						if s in mapping:
+							mapped_vals.append(mapping[s])
+							mapped_count += 1
+							continue
+						matched = None
+						for k, val in mapping.items():
+							if isinstance(k, str) and k.lower() == s.lower():
+								matched = val
+								break
+						# preserve original value when no mapping found
+						mapped_vals.append(matched if matched is not None else s)
+						if matched is None:
+							if s not in seen_unmapped:
+								unq_unmapped_examples.append(s)
+								seen_unmapped.add(s)
+						else:
+							mapped_count += 1
+					# Replace column in DataFrame
+					try:
+						result_df = result_df.with_columns(
+							pl.Series(mapped_vals).alias(chosen_col)
+						)
+					except Exception:
+						# fallback: create Series with explicit dtype
+						result_df = result_df.with_columns(
+							pl.Series(mapped_vals).cast(pl.Utf8).alias(chosen_col)
+						)
+					print(f"[decode_fields][VAR_MAP] '{chosen_col}' (orig: '{orig_name}'): total non-null={total_non_null}, mapped={mapped_count}, sample_unmapped={unq_unmapped_examples[:5]} (replaced in-place)")
+				except Exception as e:
+					print(f"[decode_fields][VAR_MAP][ERROR] Applying mapping for {var_norm}: {e}")
+	except Exception as e:
+		print(f"[decode_fields][DEBUG] Error applying variable mappings: {e}")
+
 	# --- Restore original column names for output ---
 	result_df = result_df.rename({k: v for k, v in norm_map.items() if k in result_df.columns})
 	return result_df
