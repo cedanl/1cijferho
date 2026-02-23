@@ -294,25 +294,9 @@ def write_variable_metadata(json_folder="data/00-metadata/json", output_filename
     os.makedirs(json_folder, exist_ok=True)
     output_path = os.path.join(json_folder, output_filename)
 
-    # Prefer using the dedicated parser in dev/parse_metadata_to_json.py so output
-    # matches the original script format. If that parser isn't available, fall
-    # back to a best-effort scan of existing JSON metadata files.
-    # Use the original parser logic from dev/parse_metadata_to_json.py to
-    # produce the canonical variables-with-values structure.
+    # Use the canonical parser implemented in this package (`parse_metadata.py`).
     try:
-        import importlib.util
-        script_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../..", "dev", "parse_metadata_to_json.py"))
-        if not os.path.exists(script_path):
-            console = Console()
-            console.print(f"[red]Dev parser not found at {script_path}; cannot write variable metadata using dev logic.")
-            return
-        spec = importlib.util.spec_from_file_location("dev_parse_metadata", script_path)
-        devmod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(devmod)
-        if not hasattr(devmod, "parse_metadata_file"):
-            console = Console()
-            console.print(f"[red]Dev parser does not expose parse_metadata_file(); cannot write variable metadata using dev logic.")
-            return
+        from .parse_metadata import parse_metadata_file
 
         default_input = os.path.join("data", "01-input", "Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.txt")
         if not os.path.exists(default_input):
@@ -320,13 +304,13 @@ def write_variable_metadata(json_folder="data/00-metadata/json", output_filename
             console.print(f"[red]Default input file not found: {default_input}")
             return
 
-        parsed = devmod.parse_metadata_file(default_input)
+        parsed = parse_metadata_file(default_input)
         with open(output_path, 'w', encoding='utf-8') as out_f:
             json.dump(parsed, out_f, ensure_ascii=False, indent=2)
         return
     except Exception as e:
         console = Console()
-        console.print(f"[red]Error running dev parser: {e}")
+        console.print(f"[red]Error running parser: {e}")
         return
 
 

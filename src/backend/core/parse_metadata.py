@@ -88,14 +88,24 @@ def parse_metadata_file(path: str) -> List[Dict[str, Any]]:
                     continue
                 m = re.match(r'^([^=<>`]+?)\s*=\s*(.+)$', s)
                 if m:
+                    # Decide whether this is a true key=value line or a
+                    # continuation line that happens to contain an '=' inside
+                    # parentheses or a long explanation. Use the position of
+                    # '=' in the original raw line as a heuristic.
+                    eq_pos = raw.find('=')
                     key = m.group(1).strip()
                     val = m.group(2).strip()
+
+                    long_key_continuation = (eq_pos is not None and eq_pos >= 0 and eq_pos > 40) or (len(key) > 20 and not re.search(r'^[0-9]+$', key))
+
                     # Special handling for Indicatie geboren, value 99
                     if name == "Indicatie geboren" and key == "99":
-                        # Force the canonical value and prevent following lines
-                        # from being appended as continuations for this key.
                         values[key] = "Onbekend"
                         last_key = None
+                    elif long_key_continuation and last_key:
+                        # Treat this line as a continuation for the previous key
+                        cont = re.sub(r'\s+', ' ', s).strip()
+                        values[last_key] = values[last_key].rstrip() + ' ' + cont
                     else:
                         values[key] = val
                         last_key = key
