@@ -43,29 +43,29 @@ def load_variable_mappings(variable_metadata_path=None, naming_func=None):
 		for k, v in values.items():
 			# keep raw key as-is (including markers like '[leeg]') but strip surrounding whitespace
 			if isinstance(k, str):
-				kk = k.strip()
+				key = k.strip()
 			else:
-				kk = str(k)
+				key = str(k)
 			# Add original string
-			entry[kk] = v
+			entry[key] = v
 			# Add uppercase variant if different
-			if kk.upper() != kk:
-				entry[kk.upper()] = v
+			if key.upper() != key:
+				entry[key.upper()] = v
 			# Add zero-padded variant for numeric codes (up to 2 digits)
-			if kk.isdigit():
-				zfill2 = kk.zfill(2)
+			if key.isdigit():
+				zfill2 = key.zfill(2)
 				entry[zfill2] = v
 				try:
-					int_k = int(kk)
-					entry[int_k] = v
+					int_key = int(key)
+					entry[int_key] = v
 				except Exception:
 					pass
 			# Add int version if possible and not already present
 			else:
 				try:
-					int_k = int(kk)
-					if int_k not in entry:
-						entry[int_k] = v
+					int_key = int(key)
+					if int_key not in entry:
+						entry[int_key] = v
 				except Exception:
 					pass
 		if entry:
