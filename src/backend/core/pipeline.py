@@ -25,11 +25,15 @@ def run_turbo_convert_pipeline(input_dir="data/01-input", dec_metadata_json="dat
     for file in os.listdir(dec_dir):
         if (file.startswith("EV") or file.startswith("VAKHAVW")) and file.endswith(".csv") and not file.endswith("_decoded.csv"):
             file_path = os.path.join(dec_dir, file)
-            main_df = decoder.pl.read_csv(file_path, separator=';', encoding='latin1')
+            # Always read as UTF-8
+            main_df = decoder.pl.read_csv(file_path, separator=';', encoding='utf-8')
             dec_tables = decoder.load_dec_tables_from_metadata(dec_metadata_json, dec_dir)
             decoded_df = decoder.decode_fields(main_df, dec_metadata_json, dec_tables)
             decoded_file = file_path.replace('.csv', '_decoded.csv')
-            decoded_df.write_csv(decoded_file, separator=';')
+            # Always write as UTF-8
+            csv_string = decoded_df.write_csv(separator=';')
+            with open(decoded_file, 'w', encoding='utf-8') as f:
+                f.write(csv_string)
             decoded_count += 1
     log += f"[pipeline] Decoding completed for {decoded_count} file(s).\n"
     if progress_callback: progress_callback(40)

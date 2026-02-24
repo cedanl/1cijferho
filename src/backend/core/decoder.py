@@ -129,6 +129,7 @@ def decode_fields(df, metadata_json_path, dec_tables, naming_func=None):
 		meta = json.load(f)
 	# --- Normalize main DataFrame columns and keep mapping to original names ---
 	orig_columns = list(df.columns)
+	from backend.utils.converter_headers import strip_accents
 	norm_map = {normalize_name(col, naming_func): col for col in orig_columns}
 	norm_columns = list(norm_map.keys())
 	norm_df = df.rename({v: k for k, v in norm_map.items()})
@@ -158,8 +159,8 @@ def decode_fields(df, metadata_json_path, dec_tables, naming_func=None):
 				if len(content) < 2:
 					continue
 				code_col = content[1].split()[0]
-				code_col_norm = normalize_name(code_col, naming_func)
-				join_df = dec_table.rename({c: normalize_name(c, naming_func) for c in dec_table.columns})
+				code_col_norm = normalize_name(strip_accents(code_col), naming_func)
+				join_df = dec_table.rename({c: normalize_name(strip_accents(c), naming_func) for c in dec_table.columns})
 				# Special handling for Dec_landcode and Dec_nationaliteitscode: fallback to correct code column if 'code' is missing
 				if table['table_title'].lower().startswith('dec_landcode') and code_col_norm not in join_df.columns:
 					if 'code_land' in join_df.columns:
@@ -176,7 +177,7 @@ def decode_fields(df, metadata_json_path, dec_tables, naming_func=None):
 						pl.col(code_col_norm).cast(pl.Utf8).str.zfill(2).str.strip_chars().alias(code_col_norm)
 					)
 				for var in dec_vars:
-					var_norm = normalize_name(var, naming_func)
+					var_norm = normalize_name(strip_accents(var), naming_func)
 					if var_norm not in result_df.columns:
 						closest = difflib.get_close_matches(var_norm, result_df.columns, n=1)
 						if closest:
@@ -198,7 +199,7 @@ def decode_fields(df, metadata_json_path, dec_tables, naming_func=None):
 							how='left',
 						)
 						for col in dec_cols:
-							new_col = f"{var_norm}__{col}"
+							new_col = f"{var_norm}__{normalize_name(strip_accents(col), naming_func)}"
 							result_df = result_df.with_columns(
 								joined[col].alias(new_col)
 							)
