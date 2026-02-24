@@ -13,16 +13,19 @@ def load_variable_mappings(variable_metadata_path=None, naming_func=None):
 	candidates = []
 	if variable_metadata_path:
 		candidates.append(variable_metadata_path)
-	# common project-relative location
 	candidates.append(os.path.join(os.getcwd(), 'data', '00-metadata', 'json', 'variable_metadata.json'))
-	# next to the primary metadata file (if caller passed one of its paths)
-	# caller may provide metadata_json_path directory instead
 	for p in candidates:
 		if os.path.exists(p):
 			path = p
 			break
 	else:
 		return {}
+	# --- Sanitize variable_metadata.json before loading ---
+	try:
+		from backend.utils.sanitize_variable_metadata import sanitize_variable_metadata_json
+		sanitize_variable_metadata_json(path)
+	except Exception as e:
+		print(f"[decoder] Warning: could not sanitize variable metadata {path}: {e}")
 	try:
 		with open(path, encoding='utf-8') as f:
 			items = json.load(f)
@@ -43,7 +46,28 @@ def load_variable_mappings(variable_metadata_path=None, naming_func=None):
 				kk = k.strip()
 			else:
 				kk = str(k)
+			# Add original string
 			entry[kk] = v
+			# Add uppercase variant if different
+			if kk.upper() != kk:
+				entry[kk.upper()] = v
+			# Add zero-padded variant for numeric codes (up to 2 digits)
+			if kk.isdigit():
+				zfill2 = kk.zfill(2)
+				entry[zfill2] = v
+				try:
+					int_k = int(kk)
+					entry[int_k] = v
+				except Exception:
+					pass
+			# Add int version if possible and not already present
+			else:
+				try:
+					int_k = int(kk)
+					if int_k not in entry:
+						entry[int_k] = v
+				except Exception:
+					pass
 		if entry:
 			# store original name and mapping for richer diagnostics
 			maps[norm] = {"orig_name": name, "mapping": entry}
@@ -108,6 +132,11 @@ def decode_fields(df, metadata_json_path, dec_tables, naming_func=None):
 	norm_map = {normalize_name(col, naming_func): col for col in orig_columns}
 	norm_columns = list(norm_map.keys())
 	norm_df = df.rename({v: k for k, v in norm_map.items()})
+	# Force all columns to string to preserve leading zeros for codes
+	for col in norm_df.columns:
+		norm_df = norm_df.with_columns(
+			pl.col(col).cast(pl.Utf8).str.strip_chars().alias(col)
+		)
 	decode_summary = []
 	dec_tables_used = set()
 	dec_tables_not_used = set(dec_tables.keys())
@@ -144,7 +173,7 @@ def decode_fields(df, metadata_json_path, dec_tables, naming_func=None):
 						continue
 				if code_col_norm in join_df.columns:
 					join_df = join_df.with_columns(
-						pl.col(code_col_norm).cast(pl.Utf8).str.strip_chars().alias(code_col_norm)
+						pl.col(code_col_norm).cast(pl.Utf8).str.zfill(2).str.strip_chars().alias(code_col_norm)
 					)
 				for var in dec_vars:
 					var_norm = normalize_name(var, naming_func)
@@ -157,7 +186,7 @@ def decode_fields(df, metadata_json_path, dec_tables, naming_func=None):
 						continue
 					# Normalize main df code column to string and strip whitespace
 					result_df = result_df.with_columns(
-						pl.col(var_norm).cast(pl.Utf8).str.strip_chars().alias(var_norm)
+						pl.col(var_norm).cast(pl.Utf8).str.zfill(2).str.strip_chars().alias(var_norm)
 					)
 					try:
 						dec_cols = [c for c in join_df.columns if c != code_col_norm]
@@ -267,12 +296,12 @@ def decode_fields(df, metadata_json_path, dec_tables, naming_func=None):
 							print(f"[decoder][vakken] Closest match: {closest[0]}")
 						continue
 					result_df = result_df.with_columns(
-						pl.col(col).cast(pl.Utf8).str.strip_chars().alias(col)
+						pl.col(col).cast(pl.Utf8).str.zfill(2).str.strip_chars().alias(col)
 					)
 				for col in [dec_code_col_norm, dec_code_col2_norm]:
 					if col in join_df.columns:
 						join_df = join_df.with_columns(
-							pl.col(col).cast(pl.Utf8).str.strip_chars().alias(col)
+							pl.col(col).cast(pl.Utf8).str.zfill(2).str.strip_chars().alias(col)
 						)
 				try:
 					dec_cols = [c for c in join_df.columns if c not in [dec_code_col_norm, dec_code_col2_norm]]
@@ -418,14 +447,13 @@ def decode_fields(df, metadata_json_path, dec_tables, naming_func=None):
 							mapped_vals.append(None)
 							continue
 						s = str(v).strip()
+						found = None
 						if s == '':
 							total_non_null += 1
-							found = None
 							for k in mapping:
-								if 'leeg' in k.lower():
+								if isinstance(k, str) and 'leeg' in k.lower():
 									found = mapping[k]
 									break
-							# preserve original value if no mapping found
 							mapped_vals.append(found if found is not None else s)
 							if found is None:
 								if s not in seen_unmapped:
@@ -435,23 +463,40 @@ def decode_fields(df, metadata_json_path, dec_tables, naming_func=None):
 								mapped_count += 1
 							continue
 						total_non_null += 1
-						if s in mapping:
-							mapped_vals.append(mapping[s])
-							mapped_count += 1
-							continue
-						matched = None
-						for k, val in mapping.items():
-							if isinstance(k, str) and k.lower() == s.lower():
-								matched = val
+						# Try all reasonable variants for lookup
+						variants = [s, s.upper()]
+						if s.isdigit():
+							variants.append(s.zfill(2))
+							try:
+								variants.append(int(s))
+							except Exception:
+								pass
+						# Try each variant
+						for variant in variants:
+							if variant in mapping:
+								mapped_vals.append(mapping[variant])
+								mapped_count += 1
 								break
-						# preserve original value when no mapping found
-						mapped_vals.append(matched if matched is not None else s)
-						if matched is None:
-							if s not in seen_unmapped:
-								unq_unmapped_examples.append(s)
-								seen_unmapped.add(s)
 						else:
-							mapped_count += 1
+							# Fallback: try case-insensitive match and int-string equivalence
+							matched = None
+							for k, val in mapping.items():
+								if isinstance(k, str) and k.lower() == s.lower():
+									matched = val
+									break
+								try:
+									if isinstance(k, int) and str(k) == s:
+										matched = val
+										break
+								except Exception:
+									pass
+							mapped_vals.append(matched if matched is not None else s)
+							if matched is None:
+								if s not in seen_unmapped:
+									unq_unmapped_examples.append(s)
+									seen_unmapped.add(s)
+							else:
+								mapped_count += 1
 					# Replace column in DataFrame
 					try:
 						result_df = result_df.with_columns(
