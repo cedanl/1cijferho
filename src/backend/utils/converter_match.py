@@ -21,7 +21,7 @@ from rich.console import Console
 import json
 import datetime
 
-def load_input_files(input_folder):
+def load_input_files(input_folder: str) -> pl.DataFrame:
     """Get all files from the user input_folder (root level only), excluding .txt, .zip, and .xlsx extensions,
     and count the number of rows in each file."""
     files = []
@@ -55,7 +55,7 @@ def load_input_files(input_folder):
     
     return df
 
-def load_validation_log(log_path):
+def load_validation_log(log_path: str) -> pl.DataFrame:
     """Load processed bestandbeschrijvingen validation log and return a Polars dataframe with file and status columns"""
     with open(log_path, 'r') as f:
         data = json.load(f)
@@ -67,7 +67,7 @@ def load_validation_log(log_path):
     
     return df
 
-def match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validation_log_latest.json"):
+def match_files(input_folder: str, log_path: str = "data/00-metadata/logs/(3)_xlsx_validation_log_latest.json") -> dict[str, pl.DataFrame]:
     """Match input files with metadata files and log the results.
     
     Special matching rules:
