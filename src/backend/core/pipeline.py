@@ -7,8 +7,15 @@ import backend.utils.converter_validation as cv
 import backend.utils.compressor as co
 import backend.utils.encryptor as en
 import backend.utils.converter_headers as ch
+from typing import Any, Callable, Dict, List, Tuple, Optional
 
-def run_turbo_convert_pipeline(input_dir="data/01-input", dec_metadata_json="data/00-metadata/json/Bestandsbeschrijving_Dec-bestanden_DEMO.json", output_dir="data/02-output", progress_callback=None, status_callback=None):
+def run_turbo_convert_pipeline(
+    input_dir: str = "data/01-input",
+    dec_metadata_json: str = "data/00-metadata/json/Bestandsbeschrijving_Dec-bestanden_DEMO.json",
+    output_dir: str = "data/02-output",
+    progress_callback: Optional[Callable[[int], None]] = None,
+    status_callback: Optional[Callable[[str], None]] = None,
+) -> Tuple[str, List[Dict[str, Any]]]:
     log = ""
     # Step 1: Convert files
     if status_callback: status_callback("⚡ Stap 3: Converting fixed-width files...")
