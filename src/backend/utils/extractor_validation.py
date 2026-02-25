@@ -20,13 +20,14 @@ import glob
 import json
 import datetime
 from pathlib import Path
+from typing import Any, Dict
 
 
 # Check column lenght in extractor with json  
 
 # Move .csv to 02-output
 
-def validate_metadata(file_path):
+def validate_metadata(file_path: str | Path) -> tuple[bool, Dict[str, Any]]:
     """Validates a single layout specification file and returns validation results."""
     
     issues_dict = {
@@ -135,7 +136,7 @@ def validate_metadata(file_path):
         return False, issues_dict
 
     
-def validate_metadata_folder(metadata_folder="data/00-metadata", return_dict=False):
+def validate_metadata_folder(metadata_folder: str = "data/00-metadata", return_dict: bool = False) -> dict[str, dict[str, Any]] | None:
     """Validates all Excel files in a metadata_folder and returns a summary."""
   
     console = Console()
