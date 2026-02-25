@@ -48,7 +48,7 @@ def show_demo_notifications() -> bool:
 
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
-def check_repo_version():
+def check_repo_version() -> dict | None:
     """Check if local version matches latest GitHub release"""
     try:
         local_version = Path("VERSION").read_text().strip()
