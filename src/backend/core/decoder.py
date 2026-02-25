@@ -2,9 +2,10 @@ import polars as pl
 import json
 import os
 from backend.utils.converter_headers import normalize_name, clean_header_name
+from typing import Any, Callable, Optional
 
 
-def load_variable_mappings(variable_metadata_path=None, naming_func=None):
+def load_variable_mappings(variable_metadata_path: Optional[str] = None, naming_func: Optional[Callable[[str], str]] = None) -> dict[str, dict[str, Any]]:
 	"""
 	Load variable-level value mappings from a variable metadata JSON file.
 	Returns dict: {normalized_variable_name: {raw_code: label, ...}}
@@ -86,7 +87,7 @@ def load_variable_mappings(variable_metadata_path=None, naming_func=None):
 			pass
 	return maps
 
-def load_dec_tables_from_metadata(metadata_json_path, dec_output_dir, naming_func=None):
+def load_dec_tables_from_metadata(metadata_json_path: str, dec_output_dir: str, naming_func: Optional[Callable[[str], str]] = None) -> dict[str, pl.DataFrame]:
 	"""
 	Load Dec_* tables as Polars DataFrames based on metadata JSON.
 	Returns a dict: {table_title: DataFrame}
@@ -119,7 +120,7 @@ def load_dec_tables_from_metadata(metadata_json_path, dec_output_dir, naming_fun
 			print(f"[decoder] Warning: Could not load {dec_file}: {e}")
 	return dec_tables
 
-def decode_fields(df, metadata_json_path, dec_tables, naming_func=None):
+def decode_fields(df: pl.DataFrame, metadata_json_path: str, dec_tables: dict[str, pl.DataFrame], naming_func: Optional[Callable[[str], str]] = None) -> pl.DataFrame:
 	"""
 	For each field in df that is listed in decoding_variables in the metadata,
 	left join the decoded values from the corresponding Dec_* table.
@@ -519,7 +520,7 @@ def decode_fields(df, metadata_json_path, dec_tables, naming_func=None):
 	return result_df
 
 
-def clean_for_latin1(df):
+def clean_for_latin1(df: pl.DataFrame) -> pl.DataFrame:
 	"""
 	Replace problematic unicode characters in all string columns to ensure latin-1 compatibility.
 	Currently replaces '⁄' (U+2044) with '/'.

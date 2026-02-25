@@ -3,7 +3,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.progress import track
 
-def convert_csv_to_parquet(input_dir="data/02-output"):
+def convert_csv_to_parquet(input_dir: str = "data/02-output") -> None:
     console = Console()
     input_path = Path(input_dir)
     csv_files = list(input_path.glob("*.csv"))

@@ -9,7 +9,7 @@ import subprocess
 import argparse
 
 
-def run_pipeline(input_folder):
+def run_pipeline(input_folder: str) -> None:
     """Run the complete pipeline with the given input folder"""
     # Step 1: Extract Metadata from Bestandsbeschrijving files (txt -> JSON -> Excel)
     ex.process_txt_folder(input_folder)
@@ -36,7 +36,7 @@ def run_pipeline(input_folder):
 
 
 
-def main():
+def main() -> None:
     """Main function with command line argument parsing"""
     parser = argparse.ArgumentParser(description='Process input files through the pipeline')
     parser.add_argument('input_folder', type=str, help='Path to the input folder')

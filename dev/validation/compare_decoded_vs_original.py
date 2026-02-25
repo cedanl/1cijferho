@@ -3,7 +3,6 @@ Script to compare original and decoded CSV files in the 02-output directory.
 Checks for column differences and value changes for a quick test.
 """
 import polars as pl
-import pandas as pd
 from pathlib import Path
 
 OUTPUT_DIR = Path("data/02-output")

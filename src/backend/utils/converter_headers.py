@@ -4,8 +4,9 @@ import unicodedata
 from pathlib import Path
 import polars as pl
 from rich.console import Console
+from typing import Callable, Optional
 
-def normalize_name(name, naming_func=None):
+def normalize_name(name: str, naming_func: Optional[Callable[[str], str]] = None) -> str:
     """
     Normalize variable names using the provided naming convention function (e.g., snake_case).
     If no function is provided, defaults to snake_case.
@@ -25,7 +26,7 @@ def normalize_polars_columns(df: pl.DataFrame) -> pl.DataFrame:
     """
     return df.rename({col: strip_accents(normalize_name(col)) for col in df.columns})
 
-def clean_header_name(name):
+def clean_header_name(name: str) -> str:
     # Normalize to NFKD, remove diacritics, replace problematic chars
     name = unicodedata.normalize('NFKD', str(name))
     name = ''.join(c for c in name if not unicodedata.combining(c))

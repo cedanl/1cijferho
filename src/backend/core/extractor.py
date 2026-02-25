@@ -21,15 +21,15 @@ Functions:
 import os
 import json
 import re
-import polars as pl
 import datetime
 from rich.console import Console
+from typing import Any, Dict, List, Optional, Tuple
 
 # Constants for table extraction
 MAX_LOOKAHEAD_LINES_FOR_DECODING_SECTION = 20  # Lines to search for "Ten behoeve van de decodering" section
 MAX_LOOKAHEAD_LINES_FOR_VARIABLE_LIST = 50     # Lines to search for bullet-pointed variable list (longer because list can be extended)
 
-def extract_decoding_variables(lines, start_index):
+def extract_decoding_variables(lines: list[str], start_index: int) -> list[str]:
     """
     Extract decoding variables from lines starting at start_index.
     
@@ -80,7 +80,7 @@ def extract_decoding_variables(lines, start_index):
     
     return decoding_variables
 
-def extract_tables_from_txt(txt_file, json_output_folder):
+def extract_tables_from_txt(txt_file: str, json_output_folder: str) -> Optional[str]:
     """Extracts tables from a .txt file and saves them as JSON."""
     os.makedirs(json_output_folder, exist_ok=True)
     
@@ -162,7 +162,7 @@ def extract_tables_from_txt(txt_file, json_output_folder):
     
 
 
-def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json"):
+def process_txt_folder(input_folder: str, json_output_folder: str = "data/00-metadata/json") -> None:
     """Finds all .txt files containing 'Bestandsbeschrijving' in the root directory only and extracts tables from them."""
     os.makedirs(json_output_folder, exist_ok=True)
     
@@ -284,7 +284,7 @@ def process_txt_folder(input_folder, json_output_folder="data/00-metadata/json")
     return None
 
 
-def write_variable_metadata(json_folder="data/00-metadata/json", output_filename="variable_metadata.json"):
+def write_variable_metadata(json_folder: str = "data/00-metadata/json", output_filename: str = "variable_metadata.json") -> None:
     """Scan JSON metadata files and write a consolidated variable metadata JSON.
 
     The function collects variable names from all table `content` lines in the
@@ -314,7 +314,7 @@ def write_variable_metadata(json_folder="data/00-metadata/json", output_filename
         return
 
 
-def extract_excel_from_json(json_file, excel_output_folder):
+def extract_excel_from_json(json_file: str, excel_output_folder: str) -> Tuple[List[Dict[str, Any]], int, int]:
     """
     Extracts tables from a JSON file and saves them as Excel files.
     Includes ID column and a column for comments (Opmerkingen) after Aantal posities.
@@ -354,7 +354,7 @@ def extract_excel_from_json(json_file, excel_output_folder):
         base_filename = data["filename"]
     
     # Function to sanitize filenames
-    def sanitize_filename(filename):
+    def sanitize_filename(filename: str) -> str:
         """Sanitize the filename by removing or replacing invalid characters."""
         return re.sub(r'[\\/*?:"<>|]', "_", filename)
     
@@ -593,7 +593,7 @@ def extract_excel_from_json(json_file, excel_output_folder):
     return results, files_created, total_tables
 
 
-def process_json_folder(json_input_folder="data/00-metadata/json", excel_output_folder="data/00-metadata"):
+def process_json_folder(json_input_folder: str = "data/00-metadata/json", excel_output_folder: str = "data/00-metadata") -> None:
     """Processes all JSON files in a folder, converting tables to Excel files."""
     os.makedirs(excel_output_folder, exist_ok=True)
     

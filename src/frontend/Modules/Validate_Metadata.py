@@ -6,11 +6,12 @@ import backend.utils.extractor_validation as ex_val
 import backend.utils.converter_match as cm
 import io
 import contextlib
+from typing import Any, Dict, List, Optional, Tuple
 
 # -----------------------------------------------------------------------------
 # Helper Functions
 # -----------------------------------------------------------------------------
-def get_metadata_files():
+def get_metadata_files() -> List[str]:
     """Get all metadata files from the metadata directory"""
     metadata_dir = "data/00-metadata"
     if not os.path.exists(metadata_dir):
@@ -27,7 +28,7 @@ def get_metadata_files():
     
     return sorted(all_files)
 
-def load_validation_logs():
+def load_validation_logs() -> Optional[Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]]:
     """Load the latest validation logs and return failure information"""
     logs_dir = "data/00-metadata/logs"
     
@@ -103,7 +104,7 @@ def load_validation_logs():
     
     return xlsx_failures, matching_failures
 
-def clear_console_log():
+def clear_console_log() -> None:
     """Clear the console log in session state"""
     if 'validate_console_log' in st.session_state:
         del st.session_state['validate_console_log']

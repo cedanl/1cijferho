@@ -8,6 +8,7 @@ import backend.utils.encryptor as en
 import backend.utils.converter_headers as ch
 import io
 import contextlib
+from typing import Any, Dict, List, Tuple
 
 # -----------------------------------------------------------------------------
 # Page Configuration
@@ -21,7 +22,7 @@ import contextlib
 # -----------------------------------------------------------------------------
 # Helper Functions
 # -----------------------------------------------------------------------------
-def get_matched_files():
+def get_matched_files() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Get all matched files from the validation logs"""
     logs_dir = "data/00-metadata/logs"
     if not os.path.exists(logs_dir):
@@ -56,12 +57,12 @@ def get_matched_files():
     
     return successful_pairs, skipped_pairs
 
-def clear_console_log():
+def clear_console_log() -> None:
     """Clear the console log in session state"""
     if 'convert_console_log' in st.session_state:
         del st.session_state['convert_console_log']
 
-def get_output_files():
+def get_output_files() -> List[Dict[str, Any]]:
     """Get all files from the output directory"""
     output_dir = "data/02-output"
     if not os.path.exists(output_dir):
@@ -82,7 +83,7 @@ def get_output_files():
     files.sort(key=lambda x: x['name'])
     return files
 
-def format_file_size(size_bytes):
+def format_file_size(size_bytes: int) -> str:
     """Format file size in human readable format"""
     if size_bytes == 0:
         return "0 B"
@@ -93,7 +94,7 @@ def format_file_size(size_bytes):
     s = round(size_bytes / p, 2)
     return f"{s} {size_names[i]}"
 
-def start_conversion():
+def start_conversion() -> None:
     """Callback function to start the conversion process"""
     st.session_state.start_turbo_convert = True
 
@@ -189,7 +190,7 @@ else:
             status_text = st.empty()
             console_container = st.empty()
             
-            def update_console():
+            def update_console() -> None:
                 """Update the console display"""
                 with console_container.container():
                     if st.session_state.convert_console_log:

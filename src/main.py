@@ -9,7 +9,6 @@ Main Entrypoint for the 1CIJFERHO App
 """
 import streamlit as st
 import glob
-import os
 import requests
 from pathlib import Path
 import requests
@@ -27,12 +26,12 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 # Demo Detection Function
 # -----------------------------------------------------------------------------
-def check_demo_files():
+def check_demo_files() -> tuple[bool, list[str]]:
     """Check if demo files exist in data/01-input directory"""
     demo_files = glob.glob("data/01-input/*_DEMO*")
     return len(demo_files) > 0, demo_files
 
-def show_demo_notifications():
+def show_demo_notifications() -> bool:
     """Show demo notifications in sidebar only"""
     demo_exists, demo_files = check_demo_files()
     
@@ -49,7 +48,7 @@ def show_demo_notifications():
 
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
-def check_repo_version():
+def check_repo_version() -> dict | None:
     """Check if local version matches latest GitHub release"""
     try:
         local_version = Path("VERSION").read_text().strip()
@@ -68,7 +67,7 @@ def check_repo_version():
     except:
         return None
 
-def show_version_notification():
+def show_version_notification() -> bool:
     """Show version notification in sidebar"""
     version_info = check_repo_version()
     

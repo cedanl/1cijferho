@@ -4,6 +4,7 @@ import multiprocessing as mp
 import json
 import polars as pl
 import datetime
+from typing import Any, Union
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 
@@ -20,7 +21,7 @@ Functions:
         - Processes all valid matches in the JSON file, applying the converter function
 """
 
-def process_chunk(chunk_data):
+def process_chunk(chunk_data: tuple[list[tuple[int, int]], list[Union[str, bytes]]]) -> list[str]:
     """
     Process a chunk of lines and return the converted output
     """
@@ -35,7 +36,7 @@ def process_chunk(chunk_data):
     return output_lines
 
 
-def converter(input_file, metadata_file):
+def converter(input_file: str, metadata_file: str) -> tuple[str, int]:
 
     # Determine output file path - same name but in data/02-output
     input_filename = os.path.basename(input_file)
@@ -104,7 +105,7 @@ def converter(input_file, metadata_file):
     return output_file, total_lines
 
 
-def run_conversions_from_matches(input_folder, metadata_folder="data/00-metadata", match_log_file = "data/00-metadata/logs/(4)_file_matching_log_latest.json"):
+def run_conversions_from_matches(input_folder: str, metadata_folder: str = "data/00-metadata", match_log_file: str = "data/00-metadata/logs/(4)_file_matching_log_latest.json") -> dict[str, Any]:
 
     console = Console()
     console.print(f"[cyan]Starting conversion based on match log: {match_log_file}")
@@ -259,7 +260,7 @@ def run_conversions_from_matches(input_folder, metadata_folder="data/00-metadata
     
     return results  # Return the results
 
-def convert_dec_files(input_folder, metadata_folder="data/00-metadata", output_folder="data/02-output"):
+def convert_dec_files(input_folder: str, metadata_folder: str = "data/00-metadata", output_folder: str = "data/02-output") -> None:
     """
     Convert all Dec_* files in the input folder using their corresponding metadata, even if unmatched.
     Only processes files with .asc extension and a matching Bestandsbeschrijving_*.txt in metadata_folder.

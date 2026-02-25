@@ -11,11 +11,12 @@ Script that validates if row counts in matching log match with total lines in co
 import json
 import os
 import datetime
+from typing import Any
 from rich import print as rprint
 
-def converter_validation(conversion_log_path="data/00-metadata/logs/(5)_conversion_log_latest.json", 
-                         matching_log_path="data/00-metadata/logs/(4)_file_matching_log_latest.json", 
-                         output_log_path="data/00-metadata/logs/(6)_conversion_validation_log_latest.json"):
+def converter_validation(conversion_log_path: str = "data/00-metadata/logs/(5)_conversion_log_latest.json", 
+                         matching_log_path: str = "data/00-metadata/logs/(4)_file_matching_log_latest.json", 
+                         output_log_path: str = "data/00-metadata/logs/(6)_conversion_validation_log_latest.json") -> dict[str, Any]:
     # Prepare results structure
     results = {
         "timestamp": datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),

@@ -4,11 +4,12 @@ import glob
 import backend.core.extractor as ex
 import io
 import contextlib
+from typing import List
 
 # -----------------------------------------------------------------------------
 # Helper Functions
 # -----------------------------------------------------------------------------
-def clear_existing_files():
+def clear_existing_files() -> List[str]:
     """Clear existing metadata files before starting new extraction"""
     metadata_dir = "data/00-metadata"
     json_dir = os.path.join(metadata_dir, "json")
@@ -37,7 +38,7 @@ def clear_existing_files():
     
     return files_cleared
 
-def get_bestandsbeschrijvingen():
+def get_bestandsbeschrijvingen() -> List[str]:
     """Get all bestandsbeschrijving files from the input directory"""
     input_dir = "data/01-input"
     if not os.path.exists(input_dir):
