@@ -7,9 +7,22 @@ from typing import Any, Callable, Optional
 
 def load_variable_mappings(variable_metadata_path: Optional[str] = None, naming_func: Optional[Callable[[str], str]] = None) -> dict[str, dict[str, Any]]:
 	"""
-	Load variable-level value mappings from a variable metadata JSON file.
-	Returns dict: {normalized_variable_name: {raw_code: label, ...}}
-	Tries sensible default locations when `variable_metadata_path` is None.
+	Loads variable-level value mappings from a variable metadata JSON file.
+
+	Args:
+		variable_metadata_path (Optional[str]): Path to the variable metadata JSON file. If None, tries sensible defaults.
+		naming_func (Optional[Callable[[str], str]]): Optional function to normalize variable names.
+
+	Returns:
+		dict[str, dict[str, Any]]: Mapping of normalized variable names to code-label dictionaries.
+
+	Edge Cases:
+		- If file is missing or corrupt, returns empty dict and prints warning.
+		- If values are not a dict, skips that variable.
+
+	Example:
+		>>> mappings = load_variable_mappings()
+		>>> print(mappings['GESLACHT'])
 	"""
 	candidates = []
 	if variable_metadata_path:
@@ -89,9 +102,22 @@ def load_variable_mappings(variable_metadata_path: Optional[str] = None, naming_
 
 def load_dec_tables_from_metadata(metadata_json_path: str, dec_output_dir: str, naming_func: Optional[Callable[[str], str]] = None) -> dict[str, pl.DataFrame]:
 	"""
-	Load Dec_* tables as Polars DataFrames based on metadata JSON.
-	Returns a dict: {table_title: DataFrame}
-	Skips missing files with warning.
+	Loads Dec_* tables as Polars DataFrames based on metadata JSON.
+
+	Args:
+		metadata_json_path (str): Path to the metadata JSON file.
+		dec_output_dir (str): Directory containing Dec_* CSV files.
+		naming_func (Optional[Callable[[str], str]]): Optional function to normalize names.
+
+	Returns:
+		dict[str, pl.DataFrame]: Mapping of table titles to DataFrames.
+
+	Edge Cases:
+		- Skips missing or unreadable files with warning.
+		- Tries to infer code columns from metadata content.
+
+	Example:
+		>>> dec_tables = load_dec_tables_from_metadata('variable_metadata.json', 'data/02-output')
 	"""
 	with open(metadata_json_path, encoding='utf-8') as f:
 		meta = json.load(f)
@@ -122,9 +148,23 @@ def load_dec_tables_from_metadata(metadata_json_path: str, dec_output_dir: str, 
 
 def decode_fields(df: pl.DataFrame, metadata_json_path: str, dec_tables: dict[str, pl.DataFrame], naming_func: Optional[Callable[[str], str]] = None) -> pl.DataFrame:
 	"""
-	For each field in df that is listed in decoding_variables in the metadata,
-	left join the decoded values from the corresponding Dec_* table.
-	Appends decoded columns to df. Returns a new DataFrame.
+	For each field in df listed in decoding_variables in the metadata, left-joins decoded values from the corresponding Dec_* table.
+
+	Args:
+		df (pl.DataFrame): Input DataFrame with coded fields.
+		metadata_json_path (str): Path to the metadata JSON file.
+		dec_tables (dict[str, pl.DataFrame]): Mapping of table titles to DataFrames.
+		naming_func (Optional[Callable[[str], str]]): Optional function to normalize names.
+
+	Returns:
+		pl.DataFrame: DataFrame with decoded columns appended.
+
+	Edge Cases:
+		- Skips fields not present in dec_tables
+		- Handles missing or corrupt metadata gracefully
+
+	Example:
+		>>> df_decoded = decode_fields(df, 'variable_metadata.json', dec_tables)
 	"""
 	with open(metadata_json_path, encoding='utf-8') as f:
 		meta = json.load(f)
@@ -522,9 +562,20 @@ def decode_fields(df: pl.DataFrame, metadata_json_path: str, dec_tables: dict[st
 
 def clean_for_latin1(df: pl.DataFrame) -> pl.DataFrame:
 	"""
-	Replace problematic unicode characters in all string columns to ensure latin-1 compatibility.
-	Currently replaces '⁄' (U+2044) with '/'.
-	Extend as needed for other characters.
+	Replaces problematic unicode characters in all string columns to ensure latin-1 compatibility.
+
+	Args:
+		df (pl.DataFrame): Input DataFrame to sanitize.
+
+	Returns:
+		pl.DataFrame: DataFrame with problematic characters replaced.
+
+	Edge Cases:
+		- Replaces all non-latin1 characters with '?'
+		- Replaces '⁄' (U+2044) with '/'
+
+	Example:
+		>>> df_clean = clean_for_latin1(df)
 	"""
 	import polars as pl
 	# Regex for any character not in latin-1 (U+0000 to U+00FF)

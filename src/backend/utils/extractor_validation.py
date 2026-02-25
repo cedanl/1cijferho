@@ -28,7 +28,36 @@ from typing import Any, Dict
 # Move .csv to 02-output
 
 def validate_metadata(file_path: str | Path) -> tuple[bool, Dict[str, Any]]:
-    """Validates a single layout specification file and returns validation results."""
+    """
+    Validates a single layout specification (Excel) file and returns validation results.
+
+    Args:
+        file_path (str | Path): Path to the Excel file to validate. Should point to a layout specification file (.xlsx).
+
+    Returns:
+        tuple[bool, Dict[str, Any]]: Tuple where the first element is True if validation passes (no issues),
+        False otherwise. The second element is a dictionary with details about detected issues, including:
+            - 'duplicates': List of duplicate field names (if any)
+            - 'position_errors': List of position error dicts (if any)
+            - 'length_mismatch': Boolean indicating if total length mismatches
+            - 'total_issues': Total number of issues found
+            - 'load_error': Error message if file could not be loaded (optional)
+            - 'column_error': Error message if columns are missing (optional)
+
+    Edge Cases:
+        - Handles files that cannot be loaded (returns load_error)
+        - Handles files with missing or unexpected columns (returns column_error)
+        - Special handling for files with names containing 'Dec_landcode' or 'Dec_nationaliteitscode'
+        - Returns empty issues if no problems are found
+
+    Raises:
+        Does not raise, but returns error info in the result dict.
+
+    Example:
+        >>> success, issues = validate_metadata('Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.xlsx')
+        >>> if not success:
+        ...     print(issues)
+    """
     
     issues_dict = {
         "duplicates": [],
@@ -137,7 +166,26 @@ def validate_metadata(file_path: str | Path) -> tuple[bool, Dict[str, Any]]:
 
     
 def validate_metadata_folder(metadata_folder: str = "data/00-metadata", return_dict: bool = False) -> dict[str, dict[str, Any]] | None:
-    """Validates all Excel files in a metadata_folder and returns a summary."""
+    """
+    Validates all Excel files in a metadata folder and returns a summary of results.
+
+    Args:
+        metadata_folder (str, optional): Path to the folder containing Excel metadata files. Defaults to 'data/00-metadata'.
+        return_dict (bool, optional): If True, returns a dictionary with validation results for each file. If False, returns None.
+
+    Returns:
+        dict[str, dict[str, Any]] | None: Dictionary mapping file names to their validation results if return_dict is True, otherwise None.
+
+    Edge Cases:
+        - If no Excel files are found, prints a warning and returns empty dict or None.
+        - Handles and logs errors for individual files without stopping the batch process.
+        - Saves both timestamped and latest logs in the log folder.
+
+    Example:
+        >>> results = validate_metadata_folder('data/00-metadata', return_dict=True)
+        >>> for fname, res in results.items():
+        ...     print(fname, res)
+    """
   
     console = Console()
     

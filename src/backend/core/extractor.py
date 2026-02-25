@@ -31,16 +31,23 @@ MAX_LOOKAHEAD_LINES_FOR_VARIABLE_LIST = 50     # Lines to search for bullet-poin
 
 def extract_decoding_variables(lines: list[str], start_index: int) -> list[str]:
     """
-    Extract decoding variables from lines starting at start_index.
-    
-    Looks for "Ten behoeve van de decodering" section and extracts bullet-pointed variables.
-    
+    Extracts decoding variables from lines starting at start_index.
+
+    Looks for the "Ten behoeve van de decodering" or "Ten behoeve van de vertaling" section and extracts bullet-pointed variables.
+
     Args:
-        lines: List of text lines to search
-        start_index: Index to start searching from
-        
+        lines (list[str]): List of text lines to search.
+        start_index (int): Index to start searching from.
+
     Returns:
-        List of decoding variable names
+        list[str]: List of decoding variable names.
+
+    Edge Cases:
+        - Stops at section dividers or unrelated content.
+        - Handles empty lines and notes.
+
+    Example:
+        >>> extract_decoding_variables(lines, 10)
     """
     decoding_variables = []
     j = start_index
@@ -81,7 +88,23 @@ def extract_decoding_variables(lines: list[str], start_index: int) -> list[str]:
     return decoding_variables
 
 def extract_tables_from_txt(txt_file: str, json_output_folder: str) -> Optional[str]:
-    """Extracts tables from a .txt file and saves them as JSON."""
+    """
+    Extracts tables from a .txt or .asc file and saves them as JSON.
+
+    Args:
+        txt_file (str): Path to the .txt or .asc file.
+        json_output_folder (str): Folder to save the output JSON.
+
+    Returns:
+        Optional[str]: Path to the saved JSON file, or None if extraction failed.
+
+    Edge Cases:
+        - Handles file read errors gracefully.
+        - Creates output folder if missing.
+
+    Example:
+        >>> extract_tables_from_txt('Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.txt', 'data/00-metadata/json')
+    """
     os.makedirs(json_output_folder, exist_ok=True)
     
     try:
@@ -163,7 +186,24 @@ def extract_tables_from_txt(txt_file: str, json_output_folder: str) -> Optional[
 
 
 def process_txt_folder(input_folder: str, json_output_folder: str = "data/00-metadata/json") -> None:
-    """Finds all .txt files containing 'Bestandsbeschrijving' in the root directory only and extracts tables from them."""
+    """
+    Finds all .txt files containing 'Bestandsbeschrijving' in the root directory and extracts tables from them.
+    Also processes all .asc files in the root directory.
+
+    Args:
+        input_folder (str): Folder to search for .txt and .asc files.
+        json_output_folder (str, optional): Output folder for JSON files. Defaults to 'data/00-metadata/json'.
+
+    Returns:
+        None
+
+    Edge Cases:
+        - Removes any existing JSON files in the output folder.
+        - Handles missing input folder gracefully.
+
+    Example:
+        >>> process_txt_folder('data/01-input')
+    """
     os.makedirs(json_output_folder, exist_ok=True)
     
     # Remove any existing json files
@@ -285,11 +325,22 @@ def process_txt_folder(input_folder: str, json_output_folder: str = "data/00-met
 
 
 def write_variable_metadata(json_folder: str = "data/00-metadata/json", output_filename: str = "variable_metadata.json") -> None:
-    """Scan JSON metadata files and write a consolidated variable metadata JSON.
+    """
+    Scans JSON metadata files and writes a consolidated variable metadata JSON.
 
-    The function collects variable names from all table `content` lines in the
-    JSON files found in `json_folder`. It records where each variable was found
-    and any decoding_variables listed for the table.
+    Args:
+        json_folder (str, optional): Folder containing JSON metadata files. Defaults to 'data/00-metadata/json'.
+        output_filename (str, optional): Output filename for consolidated metadata. Defaults to 'variable_metadata.json'.
+
+    Returns:
+        None
+
+    Edge Cases:
+        - Handles missing input files or parser errors gracefully.
+        - Uses canonical parser if available.
+
+    Example:
+        >>> write_variable_metadata()
     """
     os.makedirs(json_folder, exist_ok=True)
     output_path = os.path.join(json_folder, output_filename)
@@ -317,11 +368,25 @@ def write_variable_metadata(json_folder: str = "data/00-metadata/json", output_f
 def extract_excel_from_json(json_file: str, excel_output_folder: str) -> Tuple[List[Dict[str, Any]], int, int]:
     """
     Extracts tables from a JSON file and saves them as Excel files.
+
     Includes ID column and a column for comments (Opmerkingen) after Aantal posities.
     Also extracts and stores decoding variables information in a separate sheet.
-    Returns detailed processing results for table reporting.
-    Sets specific data types for Excel columns: ID (int), Naam (str), Startpositie (int), 
+    Sets specific data types for Excel columns: ID (int), Naam (str), Startpositie (int),
     Aantal posities (int), Opmerking (str).
+
+    Args:
+        json_file (str): Path to the JSON file.
+        excel_output_folder (str): Folder to save the Excel files.
+
+    Returns:
+        Tuple[List[Dict[str, Any]], int, int]: Processing results for table reporting.
+
+    Edge Cases:
+        - Handles missing or corrupt JSON files gracefully.
+        - Ensures output folder exists.
+
+    Example:
+        >>> extract_excel_from_json('Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.json', 'data/00-metadata')
     """
     # Initialize Rich console for better output
     console = Console()
@@ -594,7 +659,23 @@ def extract_excel_from_json(json_file: str, excel_output_folder: str) -> Tuple[L
 
 
 def process_json_folder(json_input_folder: str = "data/00-metadata/json", excel_output_folder: str = "data/00-metadata") -> None:
-    """Processes all JSON files in a folder, converting tables to Excel files."""
+    """
+    Processes all JSON files in a folder, converting tables to Excel files.
+
+    Args:
+        json_input_folder (str, optional): Folder containing JSON files. Defaults to 'data/00-metadata/json'.
+        excel_output_folder (str, optional): Output folder for Excel files. Defaults to 'data/00-metadata'.
+
+    Returns:
+        None
+
+    Edge Cases:
+        - Removes any existing Excel files in the output folder.
+        - Handles missing or empty input folder gracefully.
+
+    Example:
+        >>> process_json_folder('data/00-metadata/json', 'data/00-metadata')
+    """
     os.makedirs(excel_output_folder, exist_ok=True)
     
     # Remove any existing Excel files
