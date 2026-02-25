@@ -17,6 +17,27 @@ from rich import print as rprint
 def converter_validation(conversion_log_path: str = "data/00-metadata/logs/(5)_conversion_log_latest.json", 
                          matching_log_path: str = "data/00-metadata/logs/(4)_file_matching_log_latest.json", 
                          output_log_path: str = "data/00-metadata/logs/(6)_conversion_validation_log_latest.json") -> dict[str, Any]:
+    """
+    Validates that row counts in the matching log match the total lines in the conversion log for each processed file.
+
+    Args:
+        conversion_log_path (str, optional): Path to the conversion log JSON file. Defaults to the latest log.
+        matching_log_path (str, optional): Path to the file matching log JSON file. Defaults to the latest log.
+        output_log_path (str, optional): Path to save the output validation log. Defaults to the latest log.
+
+    Returns:
+        dict[str, Any]: Dictionary containing validation summary, including total files, successful and failed conversions, and per-file details.
+
+    Edge Cases:
+        - If a file is present in the matching log but not in the conversion log, it is ignored.
+        - Only files with status 'success' in the conversion log are validated.
+        - If row counts do not match, the file is marked as failed with an error message.
+        - Handles missing or empty details gracefully.
+
+    Example:
+        >>> results = converter_validation()
+        >>> print(results["successful_conversions"])
+    """
     # Prepare results structure
     results = {
         "timestamp": datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),

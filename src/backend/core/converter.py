@@ -23,7 +23,25 @@ Functions:
 
 def process_chunk(chunk_data: tuple[list[tuple[int, int]], list[Union[str, bytes]]]) -> list[str]:
     """
-    Process a chunk of lines and return the converted output
+    Processes a chunk of lines from a fixed-width file and returns the converted output as CSV lines.
+
+    Args:
+        chunk_data (tuple[list[tuple[int, int]], list[Union[str, bytes]]]):
+            - positions: List of (start, end) tuples for slicing fields
+            - chunk: List of lines (str or bytes) to process
+
+    Returns:
+        list[str]: List of CSV-formatted strings (semicolon-delimited)
+
+    Edge Cases:
+        - Handles both str and bytes input lines
+        - Skips empty lines
+        - Strips whitespace from each field
+
+    Example:
+        >>> chunk = [(0, 5), (5, 10)], [b'abc  def  ']
+        >>> process_chunk(chunk)
+        ['abc;def']
     """
     positions, chunk = chunk_data
     output_lines = []
@@ -37,6 +55,28 @@ def process_chunk(chunk_data: tuple[list[tuple[int, int]], list[Union[str, bytes
 
 
 def converter(input_file: str, metadata_file: str) -> tuple[str, int]:
+
+    """
+    Converts a fixed-width ASCII file to CSV using metadata for field positions.
+
+    Args:
+        input_file (str): Path to the input .asc file.
+        metadata_file (str): Path to the metadata Excel file (.xlsx).
+
+    Returns:
+        tuple[str, int]: Tuple of (output CSV file path, total lines processed).
+
+    Edge Cases:
+        - Handles both small and large files (uses multiprocessing for large files)
+        - Creates output directory if missing
+        - Handles encoding issues (input: latin1, output: utf-8)
+        - Skips empty lines
+        - Fails gracefully if metadata columns are missing
+
+    Example:
+        >>> out, n = converter('Dec_landcode.asc', 'Bestandsbeschrijving_Dec-bestanden_DEMO.xlsx')
+        >>> print(out, n)
+    """
 
     # Determine output file path - same name but in data/02-output
     input_filename = os.path.basename(input_file)
@@ -106,6 +146,26 @@ def converter(input_file: str, metadata_file: str) -> tuple[str, int]:
 
 
 def run_conversions_from_matches(input_folder: str, metadata_folder: str = "data/00-metadata", match_log_file: str = "data/00-metadata/logs/(4)_file_matching_log_latest.json") -> dict[str, Any]:
+    """
+    Runs conversion for all matched input/metadata file pairs based on a match log.
+
+    Args:
+        input_folder (str): Folder containing input files.
+        metadata_folder (str, optional): Folder with metadata files. Defaults to 'data/00-metadata'.
+        match_log_file (str, optional): Path to the match log JSON. Defaults to latest log.
+
+    Returns:
+        dict[str, Any]: Summary of conversion results, including counts and details.
+
+    Edge Cases:
+        - Handles missing or corrupt log files
+        - Logs and skips files that fail conversion
+        - Tracks skipped file pairs
+
+    Example:
+        >>> summary = run_conversions_from_matches('data/01-input')
+        >>> print(summary['successful_conversions'])
+    """
 
     console = Console()
     console.print(f"[cyan]Starting conversion based on match log: {match_log_file}")
@@ -262,8 +322,23 @@ def run_conversions_from_matches(input_folder: str, metadata_folder: str = "data
 
 def convert_dec_files(input_folder: str, metadata_folder: str = "data/00-metadata", output_folder: str = "data/02-output") -> None:
     """
-    Convert all Dec_* files in the input folder using their corresponding metadata, even if unmatched.
-    Only processes files with .asc extension and a matching Bestandsbeschrijving_*.txt in metadata_folder.
+    Converts all Dec_* files in the input folder using their corresponding metadata, even if unmatched.
+
+    Args:
+        input_folder (str): Folder containing Dec_*.asc files.
+        metadata_folder (str, optional): Folder with metadata files. Defaults to 'data/00-metadata'.
+        output_folder (str, optional): Output folder for converted CSVs. Defaults to 'data/02-output'.
+
+    Returns:
+        None
+
+    Edge Cases:
+        - Skips Dec_* files with no matching metadata
+        - Prefers .xlsx metadata, falls back to .txt
+        - Prints warnings for missing or failed conversions
+
+    Example:
+        >>> convert_dec_files('data/01-input')
     """
     dec_files = [f for f in os.listdir(input_folder) if f.startswith("Dec_") and f.endswith(".asc")]
     for dec_file in dec_files:

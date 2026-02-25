@@ -27,7 +27,23 @@ def normalize_polars_columns(df: pl.DataFrame) -> pl.DataFrame:
     return df.rename({col: strip_accents(normalize_name(col)) for col in df.columns})
 
 def clean_header_name(name: str) -> str:
-    # Normalize to NFKD, remove diacritics, replace problematic chars
+    """
+    Cleans and normalizes a header name by removing diacritics and replacing problematic characters.
+
+    Args:
+        name (str): The header name to clean.
+
+    Returns:
+        str: Cleaned header name.
+
+    Edge Cases:
+        - Handles corrupted characters and fraction slashes.
+        - Strips whitespace and fixes specific corruption patterns.
+
+    Example:
+        >>> clean_header_name('vóór/3a3')
+        'voor/a'
+    """
     name = unicodedata.normalize('NFKD', str(name))
     name = ''.join(c for c in name if not unicodedata.combining(c))
     name = name.replace('\u2044', '/')  # Replace fraction slash if present
