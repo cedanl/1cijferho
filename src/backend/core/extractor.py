@@ -21,7 +21,6 @@ Functions:
 import os
 import json
 import re
-import polars as pl
 import datetime
 from rich.console import Console
 

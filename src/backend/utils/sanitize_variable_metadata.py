@@ -1,6 +1,5 @@
 import json
 import sys
-import os
 
 def sanitize_variable_metadata_json(json_path: str) -> None:
     with open(json_path, encoding='utf-8') as f:

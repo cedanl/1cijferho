@@ -7,7 +7,6 @@ Provides `parse_metadata_file(path)` for programmatic use.
 import json
 import os
 import re
-import subprocess
 from typing import List, Dict, Any
 
 
