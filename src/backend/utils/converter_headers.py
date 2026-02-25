@@ -12,7 +12,8 @@ def normalize_name(name, naming_func=None):
     """
     if naming_func:
         return naming_func(name)
-    # Default: snake_case, remove special chars
+    # First, convert accented letters to ASCII equivalents
+    name = strip_accents(name)
     name = name.lower()
     name = re.sub(r'[^a-z0-9]+', '_', name)
     name = re.sub(r'_+', '_', name).strip('_')
@@ -36,9 +37,10 @@ def clean_header_name(name):
     return name
 
 def strip_accents(text: str) -> str:
-    """Remove accents from text (e.g., 'vóór' -> 'voor')."""
+    """Remove accents from text (e.g., 'vóór' -> 'voor', 'é' -> 'e')."""
     normalized = unicodedata.normalize('NFKD', text)
-    return ''.join(c for c in normalized if not unicodedata.combining(c))
+    # Encode to ASCII, ignoring errors (drops accents, keeps base letter)
+    return normalized.encode('ascii', 'ignore').decode('ascii')
 
 console = Console()
 
@@ -46,7 +48,7 @@ console = Console()
 def convert_csv_headers_to_snake_case(
     input_dir: str = "data/02-output",
     delimiter: str = ";",
-    encoding: str = "latin-1",
+    encoding: str = "utf-8",
     quote_char: str = "",
     infer_schema_length: int | None = None
 ) -> None:
@@ -91,7 +93,8 @@ def convert_csv_headers_to_snake_case(
                 separator=delimiter,
                 encoding=encoding,
                 quote_char=quote_char,
-                infer_schema_length=infer_schema_length
+                infer_schema_length=infer_schema_length,
+                truncate_ragged_lines=True
             )
             
             # Get original column names
@@ -127,7 +130,7 @@ def convert_csv_headers_to_snake_case(
             csv_string = df_cleaned.write_csv(separator=delimiter)
             
             # Write with the specified encoding
-            with open(csv_file, 'w', encoding=encoding) as f:
+            with open(csv_file, 'w', encoding='utf-8') as f:
                 f.write(csv_string)
             
             console.print("  [green]✓ Updated successfully[/green]\n")
