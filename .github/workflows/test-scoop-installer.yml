@@ -4,7 +4,8 @@ name: Test Scoop Installer
 on:
   push:
     branches:
-      - refactor-io
+      - main
+      - vm_actions
   workflow_dispatch:  # Allow manual triggering
 
 jobs:
