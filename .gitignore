@@ -169,8 +169,19 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-/data
+# User input data (ignored by default)
+/data/01-input/*
+# Track demo files and decoder reference files
+!/data/01-input/DEMO/
+
+# All output data (ignored - always generated)
+/data/02-output/
+
+# Metadata (generated, not tracked)
+/data/00-metadata/
+
 .DS_Store
 
 # Development reports (generated output)
 dev/reports/
+
