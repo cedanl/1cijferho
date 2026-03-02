@@ -11,7 +11,14 @@ import streamlit as st
 import glob
 import requests
 from pathlib import Path
-import requests
+from config import INPUT_DIR, OUTPUT_DIR, _detect_demo_mode, get_input_dir
+
+# Initialize session state for demo mode toggle
+if "demo_mode_override" not in st.session_state:
+    st.session_state.demo_mode_override = None  # None = auto-detect, True/False = manual override
+
+# Determine actual DEMO_MODE (session override takes precedence)
+DEMO_MODE = st.session_state.demo_mode_override if st.session_state.demo_mode_override is not None else _detect_demo_mode()
 
 # -----------------------------------------------------------------------------
 # App Configuration - Must be first Streamlit command
@@ -27,23 +34,31 @@ st.set_page_config(
 # Demo Detection Function
 # -----------------------------------------------------------------------------
 def check_demo_files() -> tuple[bool, list[str]]:
-    """Check if demo files exist in data/01-input directory"""
-    demo_files = glob.glob("data/01-input/*_DEMO*")
+    """Check if demo files exist in the configured input directory"""
+    demo_files = glob.glob(f"{INPUT_DIR}/*_DEMO*")
     return len(demo_files) > 0, demo_files
 
 def show_demo_notifications() -> bool:
-    """Show demo notifications in sidebar only"""
-    demo_exists, demo_files = check_demo_files()
-    
-    if demo_exists:
-        # Sidebar (persistent)
-        with st.sidebar:
-            st.warning("🎯 **Demo modus actief**", icon="⚠️")
-            st.write(f"{len(demo_files)} demo-bestanden actief")
-            st.error("⚠️ Klaar om uw eigen data te gebruiken? Verwijder alle *_DEMO bestanden uit `data/01-input/`.")
+    """Show demo mode indicator and toggle in sidebar"""
+    with st.sidebar:
+        st.divider()
+        st.subheader("⚙️ Modus")
         
-        return True
-    return False
+        # Toggle between demo and production mode
+        use_demo = st.toggle(
+            "Demo bestanden gebruiken?",
+            value=DEMO_MODE,
+            help="Toggle tussen demo-bestanden en uw eigen data"
+        )
+        
+        if use_demo != DEMO_MODE:
+            st.session_state.demo_mode_override = use_demo
+            st.rerun()
+        
+        # Show current directory info
+        st.caption(f"📁 Ingang: `{get_input_dir()}/`")
+        
+        st.divider()
 
 
 
