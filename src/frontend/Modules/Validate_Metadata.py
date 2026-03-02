@@ -139,7 +139,7 @@ Als validatie of koppeling faalt, kunt u de .xlsx-bestanden aanpassen in `data/0
 # Get files and display status
 metadata_files = get_metadata_files()
 
-# Set input folder (get dynamically to respect session state toggle)
+# Set input folder
 input_folder = get_input_dir()
 
 if not metadata_files:

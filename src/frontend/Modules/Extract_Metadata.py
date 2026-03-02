@@ -84,8 +84,9 @@ with st.expander("🚨 Bestaande Bestandbeschrijvingen"):
 # Get files and display status
 bestandsbeschrijvingen = get_bestandsbeschrijvingen()
 
+input_dir = get_input_dir()
 if not bestandsbeschrijvingen:
-    st.error(f"🚨 **Geen Bestandsbeschrijving-bestanden gevonden in `{get_input_dir()}`**")
+    st.error(f"🚨 **Geen Bestandsbeschrijving-bestanden gevonden in `{input_dir}`**")
 else:
     st.success(f"✅ **{len(bestandsbeschrijvingen)} Bestandsbeschrijving-bestanden gevonden**")
     st.info("💡 U kunt doorgaan, ook als er fouten zijn - doe dit met voorzichtigheid!")
