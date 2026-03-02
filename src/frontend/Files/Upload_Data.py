@@ -2,13 +2,16 @@ import streamlit as st
 import os
 import glob
 from typing import Dict, List, Tuple
+from config import get_demo_mode, get_input_dir
 
 # -----------------------------------------------------------------------------
 # Helper Functions
 # -----------------------------------------------------------------------------
 def categorize_files() -> Tuple[bool, Dict[str, List[str]], int]:
     """Check if the input directory exists and categorize files found"""
-    input_dir = "data/01-input"
+    # Get current paths dynamically (respects session state toggle)
+    input_dir = get_input_dir()
+    is_demo = get_demo_mode()
 
     # Create directory if it doesn't exist
     os.makedirs(input_dir, exist_ok=True)
@@ -21,9 +24,13 @@ def categorize_files() -> Tuple[bool, Dict[str, List[str]], int]:
     
     # Filter out directories and .zip files, keep only regular files
     all_files = []
+    seen = set()
     for file_path in all_files_paths:
         if os.path.isfile(file_path) and not file_path.lower().endswith('.zip'):
-            all_files.append(os.path.basename(file_path))
+            basename = os.path.basename(file_path)
+            if basename not in seen:
+                seen.add(basename)
+                all_files.append(basename)
     
     # Categorize files
     categorized_files = {
@@ -64,7 +71,17 @@ def categorize_files() -> Tuple[bool, Dict[str, List[str]], int]:
 # -----------------------------------------------------------------------------
 # Main header and subtitle
 st.title("📂 Bestanden uploaden")
-st.write("""
+
+if get_demo_mode():
+    st.info("🎯 **Demo modus actief** – demo-bestanden worden geladen uit `data/01-input/DEMO/`.")
+    st.write("""
+Volg deze stappen om te beginnen:
+
+1. **Demo-bestanden** staan al klaar in `data/01-input/DEMO/`
+2. **Ververs deze pagina** om de beschikbare bestanden per type te bekijken
+""")
+else:
+    st.write("""
 Volg deze stappen om te beginnen:
 
 1. **Kopieer uw 1CHO-bestanden** naar de map `data/01-input` van deze applicatie
@@ -90,16 +107,16 @@ with col2:
 # Example Directory Structure
 # -----------------------------------------------------------------------------
 with st.expander("📂 Voorbeeld mapstructuur"):
-    st.write("""
+    st.write(f"""
     ### Voorbeeld mapstructuur
     
-    Uw `data/01-input` map moet eruitzien zoals hieronder. Bestanden worden automatisch ingedeeld in drie types:
+    Uw `{get_input_dir()}` map moet eruitzien zoals hieronder. Bestanden worden automatisch ingedeeld in drie types:
     
     - **📄 Bestandsbeschrijvingen**: .txt-bestanden met "bestandsbeschrijving" in de naam
     - **🔓 Decodeerbestanden**: Bestanden die beginnen met "Dec_"
     - **📊 Hoofdbestanden**: Bestanden die beginnen met "EV", "VAKHAVW", "Croho" of "Croho_vest"
     
-    **Belangrijk:** Plaats bestanden direct in de map `data/01-input`, niet in submappen.
+    **Belangrijk:** Plaats bestanden direct in de map `{get_input_dir()}`, niet in submappen.
     """)
     
     # Path to the image (if it exists)
@@ -112,15 +129,14 @@ with st.expander("📂 Voorbeeld mapstructuur"):
 files_found, categorized_files, total_files = categorize_files()
 
 if not files_found:
-    st.error("""
-    🚨 **Geen bestanden gevonden in de map `data/01-input`**
+    st.error(f"""
+    🚨 **Geen bestanden gevonden in de map `{get_input_dir()}`**
     
-    Kopieer uw uitgepakte 1CHO-bestanden naar de map `data/01-input` en ververs deze pagina.
+    Kopieer uw uitgepakte 1CHO-bestanden naar de map `{get_input_dir()}` en ververs deze pagina.
     """)
 else:
     st.success(f"""
-    ✅ **{total_files} bestanden gevonden in de map `data/01-input`**
-    
+    ✅ **{total_files} bestanden gevonden in de map `{get_input_dir()}`**
     Bestanden zijn automatisch ingedeeld per type. Controleer hieronder of alle verwachte bestanden aanwezig zijn.
     """)
 
