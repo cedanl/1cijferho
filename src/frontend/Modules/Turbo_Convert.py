@@ -9,6 +9,7 @@ import backend.utils.converter_headers as ch
 import io
 import contextlib
 from typing import Any, Dict, List, Tuple
+from config import get_input_dir, get_output_dir
 
 # -----------------------------------------------------------------------------
 # Page Configuration
@@ -64,7 +65,7 @@ def clear_console_log() -> None:
 
 def get_output_files() -> List[Dict[str, Any]]:
     """Get all files from the output directory"""
-    output_dir = "data/02-output"
+    output_dir = get_output_dir()
     if not os.path.exists(output_dir):
         return []
     
@@ -207,7 +208,7 @@ else:
                 # Step 3: Convert Files
                 st.session_state.convert_console_log += "⚡ Stap 3: Converting fixed-width files...\n"
                 update_console()
-                result = subprocess.run(["uv", "run", "src/backend/core/converter.py"], 
+                result = subprocess.run(["uv", "run", "src/backend/core/converter.py", get_input_dir(), get_output_dir()], 
                                       capture_output=True, text=True, cwd=".")
                 if result.stdout:
                     st.session_state.convert_console_log += result.stdout
@@ -220,7 +221,12 @@ else:
                 # --- Decoding step for EV* and VAKHAVW* files ---
                 # Decoding is now handled in backend/core/pipeline.py
                 import backend.core.pipeline as pipeline
-                log, output_files = pipeline.run_turbo_convert_pipeline(progress_callback=progress_bar.progress, status_callback=status_text.text)
+                log, output_files = pipeline.run_turbo_convert_pipeline(
+                    input_dir=get_input_dir(), 
+                    output_dir=get_output_dir(),
+                    progress_callback=progress_bar.progress, 
+                    status_callback=status_text.text
+                )
                 st.session_state.convert_console_log += log
                 update_console()
                 progress_bar.progress(100)
@@ -243,7 +249,7 @@ else:
                 update_console()
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
-                    co.convert_csv_to_parquet()
+                    co.convert_csv_to_parquet(get_output_dir())
                 st.session_state.convert_console_log += captured_output.getvalue()
                 st.session_state.convert_console_log += "✅ Compression completed\n"
                 update_console()
@@ -255,7 +261,7 @@ else:
                 update_console()
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
-                    en.encryptor()
+                    en.encryptor(get_output_dir(), get_output_dir())
                 st.session_state.convert_console_log += captured_output.getvalue()
                 st.session_state.convert_console_log += "✅ Encryptie afgerond\n"
                 st.session_state.convert_console_log += "🎉 Complete processing pipeline succesvol afgerond!\n"
@@ -268,7 +274,7 @@ else:
                 update_console()
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
-                    ch.convert_csv_headers_to_snake_case()
+                    ch.convert_csv_headers_to_snake_case(get_output_dir())
                 st.session_state.convert_console_log += captured_output.getvalue()
                 st.session_state.convert_console_log += "✅ Header conversie afgerond\n"
                 update_console()
@@ -277,13 +283,14 @@ else:
 
                 status_text.text("✅ Verwerking succesvol voltooid!")
                 
-                st.success("✅ **Verwerking voltooid!** Bestanden geconverteerd, gevalideerd, gecomprimeerd en versleuteld. Resultaten opgeslagen in `data/02-output/`")
+                output_dir = get_output_dir()
+                st.success(f"✅ **Verwerking voltooid!** Bestanden geconverteerd, gevalideerd, gecomprimeerd en versleuteld. Resultaten opgeslagen in `{output_dir}/`")
                 
                 # Show converted files
                 output_files = get_output_files()
                 if output_files:
                     with st.expander(f"📁 Converted Files ({len(output_files)} files)", expanded=True):
-                        st.write("**Bestanden succesvol aangemaakt in `data/02-output/`:**")
+                        st.write(f"**Bestanden succesvol aangemaakt in `{output_dir}/`:**")
                         
                         # Group files by type for better organization
                         csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv') and not f['name'].endswith('_decoded.csv')]
@@ -345,9 +352,10 @@ with st.expander("📋 Console Log", expanded=True):
 
 # Show existing converted files (if any)
 output_files = get_output_files()
+output_dir = get_output_dir()
 if output_files:
     with st.expander(f"📁 Geconverteerde bestanden ({len(output_files)} files)", expanded=False):
-        st.write("**Bestanden momenteel in `data/02-output/`:**")
+        st.write(f"**Bestanden momenteel in `{output_dir}/`:**")
         
         # Group files by type for better organization
         csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv')]
@@ -370,8 +378,8 @@ if output_files:
                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
         
 else:
-    st.info("📁 Nog geen geconverteerde bestanden gevonden in `data/02-output/`.")
+    st.info(f"📁 Nog geen geconverteerde bestanden gevonden in `{output_dir}/`.")
 
 # Warning about existing files
-if os.path.exists("data/02-output") and os.listdir("data/02-output"):
-    st.warning("⚠️ Nieuwe conversie zal bestaande bestanden in `data/02-output/` overschrijven")
+if os.path.exists(output_dir) and os.listdir(output_dir):
+    st.warning(f"⚠️ Nieuwe conversie zal bestaande bestanden in `{output_dir}/` overschrijven")

@@ -3,8 +3,17 @@ from pathlib import Path
 from rich.console import Console
 import hashlib
 from typing import Any, Optional
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+from config import get_output_dir
 
-def encryptor(input_dir: str = "data/02-output", output_dir: str = "data/02-output") -> None:
+def encryptor(input_dir: str | None = None, output_dir: str | None = None) -> None:
+    # Use dynamic config defaults if not provided
+    if input_dir is None:
+        input_dir = get_output_dir()
+    if output_dir is None:
+        output_dir = get_output_dir()
     console = Console()
     input_path = Path(input_dir)
     output_path = Path(output_dir)

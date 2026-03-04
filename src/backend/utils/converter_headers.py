@@ -63,12 +63,19 @@ console = Console()
 
 
 def convert_csv_headers_to_snake_case(
-    input_dir: str = "data/02-output",
+    input_dir: str | None = None,
     delimiter: str = ";",
     encoding: str = "utf-8",
     quote_char: str = "",
     infer_schema_length: int | None = None
 ) -> None:
+    # Use dynamic config default if not provided
+    if input_dir is None:
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+        from config import get_output_dir
+        input_dir = get_output_dir()
     """
     Convert all CSV file headers in the input directory to snake_case.
     
@@ -167,5 +174,5 @@ def convert_csv_headers_to_snake_case(
 
 
 if __name__ == "__main__":
-    # Example usage - now uses defaults that work for your files
-    convert_csv_headers_to_snake_case("data/02-output")
+    # Example usage - uses dynamic config defaults
+    convert_csv_headers_to_snake_case()

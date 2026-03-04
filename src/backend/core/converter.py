@@ -7,6 +7,7 @@ import datetime
 from typing import Any, Union
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+from config import INPUT_DIR, OUTPUT_DIR, DECODER_INPUT_DIR
 
 """
 Fixed-width to CSV converter for 1CHO data files. Contains functionality for efficient conversion
@@ -54,7 +55,7 @@ def process_chunk(chunk_data: tuple[list[tuple[int, int]], list[Union[str, bytes
     return output_lines
 
 
-def converter(input_file: str, metadata_file: str) -> tuple[str, int]:
+def converter(input_file: str, metadata_file: str, output_dir: str | None = None) -> tuple[str, int]:
 
     """
     Converts a fixed-width ASCII file to CSV using metadata for field positions.
@@ -78,10 +79,12 @@ def converter(input_file: str, metadata_file: str) -> tuple[str, int]:
         >>> print(out, n)
     """
 
-    # Determine output file path - same name but in data/02-output
+    # Determine output file path - same name but in output_dir (or OUTPUT_DIR if not provided)
+    if output_dir is None:
+        output_dir = OUTPUT_DIR
     input_filename = os.path.basename(input_file)
     base_name = os.path.splitext(input_filename)[0]  # Get filename without extension
-    output_file = f"data/02-output/{base_name}.csv"
+    output_file = os.path.join(output_dir, f"{base_name}.csv")
 
     
     # Create output directory if it doesn't exist
@@ -145,7 +148,7 @@ def converter(input_file: str, metadata_file: str) -> tuple[str, int]:
     return output_file, total_lines
 
 
-def run_conversions_from_matches(input_folder: str, metadata_folder: str = "data/00-metadata", match_log_file: str = "data/00-metadata/logs/(4)_file_matching_log_latest.json") -> dict[str, Any]:
+def run_conversions_from_matches(input_folder: str, metadata_folder: str = "data/00-metadata", match_log_file: str = "data/00-metadata/logs/(4)_file_matching_log_latest.json", output_folder: str | None = None) -> dict[str, Any]:
     """
     Runs conversion for all matched input/metadata file pairs based on a match log.
 
@@ -257,7 +260,7 @@ def run_conversions_from_matches(input_folder: str, metadata_folder: str = "data
                     
                     try:
                         # Call the converter function and capture both return values
-                        output_file, total_lines = converter(input_file_path, validation_file_path)
+                        output_file, total_lines = converter(input_file_path, validation_file_path, output_folder)
                         
                         if output_file:
                             file_result["status"] = "success"
@@ -320,14 +323,14 @@ def run_conversions_from_matches(input_folder: str, metadata_folder: str = "data
     
     return results  # Return the results
 
-def convert_dec_files(input_folder: str, metadata_folder: str = "data/00-metadata", output_folder: str = "data/02-output") -> None:
+def convert_dec_files(input_folder: str, metadata_folder: str = "data/00-metadata", output_folder: str | None = None) -> None:
     """
     Converts all Dec_* files in the input folder using their corresponding metadata, even if unmatched.
 
     Args:
         input_folder (str): Folder containing Dec_*.asc files.
         metadata_folder (str, optional): Folder with metadata files. Defaults to 'data/00-metadata'.
-        output_folder (str, optional): Output folder for converted CSVs. Defaults to 'data/02-output'.
+        output_folder (str, optional): Output folder for converted CSVs. Defaults to OUTPUT_DIR from config.
 
     Returns:
         None
@@ -351,7 +354,7 @@ def convert_dec_files(input_folder: str, metadata_folder: str = "data/00-metadat
         meta_file = os.path.join(metadata_folder, meta_candidates[0])
         input_path = os.path.join(input_folder, dec_file)
         try:
-            converter(input_path, meta_file)
+            converter(input_path, meta_file, output_folder)
             print(f"[converter] Converted Dec file: {dec_file}")
         except Exception as e:
             print(f"[converter] Warning: Could not convert {dec_file}: {e}")
@@ -363,9 +366,15 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         input_folder = sys.argv[1]
     else:
-        input_folder = "data/01-input"  # fallback
+        input_folder = INPUT_DIR  # fallback from config
+    
+    # Optional output folder argument
+    if len(sys.argv) > 2:
+        output_folder = sys.argv[2]
+    else:
+        output_folder = OUTPUT_DIR  # fallback from config
     
     # Run main conversion pipeline
-    run_conversions_from_matches(input_folder)
-    # Always convert Dec_* files, even if unmatched
-    convert_dec_files(input_folder)
+    run_conversions_from_matches(input_folder, output_folder=output_folder)
+    # Always convert Dec_* files from root input dir (they're reference data, not in DEMO subdir)
+    convert_dec_files(DECODER_INPUT_DIR, output_folder=output_folder)

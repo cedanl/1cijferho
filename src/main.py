@@ -11,7 +11,7 @@ import streamlit as st
 import glob
 import requests
 from pathlib import Path
-import requests
+from config import get_demo_mode, set_demo_mode, get_input_dir, DEFAULT_DEMO_MODE
 
 # -----------------------------------------------------------------------------
 # App Configuration - Must be first Streamlit command
@@ -24,26 +24,51 @@ st.set_page_config(
 )
 
 # -----------------------------------------------------------------------------
+# Initialize Session State
+# -----------------------------------------------------------------------------
+if 'demo_mode' not in st.session_state:
+    st.session_state.demo_mode = DEFAULT_DEMO_MODE
+
+# -----------------------------------------------------------------------------
 # Demo Detection Function
 # -----------------------------------------------------------------------------
 def check_demo_files() -> tuple[bool, list[str]]:
-    """Check if demo files exist in data/01-input directory"""
-    demo_files = glob.glob("data/01-input/*_DEMO*")
+    """Check if demo files exist in the configured input directory"""
+    input_dir = get_input_dir()
+    demo_files = glob.glob(f"{input_dir}/*_DEMO*")
     return len(demo_files) > 0, demo_files
 
-def show_demo_notifications() -> bool:
-    """Show demo notifications in sidebar only"""
-    demo_exists, demo_files = check_demo_files()
-    
-    if demo_exists:
-        # Sidebar (persistent)
-        with st.sidebar:
-            st.warning("🎯 **Demo modus actief**", icon="⚠️")
-            st.write(f"{len(demo_files)} demo-bestanden actief")
-            st.error("⚠️ Klaar om uw eigen data te gebruiken? Verwijder alle *_DEMO bestanden uit `data/01-input/`.")
+def show_demo_toggle_and_notifications() -> bool:
+    """Show demo mode toggle and notifications in sidebar"""
+    with st.sidebar:
+        st.markdown("---")
+        st.subheader("⚙️ Data Modus")
         
-        return True
-    return False
+        # Toggle for demo mode - uses 'demo_mode' key directly to persist state across pages
+        st.toggle(
+            "Demo Modus",
+            value=st.session_state.demo_mode,
+            help="Schakel tussen demo-bestanden en uw eigen data",
+            key="demo_mode",
+            on_change=lambda: None  # State is automatically updated via key
+        )
+        
+        # Show current paths
+        demo_mode = st.session_state.demo_mode
+        if demo_mode:
+            st.info("📂 **Demo pad:** `data/01-input/DEMO/`")
+            demo_exists, demo_files = check_demo_files()
+            if demo_exists:
+                st.success(f"✅ {len(demo_files)} demo-bestanden gevonden")
+            else:
+                st.warning("⚠️ Geen demo-bestanden gevonden")
+        else:
+            st.info("📂 **Data pad:** `data/01-input/`")
+            st.caption("Plaats uw eigen bestanden in `data/01-input/`")
+        
+        st.markdown("---")
+        
+    return demo_mode
 
 
 
@@ -97,8 +122,10 @@ tip_page = st.Page("frontend/Modules/Tip.py", icon="💡", title="Tip")
 LOGO_URL = "src/assets/npuls_logo.png"
 st.logo(LOGO_URL)
 
-# Demo Detection
-show_demo_notifications()
+# Demo Mode Toggle & Notifications
+show_demo_toggle_and_notifications()
+
+# Version Check
 check_repo_version()
 show_version_notification()
 

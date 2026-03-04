@@ -7,6 +7,7 @@ import backend.utils.converter_match as cm
 import io
 import contextlib
 from typing import Any, Dict, List, Optional, Tuple
+from config import get_input_dir
 
 # -----------------------------------------------------------------------------
 # Helper Functions
@@ -139,7 +140,7 @@ Als validatie of koppeling faalt, kunt u de .xlsx-bestanden aanpassen in `data/0
 metadata_files = get_metadata_files()
 
 # Set input folder
-input_folder = "data/01-input"
+input_folder = get_input_dir()
 
 if not metadata_files:
     st.error("🚨 **Geen metadata-bestanden gevonden in `data/00-metadata`**")

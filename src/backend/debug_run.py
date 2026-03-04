@@ -6,10 +6,14 @@ from utils import compressor as co
 from utils import encryptor as en
 from utils import converter_headers as ch
 import subprocess
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from config import INPUT_DIR, OUTPUT_DIR
 
 
 # Step 0: Set Input Folder
-input_folder = "data/01-input/"
+input_folder = INPUT_DIR
 
 # Step 1: Extract Metadata from Bestandsbeschrijving files (txt -> JSON -> Excel)
 ex.process_txt_folder(input_folder)
@@ -20,22 +24,23 @@ ex_val.validate_metadata_folder()
 cm.match_files(input_folder)
 
 # Step 3: Convert Files
-subprocess.run(["uv", "run", "src/backend/core/converter.py", input_folder])
+subprocess.run(["uv", "run", "src/backend/core/converter.py", input_folder, OUTPUT_DIR])
 
 # Step 4: Validate Conversion
 cv.converter_validation()
 
 # Step 5: Run Compressor
-co.convert_csv_to_parquet()
+co.convert_csv_to_parquet(OUTPUT_DIR)
 
 # Step 6: Run Converter Headers (snake_case)
-ch.convert_csv_headers_to_snake_case()
+ch.convert_csv_headers_to_snake_case(OUTPUT_DIR)
 
 # Step 7: Run Encryptor
-en.encryptor()
+en.encryptor(OUTPUT_DIR, OUTPUT_DIR)
 
 # Step 8: Run Decoder
 # Nog niet ontwikkeld
 
 # NOTE TO DEVS: Refactor en overweeg om een overstap te maken naar dash.plotly.com als de UI verbeterd moet worden. 
 # Streamlit is een geweldige tool, maar is niet geoptimaliseerd voor multi-page apps.
+

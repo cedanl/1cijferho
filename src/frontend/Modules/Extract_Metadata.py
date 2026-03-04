@@ -5,6 +5,7 @@ import backend.core.extractor as ex
 import io
 import contextlib
 from typing import List
+from config import get_input_dir
 
 # -----------------------------------------------------------------------------
 # Helper Functions
@@ -40,7 +41,7 @@ def clear_existing_files() -> List[str]:
 
 def get_bestandsbeschrijvingen() -> List[str]:
     """Get all bestandsbeschrijving files from the input directory"""
-    input_dir = "data/01-input"
+    input_dir = get_input_dir()
     if not os.path.exists(input_dir):
         return []
     
@@ -83,8 +84,9 @@ with st.expander("🚨 Bestaande Bestandbeschrijvingen"):
 # Get files and display status
 bestandsbeschrijvingen = get_bestandsbeschrijvingen()
 
+input_dir = get_input_dir()
 if not bestandsbeschrijvingen:
-    st.error("🚨 **Geen Bestandsbeschrijving-bestanden gevonden in `data/01-input`**")
+    st.error(f"🚨 **Geen Bestandsbeschrijving-bestanden gevonden in `{input_dir}`**")
 else:
     st.success(f"✅ **{len(bestandsbeschrijvingen)} Bestandsbeschrijving-bestanden gevonden**")
     st.info("💡 U kunt doorgaan, ook als er fouten zijn - doe dit met voorzichtigheid!")
@@ -133,7 +135,7 @@ else:
                 # Capture stdout from process_txt_folder
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
-                    ex.process_txt_folder("data/01-input")
+                    ex.process_txt_folder(get_input_dir())
                 st.session_state.extract_console_log += captured_output.getvalue()
                 st.session_state.extract_console_log += "✅ TXT files processed successfully\n"
                 
@@ -165,3 +167,4 @@ else:
     # Warning about existing files
     if os.path.exists("data/00-metadata") and os.listdir("data/00-metadata"):
         st.warning("⚠️ Extractie zal bestaande bestanden in `data/00-metadata/` overschrijven")
+
