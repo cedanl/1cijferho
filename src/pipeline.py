@@ -10,7 +10,9 @@ import argparse
 from config import INPUT_DIR, OUTPUT_DIR
 
 
-def run_pipeline(input_folder: str | None = None, output_folder: str | None = None) -> None:
+def run_pipeline(
+    input_folder: str | None = None, output_folder: str | None = None
+) -> None:
     """Run the complete pipeline with the given input folder"""
     if input_folder is None:
         input_folder = INPUT_DIR
@@ -18,18 +20,22 @@ def run_pipeline(input_folder: str | None = None, output_folder: str | None = No
         output_folder = OUTPUT_DIR
     # Step 1: Extract Metadata from Bestandsbeschrijving files (txt -> JSON -> Excel)
     ex.process_txt_folder(input_folder)
+    # Generate consolidated variable metadata
+    ex.write_variable_metadata(input_dir=input_folder)
     ex.process_json_folder()
     ex_val.validate_metadata_folder()
-    
+
     # Step 2: Match Input Files to Metadata (Validation Logs)
     cm.match_files(input_folder)
-    
+
     # Step 3: Convert Files
-    subprocess.run(["uv", "run", "src/backend/core/converter.py", input_folder, output_folder])
-    
+    subprocess.run(
+        ["uv", "run", "src/backend/core/converter.py", input_folder, output_folder]
+    )
+
     # Step 4: Validate Conversion
     cv.converter_validation()
-    
+
     # Step 5: Run Compressor
     co.convert_csv_to_parquet(output_folder)
 
@@ -40,14 +46,27 @@ def run_pipeline(input_folder: str | None = None, output_folder: str | None = No
     ch.convert_csv_headers_to_snake_case(output_folder)
 
 
-
 def main() -> None:
     """Main function with command line argument parsing"""
-    parser = argparse.ArgumentParser(description='Process input files through the pipeline')
-    parser.add_argument('input_folder', type=str, nargs='?', default=None, help='Path to the input folder (default: from config)')
-    parser.add_argument('--output', type=str, default=None, dest='output_folder', help='Path to the output folder (default: from config)')
+    parser = argparse.ArgumentParser(
+        description="Process input files through the pipeline"
+    )
+    parser.add_argument(
+        "input_folder",
+        type=str,
+        nargs="?",
+        default=None,
+        help="Path to the input folder (default: from config)",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        dest="output_folder",
+        help="Path to the output folder (default: from config)",
+    )
     args = parser.parse_args()
-    
+
     run_pipeline(args.input_folder, args.output_folder)
 
 

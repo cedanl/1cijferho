@@ -8,7 +8,8 @@ from utils import converter_headers as ch
 import subprocess
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from config import INPUT_DIR, OUTPUT_DIR
 
 
@@ -17,6 +18,8 @@ input_folder = INPUT_DIR
 
 # Step 1: Extract Metadata from Bestandsbeschrijving files (txt -> JSON -> Excel)
 ex.process_txt_folder(input_folder)
+# Generate consolidated variable metadata
+ex.write_variable_metadata(input_dir=input_folder)
 ex.process_json_folder()
 ex_val.validate_metadata_folder()
 
@@ -41,6 +44,5 @@ en.encryptor(OUTPUT_DIR, OUTPUT_DIR)
 # Step 8: Run Decoder
 # Nog niet ontwikkeld
 
-# NOTE TO DEVS: Refactor en overweeg om een overstap te maken naar dash.plotly.com als de UI verbeterd moet worden. 
+# NOTE TO DEVS: Refactor en overweeg om een overstap te maken naar dash.plotly.com als de UI verbeterd moet worden.
 # Streamlit is een geweldige tool, maar is niet geoptimaliseerd voor multi-page apps.
-
