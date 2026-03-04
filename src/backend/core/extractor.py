@@ -18,6 +18,7 @@ Functions:
     [M] process_excel_folder(excel_folder, json_output_folder) -> Main function
         - Processes all JSON files in the metadata/json folder, converting tables to Excel files.
 """
+
 import os
 import json
 import re
@@ -26,8 +27,11 @@ from rich.console import Console
 from typing import Any, Dict, List, Optional, Tuple
 
 # Constants for table extraction
-MAX_LOOKAHEAD_LINES_FOR_DECODING_SECTION = 20  # Lines to search for "Ten behoeve van de decodering" section
-MAX_LOOKAHEAD_LINES_FOR_VARIABLE_LIST = 50     # Lines to search for bullet-pointed variable list (longer because list can be extended)
+MAX_LOOKAHEAD_LINES_FOR_DECODING_SECTION = (
+    20  # Lines to search for "Ten behoeve van de decodering" section
+)
+MAX_LOOKAHEAD_LINES_FOR_VARIABLE_LIST = 50  # Lines to search for bullet-pointed variable list (longer because list can be extended)
+
 
 def extract_decoding_variables(lines: list[str], start_index: int) -> list[str]:
     """
@@ -51,18 +55,23 @@ def extract_decoding_variables(lines: list[str], start_index: int) -> list[str]:
     """
     decoding_variables = []
     j = start_index
-    
+
     # Look for "Ten behoeve van de decodering" or "Ten behoeve van de vertaling" section
     while j < len(lines) and j < start_index + MAX_LOOKAHEAD_LINES_FOR_DECODING_SECTION:
         current_line = lines[j].strip().lower()
 
         # Check if we've found the decoding/vertaling section
-        if ("ten behoeve van de decodering" in current_line) or ("ten behoeve van de vertaling" in current_line):
+        if ("ten behoeve van de decodering" in current_line) or (
+            "ten behoeve van de vertaling" in current_line
+        ):
             # Now collect all the bullet points (lines starting with *)
             j += 1
-            while j < len(lines) and j < start_index + MAX_LOOKAHEAD_LINES_FOR_VARIABLE_LIST:
+            while (
+                j < len(lines)
+                and j < start_index + MAX_LOOKAHEAD_LINES_FOR_VARIABLE_LIST
+            ):
                 var_line = lines[j].strip()
-                if var_line.startswith('*'):
+                if var_line.startswith("*"):
                     # Extract the variable name after the asterisk
                     var_name = var_line[1:].strip()
                     if var_name:
@@ -71,7 +80,11 @@ def extract_decoding_variables(lines: list[str], start_index: int) -> list[str]:
                 elif not var_line:
                     # Empty line, continue to check for more
                     j += 1
-                elif var_line.startswith('NB:') or var_line.startswith('Opmerking:') or var_line.startswith('Mogelijke'):
+                elif (
+                    var_line.startswith("NB:")
+                    or var_line.startswith("Opmerking:")
+                    or var_line.startswith("Mogelijke")
+                ):
                     # Stop when we hit notes or remarks
                     break
                 else:
@@ -80,12 +93,13 @@ def extract_decoding_variables(lines: list[str], start_index: int) -> list[str]:
             break
 
         # Stop if we hit another table or section divider
-        if current_line.startswith('==') or "startpositie" in current_line:
+        if current_line.startswith("==") or "startpositie" in current_line:
             break
 
         j += 1
-    
+
     return decoding_variables
+
 
 def extract_tables_from_txt(txt_file: str, json_output_folder: str) -> Optional[str]:
     """
@@ -106,86 +120,98 @@ def extract_tables_from_txt(txt_file: str, json_output_folder: str) -> Optional[
         >>> extract_tables_from_txt('Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.txt', 'data/00-metadata/json')
     """
     os.makedirs(json_output_folder, exist_ok=True)
-    
+
     try:
-        with open(txt_file, 'r', encoding='latin-1') as file:
+        with open(txt_file, "r", encoding="latin-1") as file:
             text = file.read()
     except Exception as e:
         print(f"Error reading {txt_file}: {e}")
         return None
-    
+
     # Process the text to find tables
-    lines = text.split('\n')
+    lines = text.split("\n")
     found = False
     table_title = ""
     table_content = []
     tables_found = 0
     all_tables = []
-    
+
     for i, line in enumerate(lines):
         # Check for table header
         if "startpositie" in line.lower() and not found:
             found = True
             tables_found += 1
             table_content = [line]  # Start collecting table content
-            
+
             # Look backwards to find the title
             table_title = f"untitled_table_{tables_found}"  # Default title
             search_range = 10
-            for j in range(i-1, max(0, i-search_range), -1):
-                if lines[j].strip().startswith('=='):
+            for j in range(i - 1, max(0, i - search_range), -1):
+                if lines[j].strip().startswith("=="):
                     # Title is the line above the === line
-                    if j > 0 and lines[j-1].strip():
-                        table_title = lines[j-1].strip()
+                    if j > 0 and lines[j - 1].strip():
+                        table_title = lines[j - 1].strip()
                         break
-        
+
         # Collect table content
         elif found:
             if not line.strip():
                 found = False
-                
+
                 # Extract decoding variables using helper function
                 decoding_variables = extract_decoding_variables(lines, i + 1)
-                
-                all_tables.append({
-                    "table_number": tables_found,
-                    "table_title": table_title,
-                    "content": table_content,
-                    "decoding_variables": decoding_variables
-                })
+
+                all_tables.append(
+                    {
+                        "table_number": tables_found,
+                        "table_title": table_title,
+                        "content": table_content,
+                        "decoding_variables": decoding_variables,
+                    }
+                )
                 table_content = []
                 continue
-            
+
             table_content.append(line)
-    
+
     # Check if the last table extends to the end of the file
     if found and table_content:
         # Extract decoding variables for the last table using helper function
         start_idx = len(lines) - len(table_content)
-        decoding_variables = extract_decoding_variables(lines, start_idx + len(table_content))
-        
-        all_tables.append({
-            "table_number": tables_found,
-            "table_title": table_title,
-            "content": table_content,
-            "decoding_variables": decoding_variables
-        })
-    
+        decoding_variables = extract_decoding_variables(
+            lines, start_idx + len(table_content)
+        )
+
+        all_tables.append(
+            {
+                "table_number": tables_found,
+                "table_title": table_title,
+                "content": table_content,
+                "decoding_variables": decoding_variables,
+            }
+        )
+
     # Save all tables to a single JSON file
     if all_tables:
         base_filename = os.path.splitext(os.path.basename(txt_file))[0]
         json_path = os.path.join(json_output_folder, f"{base_filename}.json")
-        
-        with open(json_path, 'w', encoding='latin-1') as json_file:
-            json.dump({"filename": base_filename, "tables": all_tables}, json_file, indent=2, ensure_ascii=False)
-        
+
+        with open(json_path, "w", encoding="latin-1") as json_file:
+            json.dump(
+                {"filename": base_filename, "tables": all_tables},
+                json_file,
+                indent=2,
+                ensure_ascii=False,
+            )
+
         return json_path
-    
+
     return None
-    
 
 
-def process_txt_folder(input_folder: str, json_output_folder: str = "data/00-metadata/json") -> None:
+def process_txt_folder(
+    input_folder: str, json_output_folder: str = "data/00-metadata/json"
+) -> None:
     """
     Finds all .txt files containing 'Bestandsbeschrijving' in the root directory and extracts tables from them.
     Also processes all .asc files in the root directory.
@@ -205,7 +231,7 @@ def process_txt_folder(input_folder: str, json_output_folder: str = "data/00-met
         >>> process_txt_folder('data/01-input')
     """
     os.makedirs(json_output_folder, exist_ok=True)
-    
+
     # Remove any existing json files
     for file in os.listdir(json_output_folder):
         if file.endswith(".json"):
@@ -214,12 +240,14 @@ def process_txt_folder(input_folder: str, json_output_folder: str = "data/00-met
     # Setup logging
     log_folder = "data/00-metadata/logs"
     os.makedirs(log_folder, exist_ok=True)
-    
+
     # Create both timestamped and latest logs
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    timestamped_log_file = os.path.join(log_folder, f"json_processing_log_{timestamp}.json")
+    timestamped_log_file = os.path.join(
+        log_folder, f"json_processing_log_{timestamp}.json"
+    )
     latest_log_file = os.path.join(log_folder, "(1)_json_processing_log_latest.json")
-    
+
     log_data = {
         "timestamp": timestamp,
         "input_folder": input_folder,
@@ -227,9 +255,9 @@ def process_txt_folder(input_folder: str, json_output_folder: str = "data/00-met
         "status": "started",
         "processed_files": [],
         "total_files_processed": 0,
-        "total_files_extracted": 0
+        "total_files_extracted": 0,
     }
-    
+
     filter_keyword = "Bestandsbeschrijving"
     extracted_files = []
 
@@ -238,12 +266,12 @@ def process_txt_folder(input_folder: str, json_output_folder: str = "data/00-met
         for file in os.listdir(input_folder):
             file_path = os.path.join(input_folder, file)
             # Process Bestandsbeschrijving .txt files
-            if os.path.isfile(file_path) and file.endswith(".txt") and filter_keyword in file:
-                file_log = {
-                    "file": file,
-                    "status": "processing",
-                    "output": None
-                }
+            if (
+                os.path.isfile(file_path)
+                and file.endswith(".txt")
+                and filter_keyword in file
+            ):
+                file_log = {"file": file, "status": "processing", "output": None}
                 json_path = extract_tables_from_txt(file_path, json_output_folder)
                 file_log["status"] = "success" if json_path else "no_tables_found"
                 if json_path:
@@ -252,38 +280,42 @@ def process_txt_folder(input_folder: str, json_output_folder: str = "data/00-met
                 log_data["processed_files"].append(file_log)
             # Also process all .asc files (DEC files)
             elif os.path.isfile(file_path) and file.endswith(".asc"):
-                file_log = {
-                    "file": file,
-                    "status": "processing",
-                    "output": None
-                }
+                file_log = {"file": file, "status": "processing", "output": None}
                 json_path = extract_tables_from_txt(file_path, json_output_folder)
                 file_log["status"] = "success" if json_path else "no_tables_found"
                 if json_path:
                     extracted_files.append(json_path)
                     file_log["output"] = os.path.basename(json_path)
                 log_data["processed_files"].append(file_log)
-    
+
     # Update final log status
     log_data["status"] = "completed"
     log_data["total_files_processed"] = len(log_data["processed_files"])
     log_data["total_files_extracted"] = len(extracted_files)
-    
+
     # Save log file to both locations
     with open(timestamped_log_file, "w", encoding="latin1") as f:
         json.dump(log_data, f, indent=2)
     with open(latest_log_file, "w", encoding="latin1") as f:
         json.dump(log_data, f, indent=2)
-    
+
     # Print summary to console
     console = Console()
     console.print(f"[green]Processed {log_data['total_files_processed']} text files")
-    console.print(f"[green]Extracted tables to {log_data['total_files_extracted']} JSON files")
-    console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}")
+    console.print(
+        f"[green]Extracted tables to {log_data['total_files_extracted']} JSON files"
+    )
+    console.print(
+        f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}"
+    )
 
     # --- PATCH: Merge Dec_vakcode table from Vakkenbestanden JSON into Dec-bestanden JSON ---
-    vakken_json = os.path.join(json_output_folder, "Bestandsbeschrijving_Vakkenbestanden_DEMO.json")
-    dec_json = os.path.join(json_output_folder, "Bestandsbeschrijving_Dec-bestanden_DEMO.json")
+    vakken_json = os.path.join(
+        json_output_folder, "Bestandsbeschrijving_Vakkenbestanden_DEMO.json"
+    )
+    dec_json = os.path.join(
+        json_output_folder, "Bestandsbeschrijving_Dec-bestanden_DEMO.json"
+    )
     if os.path.exists(vakken_json) and os.path.exists(dec_json):
         try:
             with open(vakken_json, "r", encoding="latin-1") as f_vak:
@@ -291,11 +323,20 @@ def process_txt_folder(input_folder: str, json_output_folder: str = "data/00-met
             with open(dec_json, "r", encoding="latin-1") as f_dec:
                 dec_data = json.load(f_dec)
             # Find Dec_vakcode table in vak_data
-            vakcode_tables = [t for t in vak_data.get("tables", []) if "vakcode" in t.get("table_title", "").lower()]
+            vakcode_tables = [
+                t
+                for t in vak_data.get("tables", [])
+                if "vakcode" in t.get("table_title", "").lower()
+            ]
             if vakcode_tables:
                 # Only add if not already present in dec_data
-                existing_titles = [t.get("table_title", "").lower() for t in dec_data.get("tables", [])]
-                max_table_number = max([t.get("table_number", 0) for t in dec_data.get("tables", [])] or [0])
+                existing_titles = [
+                    t.get("table_title", "").lower() for t in dec_data.get("tables", [])
+                ]
+                max_table_number = max(
+                    [t.get("table_number", 0) for t in dec_data.get("tables", [])]
+                    or [0]
+                )
                 for t in vakcode_tables:
                     # Set correct table_title and unique table_number
                     t["table_title"] = "Dec_vakcode.asc"
@@ -310,62 +351,102 @@ def process_txt_folder(input_folder: str, json_output_folder: str = "data/00-met
                 # Save back
                 with open(dec_json, "w", encoding="latin-1") as f_dec:
                     json.dump(dec_data, f_dec, indent=2, ensure_ascii=False)
-                console.print(f"[cyan]Patched: Added Dec_vakcode table(s) from Vakkenbestanden JSON to Dec-bestanden JSON with correct title and table_number.")
+                console.print(
+                    f"[cyan]Patched: Added Dec_vakcode table(s) from Vakkenbestanden JSON to Dec-bestanden JSON with correct title and table_number."
+                )
         except Exception as e:
-            console.print(f"[red]Error patching Dec_vakcode into Dec-bestanden JSON: {e}")
+            console.print(
+                f"[red]Error patching Dec_vakcode into Dec-bestanden JSON: {e}"
+            )
 
     # After processing and optional patching, write consolidated variable metadata
     try:
         write_variable_metadata(json_output_folder)
-        console.print(f"[blue]Wrote variable metadata to {os.path.join(json_output_folder, 'variable_metadata.json')}")
+        console.print(
+            f"[blue]Wrote variable metadata to {os.path.join(json_output_folder, 'variable_metadata.json')}"
+        )
     except Exception:
         console.print(f"[yellow]Could not write variable metadata file.")
 
     return None
 
 
-def write_variable_metadata(json_folder: str = "data/00-metadata/json", output_filename: str = "variable_metadata.json") -> None:
+def write_variable_metadata(
+    input_dir: str = "data/01-input",
+    json_folder: str = "data/00-metadata/json",
+    output_filename: str = "variable_metadata.json",
+) -> None:
     """
-    Scans JSON metadata files and writes a consolidated variable metadata JSON.
+    Scans all Bestandsbeschrijving*.txt files (recursively) from input_dir and writes a consolidated variable metadata JSON.
 
     Args:
-        json_folder (str, optional): Folder containing JSON metadata files. Defaults to 'data/00-metadata/json'.
-        output_filename (str, optional): Output filename for consolidated metadata. Defaults to 'variable_metadata.json'.
+        input_dir (str, optional): Folder to search for input text files. Defaults to 'data/01-input'.
+        json_folder (str, optional): Output folder for JSON file. Defaults to 'data/00-metadata/json'.
+        output_filename (str, optional): Name for output file. Defaults to 'variable_metadata.json'.
 
     Returns:
         None
 
     Edge Cases:
         - Handles missing input files or parser errors gracefully.
-        - Uses canonical parser if available.
+        - Avoids duplicate variables by name across all files.
 
     Example:
         >>> write_variable_metadata()
     """
     os.makedirs(json_folder, exist_ok=True)
     output_path = os.path.join(json_folder, output_filename)
+    from rich.console import Console
+    import glob
 
-    # Use the canonical parser implemented in this package (`parse_metadata.py`).
     try:
         from .parse_metadata import parse_metadata_file
-
-        default_input = os.path.join("data", "01-input", "Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.txt")
-        if not os.path.exists(default_input):
-            console = Console()
-            console.print(f"[red]Default input file not found: {default_input}")
-            return
-
-        parsed = parse_metadata_file(default_input)
-        with open(output_path, 'w', encoding='utf-8') as out_f:
-            json.dump(parsed, out_f, ensure_ascii=False, indent=2)
-        return
-    except Exception as e:
+    except ImportError:
         console = Console()
-        console.print(f"[red]Error running parser: {e}")
+        console.print(f"[red]Error importing canonical parser for variable metadata")
         return
 
+    # Recursively find all Bestandsbeschrijving*.txt files in input_dir
+    # Handles .../DEMO/ as well as any deeper future organization
+    file_glob = os.path.join(input_dir, "**", "Bestandsbeschrijving*.txt")
+    txt_files = glob.glob(file_glob, recursive=True)
+    if not txt_files:
+        console = Console()
+        console.print(
+            f"[yellow]No Bestandsbeschrijving*.txt files found in {input_dir}"
+        )
+        return
 
-def extract_excel_from_json(json_file: str, excel_output_folder: str) -> Tuple[List[Dict[str, Any]], int, int]:
+    all_vars = []
+    seen_names = set()
+    for txt_file in txt_files:
+        try:
+            vars_out = parse_metadata_file(txt_file)
+            for variable in vars_out:
+                name = variable.get("name")
+                if name and name not in seen_names:
+                    all_vars.append(variable)
+                    seen_names.add(name)
+        except Exception as e:
+            console = Console()
+            console.print(f"[red]Parser failed for {txt_file}: {e}")
+
+    if all_vars:
+        with open(output_path, "w", encoding="utf-8") as out_f:
+            json.dump(all_vars, out_f, ensure_ascii=False, indent=2)
+        console = Console()
+        console.print(
+            f"[blue]Consolidated {len(all_vars)} variables from {len(txt_files)} files into {output_path}"
+        )
+    else:
+        console = Console()
+        console.print(f"[yellow]No variables found in any file! Did parsing fail?")
+    return
+
+
+def extract_excel_from_json(
+    json_file: str, excel_output_folder: str
+) -> Tuple[List[Dict[str, Any]], int, int]:
     """
     Extracts tables from a JSON file and saves them as Excel files.
 
@@ -390,16 +471,16 @@ def extract_excel_from_json(json_file: str, excel_output_folder: str) -> Tuple[L
     """
     # Initialize Rich console for better output
     console = Console()
-    
+
     # Create output directory if it doesn't exist
     os.makedirs(excel_output_folder, exist_ok=True)
-    
+
     # Initialize results tracking
     results = []
-    
+
     # Load the JSON file with appropriate encoding
     try:
-        with open(json_file, 'r', encoding='latin1') as file:
+        with open(json_file, "r", encoding="latin1") as file:
             data = json.load(file)
     except json.JSONDecodeError as e:
         # Handle JSON parsing errors
@@ -409,37 +490,37 @@ def extract_excel_from_json(json_file: str, excel_output_folder: str) -> Tuple[L
         # Handle other exceptions
         console.print(f"[red]Error opening file: {e}")
         return [], 0, 0
-    
+
     # Get the base filename without extension
     base_filename = os.path.basename(json_file)
     base_filename = os.path.splitext(base_filename)[0]
-    
+
     # Extract the filename from the JSON if available
     if "filename" in data:
         base_filename = data["filename"]
-    
+
     # Function to sanitize filenames
     def sanitize_filename(filename: str) -> str:
         """Sanitize the filename by removing or replacing invalid characters."""
         return re.sub(r'[\\/*?:"<>|]', "_", filename)
-    
+
     # Get the list of tables from the JSON
     tables = data.get("tables", [])
     total_tables = len(tables)
-    
+
     if total_tables == 0:
         console.print("[yellow]Warning: No tables found in the JSON file.")
         return [], 0, 0
-    
+
     # Process tables
     files_created = 0
-    
+
     try:
         for i, table in enumerate(tables):
-            table_number = table.get("table_number", i+1)
+            table_number = table.get("table_number", i + 1)
             table_title = table.get("table_title", f"Table_{table_number}")
             content_array = table.get("content", [])
-            
+
             # Initialize result for this table
             table_result = {
                 "table_number": table_number,
@@ -447,59 +528,63 @@ def extract_excel_from_json(json_file: str, excel_output_folder: str) -> Tuple[L
                 "status": "Processed",
                 "rows": 0,
                 "output_file": "",
-                "notes": ""
+                "notes": "",
             }
-            
+
             # Skip empty tables
             if not content_array:
                 table_result["status"] = "Skipped"
                 table_result["notes"] = "Empty content"
                 results.append(table_result)
                 continue
-            
+
             # Sanitize the table title for use in filename
             safe_table_title = sanitize_filename(table_title)
-            
+
             # Create output filename
             output_filename = f"{base_filename}_{table_number}_{safe_table_title}.xlsx"
             output_path = os.path.join(excel_output_folder, output_filename)
             table_result["output_file"] = output_filename
-            
+
             # Get the header line
             header = content_array[0]
-            
+
             # Check if header contains the expected keywords
             if "Startpositie" not in header or "Aantal posities" not in header:
                 table_result["status"] = "Skipped"
                 table_result["notes"] = "Missing required headers"
                 results.append(table_result)
                 continue
-            
+
             # Find the positions of the key headers
             start_pos_index = header.find("Startpositie")
             aantal_pos_index = header.find("Aantal posities")
-            
+
             if start_pos_index == -1 or aantal_pos_index == -1:
                 table_result["status"] = "Skipped"
                 table_result["notes"] = "Could not locate positions for header columns"
                 results.append(table_result)
                 continue
-            
+
             # Check if header contains "Opmerking"
             has_opmerking = "Opmerking" in header
-            
+
             # Create rows for Excel
             rows = []
-            
+
             # Add header row with ID column and the fourth column
             if has_opmerking:
-                rows.append(["ID", "Naam", "Startpositie", "Aantal posities", "Opmerking"])
+                rows.append(
+                    ["ID", "Naam", "Startpositie", "Aantal posities", "Opmerking"]
+                )
             else:
-                rows.append(["ID", "Naam", "Startpositie", "Aantal posities", "Opmerking"])
-            
+                rows.append(
+                    ["ID", "Naam", "Startpositie", "Aantal posities", "Opmerking"]
+                )
+
             # Count the number of valid content lines for later verification
             valid_content_lines = 0
-            
+
             # Process each data line
             row_id = 1  # Start ID counter
             for line in content_array[1:]:
@@ -514,7 +599,9 @@ def extract_excel_from_json(json_file: str, excel_output_folder: str) -> Tuple[L
                 # Handle lines that might contain both header keywords
                 if "Startpositie" in line and "Aantal posities" in line:
                     modified_line = line.replace("Startpositie", "|Startpositie")
-                    modified_line = modified_line.replace("Aantal posities", "|Aantal posities|")
+                    modified_line = modified_line.replace(
+                        "Aantal posities", "|Aantal posities|"
+                    )
                     parts = modified_line.split("|")
                     if len(parts) >= 3:
                         field_name = parts[0].strip()
@@ -529,15 +616,31 @@ def extract_excel_from_json(json_file: str, excel_output_folder: str) -> Tuple[L
                         # Only add row if both start_pos and aantal_pos are valid digits
                         if field_name and start_pos.isdigit() and aantal_pos.isdigit():
                             try:
-                                rows.append([row_id, field_name, int(start_pos), int(aantal_pos), comment])
+                                rows.append(
+                                    [
+                                        row_id,
+                                        field_name,
+                                        int(start_pos),
+                                        int(aantal_pos),
+                                        comment,
+                                    ]
+                                )
                                 row_id += 1
                                 valid_content_lines += 1
                             except Exception as e:
-                                console.print(f"[red]Row creation error: {e} | field_name={field_name}, start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}")
+                                console.print(
+                                    f"[red]Row creation error: {e} | field_name={field_name}, start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}"
+                                )
                         else:
                             # Debug log for invalid row
-                            if not (field_name and start_pos.isdigit() and aantal_pos.isdigit()):
-                                console.print(f"[yellow]Skipping row: field_name={field_name}, start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}")
+                            if not (
+                                field_name
+                                and start_pos.isdigit()
+                                and aantal_pos.isdigit()
+                            ):
+                                console.print(
+                                    f"[yellow]Skipping row: field_name={field_name}, start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}"
+                                )
                     continue
 
                 # Extract field name - use a more precise approach that preserves all characters
@@ -591,74 +694,100 @@ def extract_excel_from_json(json_file: str, excel_output_folder: str) -> Tuple[L
                 # Only add row if both start_pos and aantal_pos are not None
                 if field_name and start_pos is not None and aantal_pos is not None:
                     try:
-                        rows.append([row_id, field_name, start_pos, aantal_pos, comment])
+                        rows.append(
+                            [row_id, field_name, start_pos, aantal_pos, comment]
+                        )
                         row_id += 1
                         valid_content_lines += 1
                     except Exception as e:
-                        console.print(f"[red]Row creation error: {e} | field_name={field_name}, start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}")
+                        console.print(
+                            f"[red]Row creation error: {e} | field_name={field_name}, start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}"
+                        )
                 else:
                     # Debug log for invalid row
-                    if not (field_name and start_pos is not None and aantal_pos is not None):
-                        console.print(f"[yellow]Skipping row: field_name={field_name}, start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}")
-            
+                    if not (
+                        field_name and start_pos is not None and aantal_pos is not None
+                    ):
+                        console.print(
+                            f"[yellow]Skipping row: field_name={field_name}, start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}"
+                        )
+
             # Skip if no data rows were found
             if len(rows) <= 1:
                 table_result["status"] = "Skipped"
                 table_result["notes"] = "No data rows found"
                 results.append(table_result)
                 continue
-            
+
             # Record the number of data rows
             table_result["rows"] = len(rows) - 1  # Subtract header row
-            
+
             # Add decoding variables information if available
             decoding_variables = table.get("decoding_variables", [])
             if decoding_variables:
                 # Store info about decoding variables in the table result
                 table_result["decoding_variables"] = decoding_variables
-                table_result["notes"] += f" Includes {len(decoding_variables)} decoding variable(s)."
+                table_result["notes"] += (
+                    f" Includes {len(decoding_variables)} decoding variable(s)."
+                )
 
             # Write to Excel file (main sheet: only valid column rows)
             try:
                 import pandas as pd
+
                 # Only keep rows with valid ID (int) for the main table
                 main_rows = [row for row in rows if isinstance(row[0], int)]
                 df_main = pd.DataFrame(main_rows, columns=rows[0])
 
                 # Prepare decoding variables DataFrame if present
                 if decoding_variables:
-                    df_decoding = pd.DataFrame({"DecodingVariables": decoding_variables})
+                    df_decoding = pd.DataFrame(
+                        {"DecodingVariables": decoding_variables}
+                    )
                     with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
                         df_main.to_excel(writer, index=False, sheet_name="Table")
-                        df_decoding.to_excel(writer, index=False, sheet_name="DecodingVariables")
+                        df_decoding.to_excel(
+                            writer, index=False, sheet_name="DecodingVariables"
+                        )
                 else:
                     df_main.to_excel(output_path, index=False)
 
                 # Check if the number of rows in the DataFrame matches the expected count
                 df_row_count = df_main.shape[0]
                 if df_row_count != valid_content_lines:
-                    console.print(f"[yellow]Warning: Row count mismatch for table {table_title}.")
-                    console.print(f"[yellow]Expected {valid_content_lines} rows, got {df_row_count} rows in DataFrame.")
-                    table_result["notes"] += f" Row count mismatch: {valid_content_lines} valid content lines vs {df_row_count} DataFrame rows."
+                    console.print(
+                        f"[yellow]Warning: Row count mismatch for table {table_title}."
+                    )
+                    console.print(
+                        f"[yellow]Expected {valid_content_lines} rows, got {df_row_count} rows in DataFrame."
+                    )
+                    table_result["notes"] += (
+                        f" Row count mismatch: {valid_content_lines} valid content lines vs {df_row_count} DataFrame rows."
+                    )
                 files_created += 1
                 results.append(table_result)
             except PermissionError:
                 table_result["status"] = "Error"
-                table_result["notes"] = "File may be open in another program (e.g. Excel)"
+                table_result["notes"] = (
+                    "File may be open in another program (e.g. Excel)"
+                )
                 results.append(table_result)
             except Exception as e:
                 table_result["status"] = "Error"
                 table_result["notes"] = f"Error: {str(e)}"
                 results.append(table_result)
-            
+
     except Exception as e:
         console.print(f"[red]Error during processing: {str(e)}")
         return results, files_created, total_tables
-    
+
     return results, files_created, total_tables
 
 
-def process_json_folder(json_input_folder: str = "data/00-metadata/json", excel_output_folder: str = "data/00-metadata") -> None:
+def process_json_folder(
+    json_input_folder: str = "data/00-metadata/json",
+    excel_output_folder: str = "data/00-metadata",
+) -> None:
     """
     Processes all JSON files in a folder, converting tables to Excel files.
 
@@ -677,7 +806,7 @@ def process_json_folder(json_input_folder: str = "data/00-metadata/json", excel_
         >>> process_json_folder('data/00-metadata/json', 'data/00-metadata')
     """
     os.makedirs(excel_output_folder, exist_ok=True)
-    
+
     # Remove any existing Excel files
     for file in os.listdir(excel_output_folder):
         if file.endswith(".xlsx"):
@@ -686,12 +815,14 @@ def process_json_folder(json_input_folder: str = "data/00-metadata/json", excel_
     # Setup logging
     log_folder = "data/00-metadata/logs"
     os.makedirs(log_folder, exist_ok=True)
-    
+
     # Create both a timestamped log and a latest log
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    timestamped_log_file = os.path.join(log_folder, f"xlsx_processing_log_{timestamp}.json")
+    timestamped_log_file = os.path.join(
+        log_folder, f"xlsx_processing_log_{timestamp}.json"
+    )
     latest_log_file = os.path.join(log_folder, "(2)_xlsx_processing_log_latest.json")
-    
+
     log_data = {
         "timestamp": timestamp,
         "input_folder": json_input_folder,
@@ -700,14 +831,17 @@ def process_json_folder(json_input_folder: str = "data/00-metadata/json", excel_
         "processed_files": [],
         "total_files_processed": 0,
         "total_files_extracted": 0,
-        "row_count_mismatches": 0  # Track files with row count mismatches
+        "row_count_mismatches": 0,  # Track files with row count mismatches
     }
-    
+
     # Find all JSON files in the folder, but ignore the generated variable metadata
-    json_files = [os.path.join(root, file)
-                  for root, _, files in os.walk(json_input_folder)
-                  for file in files if file.endswith(".json") and file != "variable_metadata.json"]
-    
+    json_files = [
+        os.path.join(root, file)
+        for root, _, files in os.walk(json_input_folder)
+        for file in files
+        if file.endswith(".json") and file != "variable_metadata.json"
+    ]
+
     total_json_files = len(json_files)
     if total_json_files == 0:
         log_data["status"] = "completed"
@@ -718,70 +852,74 @@ def process_json_folder(json_input_folder: str = "data/00-metadata/json", excel_
         with open(latest_log_file, "w", encoding="latin1") as f:
             json.dump(log_data, f, indent=2)
         return None
-    
+
     # Process each JSON file
     total_excel_files = 0
     processed_json_files = 0
     total_row_mismatches = 0
-    
+
     for json_file in json_files:
         file_name = os.path.basename(json_file)
-        
+
         # Log file processing
-        file_log = {
-            "file": file_name,
-            "status": "processing",
-            "tables": []
-        }
-        
+        file_log = {"file": file_name, "status": "processing", "tables": []}
+
         # Extract tables from JSON file - now also gets detailed results
-        table_results, files_created, tables_found = extract_excel_from_json(json_file, excel_output_folder)
-        
+        table_results, files_created, tables_found = extract_excel_from_json(
+            json_file, excel_output_folder
+        )
+
         # Check for row count mismatches in any tables
         file_has_mismatch = False
         for table_result in table_results:
             if "Row count mismatch" in table_result.get("notes", ""):
                 file_has_mismatch = True
                 total_row_mismatches += 1
-                
+
             # Add table results to file log
             file_log["tables"].append(table_result)
-        
+
         # Update file status in log
         file_log["status"] = "success" if files_created > 0 else "no_tables_extracted"
         file_log["tables_found"] = tables_found
         file_log["files_created"] = files_created
         file_log["has_row_mismatch"] = file_has_mismatch
-        
+
         log_data["processed_files"].append(file_log)
-        
+
         # Update counters
         total_excel_files += files_created
         if files_created > 0:
             processed_json_files += 1
-    
+
     # Update final log status
     log_data["status"] = "completed"
     log_data["total_files_processed"] = total_json_files
     log_data["total_files_extracted"] = processed_json_files
     log_data["row_count_mismatches"] = total_row_mismatches
-    
+
     # Save log file to both locations
     with open(timestamped_log_file, "w", encoding="latin1") as f:
         json.dump(log_data, f, indent=2)
     with open(latest_log_file, "w", encoding="latin1") as f:
         json.dump(log_data, f, indent=2)
-    
+
     # Print summary to console
     console = Console()
     console.print(f"[green]Processed {total_json_files} JSON files")
-    console.print(f"[green]Created {total_excel_files} Excel files from {processed_json_files} JSON files")
-    
+    console.print(
+        f"[green]Created {total_excel_files} Excel files from {processed_json_files} JSON files"
+    )
+
     if total_row_mismatches > 0:
-        console.print(f"[yellow]Warning: {total_row_mismatches} tables had row count mismatches. Check logs for details.")
+        console.print(
+            f"[yellow]Warning: {total_row_mismatches} tables had row count mismatches. Check logs for details."
+        )
     else:
         console.print(f"[green]All tables passed row count verification")
-        
-    console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}")
+
+    console.print(
+        f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}"
+    )
 
     return None
