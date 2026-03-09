@@ -1,0 +1,41 @@
+name: Publish Python 🐍 package
+
+description: |
+  Build and publish to PyPI on release tag (vX.Y.Z)
+  Ensures build, lint, install check, and then uploads via PyPI secret only on tag and main branch.
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-test-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install build dependencies
+        run: pip install build ruff
+
+      - name: Lint code
+        run: ruff check src/
+
+      - name: Build package
+        run: python -m build
+
+      - name: Smoke test install from wheel
+        run: |
+          pip install dist/*.whl
+          eencijferho --help
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
