@@ -28,11 +28,18 @@ Deze README bevat technische details over de installatie, configuratie en archit
    uv self update
    ```
 
-3. **Start de applicatie**  
-   Ga naar de map waar de tool is opgeslagen en voer uit:
-   ```bash
-   uv run streamlit run src/main.py
-   ```
+3. **Installeer frontend (Streamlit) dependencies**
+Voordat je de frontend opstart, installeer je deze dependencies:
+```bash
+uv sync --extra frontend
+```
+
+4. **Start de applicatie**  
+Ga naar de map waar de tool is opgeslagen en voer uit:
+```bash
+uv run streamlit run src/main.py
+```
+
 
 ---
 
