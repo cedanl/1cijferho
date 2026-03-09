@@ -62,8 +62,14 @@ Je kunt de tool downloaden via GitHub:
 ### Stap 2: Installeer de tool
 Voor installatie-instructies, zie de [Technische README](TECHNICAL_README.md).
 
-### Stap 3: Start de applicatie
-Open een terminal in de map waar je de tool hebt opgeslagen en voer het volgende commando uit:
+### Stap 3: Installeer frontend (Streamlit) benodigdheden
+Om de Streamlit-app te kunnen draaien, synchroniseer eerst de frontend dependencies:
+```bash
+uv sync --extra frontend
+```
+
+### Stap 4: Start de applicatie
+Start daarna de app in je terminal:
 ```bash
 uv run streamlit run src/main.py
 ```

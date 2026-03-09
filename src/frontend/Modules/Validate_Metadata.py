@@ -2,19 +2,19 @@ import streamlit as st
 import os
 import glob
 import json
-import backend.utils.extractor_validation as ex_val
-import backend.utils.converter_match as cm
+import eencijferho.utils.extractor_validation as ex_val
+import eencijferho.utils.converter_match as cm
 import io
 import contextlib
 from typing import Any, Dict, List, Optional, Tuple
-from config import get_input_dir
+from config import get_input_dir, get_metadata_dir
 
 # -----------------------------------------------------------------------------
 # Helper Functions
 # -----------------------------------------------------------------------------
 def get_metadata_files() -> List[str]:
     """Get all metadata files from the metadata directory"""
-    metadata_dir = "data/00-metadata"
+    metadata_dir = get_metadata_dir()
     if not os.path.exists(metadata_dir):
         return []
     
@@ -31,7 +31,7 @@ def get_metadata_files() -> List[str]:
 
 def load_validation_logs() -> Optional[Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]]:
     """Load the latest validation logs and return failure information"""
-    logs_dir = "data/00-metadata/logs"
+    logs_dir = os.path.join(get_metadata_dir(), "logs")
     
     if not os.path.exists(logs_dir):
         return None, None
@@ -143,7 +143,8 @@ metadata_files = get_metadata_files()
 input_folder = get_input_dir()
 
 if not metadata_files:
-    st.error("🚨 **Geen metadata-bestanden gevonden in `data/00-metadata`**")
+    metadata_dir = get_metadata_dir()
+    st.error(f"🚨 **Geen metadata-bestanden gevonden in `{metadata_dir}`**")
     st.info("💡 Voer eerst het extractieproces uit om metadata-bestanden te genereren.")
 else:
     st.success(f"✅ **{len(metadata_files)} Bestandsbeschrijving-metadata gevonden**")
@@ -156,7 +157,7 @@ else:
     
     with col2:
         # Check if validation results exist to enable/disable the next page button
-        logs_dir = "data/00-metadata/logs"
+        logs_dir = os.path.join(get_metadata_dir(), "logs")
         validation_complete = False
         
         if os.path.exists(logs_dir):
@@ -194,13 +195,17 @@ else:
         
         with st.spinner("Bezig met valideren..."):
             try:
+                metadata_dir = get_metadata_dir()
+                logs_dir_val = os.path.join(metadata_dir, "logs")
+                validation_log_path = os.path.join(logs_dir_val, "(3)_xlsx_validation_log_latest.json")
+
                 st.session_state.validate_console_log += "🔄 Starting validation process...\n"
                 st.session_state.validate_console_log += "🛡️ Validating metadata files...\n"
                 
                 # Capture stdout from validate_metadata_folder
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
-                    ex_val.validate_metadata_folder()
+                    ex_val.validate_metadata_folder(metadata_folder=metadata_dir)
                 st.session_state.validate_console_log += captured_output.getvalue()
                 st.session_state.validate_console_log += "✅ Metadata validation completed\n"
                 
@@ -208,12 +213,12 @@ else:
                 # Capture stdout from match_files
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
-                    cm.match_files(input_folder)
+                    cm.match_files(input_folder, log_path=validation_log_path)
                 st.session_state.validate_console_log += captured_output.getvalue()
                 st.session_state.validate_console_log += "✅ File matching completed\n"
                 st.session_state.validate_console_log += "🎉 Validation completed successfully!\n"
                 
-                st.success("✅ **Validatie voltooid!** Resultaten opgeslagen in `data/00-metadata/logs/`. U kunt nu doorgaan naar de volgende stap.")
+                st.success(f"✅ **Validatie voltooid!** Resultaten opgeslagen in `{metadata_dir}/logs/`. U kunt nu doorgaan naar de volgende stap.")
                 # Rerun to update the next step button state and show new warnings
                 st.rerun()
                 
@@ -229,5 +234,6 @@ else:
             st.info("Nog geen validatieproces gestart. Klik op 'Start met validatie' om te beginnen.")
     
     # Warning about existing validation results
-    if os.path.exists("data/00-metadata/logs") and os.listdir("data/00-metadata/logs"):
-        st.warning("⚠️ Validatie zal bestaande resultaten in `data/00-metadata/logs/` overschrijven")
+    _logs_dir = os.path.join(get_metadata_dir(), "logs")
+    if os.path.exists(_logs_dir) and os.listdir(_logs_dir):
+        st.warning(f"⚠️ Validatie zal bestaande resultaten in `{_logs_dir}/` overschrijven")

@@ -75,8 +75,8 @@ def match_files(input_folder: str, log_path: str = "data/00-metadata/logs/(3)_xl
     - Files containing "VAKHAVW" match with files containing "Vakgegevens"
     """
     
-    # Setup logging
-    log_folder = "data/00-metadata/logs"
+    # Setup logging — derive log folder from the validation log path
+    log_folder = os.path.dirname(log_path)
     os.makedirs(log_folder, exist_ok=True)
     
     # Create both timestamped and latest logs
@@ -212,7 +212,7 @@ def match_files(input_folder: str, log_path: str = "data/00-metadata/logs/(3)_xl
     
     # Print unmatched files with helpful header if there are any
     if log_data["unmatched_files"] > 0 or log_data["unmatched_validation_files"] > 0:
-        console.print("\n[yellow]Perhaps a naming error? Manually fix in data/01-input for input files or data/00-metadata for validation files[/yellow]")
+        console.print(f"\n[yellow]Perhaps a naming error? Manually fix in {input_folder} for input files or {os.path.dirname(log_path)} for validation files[/yellow]")
     
     # Print unmatched input files details
     if log_data["unmatched_files"] > 0:

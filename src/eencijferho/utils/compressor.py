@@ -2,10 +2,8 @@ import polars as pl
 from pathlib import Path
 from rich.console import Console
 from rich.progress import track
-import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
-from config import get_output_dir
+from eencijferho.config import get_output_dir
 
 def convert_csv_to_parquet(input_dir: str | None = None) -> None:
     # Use dynamic config default if not provided

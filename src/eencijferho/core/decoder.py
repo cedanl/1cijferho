@@ -1,7 +1,7 @@
 import polars as pl
 import json
 import os
-from backend.utils.converter_headers import normalize_name, clean_header_name
+from eencijferho.utils.converter_headers import normalize_name, clean_header_name
 from typing import Any, Callable, Optional
 
 
@@ -43,7 +43,7 @@ def load_variable_mappings(
         return {}
     # --- Sanitize variable_metadata.json before loading ---
     try:
-        from backend.utils.sanitize_variable_metadata import (
+        from eencijferho.utils.sanitize_variable_metadata import (
             sanitize_variable_metadata_json,
         )
 
@@ -198,7 +198,7 @@ def decode_fields(
         meta = json.load(f)
     # --- Normalize main DataFrame columns and keep mapping to original names ---
     orig_columns = list(df.columns)
-    from backend.utils.converter_headers import strip_accents
+    from eencijferho.utils.converter_headers import strip_accents
 
     norm_map = {normalize_name(col, naming_func): col for col in orig_columns}
     norm_columns = list(norm_map.keys())
@@ -724,7 +724,7 @@ def decode_fields_dec_only(
     with open(metadata_json_path, encoding="utf-8") as f:
         meta = json.load(f)
     orig_columns = list(df.columns)
-    from backend.utils.converter_headers import strip_accents
+    from eencijferho.utils.converter_headers import strip_accents
 
     norm_map = {normalize_name(col, naming_func): col for col in orig_columns}
     norm_columns = list(norm_map.keys())

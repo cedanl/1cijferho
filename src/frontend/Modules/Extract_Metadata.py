@@ -1,11 +1,11 @@
 import streamlit as st
 import os
 import glob
-import backend.core.extractor as ex
+import eencijferho.core.extractor as ex
 import io
 import contextlib
 from typing import List
-from config import get_input_dir
+from config import get_input_dir, get_metadata_dir
 
 
 # -----------------------------------------------------------------------------
@@ -13,7 +13,7 @@ from config import get_input_dir
 # -----------------------------------------------------------------------------
 def clear_existing_files() -> List[str]:
     """Clear existing metadata files before starting new extraction"""
-    metadata_dir = "data/00-metadata"
+    metadata_dir = get_metadata_dir()
     json_dir = os.path.join(metadata_dir, "json")
 
     files_cleared = []
@@ -106,12 +106,13 @@ else:
 
     with col2:
         # Check if metadata exists to enable/disable the validate button
-        logs_dir = "data/00-metadata/logs"
+        metadata_dir = get_metadata_dir()
+        logs_dir = os.path.join(metadata_dir, "logs")
         extraction_complete = False
 
         if (
-            os.path.exists("data/00-metadata")
-            and os.listdir("data/00-metadata")
+            os.path.exists(metadata_dir)
+            and os.listdir(metadata_dir)
             and os.path.exists(logs_dir)
         ):
             # Check for the required extraction log file
@@ -159,7 +160,9 @@ else:
                 # Capture stdout from process_txt_folder
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
-                    ex.process_txt_folder(get_input_dir())
+                    metadata_dir = get_metadata_dir()
+                    json_dir = os.path.join(metadata_dir, "json")
+                    ex.process_txt_folder(get_input_dir(), json_output_folder=json_dir)
                 st.session_state.extract_console_log += captured_output.getvalue()
                 st.session_state.extract_console_log += (
                     "✅ TXT files processed successfully\n"
@@ -171,7 +174,7 @@ else:
                 )
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
-                    ex.write_variable_metadata()
+                    ex.write_variable_metadata(input_dir=get_input_dir(), json_folder=json_dir)
                 st.session_state.extract_console_log += captured_output.getvalue()
                 st.session_state.extract_console_log += (
                     "✅ variable_metadata.json created\n"
@@ -183,7 +186,7 @@ else:
                 # Capture stdout from process_json_folder
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
-                    ex.process_json_folder()
+                    ex.process_json_folder(json_input_folder=json_dir, excel_output_folder=metadata_dir)
                 st.session_state.extract_console_log += captured_output.getvalue()
                 st.session_state.extract_console_log += "✅ JSON conversion completed\n"
                 st.session_state.extract_console_log += (
@@ -191,7 +194,7 @@ else:
                 )
 
                 st.success(
-                    "✅ **Extractie voltooid!** Bestanden opgeslagen in `data/00-metadata/`, logs in `data/00-metadata/logs/`. U kunt nu de metadata valideren."
+                    f"✅ **Extractie voltooid!** Bestanden opgeslagen in `{metadata_dir}/`, logs in `{metadata_dir}/logs/`. U kunt nu de metadata valideren."
                 )
 
                 # Rerun to update the validate button state
@@ -199,8 +202,9 @@ else:
 
             except Exception as e:
                 st.session_state.extract_console_log += f"❌ Error: {str(e)}\n"
+                metadata_dir = get_metadata_dir()
                 st.error(
-                    f"❌ **Extractie mislukt:** Logs opgeslagen in `data/00-metadata/logs/` {str(e)}"
+                    f"❌ **Extractie mislukt:** Logs opgeslagen in `{metadata_dir}/logs/` {str(e)}"
                 )
 
     # Console Log expander
@@ -216,7 +220,8 @@ else:
             )
 
     # Warning about existing files
-    if os.path.exists("data/00-metadata") and os.listdir("data/00-metadata"):
+    _metadata_dir = get_metadata_dir()
+    if os.path.exists(_metadata_dir) and os.listdir(_metadata_dir):
         st.warning(
-            "⚠️ Extractie zal bestaande bestanden in `data/00-metadata/` overschrijven"
+            f"⚠️ Extractie zal bestaande bestanden in `{_metadata_dir}/` overschrijven"
         )

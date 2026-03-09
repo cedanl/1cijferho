@@ -3,10 +3,8 @@ from pathlib import Path
 from rich.console import Console
 import hashlib
 from typing import Any, Optional
-import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
-from config import get_output_dir
+from eencijferho.config import get_output_dir
 
 def encryptor(input_dir: str | None = None, output_dir: str | None = None) -> None:
     # Use dynamic config defaults if not provided
@@ -29,7 +27,7 @@ def encryptor(input_dir: str | None = None, output_dir: str | None = None) -> No
     
     console.print(f"[bold blue]Found {len(target_files)} target files for encryption[/]")
     
-    from backend.utils.converter_headers import clean_header_name
+    from eencijferho.utils.converter_headers import clean_header_name
     for csv_file in target_files:
         try:
             # Always read as UTF-8 (mirroring decoded output)
