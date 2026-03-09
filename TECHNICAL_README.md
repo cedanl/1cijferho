@@ -57,6 +57,24 @@ De tool is opgebouwd uit de volgende componenten:
 
 ---
 
+## Releases & PyPI-publish (automatisch)
+
+Public release naar PyPI gebeurt nu automatisch door een GitHub Release te maken (type: 'published') op de main branch. Zodra je een tag pusht (bijvoorbeeld `v1.2.3`) en een Release aanmaakt in GitHub, bouwt een workflow het pakket, test het, en publiceert naar PyPI met de geheime `PYPI_API_TOKEN`.
+
+**Zie `.github/workflows/pypi-publish.yml` voor de pipeline details.**
+
+*Stappen voor een release:*
+1. Werk de versie bij in `pyproject.toml`.
+2. Commit en push naar main.
+3. Maak een nieuwe tag (bijvoorbeeld `v1.2.3`):
+   ```bash
+   git tag v1.2.3
+   git push origin v1.2.3
+   ```
+4. Maak een GitHub Release via de UI of CLI (type 'published') met deze tag.
+
+Hierdoor start automatisch de publicatie-workflow!
+
 
 ## Ondersteuning
 
