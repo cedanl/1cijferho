@@ -95,14 +95,14 @@ with tab3:
     st.markdown("""
     **Kernmodules**
     
-    - `src/backend/core/`
+    - `src/eencijferho/core/`
     - `extractor.py` — Extract field positions from metadata .txt files
     - `converter.py` — Convert fixed-width to CSV using multiprocessing
     - `decoder.py` — Process decode files (roadmap)
     
     **Hulpmiddelen**
     
-    - `src/backend/utils/`
+    - `src/eencijferho/utils/`
     - `converter_match.py` — Match data files to metadata
     - `converter_validation.py` — Verify row counts and data integrity
     - `compressor.py` — Convert CSV to Parquet

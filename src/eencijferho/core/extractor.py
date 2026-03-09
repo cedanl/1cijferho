@@ -237,8 +237,8 @@ def process_txt_folder(
         if file.endswith(".json"):
             os.remove(os.path.join(json_output_folder, file))
 
-    # Setup logging
-    log_folder = "data/00-metadata/logs"
+    # Setup logging — log folder is a sibling of json_output_folder
+    log_folder = os.path.join(os.path.dirname(json_output_folder), "logs")
     os.makedirs(log_folder, exist_ok=True)
 
     # Create both timestamped and latest logs
@@ -358,15 +358,6 @@ def process_txt_folder(
             console.print(
                 f"[red]Error patching Dec_vakcode into Dec-bestanden JSON: {e}"
             )
-
-    # After processing and optional patching, write consolidated variable metadata
-    try:
-        write_variable_metadata(json_output_folder)
-        console.print(
-            f"[blue]Wrote variable metadata to {os.path.join(json_output_folder, 'variable_metadata.json')}"
-        )
-    except Exception:
-        console.print(f"[yellow]Could not write variable metadata file.")
 
     return None
 
@@ -812,8 +803,8 @@ def process_json_folder(
         if file.endswith(".xlsx"):
             os.remove(os.path.join(excel_output_folder, file))
 
-    # Setup logging
-    log_folder = "data/00-metadata/logs"
+    # Setup logging — log folder is a subdirectory of excel_output_folder (the metadata dir)
+    log_folder = os.path.join(excel_output_folder, "logs")
     os.makedirs(log_folder, exist_ok=True)
 
     # Create both a timestamped log and a latest log

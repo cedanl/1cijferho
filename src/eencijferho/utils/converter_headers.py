@@ -2,7 +2,6 @@ import polars as pl
 import re
 import unicodedata
 from pathlib import Path
-import polars as pl
 from rich.console import Console
 from typing import Callable, Optional
 
@@ -69,13 +68,6 @@ def convert_csv_headers_to_snake_case(
     quote_char: str = "",
     infer_schema_length: int | None = None
 ) -> None:
-    # Use dynamic config default if not provided
-    if input_dir is None:
-        import sys
-        import os
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
-        from config import get_output_dir
-        input_dir = get_output_dir()
     """
     Convert all CSV file headers in the input directory to snake_case.
     
@@ -86,6 +78,10 @@ def convert_csv_headers_to_snake_case(
         quote_char: Quote character to use. Use "" to disable quoting (default: "")
         infer_schema_length: Number of rows to scan for schema inference (default: None - scan all)
     """
+    # Use dynamic config default if not provided
+    if input_dir is None:
+        from eencijferho.config import get_output_dir
+        input_dir = get_output_dir()
     input_path = Path(input_dir)
     
     if not input_path.exists():
@@ -130,7 +126,7 @@ def convert_csv_headers_to_snake_case(
 
             # --- Clean all string columns for latin-1 compatibility ---
             try:
-                from backend.core.decoder import clean_for_latin1
+                from eencijferho.core.decoder import clean_for_latin1
                 df_cleaned = clean_for_latin1(df_cleaned)
             except Exception as e:
                 console.print(f"  [yellow]Warning: Could not apply clean_for_latin1: {e}[/yellow]")

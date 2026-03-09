@@ -47,9 +47,15 @@ def get_decoder_input_dir() -> str:
     return "data/01-input"
 
 
+def get_metadata_dir() -> str:
+    """Get metadata directory (always data/00-metadata for the Streamlit app)."""
+    return "data/00-metadata"
+
+
 # Legacy constants for backward compatibility (use functions above for dynamic behavior)
 DEMO_MODE: bool = DEFAULT_DEMO_MODE
 INPUT_DIR: str = "data/01-input/DEMO" if DEFAULT_DEMO_MODE else "data/01-input"
 OUTPUT_DIR: str = "data/02-output/DEMO" if DEFAULT_DEMO_MODE else "data/02-output"
 DECODER_INPUT_DIR: str = "data/01-input"
+METADATA_DIR: str = "data/00-metadata"
 

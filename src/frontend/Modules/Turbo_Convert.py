@@ -2,14 +2,14 @@ import os
 import glob
 import streamlit as st
 import subprocess
-import backend.utils.converter_validation as cv
-import backend.utils.compressor as co
-import backend.utils.encryptor as en
-import backend.utils.converter_headers as ch
+import eencijferho.utils.converter_validation as cv
+import eencijferho.utils.compressor as co
+import eencijferho.utils.encryptor as en
+import eencijferho.utils.converter_headers as ch
 import io
 import contextlib
 from typing import Any, Dict, List, Tuple
-from config import get_input_dir, get_output_dir
+from config import get_input_dir, get_output_dir, get_metadata_dir
 
 # -----------------------------------------------------------------------------
 # Page Configuration
@@ -25,7 +25,7 @@ from config import get_input_dir, get_output_dir
 # -----------------------------------------------------------------------------
 def get_matched_files() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Get all matched files from the validation logs"""
-    logs_dir = "data/00-metadata/logs"
+    logs_dir = os.path.join(get_metadata_dir(), "logs")
     if not os.path.exists(logs_dir):
         return [], []
     
@@ -208,7 +208,7 @@ else:
                 # Step 3: Convert Files
                 st.session_state.convert_console_log += "⚡ Stap 3: Converting fixed-width files...\n"
                 update_console()
-                result = subprocess.run(["uv", "run", "src/backend/core/converter.py", get_input_dir(), get_output_dir()], 
+                result = subprocess.run(["uv", "run", "src/eencijferho/core/converter.py", get_input_dir(), get_output_dir()], 
                                       capture_output=True, text=True, cwd=".")
                 if result.stdout:
                     st.session_state.convert_console_log += result.stdout
@@ -219,11 +219,12 @@ else:
                 progress_bar.progress(30)
 
                 # --- Decoding step for EV* and VAKHAVW* files ---
-                # Decoding is now handled in backend/core/pipeline.py
-                import backend.core.pipeline as pipeline
+                # Decoding is now handled in eencijferho/core/pipeline.py
+                import eencijferho.core.pipeline as pipeline
                 log, output_files = pipeline.run_turbo_convert_pipeline(
                     input_dir=get_input_dir(), 
                     output_dir=get_output_dir(),
+                    metadata_dir=get_metadata_dir(),
                     progress_callback=progress_bar.progress, 
                     status_callback=status_text.text
                 )
@@ -237,7 +238,12 @@ else:
                 update_console()
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
-                    cv.converter_validation()
+                    logs_dir = os.path.join(get_metadata_dir(), "logs")
+                    cv.converter_validation(
+                        conversion_log_path=os.path.join(logs_dir, "(5)_conversion_log_latest.json"),
+                        matching_log_path=os.path.join(logs_dir, "(4)_file_matching_log_latest.json"),
+                        output_log_path=os.path.join(logs_dir, "(6)_conversion_validation_log_latest.json"),
+                    )
                 st.session_state.convert_console_log += captured_output.getvalue()
                 st.session_state.convert_console_log += "✅ Conversion validation completed\n"
                 update_console()

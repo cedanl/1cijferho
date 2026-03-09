@@ -7,7 +7,7 @@ import datetime
 from typing import Any, Union
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
-from config import INPUT_DIR, OUTPUT_DIR, DECODER_INPUT_DIR
+from eencijferho.config import INPUT_DIR, OUTPUT_DIR, DECODER_INPUT_DIR
 
 """
 Fixed-width to CSV converter for 1CHO data files. Contains functionality for efficient conversion
@@ -173,8 +173,8 @@ def run_conversions_from_matches(input_folder: str, metadata_folder: str = "data
     console = Console()
     console.print(f"[cyan]Starting conversion based on match log: {match_log_file}")
     
-    # Setup logging
-    log_folder = "data/00-metadata/logs"
+    # Setup logging — derive log folder from the match log file path
+    log_folder = os.path.dirname(match_log_file)
     os.makedirs(log_folder, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     timestamped_log_file = os.path.join(log_folder, f"conversion_log_{timestamp}.json")

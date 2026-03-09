@@ -1,13 +1,13 @@
-from backend.core import extractor as ex
-from backend.utils import extractor_validation as ex_val
-from backend.utils import converter_match as cm
-from backend.utils import converter_validation as cv
-from backend.utils import compressor as co
-from backend.utils import encryptor as en
-from backend.utils import converter_headers as ch
+from eencijferho.core import extractor as ex
+from eencijferho.utils import extractor_validation as ex_val
+from eencijferho.utils import converter_match as cm
+from eencijferho.utils import converter_validation as cv
+from eencijferho.utils import compressor as co
+from eencijferho.utils import encryptor as en
+from eencijferho.utils import converter_headers as ch
 import subprocess
 import argparse
-from config import INPUT_DIR, OUTPUT_DIR
+from eencijferho.config import INPUT_DIR, OUTPUT_DIR
 
 
 def run_pipeline(
@@ -30,7 +30,7 @@ def run_pipeline(
 
     # Step 3: Convert Files
     subprocess.run(
-        ["uv", "run", "src/backend/core/converter.py", input_folder, output_folder]
+        ["uv", "run", "src/eencijferho/core/converter.py", input_folder, output_folder]
     )
 
     # Step 4: Validate Conversion

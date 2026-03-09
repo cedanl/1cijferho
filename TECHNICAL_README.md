@@ -45,7 +45,7 @@ De tool is opgebouwd uit de volgende componenten:
 
 ### Belangrijke bestanden
 - `src/main.py`: Startpunt van de applicatie.
-- `src/backend/core`: Bevat de logica voor dataverwerking.
+- `src/eencijferho/core`: Bevat de logica voor dataverwerking.
 - `src/frontend`: Bevat de gebruikersinterface.
 
 ---

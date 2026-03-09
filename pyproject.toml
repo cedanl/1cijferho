@@ -1,30 +1,64 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [tool.uv]
 cache-dir = "./.uv_cache"
 
 [project]
-name = "1cijferho"
+name = "eencijferho"
 version = "0.1.0"
-description = "Add your description here"
+description = "Standalone backend processing toolkit for 1CijferHO"
 readme = "README.md"
-requires-python = "==3.13.*"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "CEDA", email = "info@cedanl.nl"},
+    {name = "Ash Sewnandan"}
+]
+keywords = ["data-processing", "education", "higher-education", "1cijferho", "cbs"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Education",
+]
 dependencies = [
-    "fastexcel>=0.12.1",
     "numpy>=2.2.2",
     "openpyxl>=3.1.5",
     "pandas>=2.2.3",
     "plotly>=6.0.0",
-    "polars>=1.21.0",
+    "polars[excel]>=1.21.0",
     "pyjanitor>=0.31.0",
     "rich>=13.9.4",
-    "ruff>=0.10.0",
-    "streamlit>=1.41.1",
-    "streamlit-extras>=0.6.0",
     "xlsxwriter>=3.2.2",
 ]
 
+[project.urls]
+Homepage = "https://github.com/cedanl/1cijferho"
+Repository = "https://github.com/cedanl/1cijferho"
+Issues = "https://github.com/cedanl/1cijferho/issues"
+
 [project.optional-dependencies]
+frontend = [
+    "streamlit>=1.41.1",
+    "streamlit-extras>=0.6.0",
+]
 dev = [
+    "ruff>=0.10.0",
     "ydata-profiling>=4.10",
     "sweetviz>=2.3",
     "jupyter>=1.0",
 ]
+
+[project.scripts]
+eencijferho = "eencijferho.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["eencijferho*"]
