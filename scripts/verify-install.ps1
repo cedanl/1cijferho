@@ -87,7 +87,9 @@ Write-Check "No Scoop artifacts in OneDrive-redirected folders"
 
 # Patterns that are expected — PowerShell and Windows itself write to Documents
 $ignoredPatterns = @(
+    "*\PowerShell",
     "*\PowerShell\*",
+    "*\WindowsPowerShell",
     "*\WindowsPowerShell\*",
     "*.ps1xml"
 )
