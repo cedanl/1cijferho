@@ -84,19 +84,32 @@ if ($LASTEXITCODE -eq 0) {
 
 # ── 8. No files in unexpected locations (OneDrive sim check) ──────────────────
 Write-Check "No Scoop artifacts in OneDrive-redirected folders"
+
+# Patterns that are expected — PowerShell and Windows itself write to Documents
+$ignoredPatterns = @(
+    "*\PowerShell\*",
+    "*\WindowsPowerShell\*",
+    "*.ps1xml"
+)
+
 $unexpected = @()
-if ($env:ONEDRIVE_SIM_DOCUMENTS -and (Test-Path $env:ONEDRIVE_SIM_DOCUMENTS)) {
-    $items = Get-ChildItem -Path $env:ONEDRIVE_SIM_DOCUMENTS -Recurse -ErrorAction SilentlyContinue
-    if ($items) { $unexpected += $items }
-}
-if ($env:ONEDRIVE_SIM_DOWNLOADS -and (Test-Path $env:ONEDRIVE_SIM_DOWNLOADS)) {
-    $items = Get-ChildItem -Path $env:ONEDRIVE_SIM_DOWNLOADS -Recurse -ErrorAction SilentlyContinue
-    if ($items) { $unexpected += $items }
+$folders = @($env:ONEDRIVE_SIM_DOCUMENTS, $env:ONEDRIVE_SIM_DOWNLOADS)
+foreach ($folder in $folders) {
+    if ($folder -and (Test-Path $folder)) {
+        $items = Get-ChildItem -Path $folder -Recurse -ErrorAction SilentlyContinue
+        foreach ($item in $items) {
+            $dominated = $false
+            foreach ($pat in $ignoredPatterns) {
+                if ($item.FullName -like $pat) { $dominated = $true; break }
+            }
+            if (-not $dominated) { $unexpected += $item }
+        }
+    }
 }
 
 if ($unexpected.Count -gt 0) {
     Write-Fail "Found $($unexpected.Count) unexpected file(s) in OneDrive-redirected folders:"
-    $unexpected | ForEach-Object { Write-Host "        $_" -ForegroundColor Yellow }
+    $unexpected | ForEach-Object { Write-Host "        $($_.FullName)" -ForegroundColor Yellow }
 } else {
     Write-Ok "No artifacts leaked into redirected known folders"
 }
