@@ -41,6 +41,22 @@ jobs:
           $password = ConvertTo-SecureString "T3stP@ss!" -AsPlainText -Force
           New-LocalUser -Name "testuser" -Password $password -FullName "Test User" -Description "CI non-admin account"
           Add-LocalGroupMember -Group "Users" -Member "testuser"
+
+          # Grant "Log on as batch job" right (required for scheduled tasks)
+          secedit /export /cfg "$env:TEMP\secpol.cfg"
+          $cfg = Get-Content "$env:TEMP\secpol.cfg"
+          $cfg = $cfg -replace '(SeBatchLogonRight\s*=\s*)', '$1testuser,'
+          Set-Content "$env:TEMP\secpol.cfg" $cfg
+          secedit /configure /db "$env:TEMP\secedit.sdb" /cfg "$env:TEMP\secpol.cfg" /areas USER_RIGHTS
+
+          # Create user profile by doing a brief interactive-token logon
+          $cred = New-Object System.Management.Automation.PSCredential("testuser", $password)
+          Start-Process cmd.exe -ArgumentList "/c whoami" -Credential $cred -Wait -NoNewWindow -ErrorAction SilentlyContinue
+
+          # Grant testuser access to the workspace and runner temp
+          icacls "${{ github.workspace }}" /grant "testuser:(OI)(CI)F" /T /Q
+          icacls "${{ runner.temp }}" /grant "testuser:(OI)(CI)F" /T /Q
+
           Write-Host "Created non-admin local user: testuser"
 
       # ── Run installation ─────────────────────────────────────────────
@@ -54,23 +70,24 @@ jobs:
         if: matrix.account == 'standard'
         shell: pwsh
         run: |
-          # Scheduled-task trick: run the install script as testuser
-          $password = "T3stP@ss!"
-          $scriptPath = "${{ github.workspace }}\scripts\test-install.ps1"
-          $logFile    = "${{ runner.temp }}\testuser-install.log"
-          $workspace  = "${{ github.workspace }}"
+          $password    = "T3stP@ss!"
+          $logFile     = "${{ runner.temp }}\testuser-install.log"
+          $wrapperPath = "${{ runner.temp }}\run-install.ps1"
 
-          # Build a wrapper command that sets env vars and runs the script
-          $command = @"
+          # Write a wrapper script to disk (avoids quoting issues in task args)
+          @"
+          `$ErrorActionPreference = 'Stop'
           `$env:UV_LINK_MODE = 'copy'
           `$env:UV_PYTHON    = '3.13'
-          `$env:SCOOP         = "C:\Users\testuser\scoop"
-          `$env:PATH          = "C:\Users\testuser\scoop\shims;" + `$env:PATH
-          Set-Location '$workspace'
-          & '$scriptPath' *>&1 | Tee-Object -FilePath '$logFile'
-          "@
+          `$env:SCOOP        = 'C:\Users\testuser\scoop'
+          `$env:PATH         = 'C:\Users\testuser\scoop\shims;' + `$env:PATH
+          Set-Location '${{ github.workspace }}'
+          & '${{ github.workspace }}\scripts\test-install.ps1' *>&1 | Tee-Object -FilePath '$logFile'
+          if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
+          "@ | Set-Content -Path $wrapperPath -Encoding UTF8
 
-          $action  = New-ScheduledTaskAction -Execute "pwsh.exe" -Argument "-NoProfile -NonInteractive -Command $command"
+          $action  = New-ScheduledTaskAction -Execute "pwsh.exe" `
+            -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$wrapperPath`""
           $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(5)
 
           Register-ScheduledTask -TaskName "RunInstall" `
@@ -84,7 +101,6 @@ jobs:
           $timeout = (Get-Date).AddMinutes(10)
           do {
             Start-Sleep -Seconds 5
-            $state = (Get-ScheduledTaskInfo -TaskName "RunInstall").LastTaskResult
             $running = (Get-ScheduledTask -TaskName "RunInstall").State
           } while ($running -eq "Running" -and (Get-Date) -lt $timeout)
 
@@ -110,19 +126,21 @@ jobs:
         if: matrix.account == 'standard'
         shell: pwsh
         run: |
-          $password   = "T3stP@ss!"
-          $scriptPath = "${{ github.workspace }}\scripts\verify-install.ps1"
-          $logFile    = "${{ runner.temp }}\testuser-verify.log"
-          $workspace  = "${{ github.workspace }}"
+          $password    = "T3stP@ss!"
+          $logFile     = "${{ runner.temp }}\testuser-verify.log"
+          $wrapperPath = "${{ runner.temp }}\run-verify.ps1"
 
-          $command = @"
-          `$env:SCOOP = "C:\Users\testuser\scoop"
-          `$env:PATH  = "C:\Users\testuser\scoop\shims;" + `$env:PATH
-          Set-Location '$workspace'
-          & '$scriptPath' *>&1 | Tee-Object -FilePath '$logFile'
-          "@
+          @"
+          `$ErrorActionPreference = 'Stop'
+          `$env:SCOOP = 'C:\Users\testuser\scoop'
+          `$env:PATH  = 'C:\Users\testuser\scoop\shims;' + `$env:PATH
+          Set-Location '${{ github.workspace }}'
+          & '${{ github.workspace }}\scripts\verify-install.ps1' *>&1 | Tee-Object -FilePath '$logFile'
+          if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
+          "@ | Set-Content -Path $wrapperPath -Encoding UTF8
 
-          $action  = New-ScheduledTaskAction -Execute "pwsh.exe" -Argument "-NoProfile -NonInteractive -Command $command"
+          $action  = New-ScheduledTaskAction -Execute "pwsh.exe" `
+            -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$wrapperPath`""
           $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(5)
 
           Register-ScheduledTask -TaskName "RunVerify" `
