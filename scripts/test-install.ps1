@@ -24,7 +24,8 @@ if (-not $env:UV_LINK_MODE) {
 # ── 1. Install Scoop ──────────────────────────────────────────────────────────
 Write-Step "Installing Scoop"
 
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force -ErrorAction SilentlyContinue
+# Set execution policy (ignore errors — may already be Bypass from the caller)
+try { Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force } catch {}
 
 # If SCOOP env var isn't set, default to the per-user location
 if (-not $env:SCOOP) {
