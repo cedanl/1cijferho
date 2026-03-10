@@ -76,14 +76,21 @@ jobs:
 
           # Write a wrapper script to disk (avoids quoting issues in task args)
           @"
-          `$ErrorActionPreference = 'Stop'
-          `$env:UV_LINK_MODE = 'copy'
-          `$env:UV_PYTHON    = '3.13'
-          `$env:SCOOP        = 'C:\Users\testuser\scoop'
-          `$env:PATH         = 'C:\Users\testuser\scoop\shims;' + `$env:PATH
+          `$env:USERPROFILE   = 'C:\Users\testuser'
+          `$env:HOMEDRIVE     = 'C:'
+          `$env:HOMEPATH      = '\Users\testuser'
+          `$env:UV_LINK_MODE  = 'copy'
+          `$env:UV_PYTHON     = '3.13'
+          `$env:SCOOP         = 'C:\Users\testuser\scoop'
+          `$env:PATH          = 'C:\Users\testuser\scoop\shims;' + `$env:PATH
           Set-Location '${{ github.workspace }}'
-          & '${{ github.workspace }}\scripts\test-install.ps1' *>&1 | Tee-Object -FilePath '$logFile'
-          if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
+          try {
+              & '${{ github.workspace }}\scripts\test-install.ps1' 2>&1 | Tee-Object -FilePath '$logFile'
+              if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
+          } catch {
+              `$_ | Out-File -Append '$logFile'
+              exit 1
+          }
           "@ | Set-Content -Path $wrapperPath -Encoding UTF8
 
           $action  = New-ScheduledTaskAction -Execute "pwsh.exe" `
@@ -131,12 +138,19 @@ jobs:
           $wrapperPath = "${{ runner.temp }}\run-verify.ps1"
 
           @"
-          `$ErrorActionPreference = 'Stop'
-          `$env:SCOOP = 'C:\Users\testuser\scoop'
-          `$env:PATH  = 'C:\Users\testuser\scoop\shims;' + `$env:PATH
+          `$env:USERPROFILE = 'C:\Users\testuser'
+          `$env:HOMEDRIVE   = 'C:'
+          `$env:HOMEPATH    = '\Users\testuser'
+          `$env:SCOOP       = 'C:\Users\testuser\scoop'
+          `$env:PATH        = 'C:\Users\testuser\scoop\shims;' + `$env:PATH
           Set-Location '${{ github.workspace }}'
-          & '${{ github.workspace }}\scripts\verify-install.ps1' *>&1 | Tee-Object -FilePath '$logFile'
-          if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
+          try {
+              & '${{ github.workspace }}\scripts\verify-install.ps1' 2>&1 | Tee-Object -FilePath '$logFile'
+              if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
+          } catch {
+              `$_ | Out-File -Append '$logFile'
+              exit 1
+          }
           "@ | Set-Content -Path $wrapperPath -Encoding UTF8
 
           $action  = New-ScheduledTaskAction -Execute "pwsh.exe" `
