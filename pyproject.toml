@@ -54,6 +54,7 @@ dev = [
     "ydata-profiling>=4.10",
     "sweetviz>=2.3",
     "jupyter>=1.0",
+    "pytest>=8.0",
 ]
 
 [project.scripts]
@@ -62,3 +63,7 @@ eencijferho = "eencijferho.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["eencijferho*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
