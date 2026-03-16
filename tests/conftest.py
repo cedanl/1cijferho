@@ -7,6 +7,8 @@ fully isolated.
 """
 
 import json
+from pathlib import Path
+
 import pytest
 import pandas as pd
 
@@ -49,6 +51,23 @@ def metadata_xlsx(tmp_path):
     )
     df.to_excel(path, index=False)
     return path
+
+
+# ---------------------------------------------------------------------------
+# CSV helper fixture
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def make_csv():
+    """Factory: Write a semicolon-delimited CSV file from a list of row dicts."""
+
+    def _make(path: Path, rows: list[dict]) -> None:
+        if not rows:
+            return
+        cols = list(rows[0].keys())
+        lines = [";".join(cols)] + [";".join(str(row[c]) for c in cols) for row in rows]
+        path.write_text("\n".join(lines), encoding="utf-8")
+
+    return _make
 
 
 # ---------------------------------------------------------------------------
