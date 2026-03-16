@@ -76,6 +76,38 @@ uv run streamlit run src/main.py
 De applicatie opent automatisch in je browser.
 
 
+## Installeren als pakket
+
+Gebruik je `eencijferho` als backend-bibliotheek in een bestaande Python-omgeving? Dan heb je de Streamlit-app niet nodig en kun je het pakket direct installeren:
+
+```bash
+# pip
+pip install eencijferho
+
+# poetry
+poetry add eencijferho
+```
+
+Voor gebruik via de CLI na installatie:
+
+```bash
+# Volledige pipeline in één stap: van ruwe DUO-bestanden naar analyse-klare CSV/Parquet
+eencijferho pipeline --input data/01-input --output data/02-output
+
+# Of stap voor stap:
+
+# Stap 1: Lees de .txt metadata-bestanden uit en sla ze op als JSON en Excel
+eencijferho extract  --input data/01-input --output data/02-output
+
+# Stap 2: Controleer of de metadata compleet is en of elk .asc bestand een bijpassend metadata-bestand heeft
+eencijferho validate --input data/01-input --output data/02-output
+
+# Stap 3: Converteer de fixed-width .asc bestanden naar CSV/Parquet op basis van de gevalideerde metadata
+eencijferho convert  --input data/01-input --output data/02-output
+```
+
+---
+
 ## 🎬 Demo Video
 
 Bekijk hieronder een korte demonstratie van hoe de 1CijferHO Tool werkt:
