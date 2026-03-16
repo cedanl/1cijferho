@@ -1,0 +1,54 @@
+Bestandsbeschrijving vakkenbestanden
+====================================
+
+Van havo- en vwo-gediplomeerden zijn de vakgegevens opgenomen in een
+apart vakkenbestand. Het bestand bevat alleen vakgegevens:
+
+* van geslaagden havo en vwo
+* van studenten aan uw instelling
+* behaald aan reguliere vo-instellingen, dus geen vavo en geen
+  particulier vo
+
+De bronnen van de gegevens zijn:
+* ERR
+* ERA
+* ROR (Register Onderwijsresultaten, voorheen BRON)
+
+Er zijn twee bestanden:
+* Decodeertabel vakcode
+* De vakgegevens
+
+Decodeertabel vakcode (Dec_vakcode.asc)
+=======================================
+
+                                             Startpositie  Aantal posities
+Vakcode                                             1             4
+Omschrijving vak                                    5           112
+Roepnaam vak                                      117            24
+Afkorting vak                                     141             5
+
+
+Vakgegevens
+===========
+                                             Startpositie  Aantal posities  Opmerking
+Persoonsgebonden nummer                             1            12         BSN voorafgegaan door 000
+Brinnummer VO-instelling                           13             4         te decoderen met Dec_brinnummer.asc
+Vestigingsnummer VO-vestiging                      17             2         in combinatie met Brinnummer te decoderen met Dec_brinvestigingsnummer.asc
+Vooropleiding oorspronkelijke code                 19             5         te decoderen met Dec_vooropl.asc
+Diplomajaar                                        24             4         Diplomajaar = VO-examenjaar - 1
+Gemiddeld cijfer cijferlijst                       28             3
+Vakcode                                            31             4         te decoderen met Dec_vakcode.asc
+Afkorting vak                                      35             5
+Ander niveau                                       40             3         HA = havo; VWO = vwo
+Indicatie diplomavak                               43             1         in oude jaren niet gevuld
+Cijfer schoolexamen                                44             3         0 = missing
+Beoordeling schoolexamen                           47             1         G = goed; V = voldoende; O = onvoldoende
+Cijfer eerste centraal examen                      48             3         0 = missing
+Cijfer tweede centraal examen                      51             3         0 = missing
+Cijfer derde centraal examen                       54             3         0 = missing
+Eerste eindcijfer                                  57             2         0 = missing
+Tweede eindcijfer                                  59             2         0 = missing
+Derde eindcijfer                                   61             2         0 = missing
+Cijfer cijferlijst                                 63             2         0 = missing
+Burgerservicenummer                                65             9
+Onderwijsnummer                                    74             9

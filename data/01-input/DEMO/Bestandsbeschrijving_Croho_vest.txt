@@ -1,0 +1,445 @@
+Bestandsbeschrijving Croho_vest.asc (1 cijfer HO 2025 v1.0)
+===========================================================
+
+De HO-opleidingsindeling is zoals gepubliceerd door DUO. In enkele gevallen wijkt
+die echter af (zie hieronder meer specifiek voor zowel HBO als WO). Het bijwerken
+van deze tabel is gebeurd met behulp van het RIO-bestand ho_erkenningen_rio.csv
+van 25 augustus 2024 en het RIO-bestand ho_erkenningen_rio.csv van 1 december 2025.
+
+
+                                             Startpositie  Aantal posities
+Instellingsocde                                    1              4
+Opleidingscode                                     5              5
+Vestigingsnummer                                  10              2
+Actuele instelling                                12              4
+Actuele vestiging                                 16              2
+Opleiding actueel equivalent                      18              5
+Opleiding historisch equivalent                   23              5
+Onderdeel actuele opleiding                       28              1
+Subonderdeel actuele opleiding                    29              2
+Soort hoger onderwijs                             31              3
+Type hoger onderwijs actuele opleiding            34              2
+Opleidingsnaam actuele opleiding (*)              36            120
+Indicatie soort opleiding (**)                   156              2
+Joint degree code (***)                          158              5
+
+NB: de sleutel bestaat uit de eerste drie velden.
+
+(*) Bij HBO betreft dit inderdaad de actuele opleiding; bij WO is het echter
+de opleidingsnaam behorende bij de opleidingscode.
+(**) Indicatie soort opleiding kan de volgende codes bevatten:
+ A  = associate degree
+ AF = associate degree (vraagfinanciering)
+ F  = vraagfinanciering
+ J  = joint degree
+(***) Voor joint degrees (en eventuele voorlopers) is dit veld gevuld met
+de huidige opleidingscode van de joint degree.
+
+Voor de decodering van het veld Opleidingscode kan het bestand Dec_isat.asc
+worden gebruikt.
+
+
+Afwijkingen onderdeel in het HBO
+--------------------------------
+Vanwege diverse redenen kan het zijn dat het onderdeel van een opleiding afwijkt
+van hetgeen in RIO staat opgenomen. Dit is bijvoorbeeld mogelijk wanneer een opleiding
+is overgegaan of opgegaan in een andere opleiding, welke een ander onderdeel
+heeft. Het onderdeel heeft immers betrekking op de opleiding actueel equivalent.
+Hier volgen de verschillen voor het HBO:
+
+                                                  Onderdeel
+                                            ---------------------
+Inst.code  Opl.code   Opl.naam              1cijferHO    RIO         Opmerking
+---------  --------   --------              ---------    ---------   ---------
+  01VU      04404     b bus. it & manag.  } techniek     economie    deze opl. is opgegaan in de brede
+            34404     b bus. it & manag.  }                          bachelor 30020 b hbo-ict
+            39118     b bus. it & manag.  }
+
+  01VU      04609     personeel & arbeid  } economie     g&m         act.opl. is 36409, waarvan economie
+                                                                     per 1-9-2019 het onderdeel is
+
+  01VU      34692     b journalistiek     } economie     landbouw    staat verkeerd in RIO
+                      en voorlichting
+
+  01VU      39205     b hbo-rechten       } economie     recht       in het hbo wordt onderdeel
+                                                                     recht omgezet naar economie
+
+  07GR      04609     personeel & arbeid  } economie     g&m         act.opl. is 36409, waarvan economie
+                                                                     per 1-9-2019 het onderdeel is
+
+  07GR      39205     b hbo-rechten       } economie     recht       in het hbo wordt onderdeel
+                                                                     recht omgezet naar economie
+
+  21QL      04609     personeel & arbeid  } economie     g&m         act.opl. is 36409, waarvan economie
+            34609     b hum.res.man.                                 per 1-9-2019 het onderdeel is
+
+  21MI      34404     b bus. it & manag.  } techniek     economie    deze opl. is opgegaan in de brede
+            39118     b bus. it & manag.  }                          bachelor 30020 b hbo-ict
+
+  21MI      39278     b delta management    techniek     sectorov.   deze opl. is opgegaan in de brede
+                                                                     34074 b watermanagement
+
+  21RI      04609     personeel & arbeid  } economie     g&m         act.opl. is 36409, waarvan economie
+                                                                     per 1-9-2019 het onderdeel is
+
+  21RI      04641     soc.jur.dienstv.    } economie     g&m         deze opl. is opgegaan in de brede
+            34641     b soc.jur.dienstv.  }              recht       bachelor 34121 (= economie)
+
+  21RI      04506     b kunstz. therapie  } g&m          gezondh.    deze opl. is nu 34644 b vaktherapie (g&m)
+            34506     b kunstz. therapie  }
+
+  21RI      39205     b hbo-rechten       } economie     recht       in het hbo wordt onderdeel
+                                                                     recht omgezet naar economie
+
+  22HH      04609     personeel & arbeid  } economie     g&m         act.opl. is 36409, waarvan economie
+            34609     b hum.res.man.                                 per 1-9-2019 het onderdeel is
+
+  22OJ      04609     personeel & arbeid  } economie     g&m         act.opl. is 36409, waarvan economie
+                                                                     per 1-9-2019 het onderdeel is
+
+  00BH      04404     b bus. it & manag.  } techniek     economie    deze opl. is opgegaan in de brede
+            34404     b bus. it & manag.  }                          bachelor 30020 b hbo-ict
+
+  00BH      04609     personeel & arbeid  } economie     g&m         act.opl. is 36409, waarvan economie
+            34609     b hum.res.man.                                 per 1-9-2019 het onderdeel is
+
+  23AH      04404     b bus. it & manag.  } techniek     economie    deze opl. is opgegaan in de brede
+            34404     b bus. it & manag.  }                          bachelor 30020 b hbo-ict
+            39118     b bus. it & manag.  }
+
+  23AH      04609     personeel & arbeid  } economie     g&m         act.opl. is 36409, waarvan economie
+                                                                     per 1-9-2019 het onderdeel is
+
+  23AH      34641     b soc.jur.dienstv.  }              recht       deze opl. is opgegaan in de brede
+                                                                     bachelor 34121 (= economie)
+
+  23AH      39205     b hbo-rechten       } economie     recht       in het hbo wordt onderdeel
+                                                                     recht omgezet naar economie
+
+  24LK      80012     b rechten (o.b.)    } economie     recht       in het hbo wordt onderdeel
+                                                                     recht omgezet naar economie
+
+  25BA      04609     personeel & arbeid  } economie     g&m         act.opl. is 36409, waarvan economie
+                                                                     per 1-9-2019 het onderdeel is
+
+  00KO      04404     b bus. it & manag.  } techniek     economie    deze opl. is opgegaan in de brede
+  25BE      04404     b bus. it & manag.  }                          bachelor 30020 b hbo-ict
+            34404     b bus. it & manag.  }
+            39118     b bus. it & manag.  }
+
+  25BE      04057     b sport,gezh & man. } g&m          gezondh.    deze opl. is nu 34040 b sportkunde (g&m)
+            34057     b sport,gezh & man. }
+
+  00EY      04649     b inf.d.verl&man.   } techniek     economie    deze opl. is opgegaan in de brede
+            04654     b inf.d.verl&man.   }                          bachelor 34092 b communication and multimedia design
+  25BE      04649     b inf.d.verl&man.   }
+            34649     b inf.d.verl&man.   }
+            04430     b communicatiesyst. }
+            34430     b communicatiesyst. }
+
+  25BE      04609     personeel & arbeid  } economie     g&m         act.opl. is 36409, waarvan economie
+                                                                     per 1-9-2019 het onderdeel is
+
+  25BE      04641     soc.jur.dienstv.    } economie     g&m         deze opl. is opgegaan in de brede
+            34641     b soc.jur.dienstv.  }              recht       bachelor 34121 (= economie)
+
+  25BE      39205     b hbo-rechten       } economie     recht       in het hbo wordt onderdeel
+                                                                     recht omgezet naar economie
+
+  25BE      80002     ad personeel & arb  } economie     g&m         act.opl. is 80073, waarvan economie
+                                                                     per 1-9-2019 het onderdeel is
+
+  00PK      04404     b bus. it & manag.  } techniek     economie    deze opl. is opgegaan in de brede
+  21RH      04404     b bus. it & manag.  }                          bachelor 30020 b hbo-ict
+  25DW      04404     b bus. it & manag.  }
+            34404     b bus. it & manag.  }
+            39118     b bus. it & manag.  }
+
+  25DW      04609     personeel & arbeid  } economie     g&m         act.opl. is 36409, waarvan economie
+                                                                     per 1-9-2019 het onderdeel is
+
+  25DW      04641     soc.jur.dienstv.    } economie     g&m         deze opl. is opgegaan in de brede
+            34641     b soc.jur.dienstv.  }              recht       bachelor 34121 (= economie)
+
+  25DW      39205     b hbo-rechten       } economie     recht       in het hbo wordt onderdeel
+                                                                     recht omgezet naar economie
+
+  00KP      04404     b inf. man. techn.  } techniek     economie    deze opl. is opgegaan in de brede
+  03IP      04404     b inf. man. techn.  }                          bachelor 30020 b hbo-ict
+  06FC      04649     b inf. man. techn.  }
+            04650     b inf. man. techn.  }
+            04653     b inf. man. techn.  }
+  21TD      04649     b inf. man. techn.  }
+            04653     b inf. man. techn.  }
+  25JX      04404     b inf. man. techn.  }
+            04649     b inf. man. techn.  }
+            34124     b inf. man. techn.  }
+            34404     b inf. man. techn.  }
+            39118     b bus. it & manag.  }
+
+  25JX      04001     opl tolk-vertaler   } t&c          economie    act.opl. is 34098, waarvan t&c
+            34004     b opl tolk-vertaler                            per 1-9-2019 het onderdeel is gewijzigd
+
+  25JX      04641     soc.jur.dienstv.    } economie     g&m         deze opl. is opgegaan in de brede
+            34641     b soc.jur.dienstv.  }                          bachelor 34121 (= economie)
+
+  25JX      04567     opl. kader gz       } economie     gezondh.    deze opl. zijn opgegaan in de brede
+            34567     b opl. kader gz     }                          bachelor 34145 (= economie)
+            34538     b man. in de zorg   }
+
+  25JX      04609     personeel & arbeid  } economie     g&m         deze opl. is opgegaan in de brede
+            34609     b personeel & arbeid}                          bachelor 34145 (= economie)
+
+  25DW      04641     soc.jur.dienstv.    } economie     g&m         deze opl. is opgegaan in 39205 (recht)
+            34641     b soc.jur.dienstv.  }              g&m         welke is omgezet naar economie
+
+  25JX      39205     b hbo-rechten       } economie     recht       in het hbo wordt onderdeel
+                                                                     recht omgezet naar economie
+
+  00NN      04404     b bus. it & manag.  } techniek     economie    deze opl. is opgegaan in de brede
+  25KB      04404     b bus. it & manag.  }                          bachelor 30020 b hbo-ict
+            04430     b bus. it & manag.  }
+            34404     b bus. it & manag.  }
+            34430     b bus. it & manag.  }
+            39118     b bus. it & manag.  }
+
+  25KB      34057     b sport,gezh & man. } g&m          gezondh.    deze opl. is nu 34040 b sportkunde (g&m)
+
+  25KB      04609     personeel & arbeid  } economie     g&m         act.opl. is 36409, waarvan economie
+                                                                     per 1-9-2019 het onderdeel is gewijzigd
+
+  25KB      39205     b hbo-rechten       } economie     recht       in het hbo wordt onderdeel
+                                                                     recht omgezet naar economie
+
+  27PZ      34282     b ruimt.ord.&planol } landbouw     techniek    deze opl. is opgegaan in de brede
+                                                                     bachelor 30028 b landscape and environment management
+
+  27PZ      34390     b logistiek en        landbouw     techniek    deze opl. is opgegaan in de brede
+                      techn. vervoersk.                              bachelor 30024 (= landbouw)
+
+  27PZ      34432     b food and business   landbouw     economie    deze opl. is opgegaan in de brede
+                                                                     bachelor 30022 (= landbouw)
+
+  21RJ      04609     b human res. man.   } economie     g&m         deze opl. is opgegaan in de brede
+            04611     b human res. man.   }                          bachelor 34145 b business studies
+            34609     b human res. man.   }
+  21SF      04609     b human res. man.   }
+            04696     b human res. man.   }
+            34609     b human res. man.   }
+  27PZ      34609     b human res. man.   }
+
+  27PZ      34641     b soc.jur.dienstv.  } economie     recht       in het hbo wordt onderdeel
+                                                                     recht omgezet naar economie
+
+  27PZ      39205     b hbo-rechten       } economie     recht       in het hbo wordt onderdeel
+                                                                     recht omgezet naar economie
+
+  21ZL      04404     b bus. it & manag.  } techniek     economie    deze opl. is opgegaan in de brede
+            04649     b inf.d.verl&man.   }                          bachelor 30020 b hbo-ict
+            04656     b inf.d.verl&man.   }
+            34649     b inf.d.verl&man.   }
+  27UM      04404     b bus. it & manag.  }
+            34404     b bus. it & manag.  }
+            34649     b inf.d.verl&man.   }
+            39118     b bus. it & manag.  }
+
+  27UM      39205     b hbo-rechten       } economie     recht       in het hbo wordt onderdeel
+                                                                     recht omgezet naar economie
+
+  21HR      04404     b bus. it & manag.  } techniek     economie    deze opl. is opgegaan in de brede
+            34404     b bus. it & manag.  }                          bachelor 30020 b hbo-ict
+  21QW      04404     b bus. it & manag.  }
+            09006     b bus. it & manag.  }
+            34404     b bus. it & manag.  }
+  28DN      34404     b bus. it & manag.  }
+            39118     b bus. it & manag.  }
+
+  28DN      34599     b sport,man&ondern  } g&m          economie    deze opl. is nu 34040 b sportkunde (g&m)
+
+  28DN      34641     b soc.jur.dienstv.  } economie     recht       in het hbo wordt onderdeel
+                                                                     recht omgezet naar economie
+
+  28DN      39205     b hbo-rechten       } economie     recht       in het hbo wordt onderdeel
+                                                                     recht omgezet naar economie
+
+  28DN      45283     m legal management  } economie     recht       in het hbo wordt onderdeel
+                                                                     recht omgezet naar economie
+
+  28DN      70173     m legal management  } economie     recht       in het hbo wordt onderdeel
+                                                                     recht omgezet naar economie
+
+  15CL      04404     bedr.k.inform.        techniek     economie  }
+            30020     b hbo-ict             techniek     sectorov. }
+            34404     b bedr.k.inform.      techniek     economie  } 30020 is de actuele opl.,
+  21WO      04404     bedr.k.inform.        techniek     economie  } welke door de VH
+            34404     b bedr.k.inform.      techniek     economie  } onder techniek wordt geteld
+  30GB      30020     b hbo-ict             techniek     sectorov. }
+            34404     b bedr.k.inform.      techniek     economie  }
+
+  30GB      80152     ad ad-ict             techniek     sectorov.   analoog aan 30020 (zie hierboven)
+
+  15CL      04609     personeel & arbeid  } economie     g&m         act.opl. is 36409, waarvan economie
+            34609     b personeel & arb   }                          per 1-9-2019 het onderdeel is gewijzigd
+
+  22BO      04609     personeel & arbeid  } economie     g&m         act.opl. is 36409, waarvan economie
+            34609     b personeel & arb   }                          per 1-9-2019 het onderdeel is gewijzigd
+
+  21WN      04404     b bus. it & manag.  } techniek     economie    deze opl. is opgegaan in de brede
+            34404     b bus. it & manag.  }                          bachelor 30020 b hbo-ict
+            39118     b bus. it & manag.  }
+  31FR      39118     b bus. it & manag.  } 
+
+  21WN      04609     personeel & arbeid  } economie     g&m         act.opl. is 36409, waarvan economie
+            34609     b personeel & arb   }                          per 1-9-2019 het onderdeel is gewijzigd
+
+  21WN      80002     ad personeel & arb  } economie     g&m         act.opl. is 80073, waarvan economie
+            80073     ad hum.res.man.                                per 1-9-2019 het onderdeel is gewijzigd
+
+  22EX      04609     personeel & arbeid  } economie     g&m         act.opl. is 36409, waarvan economie
+            34609     b personeel & arb   }                          per 1-9-2019 het onderdeel is gewijzigd
+
+  31FR      39205     b hbo-rechten       } economie     recht       in het hbo wordt onderdeel
+                                                                     recht omgezet naar economie
+
+  24LE      34936     int bus.&man.stud.  } economie     landbouw    act.opl is 30029, waarvan economie
+  30HD      34936     int bus.&man.stud.  }                          per 29-10-2020 het onderdeel is gewijzigd
+
+  01DZ      04899     edu/ken.man.groen   } onderwijs    landbouw    act.opl is 34899, waarvan onderwijs
+            04908     ler.vo 2egr l.tech  }                          per 1-11-2021 het onderdeel is gewijzigd
+            04909     ler.vo 2egr dier    }
+            04910     ler.vo 2egr tuinb   }
+            04915     ler.vo 2egr plant   }
+            04916     ler.vo 2egr vee     }
+            04917     ler.vo 2egr agr.te  }
+            04918     ler.vo 2egr agr.ec  }
+            34899     b doc/ken.man.groen }
+            34908     b ler.vo 2egr l.tech}
+            34909     b ler.vo 2egr dier  }
+            34910     b ler.vo 2egr tuinb }
+            34915     b ler.vo 2egr plant }
+            34916     b ler.vo 2egr vee   }
+            34917     b ler.vo 2egr agr.te}
+            34918     b ler.vo 2egr agr.ec}
+
+  01DZ      80064  }  ad onderw.ondersteuner} onderwijs   landbouw   act.opl. is 80467, waarvan onderwijs
+  30TX      80064  }         groene sector                           het onderdeel is
+
+  24LE      04331     biotechnologie      } techniek     landbouw   act.ins. is 30HD, act.opl. is 34431,
+            34331     b biotechnologie    }                         waarvan per 23-11-2023 het onderdeel is gewijzigd
+
+Afwijkingen onderdeel in het WO
+-------------------------------
+Het komt soms voor dat een oude opleiding een ander onderdeel heeft dan de huidige
+opleiding. Omdat wordt uitgegaan van de huidige indeling (o.a. in verband met
+trends naar het verleden toe) is de indeling van de oude opleiding gewijzigd in die
+van de huidige opleiding. Hieronder volgt voor WO het exacte overzicht van de verschillen:
+
+                                              Onderdeel
+                                        ---------------------
+Inst.code  Opl.code   Opl.naam          1cijferHO    RIO         Opmerking
+---------  --------   --------          ---------    ---------   ---------
+  21PB      06093     oost-europees     recht        g&m         is nu rechtsgeleerdheid
+                      jur. opl.                                  (= recht)
+
+  21PB      06460     int.jur.opl.      recht        g&m         int.jur. valt bij 21PB
+                                                                 onder recht
+
+  21PC      06646     techn.cogn.       natuur       g&m         is nu kunstmatige
+                      wetenschappen                              intelligentie (= natuur)
+
+  21PC      06720     alfa-informatica  natuur       g&m         is nu informatiekunde
+                                                                 (= natuur)
+
+  21PD      06193     fundamentele      gezondh.     natuur      is nu biomedische weten-
+                      bio-med. wet.                              schappen (= gezondh.)
+
+  21PD      06461     jur. bestuursw.   g&m          recht       is nu bedrijfskunde (= g&m)
+                      opl.
+
+  21PD      06882     fundamentele      gezondh.     natuur      is nu biomedische weten-
+                      bio-med. wet.                              schappen (= gezondh.)
+
+  21PH      06280     wijsgeer van      t&c          techniek    is nu wijsbegeerte (= t&c)
+                      wetensch.,
+                      techn. en samenl.
+
+  21PJ      50020     b univ.coll.      sectorov.    g&m         ivm vergelijkbaarheid met
+                      maastricht                                 50393 liberal arts & sciences
+                                                                 (= sectoroverstijgend)
+
+  21PJ      59304     b mol.levensw.    natuur       sectorov.   ivm vergelijkbaarheid met
+                                                                 andere uni's, waar deze opl.
+                                                                 onder natuur valt
+
+  21PK      06179     wetenschaps-      t&c          natuur      is nu wijsbegeerte (= t&c)
+                      dynamica
+
+  21PK      06557     medische          gezondh.     natuur      is nu biomedische
+                      biologie                                   wetenschappen (=gezondh.)
+
+  21PK      06639     soc.wetensch.     natuur       g&m         is nu informatiekunde
+                      informatica                                (= natuur)
+
+  21PK      06720     alfa-informatica  natuur       g&m         is nu informatiekunde
+                                                                 (= natuur)
+
+  21PL      06557     medische          gezondh.     natuur      is nu biomedische
+                      biologie                                   wetenschappen (= gezondh.)
+
+  21PL      06865     medische          gezondh.     natuur      is nu biomedische
+                      biologie                                   wetenschappen (= gezondh.)
+
+  21PM      06617     cognitie-         natuur       g&m         is nu kunstmatige
+                      wetenschap                                 intelligentie (= natuur)
+
+  21PN      50667     b lib.arts        sectorov.    t&c         ivm vergelijkbaarheid met
+                                                                 andere uni's, waar deze opl.
+                                                                 onder sectoroverstijgend valt
+
+Verder is de opleiding bestuurskunde bij 21PN een apart geval. De historie luidt:
+1) 06461 juridische bestuurswetenschappen (g&m), gaat over in
+2) 06627 bestuurskunde (g&m), gaat over in
+     - 56627 b bestuurskunde (recht)
+     - 66627 m bestuurskunde (recht)
+
+Bij de overige universiteiten valt bestuurskunde onder g&m. Tevens viel 06627 ook onder
+g&m. Het is daarom vreemd dat de huidige bachelors en masters nu onder recht zou vallen.
+Al deze opleidingscodes bij 21PN hebben in 1cijferHO als onderdeel g&m.
+
+
+
+Aangaande opleiding actueel equivalent
+--------------------------------------
+Dit veld moet altijd gevuld zijn. Er hoeft echter niet per se een nu geldende opleidingscode
+te staan. Wanneer een opleiding is opgehouden te bestaan, dan staat voor die opleiding gewoon
+de oude opleidingscode.
+
+Sowieso is de behandeling van dit veld bij HBO en WO anders. In het HBO is zo veel mogelijk
+getracht de opleidingscodes zoals die in het verleden voorkwamen, om te zetten naar de huidige
+bachelor-codes (de bron hiervoor is afkomstig van Henk Rademaker (velddirectie HO)). In het WO
+staat in het veld "opleiding actueel equivalent" in principe de opleidingscode zoals die in
+het Criho staat. De enige opleidingen die zijn omgezet zijn de oude beroepsfase (voortgezette)
+codes van de artsen (07551), dierenartsen (07570), tandartsen (07560) en apothekers (07157)
+naar respectievelijk 08551, 08570, 08560 en 08157. Datzelfde is ook gedaan met de oude
+7000-serie van de ULO's, die naar de 8000-serie zijn omgezet.
+
+
+
+Aangaande opleiding historisch equivalent
+-----------------------------------------
+Dit veld hoeft niet altijd gevuld te zijn. Bij HBO is het alleen ingevuld wanneer een
+opleiding is gesplitst. Dan komen bij zowel de oude opleiding als de nieuwe opleidingen de
+code van de oude opleiding in dit veld te staan. Op dezelfde wijze is het fenomeen
+gemeenschappelijke propedeuse behandeld.
+
+Bij WO is dit veld altijd gevuld (met uitzondering van de ongeldige opleiding 11111) om
+opleidingen te kunnen groeperen die historisch gezien bij elkaar horen. De code die hiervoor
+per opleidingsgroep is gebruikt, is afhankelijk van de complete fusie/splitsinghistorie.
+De waarde hoeft dus niet de echte historische opleiding van de betreffende opleidingscode te
+zijn. Het is louter technisch noodzakelijk dat een bepaalde waarde staat voor een bepaalde
+opleidingsgroep, zodat bijvoorbeeld bij de bepaling van het attribuut "eerstejaars opleiding"
+een student niet foutief als eerstejaars wordt gekenmerkt wanneer deze eigenlijk nog altijd
+in dezelfde opleiding zit, alleen met een andere opleidingscode. Er is wat dit betreft wel
+een spanningsveld tussen het landelijke niveau (domein opleiding) en het instellingsniveau
+(domein opleiding-instelling), omdat sommige opleidingscodes bij verschillende universiteiten
+een verschillende historie/vervolg kunnen hebben.
