@@ -95,6 +95,46 @@ worden toegepast (bijv. `geslacht`: 43.663/43.663 rijen gemapped).
 
 ---
 
+## Openstaande gaps (vestigingsnummer-joins)
+
+### Gap 1: vestigingsnummer en vestigingsnummer_diploma krijgen geen gemeentenaam
+
+`Dec_vest_ho.asc` staat als decodeertabel voor `Vestigingsnummer` en `Vestigingsnummer diploma`
+in de DEC-metadata, maar het bestand bestaat niet in de DUO-levering. Alleen
+`Dec_vestnr_ho_compleet.asc` is beschikbaar (niet hetzelfde bestand).
+
+**Status:** Buiten scope — naamsverschil in DUO-levering.
+
+---
+
+### Gap 2: instellingscode + vestigingsnummer hoogste vooropl. vóór HO krijgt geen naam
+
+`Dec_instellingscodevest.asc` (composite join: `Instellingscode + Vestigingsnummer van de hoogste
+vooropl. vóór het HO`) staat in de DEC-metadata maar het bestand ontbreekt in de DUO-levering.
+
+**Status:** Buiten scope — bestand ontbreekt in DUO-levering.
+
+---
+
+### Gap 3: instellingscode + vestigingsnummer hoogste vooropl. binnen HO — Dec_vestnr_ho_compleet.csv wordt niet gejoint
+
+`Dec_vestnr_ho_compleet.csv` **bestaat wel** in de output, maar de join wordt nooit uitgevoerd.
+
+**Oorzaak:** In de DEC-metadata staat `decoding_variables = ['Instellingscode + Vestigingsnummer
+van de hoogste vooropleiding binnen HO']`. In `decode_fields` wordt deze gehele string genormaliseerd
+als één kolomnaam (`instellingscode_vestigingsnummer_van_de_hoogste_vooropleiding_binnen_ho`) die
+niet in het DataFrame bestaat. De `+` wordt niet herkend als composite join indicator.
+Composite joins worden wel afgehandeld in de VAKHAVW-sectie van de decoder (via "in combinatie met"
+detectie), maar niet in het reguliere `decoding_variables` pad.
+
+**Verwacht gedrag:** `vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho` + `instellingscode`
+→ join op `Dec_vestnr_ho_compleet.csv` → `_gemeentenaam_per_1_januari_2025` kolom.
+
+**Status:** Bug — te fixen door `decode_fields` `+`-notatie in `decoding_variables` te laten
+herkennen als composite join.
+
+---
+
 ## Geen issue (legitiem leeg)
 
 | Kolom(men) | % leeg | Verklaring |
@@ -102,15 +142,5 @@ worden toegepast (bijv. `geslacht`: 43.663/43.663 rijen gemapped).
 | `nationaliteit_2_*` (5 kolommen) | 87.4% | Bronkolom `nationaliteit_2` zelf 87.4% leeg |
 | `nationaliteit_3_*` (5 kolommen) | 99.8% | Bronkolom `nationaliteit_3` zelf 99.8% leeg |
 | `instelling_van_de_hoogste_vooropl_binnen_het_ho_naam` | 51.6% | Bronkolom zelf 51.6% leeg; 0 gevallen waarbij bron gevuld maar naam leeg |
-| `vestigingsnummer_diploma` | 74.6% | Verwacht: geen diploma → geen vestigingsnummer |
+| `vestigingsnummer_diploma` | 74.6% | Geen diploma → geen vestigingsnummer |
 | `soort_diploma_instelling` | 74.6% | Idem |
-
----
-
-## Buiten scope: ontbrekend DEC-bestand
-
-`Dec_vest_ho.asc` wordt in de DEC-metadata verwacht voor de kolommen `Vestigingsnummer`
-en `Vestigingsnummer diploma`, maar dit bestand bestaat niet in de DUO-levering.
-Alleen `Dec_vestnr_ho.asc` en `Dec_vestnr_ho_compleet.asc` zijn aanwezig.
-`Dec_vestnr_ho.asc` is bovendien "unmatched" (geen bestandsbeschrijving-xlsx).
-Dit is een naamsverschil in de DUO-levering, buiten de scope van de decoder.
