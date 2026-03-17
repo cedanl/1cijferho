@@ -258,7 +258,8 @@ def decode_fields(
                     join_df = join_df.with_columns(
                         pl.col(code_col_norm)
                         .cast(pl.Utf8)
-                        .str.zfill(2)
+                        .str.strip_chars_start("0")
+                        .str.replace("^$", "0")
                         .str.strip_chars()
                         .alias(code_col_norm)
                     )
@@ -281,7 +282,8 @@ def decode_fields(
                     result_df = result_df.with_columns(
                         pl.col(var_norm)
                         .cast(pl.Utf8)
-                        .str.zfill(2)
+                        .str.strip_chars_start("0")
+                        .str.replace("^$", "0")
                         .str.strip_chars()
                         .alias(var_norm)
                     )
@@ -783,7 +785,8 @@ def decode_fields_dec_only(
                     join_df = join_df.with_columns(
                         pl.col(code_col_norm)
                         .cast(pl.Utf8)
-                        .str.zfill(2)
+                        .str.strip_chars_start("0")
+                        .str.replace("^$", "0")
                         .str.strip_chars()
                         .alias(code_col_norm)
                     )
@@ -806,7 +809,8 @@ def decode_fields_dec_only(
                     result_df = result_df.with_columns(
                         pl.col(var_norm)
                         .cast(pl.Utf8)
-                        .str.zfill(2)
+                        .str.strip_chars_start("0")
+                        .str.replace("^$", "0")
                         .str.strip_chars()
                         .alias(var_norm)
                     )
