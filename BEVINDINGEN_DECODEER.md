@@ -1,13 +1,25 @@
 # Bevindingen decodeer-stap EV-bestanden
 
 Onderzoek uitgevoerd op branch `74-bug-hoogste_vooropleiding_omschrijving-is-leeg-in-enriched-ev-bestand`
-met DEMO-data (`EV299XX24_DEMO_enriched.csv`, 43.663 rijen).
+met DEMO-data (`EV299XX24_DEMO`, 43.663 rijen).
+
+---
+
+## Structuur output-bestanden (geverifieerd)
+
+| Bestand | Grootte | Kolommen | Beschrijving |
+|---|---|---|---|
+| `EV*.csv` | 14 MB | 115 | Ruwe data, oorspronkelijke codes, gemixte hoofdletters |
+| `EV*_decoded.csv` | 39 MB | 179 (+64) | DEC-lookups toegevoegd als extra kolommen, codes ongewijzigd |
+| `EV*_enriched.csv` | 152 MB | 179 | Zelfde kolommen als decoded, maar codes vervangen door labels via `variable_metadata.json` |
+
+Voorbeeld: `geslacht` in `_decoded` = `V`/`M`, in `_enriched` = `vrouw`/`man`.
 
 ---
 
 ## Opgelost
 
-### hoogste_vooropleiding_omschrijving altijd leeg
+### 1. hoogste_vooropleiding_omschrijving altijd leeg
 **Kolommen:** `hoogste_vooropleiding_omschrijving`, `hoogste_vooropleiding_binnen_het_ho_omschrijving`
 
 **Oorzaak:** De join tussen EV-codes en `Dec_vooropl.asc` / `Dec_vopl.asc` matcht nooit:
@@ -25,67 +37,61 @@ zowel DEC-kant als EV-kant). Strip leading zeroes van beide kanten zodat `"00403
 
 ---
 
-## Bugs (niet opgelost)
-
-### Bug 1: postcodecijfers_van_de_hoogste_vooropl_voor_het_ho krijgt geen decoded kolommen
+### 2. postcodecijfers_van_de_hoogste_vooropl_voor_het_ho krijgt geen decoded kolommen
 
 **Kolom zonder decoded uitbreiding:** `postcodecijfers_van_de_hoogste_vooropl_voor_het_ho`
-(31.9% leeg — legitiem, maar de gevulde waarden krijgen geen gemeentenaam/gemeentecode)
-
-Ter vergelijking krijgt `postcodecijfers_student_op_1_oktober` wel decoded uitbreiding:
-`_postbus_j_n`, `_gemeentecode_per_1_januari_2024`, `_gemeentenaam_per_1_januari_2024`.
+(31.9% leeg — legitiem, maar de gevulde waarden krijgen gemeentenaam/gemeentecode)
 
 **Oorzaak:** Encoding-bug bij het lezen van de DEC-metadata. De `ó` in de variabelenaam
-`Postcodecijfers van de hoogste vooropl. vóór het HO` wordt niet als Latin-1 ingelezen
-maar als garbage (`\ufffd`). Na `strip_accents` valt het karakter volledig weg:
+`Postcodecijfers van de hoogste vooropl. vóór het HO` wordt opgeslagen als `\ufffd`
+(UTF-8 replacement character). Na `strip_accents` valt het karakter volledig weg:
+`vóór` → `vr`. Fuzzy match (cutoff=0.8) bridget het gat: ratio `vr`/`voor` ≈ 0.97.
+Plus: multi-word kolomnamen worden nu correct geëxtraheerd via double-space split
+(`content[1].split("  ")[0]` in plaats van `.split()[0]`).
 
-```
-Genormaliseerde naam in DEC-meta:  postcodecijfers_van_de_hoogste_vooropl_vr_het_ho
-Werkelijke kolomnaam in EV:        postcodecijfers_van_de_hoogste_vooropl_voor_het_ho
-                                                                              ^^^^
-```
+**Fix:** Fuzzy match fallback in `decode_fields` en `decode_fields_dec_only` (cutoff=0.8),
+plus correcte extractie van multi-word kolomnamen.
 
-De pipeline-log bevestigt dit:
-```
-Skipping 'Postcodecijfers van de hoogste vooropl. v??r het HO'
-  (normalized: 'postcodecijfers_van_de_hoogste_vooropl_vr_het_ho')
-  - not in main DataFrame. No close match found.
-```
-
-**Verwacht gedrag:** `vóór` → na strip_accents `voor` → genormaliseerd
-`postcodecijfers_van_de_hoogste_vooropl_voor_het_ho` → match.
+**Status:** Opgelost. `postcodecijfers_van_de_hoogste_vooropl_voor_het_ho_gemeentenaam_per_1_januari_2024`
+aanwezig in output (31.9% leeg — legitiem).
 
 ---
 
-### Bug 2: instelling_van_de_hoogste_vooropl_voor_het_ho en instelling_van_de_hoogste_vooropleiding krijgen geen _naam
+### 3. instelling_van_de_hoogste_vooropl_voor_het_ho en instelling_van_de_hoogste_vooropleiding krijgen geen _naam
 
 **Kolommen zonder _naam:**
 - `instelling_van_de_hoogste_vooropl_voor_het_ho` (15.3% leeg, rest WEL gevuld)
 - `instelling_van_de_hoogste_vooropleiding` (13.7% leeg, rest WEL gevuld)
 
-Beide horen te worden opgelost via `Dec_instellingscode.asc` (staat zo in DEC-metadata).
-
 **Oorzaak:** `Dec_instellingscode.csv` laadt niet. Het bestand bevat schoolnamen met
 ingebedde aanhalingstekens (bijv. `"de Bontekoe" NTC-VO`) die niet conform RFC 4180
-zijn geescaped. Polars weigert het bestand te parsen:
+zijn geescaped. Polars weigert het bestand te parsen.
 
-```
-[decoder] Warning: Could not load Dec_instellingscode.csv:
-  could not parse `"de Bontekoe" NTC-VO` as dtype `str`
-  Field `"de Bontekoe" NTC-VO` is not properly escaped.
-```
+**Fix:** `quote_char=None` fallback bij het laden van DEC-bestanden die de strikte
+RFC 4180 quote-escaping schenden.
 
-Voorbeeldrijen in het CSV:
-```
-04NA;"ABBS ""de Fluessen""";8582;OUDEGA DE FRYSKE MARREN;...
-00AR;"BS ""De Maasparel""";6107;STEVENSWEERT;...
-```
+**Status:** Opgelost. `instelling_van_de_hoogste_vooropl_voor_het_ho_naam` aanwezig
+in output (15.3% leeg — legitiem, bronkolom zelf 15.3% leeg).
 
-Sommige rijen gebruiken `""` als escape (correct), maar andere rijen bevatten
-ongeescapte quotes midden in een veld.
+---
 
-**Fix-richting:** Laad het bestand met `quote_char=None` of `ignore_errors=True`,
-of pre-process het bestand om de quotes te saneren voor het inladen.
+### 4. _enriched identiek aan _decoded (variable_metadata.json niet gebruikt)
+
+**Symptoom:** `EV*_enriched.csv` had exact dezelfde grootte als `EV*_decoded.csv`;
+codes zoals `M`/`V` werden niet omgezet naar `man`/`vrouw`.
+
+**Oorzaak:** `load_variable_mappings` zocht het bestand op een hardcoded pad
+`data/00-metadata/json/variable_metadata.json`, maar de pipeline schrijft het naar
+`data/02-output/DEMO/metadata/json/variable_metadata.json`. Bestand niet gevonden →
+lege mapping → geen labels.
+
+**Fix:** `variable_metadata_path` parameter toegevoegd aan `decode_fields`; `pipeline.py`
+bepaalt het correcte pad (`metadata_dir/json/variable_metadata.json`) en geeft dit door.
+
+**Status:** Opgelost. `_enriched` is nu 152 MB vs `_decoded` 39 MB; 90 variabele-mappings
+worden toegepast (bijv. `geslacht`: 43.663/43.663 rijen gemapped).
+
+---
 
 ---
 
