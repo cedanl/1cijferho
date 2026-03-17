@@ -41,6 +41,7 @@ def run_turbo_convert_pipeline(
         )
     logs_dir = os.path.join(metadata_dir, "logs")
 
+    variable_metadata_json = os.path.join(metadata_dir, "json", "variable_metadata.json")
     log = ""
     # Step 1: Convert files
     if status_callback:
@@ -88,7 +89,7 @@ def run_turbo_convert_pipeline(
                     f.write(dec_only_csv)
 
                 # Full enriched decode (if needed, write as _enriched.csv to keep outputs clear)
-                enriched_df = decoder.decode_fields(main_df, dec_metadata_json, dec_tables)
+                enriched_df = decoder.decode_fields(main_df, dec_metadata_json, dec_tables, variable_metadata_path=variable_metadata_json)
                 enriched_file = file_path.replace(".csv", "_enriched.csv")
                 enriched_csv = enriched_df.write_csv(separator=";")
                 with open(enriched_file, "w", encoding="utf-8") as f:
