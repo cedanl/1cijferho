@@ -147,11 +147,11 @@ def load_dec_tables_from_metadata(
         content = table.get("content", [])
         if len(content) >= 2:
             # First code column is usually in the second row, first word
-            code_col = content[1].split()[0]
+            code_col = content[1].split("  ")[0].strip()
             schema_overrides[code_col] = pl.String
             # If a composite key, second code column is in the third row
             if len(content) > 2:
-                code_col2 = content[2].split()[0]
+                code_col2 = content[2].split("  ")[0].strip()
                 schema_overrides[code_col2] = pl.String
         try:
             if schema_overrides:
@@ -164,8 +164,21 @@ def load_dec_tables_from_metadata(
             else:
                 df = pl.read_csv(dec_path, separator=";", encoding="latin1")
             dec_tables[table["table_title"]] = df
-        except Exception as e:
-            print(f"[decoder] Warning: Could not load {dec_file}: {e}")
+        except Exception:
+            try:
+                if schema_overrides:
+                    df = pl.read_csv(
+                        dec_path,
+                        separator=";",
+                        encoding="latin1",
+                        quote_char=None,
+                        schema_overrides=schema_overrides,
+                    )
+                else:
+                    df = pl.read_csv(dec_path, separator=";", encoding="latin1", quote_char=None)
+                dec_tables[table["table_title"]] = df
+            except Exception as e:
+                print(f"[decoder] Warning: Could not load {dec_file}: {e}")
     return dec_tables
 
 
@@ -174,6 +187,7 @@ def decode_fields(
     metadata_json_path: str,
     dec_tables: dict[str, pl.DataFrame],
     naming_func: Optional[Callable[[str], str]] = None,
+    variable_metadata_path: Optional[str] = None,
 ) -> pl.DataFrame:
     """
     For each field in df listed in decoding_variables in the metadata, left-joins decoded values from the corresponding Dec_* table.
@@ -222,14 +236,14 @@ def decode_fields(
             content = table.get("content", [])
             # PATCH: If no decoding_variables, use first column as decoding variable for any table
             if not dec_vars and len(content) > 1:
-                code_col = content[1].split()[0]
+                code_col = content[1].split("  ")[0].strip()
                 dec_vars = [code_col]
             if dec_vars:
                 if dec_table is None:
                     continue
                 if len(content) < 2:
                     continue
-                code_col = content[1].split()[0]
+                code_col = content[1].split("  ")[0].strip()
                 code_col_norm = normalize_name(strip_accents(code_col), naming_func)
                 join_df = dec_table.rename(
                     {
@@ -258,7 +272,8 @@ def decode_fields(
                     join_df = join_df.with_columns(
                         pl.col(code_col_norm)
                         .cast(pl.Utf8)
-                        .str.zfill(2)
+                        .str.strip_chars_start("0")
+                        .str.replace("^$", "0")
                         .str.strip_chars()
                         .alias(code_col_norm)
                     )
@@ -266,22 +281,24 @@ def decode_fields(
                     var_norm = normalize_name(strip_accents(var), naming_func)
                     if var_norm not in result_df.columns:
                         closest = difflib.get_close_matches(
-                            var_norm, result_df.columns, n=1
+                            var_norm, result_df.columns, n=1, cutoff=0.8
                         )
                         if closest:
                             print(
-                                f"[decode_fields][DEBUG] Skipping '{var}' (normalized: '{var_norm}') - not in main DataFrame. Closest match: {closest[0]}"
+                                f"[decode_fields][DEBUG] Fuzzy match '{var}' (normalized: '{var_norm}') → '{closest[0]}'"
                             )
+                            var_norm = closest[0]
                         else:
                             print(
                                 f"[decode_fields][DEBUG] Skipping '{var}' (normalized: '{var_norm}') - not in main DataFrame. No close match found."
                             )
-                        continue
+                            continue
                     # Normalize main df code column to string and strip whitespace
                     result_df = result_df.with_columns(
                         pl.col(var_norm)
                         .cast(pl.Utf8)
-                        .str.zfill(2)
+                        .str.strip_chars_start("0")
+                        .str.replace("^$", "0")
                         .str.strip_chars()
                         .alias(var_norm)
                     )
@@ -534,7 +551,7 @@ def decode_fields(
     # Decoding summary and DEC tables used/not used can be logged elsewhere if needed
     # --- Apply variable-level mappings from variable_metadata.json (if present) ---
     try:
-        var_maps = load_variable_mappings(None, naming_func=naming_func)
+        var_maps = load_variable_mappings(variable_metadata_path, naming_func=naming_func)
         if var_maps:
             import difflib as _difflib
 
@@ -748,14 +765,14 @@ def decode_fields_dec_only(
             content = table.get("content", [])
             # PATCH: If no decoding_variables, use first column as decoding variable for any table
             if not dec_vars and len(content) > 1:
-                code_col = content[1].split()[0]
+                code_col = content[1].split("  ")[0].strip()
                 dec_vars = [code_col]
             if dec_vars:
                 if dec_table is None:
                     continue
                 if len(content) < 2:
                     continue
-                code_col = content[1].split()[0]
+                code_col = content[1].split("  ")[0].strip()
                 code_col_norm = normalize_name(strip_accents(code_col), naming_func)
                 join_df = dec_table.rename(
                     {
@@ -783,7 +800,8 @@ def decode_fields_dec_only(
                     join_df = join_df.with_columns(
                         pl.col(code_col_norm)
                         .cast(pl.Utf8)
-                        .str.zfill(2)
+                        .str.strip_chars_start("0")
+                        .str.replace("^$", "0")
                         .str.strip_chars()
                         .alias(code_col_norm)
                     )
@@ -791,22 +809,24 @@ def decode_fields_dec_only(
                     var_norm = normalize_name(strip_accents(var), naming_func)
                     if var_norm not in result_df.columns:
                         closest = difflib.get_close_matches(
-                            var_norm, result_df.columns, n=1
+                            var_norm, result_df.columns, n=1, cutoff=0.8
                         )
                         if closest:
                             print(
-                                f"[decode_fields_dec_only][DEBUG] Skipping '{var}' (normalized: '{var_norm}') - not in main DataFrame. Closest match: {closest[0]}"
+                                f"[decode_fields_dec_only][DEBUG] Fuzzy match '{var}' (normalized: '{var_norm}') → '{closest[0]}'"
                             )
+                            var_norm = closest[0]
                         else:
                             print(
                                 f"[decode_fields_dec_only][DEBUG] Skipping '{var}' (normalized: '{var_norm}') - not in main DataFrame. No close match found."
                             )
-                        continue
+                            continue
                     # Normalize main df code column to string and strip whitespace
                     result_df = result_df.with_columns(
                         pl.col(var_norm)
                         .cast(pl.Utf8)
-                        .str.zfill(2)
+                        .str.strip_chars_start("0")
+                        .str.replace("^$", "0")
                         .str.strip_chars()
                         .alias(var_norm)
                     )
