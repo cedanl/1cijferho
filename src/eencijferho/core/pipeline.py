@@ -8,6 +8,7 @@ import eencijferho.utils.converter_validation as cv
 import eencijferho.utils.compressor as co
 import eencijferho.utils.encryptor as en
 import eencijferho.utils.converter_headers as ch
+import eencijferho.utils.value_validation as vv
 from typing import Any, Callable, Dict, List, Tuple, Optional
 
 
@@ -99,7 +100,32 @@ def run_turbo_convert_pipeline(
     log += f"[pipeline] Decoding completed for {decoded_count} file(s).\n"
     if progress_callback:
         progress_callback(40)
-    # Step 3: Validate conversion
+    # Step 3: Validate column values against bestandsbeschrijving
+    if status_callback:
+        status_callback("🔍 Stap 3c: Kolomwaarden valideren o.b.v. bestandsbeschrijving...")
+    log += "[pipeline] Validating column values...\n"
+    variable_metadata_json_path = os.path.join(metadata_dir, "json", "variable_metadata.json")
+    if os.path.isfile(variable_metadata_json_path):
+        value_val_summary = vv.validate_column_values_folder(output_dir, variable_metadata_json_path)
+        failed_cols = [
+            (fname, col["column"], col["invalid_values"])
+            for fname, res in value_val_summary.items()
+            for col in res["results"].get("column_results", [])
+            if col["status"] == "failed"
+        ]
+        if failed_cols:
+            for fname, col, bad_vals in failed_cols:
+                log += f"[pipeline] WARN: {fname} kolom '{col}' bevat ongeldige waarden: {bad_vals}\n"
+            if status_callback:
+                status_callback(f"⚠️ Kolomwaarden: {len(failed_cols)} kolom(men) met ongeldige waarden gevonden")
+        else:
+            log += "[pipeline] Column value validation passed.\n"
+    else:
+        log += "[pipeline] variable_metadata.json niet gevonden, kolomwaarden validatie overgeslagen.\n"
+    if progress_callback:
+        progress_callback(45)
+
+    # Step 4: Validate conversion
     if status_callback:
         status_callback("🔍 Stap 4: Validating conversion results...")
     log += "[pipeline] Validating conversion...\n"

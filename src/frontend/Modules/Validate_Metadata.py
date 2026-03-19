@@ -4,6 +4,7 @@ import glob
 import json
 import eencijferho.utils.extractor_validation as ex_val
 import eencijferho.utils.converter_match as cm
+import eencijferho.utils.value_validation as vv
 import io
 import contextlib
 from typing import Any, Dict, List, Optional, Tuple
@@ -237,3 +238,77 @@ else:
     _logs_dir = os.path.join(get_metadata_dir(), "logs")
     if os.path.exists(_logs_dir) and os.listdir(_logs_dir):
         st.warning(f"⚠️ Validatie zal bestaande resultaten in `{_logs_dir}/` overschrijven")
+
+# -----------------------------------------------------------------------------
+# Kolomwaarden validatie (optioneel, op al geconverteerde bestanden)
+# -----------------------------------------------------------------------------
+st.divider()
+st.subheader("Kolomwaarden valideren")
+st.write(
+    "Controleer of de waarden in geconverteerde CSV-bestanden overeenkomen met de "
+    "toegestane waarden uit de bestandsbeschrijving. Voer dit uit nadat **Turbo Convert** "
+    "is voltooid."
+)
+
+from config import get_output_dir  # noqa: E402
+
+output_dir = get_output_dir()
+variable_metadata_path = os.path.join(get_metadata_dir(), "json", "variable_metadata.json")
+
+col_a, col_b = st.columns(2)
+with col_a:
+    run_val_clicked = st.button(
+        "Kolomwaarden valideren",
+        type="primary",
+        use_container_width=True,
+        key="col_val_btn",
+    )
+
+if run_val_clicked:
+    if not os.path.isfile(variable_metadata_path):
+        st.error(f"variable_metadata.json niet gevonden in `{os.path.dirname(variable_metadata_path)}`. Voer eerst de extractie uit.")
+    elif not os.path.isdir(output_dir) or not any(
+        f.endswith(".csv") and not f.endswith("_decoded.csv") and not f.endswith("_enriched.csv")
+        for f in os.listdir(output_dir)
+    ):
+        st.error(f"Geen geconverteerde CSV-bestanden gevonden in `{output_dir}`. Voer eerst Turbo Convert uit.")
+    else:
+        with st.spinner("Kolomwaarden valideren..."):
+            summary = vv.validate_column_values_folder(output_dir, variable_metadata_path)
+
+        total_files = len(summary)
+        failed_files = [fname for fname, res in summary.items() if not res["success"]]
+
+        if not summary:
+            st.info("Geen CSV-bestanden gevonden om te valideren.")
+        elif not failed_files:
+            st.success(f"Alle {total_files} bestand(en) geslaagd — alle kolomwaarden zijn geldig.")
+        else:
+            st.error(f"{len(failed_files)} van {total_files} bestand(en) bevatten ongeldige kolomwaarden.")
+
+        for fname, res in summary.items():
+            results = res["results"]
+            checked = results.get("columns_checked", 0)
+            failed_count = results.get("columns_failed", 0)
+
+            if results.get("load_error"):
+                st.error(f"**{fname}**: kon bestand niet laden — {results['load_error']}")
+                continue
+
+            with st.expander(
+                f"{'❌' if not res['success'] else '✅'} {fname} "
+                f"({checked} kolommen gecontroleerd, {failed_count} mislukt)",
+                expanded=not res["success"],
+            ):
+                for col_res in results.get("column_results", []):
+                    if col_res["status"] == "failed":
+                        st.error(
+                            f"**{col_res['column']}**: ongeldige waarden gevonden: "
+                            f"`{col_res['invalid_values']}` "
+                            f"(toegestaan: `{col_res['allowed_values']}`)"
+                        )
+                    else:
+                        st.success(f"**{col_res['column']}**: OK")
+
+                if results.get("warning"):
+                    st.warning(results["warning"])
