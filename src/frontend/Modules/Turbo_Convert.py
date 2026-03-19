@@ -166,17 +166,30 @@ else:
                 else:
                     st.info("Geen validatiefouten.")
     
-    # Centered button - only show if there are successful pairs
+    # Side-by-side buttons with equal width
     if successful_pairs:
-        col1, col2, col3 = st.columns([1, 2, 1])
-        
-        with col2:
+        col1, col2 = st.columns(2)
+
+        with col1:
             # Use callback-based button (recommended Streamlit pattern)
-            st.button("⚡ Start Turbo Convert ⚡", 
-                     type="primary", 
-                     use_container_width=True, 
+            st.button("⚡ Start Turbo Convert ⚡",
+                     type="primary",
+                     use_container_width=True,
                      key="turbo_convert_btn",
                      on_click=start_conversion)
+
+        with col2:
+            output_files = get_output_files()
+            next_page_clicked = st.button(
+                "➡️ Ga door naar stap 4",
+                type="secondary",
+                disabled=len(output_files) == 0,
+                use_container_width=True,
+                key="next_step_btn",
+            )
+
+        if next_page_clicked:
+            st.switch_page("frontend/Modules/Validate_Output.py")
 
         # Handle conversion logic using session state flag
         if st.session_state.start_turbo_convert:
