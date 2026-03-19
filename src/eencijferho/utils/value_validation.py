@@ -30,7 +30,13 @@ def _to_snake(name: str) -> str:
 def _build_lookup(variables: List[Dict[str, Any]]) -> Dict[str, set]:
     """
     Build a dict mapping normalised column name -> set of allowed string values.
-    Only includes variables that have concrete key-value `values` (not references/lists).
+    Only includes variables that have an exhaustive key-value `values` spec.
+
+    Skips:
+    - Fields with 'reference' or 'list' values (non-concrete)
+    - Fields where any value description contains ' > ' — DUO notation for
+      "value X for case Y > value Z for all other cases", meaning the list is
+      not exhaustive and we cannot reliably validate against it.
     """
     lookup: Dict[str, set] = {}
     for var in variables:
@@ -40,15 +46,44 @@ def _build_lookup(variables: List[Dict[str, Any]]) -> Dict[str, set]:
         # Skip non-concrete value specs
         if "reference" in values or "list" in values:
             continue
-        allowed = {str(k).strip() for k in values.keys()}
-        # Also allow empty/blank as some fields have "[leeg]" noted in description
-        # We keep only the normalised key without brackets
+        # Skip non-exhaustive fields: DUO uses ' > ' in descriptions to indicate
+        # conditional/open-ended documentation (e.g. "0000 voor overige inschrijvingen")
+        if any(" > " in str(v) for v in values.values()):
+            continue
+        # Skip open-ended fields: [gevuld] means "any non-empty value is valid"
+        if any(re.match(r"^\[gevuld\]$", str(k).strip(), re.IGNORECASE) for k in values.keys()):
+            continue
+        # Skip range fields: " t/m " in keys or value descriptions indicates a numeric range
+        if any(" t/m " in str(k) for k in values.keys()):
+            continue
+        if any(" t/m " in str(v) for v in values.values()):
+            continue
+        # Skip fields that reference an external file for remaining values
+        if any("Zie bestand" in str(v) for v in values.values()):
+            continue
+
         allowed_clean = set()
-        for v in allowed:
-            if v.lower().startswith("[") and v.lower().endswith("]"):
-                allowed_clean.add("")  # empty string represents [leeg]
+        for k in values.keys():
+            key = str(k).strip()
+            # Handle compound keys like "[leeg] of 0" — split and add each part
+            if re.search(r"\[leeg\]", key, re.IGNORECASE) and " of " in key:
+                for part in key.split(" of "):
+                    part = part.strip()
+                    if re.match(r"^\[.*\]$", part):
+                        allowed_clean.add("")
+                    else:
+                        allowed_clean.add(part)
+                        # Also add zero-stripped version for numeric values
+                        if part.isdigit():
+                            allowed_clean.add(part.lstrip("0") or "0")
+            elif re.match(r"^\[.*\]$", key):
+                allowed_clean.add("")
             else:
-                allowed_clean.add(v)
+                allowed_clean.add(key)
+                # Also add zero-stripped version so "01" matches "1" in data
+                if key.isdigit():
+                    allowed_clean.add(key.lstrip("0") or "0")
+
         norm_name = _to_snake(var["name"])
         lookup[norm_name] = allowed_clean
     return lookup
