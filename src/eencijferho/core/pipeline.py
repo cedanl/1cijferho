@@ -102,9 +102,45 @@ def run_turbo_convert_pipeline(
     log += f"[pipeline] Decoding completed for {decoded_count} file(s).\n"
     if progress_callback:
         progress_callback(40)
-    # Step 3: Validate columns against DEC files
+    # Step 3: Validate conversion
     if status_callback:
-        status_callback("🔍 Stap 3c: Kolomwaarden valideren o.b.v. decodeerbestanden...")
+        status_callback("🔍 Stap 4: Validating conversion results...")
+    log += "[pipeline] Validating conversion...\n"
+    cv.converter_validation(
+        conversion_log_path=os.path.join(logs_dir, "(5)_conversion_log_latest.json"),
+        matching_log_path=os.path.join(logs_dir, "(4)_file_matching_log_latest.json"),
+        output_log_path=os.path.join(logs_dir, "(6)_conversion_validation_log_latest.json"),
+    )
+    log += "[pipeline] Validation complete.\n"
+    if progress_callback:
+        progress_callback(50)
+    # Step 4: Compress to Parquet
+    if status_callback:
+        status_callback("🗜️ Stap 5: Compressing to Parquet format...")
+    log += "[pipeline] Compressing to Parquet...\n"
+    co.convert_csv_to_parquet(output_dir)
+    log += "[pipeline] Compression complete.\n"
+    if progress_callback:
+        progress_callback(75)
+    # Step 5: Encrypt final files
+    if status_callback:
+        status_callback("🔒 Stap 6: Encrypting final files...")
+    log += "[pipeline] Encrypting files...\n"
+    en.encryptor(output_dir, output_dir)
+    log += "[pipeline] Encryption complete.\n"
+    if progress_callback:
+        progress_callback(90)
+    # Step 6: Header normalization
+    if status_callback:
+        status_callback("🔨 Stap 7: Converteer headers naar snake_case...")
+    log += "[pipeline] Normalizing headers...\n"
+    ch.convert_csv_headers_to_snake_case(output_dir)
+    log += "[pipeline] Header normalization complete.\n"
+    if progress_callback:
+        progress_callback(95)
+    # Step 7: Validate columns against DEC files (after header normalization for max coverage)
+    if status_callback:
+        status_callback("🔍 Stap 8: Kolomwaarden valideren o.b.v. decodeerbestanden...")
     log += "[pipeline] Validating columns against DEC files...\n"
     dec_txt_candidates = [
         f for f in os.listdir(input_dir)
@@ -144,42 +180,6 @@ def run_turbo_convert_pipeline(
         log += f"[pipeline] DEC validation log saved to {dec_log_path}\n"
     else:
         log += "[pipeline] Geen Bestandsbeschrijving_Dec*.txt gevonden, DEC validatie overgeslagen.\n"
-    if progress_callback:
-        progress_callback(45)
-    # Step 4: Validate conversion
-    if status_callback:
-        status_callback("🔍 Stap 4: Validating conversion results...")
-    log += "[pipeline] Validating conversion...\n"
-    cv.converter_validation(
-        conversion_log_path=os.path.join(logs_dir, "(5)_conversion_log_latest.json"),
-        matching_log_path=os.path.join(logs_dir, "(4)_file_matching_log_latest.json"),
-        output_log_path=os.path.join(logs_dir, "(6)_conversion_validation_log_latest.json"),
-    )
-    log += "[pipeline] Validation complete.\n"
-    if progress_callback:
-        progress_callback(50)
-    # Step 4: Compress to Parquet
-    if status_callback:
-        status_callback("🗜️ Stap 5: Compressing to Parquet format...")
-    log += "[pipeline] Compressing to Parquet...\n"
-    co.convert_csv_to_parquet(output_dir)
-    log += "[pipeline] Compression complete.\n"
-    if progress_callback:
-        progress_callback(75)
-    # Step 5: Encrypt final files
-    if status_callback:
-        status_callback("🔒 Stap 6: Encrypting final files...")
-    log += "[pipeline] Encrypting files...\n"
-    en.encryptor(output_dir, output_dir)
-    log += "[pipeline] Encryption complete.\n"
-    if progress_callback:
-        progress_callback(90)
-    # Step 6: Header normalization
-    if status_callback:
-        status_callback("🔨 Stap 7: Converteer headers naar snake_case...")
-    log += "[pipeline] Normalizing headers...\n"
-    ch.convert_csv_headers_to_snake_case(output_dir)
-    log += "[pipeline] Header normalization complete.\n"
     if progress_callback:
         progress_callback(100)
     # Collect output files
