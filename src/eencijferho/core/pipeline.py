@@ -2,12 +2,15 @@
 Modular pipeline orchestrator for conversion, decoding, validation, compression, encryption, header normalization.
 """
 
+import json
+import datetime
 import os
 from eencijferho.core import converter, decoder
 import eencijferho.utils.converter_validation as cv
 import eencijferho.utils.compressor as co
 import eencijferho.utils.encryptor as en
 import eencijferho.utils.converter_headers as ch
+import eencijferho.utils.dec_validation as dv
 from typing import Any, Callable, Dict, List, Tuple, Optional
 
 
@@ -99,7 +102,51 @@ def run_turbo_convert_pipeline(
     log += f"[pipeline] Decoding completed for {decoded_count} file(s).\n"
     if progress_callback:
         progress_callback(40)
-    # Step 3: Validate conversion
+    # Step 3: Validate columns against DEC files
+    if status_callback:
+        status_callback("🔍 Stap 3c: Kolomwaarden valideren o.b.v. decodeerbestanden...")
+    log += "[pipeline] Validating columns against DEC files...\n"
+    dec_txt_candidates = [
+        f for f in os.listdir(input_dir)
+        if f.startswith("Bestandsbeschrijving_Dec") and f.endswith(".txt")
+    ] if os.path.isdir(input_dir) else []
+    if dec_txt_candidates:
+        dec_txt_path = os.path.join(input_dir, dec_txt_candidates[0])
+        dec_summary = dv.validate_with_dec_files_folder(output_dir, dec_txt_path)
+        dec_failed = [
+            (fname, col["column"], col["dec_file"], col["invalid_values"])
+            for fname, res in dec_summary.items()
+            for col in res["results"].get("column_results", [])
+            if col["status"] == "failed"
+        ]
+        if dec_failed:
+            for fname, col, dec_file, bad_vals in dec_failed:
+                log += f"[pipeline] WARN: {fname} kolom '{col}' (DEC: {dec_file}) bevat ongeldige waarden: {bad_vals}\n"
+            if status_callback:
+                status_callback(f"⚠️ DEC validatie: {len(dec_failed)} kolom(men) met ongeldige waarden")
+        else:
+            log += "[pipeline] DEC validation passed.\n"
+        dec_log = {
+            "timestamp": datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
+            "status": "completed",
+            "total_files_checked": len(dec_summary),
+            "total_failed_columns": len(dec_failed),
+            "details": {
+                fname: res["results"]
+                for fname, res in dec_summary.items()
+                if res["results"].get("columns_checked", 0) > 0
+            },
+        }
+        dec_log_path = os.path.join(logs_dir, "(5c)_dec_validation_log_latest.json")
+        os.makedirs(logs_dir, exist_ok=True)
+        with open(dec_log_path, "w", encoding="utf-8") as f:
+            json.dump(dec_log, f, ensure_ascii=False, indent=2)
+        log += f"[pipeline] DEC validation log saved to {dec_log_path}\n"
+    else:
+        log += "[pipeline] Geen Bestandsbeschrijving_Dec*.txt gevonden, DEC validatie overgeslagen.\n"
+    if progress_callback:
+        progress_callback(45)
+    # Step 4: Validate conversion
     if status_callback:
         status_callback("🔍 Stap 4: Validating conversion results...")
     log += "[pipeline] Validating conversion...\n"
