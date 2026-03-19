@@ -222,8 +222,12 @@ else:
                 st.rerun()
                 
             except Exception as e:
-                st.session_state.validate_console_log += f"❌ Error: {str(e)}\n"
-                st.error(f"❌ **Validatie mislukt:** {str(e)}")
+                st.session_state.validate_console_log += f"❌ Fout: {str(e)}\n"
+                st.error(
+                    "❌ **Validatie mislukt.** Controleer of alle benodigde bestanden aanwezig zijn en probeer het opnieuw. Bekijk het console log hieronder voor meer details."
+                )
+                with st.expander("🔍 Technische foutdetails"):
+                    st.code(str(e))
 
     # Console Log expander
     with st.expander("📋 Console Log", expanded=True):

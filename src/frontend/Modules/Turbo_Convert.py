@@ -269,11 +269,15 @@ else:
                 st.rerun()
                 
             except Exception as e:
-                st.session_state.convert_console_log += f"❌ Error: {str(e)}\n"
+                st.session_state.convert_console_log += f"❌ Fout: {str(e)}\n"
                 update_console()
                 progress_bar.progress(0)
                 status_text.text("❌ Verwerking mislukt")
-                st.error(f"❌ **Verwerking mislukt:** {str(e)}")
+                st.error(
+                    "❌ **Verwerking mislukt.** Controleer of alle benodigde bestanden aanwezig zijn en probeer het opnieuw. Bekijk het console log hieronder voor meer details."
+                )
+                with st.expander("🔍 Technische foutdetails"):
+                    st.code(str(e))
     else:
         st.warning("⚠️ Alle gekoppelde bestanden hebben validatiefouten en kunnen niet worden geconverteerd. Ga terug naar de validatiestap om de fouten te bekijken en te corrigeren.")
 

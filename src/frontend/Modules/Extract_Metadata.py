@@ -201,11 +201,12 @@ else:
                 st.rerun()
 
             except Exception as e:
-                st.session_state.extract_console_log += f"❌ Error: {str(e)}\n"
-                metadata_dir = get_metadata_dir()
+                st.session_state.extract_console_log += f"❌ Fout: {str(e)}\n"
                 st.error(
-                    f"❌ **Extractie mislukt:** {str(e)}"
+                    "❌ **Extractie mislukt.** Controleer of alle benodigde bestanden aanwezig zijn en probeer het opnieuw. Bekijk het console log hieronder voor meer details."
                 )
+                with st.expander("🔍 Technische foutdetails"):
+                    st.code(str(e))
 
     # Console Log expander
     with st.expander("📋 Console Log", expanded=True):
