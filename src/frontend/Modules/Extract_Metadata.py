@@ -140,22 +140,22 @@ else:
         with st.spinner("Bezig met extraheren..."):
             try:
                 st.session_state.extract_console_log += (
-                    "🔄 Starting extraction process...\n"
+                    "🔄 Extractie gestart...\n"
                 )
 
                 # Clear existing files first
                 st.session_state.extract_console_log += (
-                    "🧹 Clearing existing metadata files...\n"
+                    "🧹 Bestaande metadata-bestanden verwijderen...\n"
                 )
                 cleared_files = clear_existing_files()
                 if cleared_files:
-                    st.session_state.extract_console_log += f"✅ Cleared {len(cleared_files)} existing files: {', '.join(cleared_files[:3])}{'...' if len(cleared_files) > 3 else ''}\n"
+                    st.session_state.extract_console_log += f"✅ {len(cleared_files)} bestaande bestanden verwijderd{': ' + ', '.join(cleared_files[:3]) + ('...' if len(cleared_files) > 3 else '')}\n"
                 else:
                     st.session_state.extract_console_log += (
-                        "✅ No existing files to clear\n"
+                        "✅ Geen bestaande bestanden te verwijderen\n"
                     )
 
-                st.session_state.extract_console_log += "📁 Processing TXT files...\n"
+                st.session_state.extract_console_log += "📁 Bestandsbeschrijvingen verwerken...\n"
 
                 # Capture stdout from process_txt_folder
                 captured_output = io.StringIO()
@@ -165,32 +165,32 @@ else:
                     ex.process_txt_folder(get_input_dir(), json_output_folder=json_dir)
                 st.session_state.extract_console_log += captured_output.getvalue()
                 st.session_state.extract_console_log += (
-                    "✅ TXT files processed successfully\n"
+                    "✅ Bestandsbeschrijvingen verwerkt\n"
                 )
 
                 # Write consolidated variable metadata
                 st.session_state.extract_console_log += (
-                    "📦 Creating variable_metadata.json...\n"
+                    "📦 Variabelenoverzicht aanmaken...\n"
                 )
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
                     ex.write_variable_metadata(input_dir=get_input_dir(), json_folder=json_dir)
                 st.session_state.extract_console_log += captured_output.getvalue()
                 st.session_state.extract_console_log += (
-                    "✅ variable_metadata.json created\n"
+                    "✅ Variabelenoverzicht aangemaakt\n"
                 )
 
                 st.session_state.extract_console_log += (
-                    "📊 Converting JSON to Excel...\n"
+                    "📊 Excel-bestanden aanmaken...\n"
                 )
                 # Capture stdout from process_json_folder
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
                     ex.process_json_folder(json_input_folder=json_dir, excel_output_folder=metadata_dir)
                 st.session_state.extract_console_log += captured_output.getvalue()
-                st.session_state.extract_console_log += "✅ JSON conversion completed\n"
+                st.session_state.extract_console_log += "✅ Excel-bestanden aangemaakt\n"
                 st.session_state.extract_console_log += (
-                    "🎉 Extraction completed successfully!\n"
+                    "🎉 Extractie succesvol afgerond!\n"
                 )
 
                 st.success(

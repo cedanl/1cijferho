@@ -202,10 +202,10 @@ else:
                     if st.session_state.convert_console_log:
                         st.code(st.session_state.convert_console_log, language=None)
                     else:
-                        st.info("Start conversie process...")
+                        st.info("Conversie gestart...")
             
             try:
-                st.session_state.convert_console_log += "🔄 Start conversie pipeline...\n"
+                st.session_state.convert_console_log += "🔄 Conversie gestart...\n"
                 update_console()
                 progress_bar.progress(10)
 

@@ -198,24 +198,24 @@ else:
                 logs_dir_val = os.path.join(metadata_dir, "logs")
                 validation_log_path = os.path.join(logs_dir_val, "(3)_xlsx_validation_log_latest.json")
 
-                st.session_state.validate_console_log += "🔄 Starting validation process...\n"
-                st.session_state.validate_console_log += "🛡️ Validating metadata files...\n"
+                st.session_state.validate_console_log += "🔄 Validatie gestart...\n"
+                st.session_state.validate_console_log += "🛡️ Metadata-bestanden valideren...\n"
                 
                 # Capture stdout from validate_metadata_folder
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
                     ex_val.validate_metadata_folder(metadata_folder=metadata_dir)
                 st.session_state.validate_console_log += captured_output.getvalue()
-                st.session_state.validate_console_log += "✅ Metadata validation completed\n"
-                
-                st.session_state.validate_console_log += "🔗 Matching files...\n"
+                st.session_state.validate_console_log += "✅ Metadata-validatie voltooid\n"
+
+                st.session_state.validate_console_log += "🔗 Bestanden koppelen...\n"
                 # Capture stdout from match_files
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
                     cm.match_files(input_folder, log_path=validation_log_path)
                 st.session_state.validate_console_log += captured_output.getvalue()
-                st.session_state.validate_console_log += "✅ File matching completed\n"
-                st.session_state.validate_console_log += "🎉 Validation completed successfully!\n"
+                st.session_state.validate_console_log += "✅ Bestanden gekoppeld\n"
+                st.session_state.validate_console_log += "🎉 Validatie succesvol afgerond!\n"
                 
                 st.success("✅ **Validatie voltooid!** U kunt nu doorgaan naar de volgende stap.")
                 # Rerun to update the next step button state and show new warnings
