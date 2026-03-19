@@ -72,7 +72,7 @@ We lezen nu uw Bestandsbeschrijving-bestanden om te bepalen waar elk veld staat 
 Wat gebeurt er:
 - Veldposities extraheren uit uw .txt-bestanden
 - Omzetten naar JSON-formaat, daarna Excel
-- Opslaan in de map `data/00-metadata/`
+- Opslaan als bestandsbeschrijvingen klaar voor validatie
 """)
 
 with st.expander("🚨 Bestaande Bestandsbeschrijvingen"):
@@ -89,12 +89,12 @@ bestandsbeschrijvingen = get_bestandsbeschrijvingen()
 
 input_dir = get_input_dir()
 if not bestandsbeschrijvingen:
-    st.error(f"🚨 **Geen Bestandsbeschrijving-bestanden gevonden in `{input_dir}`**")
+    st.error("🚨 **Geen bestandsbeschrijvingen gevonden.** Zorg dat u de juiste DUO-bestanden in de invoermap hebt geplaatst en ververs de pagina.")
 else:
     st.success(
         f"✅ **{len(bestandsbeschrijvingen)} Bestandsbeschrijving-bestanden gevonden**"
     )
-    st.info("💡 U kunt doorgaan, ook als er fouten zijn - doe dit met voorzichtigheid!")
+    st.info("💡 Klopt het aantal bestanden niet? Controleer of alle DUO-bestanden in de invoermap staan.")
 
     # Side-by-side buttons with equal width
     col1, col2 = st.columns(2)
@@ -140,22 +140,22 @@ else:
         with st.spinner("Bezig met extraheren..."):
             try:
                 st.session_state.extract_console_log += (
-                    "🔄 Starting extraction process...\n"
+                    "🔄 Extractie gestart...\n"
                 )
 
                 # Clear existing files first
                 st.session_state.extract_console_log += (
-                    "🧹 Clearing existing metadata files...\n"
+                    "🧹 Bestaande metadata-bestanden verwijderen...\n"
                 )
                 cleared_files = clear_existing_files()
                 if cleared_files:
-                    st.session_state.extract_console_log += f"✅ Cleared {len(cleared_files)} existing files: {', '.join(cleared_files[:3])}{'...' if len(cleared_files) > 3 else ''}\n"
+                    st.session_state.extract_console_log += f"✅ {len(cleared_files)} bestaande bestanden verwijderd{': ' + ', '.join(cleared_files[:3]) + ('...' if len(cleared_files) > 3 else '')}\n"
                 else:
                     st.session_state.extract_console_log += (
-                        "✅ No existing files to clear\n"
+                        "✅ Geen bestaande bestanden te verwijderen\n"
                     )
 
-                st.session_state.extract_console_log += "📁 Processing TXT files...\n"
+                st.session_state.extract_console_log += "📁 Bestandsbeschrijvingen verwerken...\n"
 
                 # Capture stdout from process_txt_folder
                 captured_output = io.StringIO()
@@ -165,47 +165,48 @@ else:
                     ex.process_txt_folder(get_input_dir(), json_output_folder=json_dir)
                 st.session_state.extract_console_log += captured_output.getvalue()
                 st.session_state.extract_console_log += (
-                    "✅ TXT files processed successfully\n"
+                    "✅ Bestandsbeschrijvingen verwerkt\n"
                 )
 
                 # Write consolidated variable metadata
                 st.session_state.extract_console_log += (
-                    "📦 Creating variable_metadata.json...\n"
+                    "📦 Variabelenoverzicht aanmaken...\n"
                 )
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
                     ex.write_variable_metadata(input_dir=get_input_dir(), json_folder=json_dir)
                 st.session_state.extract_console_log += captured_output.getvalue()
                 st.session_state.extract_console_log += (
-                    "✅ variable_metadata.json created\n"
+                    "✅ Variabelenoverzicht aangemaakt\n"
                 )
 
                 st.session_state.extract_console_log += (
-                    "📊 Converting JSON to Excel...\n"
+                    "📊 Excel-bestanden aanmaken...\n"
                 )
                 # Capture stdout from process_json_folder
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
                     ex.process_json_folder(json_input_folder=json_dir, excel_output_folder=metadata_dir)
                 st.session_state.extract_console_log += captured_output.getvalue()
-                st.session_state.extract_console_log += "✅ JSON conversion completed\n"
+                st.session_state.extract_console_log += "✅ Excel-bestanden aangemaakt\n"
                 st.session_state.extract_console_log += (
-                    "🎉 Extraction completed successfully!\n"
+                    "🎉 Extractie succesvol afgerond!\n"
                 )
 
                 st.success(
-                    f"✅ **Extractie voltooid!** Bestanden opgeslagen in `{metadata_dir}/`, logs in `{metadata_dir}/logs/`. U kunt nu de metadata valideren."
+                    "✅ **Extractie voltooid!** U kunt nu de metadata valideren."
                 )
 
                 # Rerun to update the validate button state
                 st.rerun()
 
             except Exception as e:
-                st.session_state.extract_console_log += f"❌ Error: {str(e)}\n"
-                metadata_dir = get_metadata_dir()
+                st.session_state.extract_console_log += f"❌ Fout: {str(e)}\n"
                 st.error(
-                    f"❌ **Extractie mislukt:** Logs opgeslagen in `{metadata_dir}/logs/` {str(e)}"
+                    "❌ **Extractie mislukt.** Controleer of alle benodigde bestanden aanwezig zijn en probeer het opnieuw. Bekijk het console log hieronder voor meer details."
                 )
+                with st.expander("🔍 Technische foutdetails"):
+                    st.code(str(e))
 
     # Console Log expander
     with st.expander("📋 Console Log", expanded=True):
@@ -223,5 +224,5 @@ else:
     _metadata_dir = get_metadata_dir()
     if os.path.exists(_metadata_dir) and os.listdir(_metadata_dir):
         st.warning(
-            f"⚠️ Extractie zal bestaande bestanden in `{_metadata_dir}/` overschrijven"
+            "⚠️ Er zijn al eerder geëxtraheerde bestanden aanwezig. Een nieuwe extractie overschrijft deze."
         )

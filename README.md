@@ -51,25 +51,22 @@ Tijdens de DAIR-conferentie in 2025 hebben we de 1CijferHO Tool gepresenteerd. B
 
 ## Aan de slag
 
-### Stap 1: Download de tool
-Je kunt de tool downloaden via GitHub:
-- [Download ZIP-bestand](https://github.com/cedanl/1cijferho/archive/refs/heads/main.zip)
-- Of gebruik Git:  
-  ```bash
-  git clone https://github.com/cedanl/1cijferho.git
-  ```
+### Stap 1: Vereisten
+Zorg dat [uv](https://docs.astral.sh/uv/getting-started/installation/) is geïnstalleerd.
 
-### Stap 2: Installeer de tool
-Voor installatie-instructies, zie de [Technische README](TECHNICAL_README.md).
+### Stap 2: Download de tool
+```bash
+git clone https://github.com/cedanl/1cijferho.git
+cd 1cijferho
+```
+Of download het [ZIP-bestand](https://github.com/cedanl/1cijferho/archive/refs/heads/main.zip) en pak het uit.
 
-### Stap 3: Installeer frontend (Streamlit) benodigdheden
-Om de Streamlit-app te kunnen draaien, synchroniseer eerst de frontend dependencies:
+### Stap 3: Installeer dependencies
 ```bash
 uv sync --extra frontend
 ```
 
 ### Stap 4: Start de applicatie
-Start daarna de app in je terminal:
 ```bash
 uv run streamlit run src/main.py
 ```
@@ -97,13 +94,16 @@ eencijferho pipeline --input data/01-input --output data/02-output
 # Of stap voor stap:
 
 # Stap 1: Lees de .txt metadata-bestanden uit en sla ze op als JSON en Excel
-eencijferho extract  --input data/01-input --output data/02-output
+eencijferho extract          --input data/01-input --output data/02-output
 
-# Stap 2: Controleer of de metadata compleet is en of elk .asc bestand een bijpassend metadata-bestand heeft
-eencijferho validate --input data/01-input --output data/02-output
+# Stap 2: Controleer of de metadata compleet is en of elk bestand een bijpassend metadata-bestand heeft
+eencijferho validate         --input data/01-input --output data/02-output
 
-# Stap 3: Converteer de fixed-width .asc bestanden naar CSV/Parquet op basis van de gevalideerde metadata
-eencijferho convert  --input data/01-input --output data/02-output
+# Stap 3: Converteer de fixed-width bestanden naar CSV/Parquet op basis van de gevalideerde metadata
+eencijferho convert          --input data/01-input --output data/02-output
+
+# Stap 4 (optioneel): Valideer de geconverteerde outputbestanden op kolomwaarden en DEC-codes
+eencijferho validate-output  --input data/01-input --output data/02-output
 ```
 
 ---

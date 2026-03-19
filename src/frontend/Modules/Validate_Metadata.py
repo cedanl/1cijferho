@@ -132,9 +132,9 @@ We controleren uw geëxtraheerde Excel-bestanden op fouten (DUO maakt soms foute
 Wat gebeurt er:
 - Excel-metadata valideren op problemen
 - Excel-bestanden koppelen aan hoofd- en dec-bestanden
-- Validatierapporten opslaan in `data/00-metadata/logs/`
+- Validatierapporten bewaren voor de volgende stap
 
-Als validatie of koppeling mislukt, kunt u de .xlsx-bestanden aanpassen in `data/00-metadata/` en `data/01-input`. Bekijk het log hieronder om te zien welke bestanden aandacht nodig hebben.
+Als validatie of koppeling mislukt, kunt u uw Excel-bestanden aanpassen en de validatie opnieuw uitvoeren. Bekijk het log hieronder om te zien welke bestanden aandacht nodig hebben.
 """)
 # Get files and display status
 metadata_files = get_metadata_files()
@@ -144,11 +144,10 @@ input_folder = get_input_dir()
 
 if not metadata_files:
     metadata_dir = get_metadata_dir()
-    st.error(f"🚨 **Geen metadata-bestanden gevonden in `{metadata_dir}`**")
-    st.info("💡 Voer eerst het extractieproces uit om metadata-bestanden te genereren.")
+    st.error("🚨 **Geen metadata-bestanden gevonden.** Voer eerst de extractiestap uit voordat u verder gaat met valideren.")
 else:
     st.success(f"✅ **{len(metadata_files)} Bestandsbeschrijving-metadata gevonden**")
-    st.info("💡 U kunt doorgaan, ook als er fouten zijn - wees hierbij voorzichtig!")
+    st.info("💡 Klopt het aantal bestanden niet? Controleer of alle DUO-bestanden in de invoermap staan.")
     # Side-by-side buttons with equal width
     col1, col2 = st.columns(2)
     
@@ -177,7 +176,7 @@ else:
     
     # Show validation issues (no tabs, stacked vertically)
     if xlsx_failures:
-        st.warning(f"⚠️ **{len(xlsx_failures)} validatiefouten** - Bekijk het log hieronder voor details of voer de validatie opnieuw uit") 
+        st.warning(f"⚠️ **{len(xlsx_failures)} validatiefout(en) gevonden.** Bekijk het log hieronder en pas uw Excel-bestanden aan voordat u doorgaat.")
     
     # Show file matching issues
     unmatched_input = [f for f in matching_failures if f['type'] == 'Unmatched input file']
@@ -185,7 +184,7 @@ else:
     total_unmatched = len(unmatched_input) + len(unmatched_metadata)
     
     if total_unmatched > 0:
-        st.warning(f"⚠️ **{total_unmatched} niet-gekoppelde bestanden** - Bekijk het log hieronder voor details of voer de validatie opnieuw uit")
+        st.warning(f"⚠️ **{total_unmatched} bestand(en) konden niet worden gekoppeld.** Controleer of voor elk invoerbestand een bijpassende bestandsbeschrijving aanwezig is.")
     
     # Handle validation logic
     if validate_clicked:
@@ -199,32 +198,36 @@ else:
                 logs_dir_val = os.path.join(metadata_dir, "logs")
                 validation_log_path = os.path.join(logs_dir_val, "(3)_xlsx_validation_log_latest.json")
 
-                st.session_state.validate_console_log += "🔄 Starting validation process...\n"
-                st.session_state.validate_console_log += "🛡️ Validating metadata files...\n"
+                st.session_state.validate_console_log += "🔄 Validatie gestart...\n"
+                st.session_state.validate_console_log += "🛡️ Metadata-bestanden valideren...\n"
                 
                 # Capture stdout from validate_metadata_folder
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
                     ex_val.validate_metadata_folder(metadata_folder=metadata_dir)
                 st.session_state.validate_console_log += captured_output.getvalue()
-                st.session_state.validate_console_log += "✅ Metadata validation completed\n"
-                
-                st.session_state.validate_console_log += "🔗 Matching files...\n"
+                st.session_state.validate_console_log += "✅ Metadata-validatie voltooid\n"
+
+                st.session_state.validate_console_log += "🔗 Bestanden koppelen...\n"
                 # Capture stdout from match_files
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
                     cm.match_files(input_folder, log_path=validation_log_path)
                 st.session_state.validate_console_log += captured_output.getvalue()
-                st.session_state.validate_console_log += "✅ File matching completed\n"
-                st.session_state.validate_console_log += "🎉 Validation completed successfully!\n"
+                st.session_state.validate_console_log += "✅ Bestanden gekoppeld\n"
+                st.session_state.validate_console_log += "🎉 Validatie succesvol afgerond!\n"
                 
-                st.success(f"✅ **Validatie voltooid!** Resultaten opgeslagen in `{metadata_dir}/logs/`. U kunt nu doorgaan naar de volgende stap.")
+                st.success("✅ **Validatie voltooid!** U kunt nu doorgaan naar de volgende stap.")
                 # Rerun to update the next step button state and show new warnings
                 st.rerun()
                 
             except Exception as e:
-                st.session_state.validate_console_log += f"❌ Error: {str(e)}\n"
-                st.error(f"❌ **Validatie mislukt:** {str(e)}")
+                st.session_state.validate_console_log += f"❌ Fout: {str(e)}\n"
+                st.error(
+                    "❌ **Validatie mislukt.** Controleer of alle benodigde bestanden aanwezig zijn en probeer het opnieuw. Bekijk het console log hieronder voor meer details."
+                )
+                with st.expander("🔍 Technische foutdetails"):
+                    st.code(str(e))
 
     # Console Log expander
     with st.expander("📋 Console Log", expanded=True):
@@ -236,4 +239,4 @@ else:
     # Warning about existing validation results
     _logs_dir = os.path.join(get_metadata_dir(), "logs")
     if os.path.exists(_logs_dir) and os.listdir(_logs_dir):
-        st.warning(f"⚠️ Validatie zal bestaande resultaten in `{_logs_dir}/` overschrijven")
+        st.warning("⚠️ Er zijn al eerder validatieresultaten aanwezig. Een nieuwe validatie overschrijft deze.")

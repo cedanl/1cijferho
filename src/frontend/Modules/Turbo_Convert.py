@@ -118,13 +118,12 @@ st.write("""
 We gebruiken de gevalideerde metadata om uw hoofd- en dec-bestanden om te zetten. Uw vaste-breedte data wordt zo omgezet naar veilige, gecomprimeerde en direct bruikbare bestanden.
 
 Wat gebeurt er:
-- Bestanden omzetten naar CSV met de juiste velden
-- Scheidingsteken: puntkomma ; Codering: Latin-1
+- Bestanden omzetten naar leesbare kolommen
 - Resultaten controleren op fouten
-- CSV-bestanden comprimeren naar Parquet
-- Gevoelige gegevens versleutelen in een kopie (xxx_encrypted)
-- snake_case kolomnamen toevoegen
-- Alles opslaan in `data/02-output/` + ballonnen 🎈 als het klaar is!
+- Bestanden comprimeren voor efficiënte opslag
+- Gevoelige gegevens versleutelen in een aparte kopie
+- Kolomnamen standaardiseren
+- Alles opslaan in de uitvoermap + ballonnen 🎈 als het klaar is!
 
 Gaat er iets mis? Kijk dan hieronder in het log voor details.
 """)
@@ -134,15 +133,14 @@ successful_pairs, skipped_pairs = get_matched_files()
 total_pairs = len(successful_pairs) + len(skipped_pairs)
 
 if total_pairs == 0:
-    st.error("🚨 **Geen gekoppelde bestanden gevonden**")
-    st.info("💡 Voer eerst de validatie uit zodat je bestanden klaar zijn voor conversie.")
+    st.error("🚨 **Geen bestanden klaar voor conversie.** Voer eerst de validatiestap uit en zorg dat alle bestanden succesvol zijn gekoppeld.")
 else:
-    st.success(f"✅ **{len(successful_pairs)} bestandparen klaar voor conversie** ({len(skipped_pairs)} overgeslagen validatie)")
+    st.success(f"✅ **{len(successful_pairs)} bestanden klaar voor conversie** ({len(skipped_pairs)} niet verwerkt wegens validatiefouten)")
     
     # Show file pairs in compact expander - closed by default
     if successful_pairs or skipped_pairs:
-        with st.expander(f"📁 Bestanddetails ({len(successful_pairs)} klaar, {len(skipped_pairs)} overgeslagen)", expanded=False):
-            tab1, tab2 = st.tabs([f"✅ Klaar ({len(successful_pairs)})", f"❌ Overgeslagen ({len(skipped_pairs)})"])
+        with st.expander(f"📁 Bestanddetails ({len(successful_pairs)} klaar, {len(skipped_pairs)} niet verwerkt)", expanded=False):
+            tab1, tab2 = st.tabs([f"✅ Klaar ({len(successful_pairs)})", f"❌ Niet verwerkt ({len(skipped_pairs)})"])
             
             with tab1:
                 if successful_pairs:
@@ -154,7 +152,7 @@ else:
             
             with tab2:
                 if skipped_pairs:
-                    st.write("**Bestanden met validatiefouten - kijk bij 🛡️ Metadata valideren + logs (3) & (4) voor details:**")
+                    st.write("**Bestanden met validatiefouten — ga terug naar 🛡️ Metadata valideren om dit op te lossen:**")
                     for pair in skipped_pairs:
                         st.write(f"• `{pair['input_file']}` ({pair['rows']:,} rijen)")
                 else:
@@ -204,10 +202,10 @@ else:
                     if st.session_state.convert_console_log:
                         st.code(st.session_state.convert_console_log, language=None)
                     else:
-                        st.info("Start conversie process...")
+                        st.info("Conversie gestart...")
             
             try:
-                st.session_state.convert_console_log += "🔄 Start conversie pipeline...\n"
+                st.session_state.convert_console_log += "🔄 Conversie gestart...\n"
                 update_console()
                 progress_bar.progress(10)
 
@@ -226,13 +224,13 @@ else:
                 status_text.text("✅ Verwerking succesvol voltooid!")
 
                 output_dir = get_output_dir()
-                st.success(f"✅ **Verwerking voltooid!** Bestanden geconverteerd, gevalideerd, gecomprimeerd en versleuteld. Resultaten opgeslagen in `{output_dir}/`")
+                st.success(f"✅ **Verwerking voltooid!** Bestanden geconverteerd, gevalideerd, gecomprimeerd en versleuteld. Resultaten staan in `{get_output_dir()}/`.")
 
                 # Show converted files
                 output_files = get_output_files()
                 if output_files:
                     with st.expander(f"📁 Geconverteerde bestanden ({len(output_files)} bestanden)", expanded=True):
-                        st.write(f"**Bestanden succesvol aangemaakt in `{output_dir}/`:**")
+                        st.write("**Aangemaakte bestanden:**")
                         
                         # Group files by type for better organization
                         csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv') and not f['name'].endswith('_decoded.csv')]
@@ -271,17 +269,21 @@ else:
                 st.rerun()
                 
             except Exception as e:
-                st.session_state.convert_console_log += f"❌ Error: {str(e)}\n"
+                st.session_state.convert_console_log += f"❌ Fout: {str(e)}\n"
                 update_console()
                 progress_bar.progress(0)
                 status_text.text("❌ Verwerking mislukt")
-                st.error(f"❌ **Verwerking mislukt:** {str(e)}")
+                st.error(
+                    "❌ **Verwerking mislukt.** Controleer of alle benodigde bestanden aanwezig zijn en probeer het opnieuw. Bekijk het console log hieronder voor meer details."
+                )
+                with st.expander("🔍 Technische foutdetails"):
+                    st.code(str(e))
     else:
-        st.warning("⚠️ Geen bestanden klaar voor conversie. Controleer de validatieresultaten.")
+        st.warning("⚠️ Alle gekoppelde bestanden hebben validatiefouten en kunnen niet worden geconverteerd. Ga terug naar de validatiestap om de fouten te bekijken en te corrigeren.")
 
 # Console Log expander
 with st.expander("📋 Console Log", expanded=True):
-    st.caption("💡 Let op: Meldingen zoals 'Could not determine dtype for column X, falling back to string' zijn onschuldig - dit is een eigenaardigheid van de Polars Excel-bibliotheek.")
+    st.caption("💡 Let op: Sommige technische meldingen in het log zijn onschuldig en kunnen worden genegeerd — ze horen bij de normale werking van de conversiebibliotheek.")
     if 'convert_console_log' in st.session_state and st.session_state.convert_console_log:
         st.code(st.session_state.convert_console_log, language=None)
     else:
@@ -293,8 +295,8 @@ with st.expander("📋 Console Log", expanded=True):
 output_files = get_output_files()
 output_dir = get_output_dir()
 if output_files:
-    with st.expander(f"📁 Geconverteerde bestanden ({len(output_files)} files)", expanded=False):
-        st.write(f"**Bestanden momenteel in `{output_dir}/`:**")
+    with st.expander(f"📁 Geconverteerde bestanden ({len(output_files)} bestanden)", expanded=False):
+        st.write("**Bestanden in de uitvoermap:**")
         
         # Group files by type for better organization
         csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv')]
@@ -317,8 +319,8 @@ if output_files:
                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
         
 else:
-    st.info(f"📁 Nog geen geconverteerde bestanden gevonden in `{output_dir}/`.")
+    st.info("📁 Nog geen geconverteerde bestanden gevonden. Voer eerst de conversie uit.")
 
 # Warning about existing files
 if os.path.exists(output_dir) and os.listdir(output_dir):
-    st.warning(f"⚠️ Nieuwe conversie zal bestaande bestanden in `{output_dir}/` overschrijven")
+    st.warning("⚠️ Er zijn al eerder geconverteerde bestanden aanwezig. Een nieuwe conversie overschrijft deze.")
