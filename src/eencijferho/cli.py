@@ -20,10 +20,11 @@ a complete pipeline run looks like:
         *.csv / *.parquet  ← converted data files
 
 Usage:
-    eencijferho extract  --input data/01-input  --output data/02-output
-    eencijferho validate --input data/01-input  --output data/02-output
-    eencijferho convert  --input data/01-input  --output data/02-output
-    eencijferho pipeline --input data/01-input  --output data/02-output
+    eencijferho extract          --input data/01-input  --output data/02-output
+    eencijferho validate         --input data/01-input  --output data/02-output
+    eencijferho convert          --input data/01-input  --output data/02-output
+    eencijferho pipeline         --input data/01-input  --output data/02-output
+    eencijferho validate-output  --input data/01-input  --output data/02-output
 """
 
 import argparse
@@ -39,25 +40,9 @@ from eencijferho.core.extractor import (
 from eencijferho.utils.extractor_validation import validate_metadata_folder
 from eencijferho.utils.converter_match import match_files
 from eencijferho.core.pipeline import run_turbo_convert_pipeline
-from eencijferho.utils.value_validation import read_value_validation_log
+import eencijferho.utils.value_validation as vv
 
 _console = Console()
-
-
-def _print_value_validation_summary(logs_dir: str) -> None:
-    """Print a clear summary of value validation results to the CLI."""
-    log_path = os.path.join(logs_dir, "(5b)_value_validation_log_latest.json")
-    failures = read_value_validation_log(log_path)
-    if not failures:
-        _console.print("[green]Kolomwaarden validatie: alle kolommen OK[/green]")
-        return
-    lines = [f"[bold]Let op: de volgende kolommen bevatten ongeldige waarden:[/bold]"]
-    for f in failures:
-        vals = ", ".join(str(v) for v in f["invalid_values"][:5])
-        if len(f["invalid_values"]) > 5:
-            vals += f" ... (+{len(f['invalid_values']) - 5} meer)"
-        lines.append(f"  • [bold]{f['file']}[/bold] → kolom [yellow]{f['column']}[/yellow]: {vals}")
-    _console.print(Panel("\n".join(lines), title="⚠️  Kolomwaarden validatie", border_style="yellow"))
 
 
 def _resolve_dirs(output_dir: str) -> Tuple[str, str, str]:
@@ -89,6 +74,60 @@ def cmd_validate(args: argparse.Namespace) -> None:
     print("[eencijferho] Validation complete.")
 
 
+def cmd_validate_output(args: argparse.Namespace) -> None:
+    """Validate converted output files against variable_metadata.json allowed values."""
+    metadata_dir, json_dir, logs_dir = _resolve_dirs(args.output)
+    import json, datetime, os as _os
+
+    print(f"[eencijferho] Validating output files in: {args.output}")
+
+    variable_metadata_path = _os.path.join(json_dir, "variable_metadata.json")
+    if not _os.path.isfile(variable_metadata_path):
+        print("[eencijferho] variable_metadata.json niet gevonden. Voer eerst 'extract' uit.")
+        return
+
+    val_summary = vv.validate_column_values_folder(args.output, variable_metadata_path)
+
+    failed_cols = [
+        (fname, col["column"], col["invalid_values"])
+        for fname, res in val_summary.items()
+        for col in res["results"].get("column_results", [])
+        if col["status"] == "failed"
+    ]
+
+    val_log = {
+        "timestamp": datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
+        "status": "completed",
+        "total_files_checked": len(val_summary),
+        "total_failed_columns": len(failed_cols),
+        "details": {
+            fname: res["results"]
+            for fname, res in val_summary.items()
+            if res["results"].get("columns_checked", 0) > 0
+        },
+    }
+    _os.makedirs(logs_dir, exist_ok=True)
+    log_path = _os.path.join(logs_dir, "(5b)_value_validation_log_latest.json")
+    with open(log_path, "w", encoding="utf-8") as fh:
+        json.dump(val_log, fh, ensure_ascii=False, indent=2)
+    print(f"[eencijferho] Kolomwaarden validatie log opgeslagen: {log_path}")
+
+    failures = vv.read_value_validation_log(log_path)
+    if not failures:
+        _console.print("[green]Kolomwaarden validatie: alle kolommen OK[/green]")
+        return
+
+    lines = ["[bold]Let op: de volgende kolommen bevatten ongeldige waarden:[/bold]"]
+    for f in failures:
+        vals = ", ".join(str(v) for v in f["invalid_values"][:5])
+        if len(f["invalid_values"]) > 5:
+            vals += f" ... (+{len(f['invalid_values']) - 5} meer)"
+        lines.append(
+            f"  • [bold]{f['file']}[/bold] → kolom [yellow]{f['column']}[/yellow]: {vals}"
+        )
+    _console.print(Panel("\n".join(lines), title="⚠️  Kolomwaarden validatie", border_style="yellow"))
+
+
 def cmd_convert(args: argparse.Namespace) -> None:
     """Run the full turbo convert pipeline."""
     metadata_dir, _, logs_dir = _resolve_dirs(args.output)
@@ -102,7 +141,6 @@ def cmd_convert(args: argparse.Namespace) -> None:
     print(f"[eencijferho] Output files: {len(output_files)}")
     for f in output_files:
         print(f"  - {f['name']} ({f['size_formatted']})")
-    _print_value_validation_summary(logs_dir)
 
 
 def cmd_pipeline(args: argparse.Namespace) -> None:
@@ -133,7 +171,6 @@ def cmd_pipeline(args: argparse.Namespace) -> None:
     )
     print(log)
     print(f"[eencijferho] Pipeline complete. Output files: {len(output_files)}")
-    _print_value_validation_summary(logs_dir)
 
 
 def main() -> None:
@@ -168,6 +205,11 @@ def main() -> None:
         parents=[_common],
         help="Run complete end-to-end pipeline (extract → validate → convert)",
     )
+    subparsers.add_parser(
+        "validate-output",
+        parents=[_common],
+        help="Validate converted output files against allowed values from bestandsbeschrijving (run after pipeline)",
+    )
 
     args = parser.parse_args()
 
@@ -176,6 +218,7 @@ def main() -> None:
         "validate": cmd_validate,
         "convert": cmd_convert,
         "pipeline": cmd_pipeline,
+        "validate-output": cmd_validate_output,
     }
     dispatch[args.command](args)
 
