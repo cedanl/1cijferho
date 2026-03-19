@@ -132,9 +132,9 @@ We controleren uw geëxtraheerde Excel-bestanden op fouten (DUO maakt soms foute
 Wat gebeurt er:
 - Excel-metadata valideren op problemen
 - Excel-bestanden koppelen aan hoofd- en dec-bestanden
-- Validatierapporten opslaan in `data/00-metadata/logs/`
+- Validatierapporten bewaren voor de volgende stap
 
-Als validatie of koppeling mislukt, kunt u de .xlsx-bestanden aanpassen in `data/00-metadata/` en `data/01-input`. Bekijk het log hieronder om te zien welke bestanden aandacht nodig hebben.
+Als validatie of koppeling mislukt, kunt u uw Excel-bestanden aanpassen en de validatie opnieuw uitvoeren. Bekijk het log hieronder om te zien welke bestanden aandacht nodig hebben.
 """)
 # Get files and display status
 metadata_files = get_metadata_files()
@@ -218,7 +218,7 @@ else:
                 st.session_state.validate_console_log += "✅ File matching completed\n"
                 st.session_state.validate_console_log += "🎉 Validation completed successfully!\n"
                 
-                st.success(f"✅ **Validatie voltooid!** Resultaten opgeslagen in `{metadata_dir}/logs/`. U kunt nu doorgaan naar de volgende stap.")
+                st.success("✅ **Validatie voltooid!** U kunt nu doorgaan naar de volgende stap.")
                 # Rerun to update the next step button state and show new warnings
                 st.rerun()
                 

@@ -32,7 +32,7 @@ def _run_value_validation():
     variable_metadata_path = os.path.join(get_metadata_dir(), "json", "variable_metadata.json")
 
     if not os.path.isfile(variable_metadata_path):
-        return None, "variable_metadata.json niet gevonden. Voer eerst de extractiestap uit."
+        return None, "Extractiegegevens niet gevonden. Voer eerst de extractiestap uit."
 
     val_summary = vv.validate_column_values_folder(output_dir, variable_metadata_path)
     failed_cols = [
@@ -70,7 +70,7 @@ def _run_dec_validation():
     ] if os.path.isdir(input_dir) else []
 
     if not dec_txt_candidates:
-        return None, "Geen Bestandsbeschrijving_Dec*.txt gevonden in de invoermap."
+        return None, "Geen DEC-bestandsbeschrijving gevonden in de invoermap."
 
     dec_txt_path = os.path.join(input_dir, dec_txt_candidates[0])
     dec_summary = dv.validate_with_dec_files_folder(output_dir, dec_txt_path)
@@ -109,10 +109,8 @@ st.write("""
 
 Voer deze stap uit nadat de pipeline klaar is. Er zijn twee validaties beschikbaar:
 
-- **Kolomwaarden** — controleert of waarden overeenkomen met de toegestane waarden
-  uit de bestandsbeschrijving (`variable_metadata.json`).
-- **DEC codes** — controleert of codes en codeparen voorkomen in de DEC-decodeerbestanden
-  (`Bestandsbeschrijving_Dec-bestanden_*.txt`), inclusief samengestelde sleutels.
+- **Kolomwaarden** — controleert of waarden overeenkomen met de toegestane waarden uit de bestandsbeschrijving.
+- **DEC codes** — controleert of codes en codeparen voorkomen in de DEC-decodeerbestanden, inclusief samengestelde sleutels.
 """)
 
 output_dir = get_output_dir()
@@ -123,7 +121,7 @@ if not os.path.isdir(output_dir) or not any(
 else:
     # --- Section 1: Value validation ---
     st.subheader("Kolomwaarden validatie")
-    st.caption("Controleert toegestane waarden uit `variable_metadata.json`")
+    st.caption("Controleert of kolomwaarden overeenkomen met de toegestane waarden uit de bestandsbeschrijving")
 
     col1, col2 = st.columns(2)
     with col1:

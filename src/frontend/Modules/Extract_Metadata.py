@@ -194,7 +194,7 @@ else:
                 )
 
                 st.success(
-                    f"✅ **Extractie voltooid!** Bestanden opgeslagen in `{metadata_dir}/`, logs in `{metadata_dir}/logs/`. U kunt nu de metadata valideren."
+                    "✅ **Extractie voltooid!** U kunt nu de metadata valideren."
                 )
 
                 # Rerun to update the validate button state
@@ -204,7 +204,7 @@ else:
                 st.session_state.extract_console_log += f"❌ Error: {str(e)}\n"
                 metadata_dir = get_metadata_dir()
                 st.error(
-                    f"❌ **Extractie mislukt:** Logs opgeslagen in `{metadata_dir}/logs/` {str(e)}"
+                    f"❌ **Extractie mislukt:** {str(e)}"
                 )
 
     # Console Log expander
