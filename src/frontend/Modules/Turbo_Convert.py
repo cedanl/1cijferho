@@ -118,12 +118,11 @@ st.write("""
 We gebruiken de gevalideerde metadata om uw hoofd- en dec-bestanden om te zetten. Uw vaste-breedte data wordt zo omgezet naar veilige, gecomprimeerde en direct bruikbare bestanden.
 
 Wat gebeurt er:
-- Bestanden omzetten naar CSV met de juiste velden
-- Scheidingsteken: puntkomma ; Codering: Latin-1
+- Bestanden omzetten naar leesbare kolommen
 - Resultaten controleren op fouten
-- CSV-bestanden comprimeren naar Parquet
-- Gevoelige gegevens versleutelen in een kopie (xxx_encrypted)
-- snake_case kolomnamen toevoegen
+- Bestanden comprimeren voor efficiënte opslag
+- Gevoelige gegevens versleutelen in een aparte kopie
+- Kolomnamen standaardiseren
 - Alles opslaan in `data/02-output/` + ballonnen 🎈 als het klaar is!
 
 Gaat er iets mis? Kijk dan hieronder in het log voor details.
@@ -135,14 +134,14 @@ total_pairs = len(successful_pairs) + len(skipped_pairs)
 
 if total_pairs == 0:
     st.error("🚨 **Geen gekoppelde bestanden gevonden**")
-    st.info("💡 Voer eerst de validatie uit zodat je bestanden klaar zijn voor conversie.")
+    st.info("💡 Voer eerst de validatie uit zodat uw bestanden klaar zijn voor conversie.")
 else:
-    st.success(f"✅ **{len(successful_pairs)} bestandparen klaar voor conversie** ({len(skipped_pairs)} overgeslagen validatie)")
+    st.success(f"✅ **{len(successful_pairs)} bestanden klaar voor conversie** ({len(skipped_pairs)} niet verwerkt wegens validatiefouten)")
     
     # Show file pairs in compact expander - closed by default
     if successful_pairs or skipped_pairs:
-        with st.expander(f"📁 Bestanddetails ({len(successful_pairs)} klaar, {len(skipped_pairs)} overgeslagen)", expanded=False):
-            tab1, tab2 = st.tabs([f"✅ Klaar ({len(successful_pairs)})", f"❌ Overgeslagen ({len(skipped_pairs)})"])
+        with st.expander(f"📁 Bestanddetails ({len(successful_pairs)} klaar, {len(skipped_pairs)} niet verwerkt)", expanded=False):
+            tab1, tab2 = st.tabs([f"✅ Klaar ({len(successful_pairs)})", f"❌ Niet verwerkt ({len(skipped_pairs)})"])
             
             with tab1:
                 if successful_pairs:
@@ -154,7 +153,7 @@ else:
             
             with tab2:
                 if skipped_pairs:
-                    st.write("**Bestanden met validatiefouten - kijk bij 🛡️ Metadata valideren + logs (3) & (4) voor details:**")
+                    st.write("**Bestanden met validatiefouten — ga terug naar 🛡️ Metadata valideren om dit op te lossen:**")
                     for pair in skipped_pairs:
                         st.write(f"• `{pair['input_file']}` ({pair['rows']:,} rijen)")
                 else:
