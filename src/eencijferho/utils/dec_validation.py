@@ -41,7 +41,7 @@ def parse_dec_mapping(dec_txt_path: str | Path) -> Dict[str, List[str]]:
     Returns dict like:
         {"Dec_landcode": ["Geboorteland", "Geboorteland ouder 1", ...], ...}
     """
-    with open(dec_txt_path, encoding="latin1") as f:
+    with open(dec_txt_path, encoding="utf-8", errors="replace") as f:
         lines = [ln.rstrip("\n") for ln in f]
 
     mapping: Dict[str, List[str]] = {}
@@ -148,6 +148,23 @@ def validate_with_dec_files(
         for col_name in col_names:
             norm = _to_snake(col_name)
             original_col = csv_cols.get(norm)
+
+            # Fallback: U+FFFD (replacement char) in the DEC txt means the source file
+            # had corrupted encoding (e.g. "vóór" became "v\ufffdr").  Split on the
+            # replacement-char sequences and do a regex wildcard match instead.
+            if original_col is None and "\ufffd" in col_name:
+                parts = re.split(r"\ufffd+", col_name)
+                snake_parts = [_to_snake(p) for p in parts if p.strip()]
+                snake_parts = [p for p in snake_parts if p]
+                if snake_parts:
+                    pattern = re.compile(
+                        r".+".join(re.escape(p) for p in snake_parts)
+                    )
+                    for csv_snake, csv_original in csv_cols.items():
+                        if pattern.fullmatch(csv_snake):
+                            original_col = csv_original
+                            break
+
             if original_col is None:
                 continue  # column not in this file
 
