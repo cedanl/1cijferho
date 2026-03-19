@@ -384,7 +384,7 @@ wheels = [
 
 [[package]]
 name = "eencijferho"
-version = "0.1.1"
+version = "0.1.2"
 source = { editable = "." }
 dependencies = [
     { name = "numpy" },
@@ -400,7 +400,6 @@ dependencies = [
 [package.optional-dependencies]
 dev = [
     { name = "jupyter" },
-    { name = "pytest" },
     { name = "ruff" },
     { name = "sweetviz" },
     { name = "ydata-profiling" },
@@ -424,7 +423,6 @@ requires-dist = [
     { name = "plotly", specifier = ">=6.0.0" },
     { name = "polars", extras = ["excel"], specifier = ">=1.21.0" },
     { name = "pyjanitor", specifier = ">=0.31.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "rich", specifier = ">=13.9.4" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.10.0" },
     { name = "streamlit", marker = "extra == 'frontend'", specifier = ">=1.41.1" },
