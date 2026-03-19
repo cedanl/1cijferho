@@ -277,6 +277,28 @@ def decode_fields(
                         .str.strip_chars()
                         .alias(code_col_norm)
                     )
+                # Detect composite-key DEC table: second content row also has a
+                # key marker ("}") meaning it is part of the compound key.
+                is_composite_table = False
+                code_col2_norm = None
+                if len(content) > 2 and "}" in content[2]:
+                    code_col2_raw = content[2].split("  ")[0].strip()
+                    code_col2_norm = normalize_name(strip_accents(code_col2_raw), naming_func)
+                    if (
+                        code_col2_norm in join_df.columns
+                        and code_col_norm in join_df.columns
+                        and code_col_norm in result_df.columns
+                    ):
+                        is_composite_table = True
+                        # Strip leading zeros from second key in join_df too
+                        join_df = join_df.with_columns(
+                            pl.col(code_col2_norm)
+                            .cast(pl.Utf8)
+                            .str.strip_chars_start("0")
+                            .str.replace("^$", "0")
+                            .str.strip_chars()
+                            .alias(code_col2_norm)
+                        )
                 for var in dec_vars:
                     var_norm = normalize_name(strip_accents(var), naming_func)
                     if var_norm not in result_df.columns:
@@ -303,14 +325,29 @@ def decode_fields(
                         .alias(var_norm)
                     )
                     try:
-                        dec_cols = [c for c in join_df.columns if c != code_col_norm]
-                        before_rows = result_df.height
-                        joined = result_df.join(
-                            join_df,
-                            left_on=var_norm,
-                            right_on=code_col_norm,
-                            how="left",
-                        )
+                        if is_composite_table:
+                            # Composite key: exclude both key columns from enrichment,
+                            # join on (anchor_col, var_norm) = (anchor_col, second_key)
+                            dec_cols = [
+                                c for c in join_df.columns
+                                if c != code_col_norm and c != code_col2_norm
+                            ]
+                            before_rows = result_df.height
+                            joined = result_df.join(
+                                join_df,
+                                left_on=[code_col_norm, var_norm],
+                                right_on=[code_col_norm, code_col2_norm],
+                                how="left",
+                            )
+                        else:
+                            dec_cols = [c for c in join_df.columns if c != code_col_norm]
+                            before_rows = result_df.height
+                            joined = result_df.join(
+                                join_df,
+                                left_on=var_norm,
+                                right_on=code_col_norm,
+                                how="left",
+                            )
                         for col in dec_cols:
                             new_col = f"{var_norm}__{normalize_name(strip_accents(col), naming_func)}"
                             result_df = result_df.with_columns(
@@ -805,6 +842,27 @@ def decode_fields_dec_only(
                         .str.strip_chars()
                         .alias(code_col_norm)
                     )
+                # Detect composite-key DEC table: second content row also has a
+                # key marker ("}") meaning it is part of the compound key.
+                is_composite_table = False
+                code_col2_norm = None
+                if len(content) > 2 and "}" in content[2]:
+                    code_col2_raw = content[2].split("  ")[0].strip()
+                    code_col2_norm = normalize_name(strip_accents(code_col2_raw), naming_func)
+                    if (
+                        code_col2_norm in join_df.columns
+                        and code_col_norm in join_df.columns
+                        and code_col_norm in result_df.columns
+                    ):
+                        is_composite_table = True
+                        join_df = join_df.with_columns(
+                            pl.col(code_col2_norm)
+                            .cast(pl.Utf8)
+                            .str.strip_chars_start("0")
+                            .str.replace("^$", "0")
+                            .str.strip_chars()
+                            .alias(code_col2_norm)
+                        )
                 for var in dec_vars:
                     var_norm = normalize_name(strip_accents(var), naming_func)
                     if var_norm not in result_df.columns:
@@ -831,14 +889,27 @@ def decode_fields_dec_only(
                         .alias(var_norm)
                     )
                     try:
-                        dec_cols = [c for c in join_df.columns if c != code_col_norm]
-                        before_rows = result_df.height
-                        joined = result_df.join(
-                            join_df,
-                            left_on=var_norm,
-                            right_on=code_col_norm,
-                            how="left",
-                        )
+                        if is_composite_table:
+                            dec_cols = [
+                                c for c in join_df.columns
+                                if c != code_col_norm and c != code_col2_norm
+                            ]
+                            before_rows = result_df.height
+                            joined = result_df.join(
+                                join_df,
+                                left_on=[code_col_norm, var_norm],
+                                right_on=[code_col_norm, code_col2_norm],
+                                how="left",
+                            )
+                        else:
+                            dec_cols = [c for c in join_df.columns if c != code_col_norm]
+                            before_rows = result_df.height
+                            joined = result_df.join(
+                                join_df,
+                                left_on=var_norm,
+                                right_on=code_col_norm,
+                                how="left",
+                            )
                         for col in dec_cols:
                             new_col = f"{var_norm}__{normalize_name(strip_accents(col), naming_func)}"
                             result_df = result_df.with_columns(
