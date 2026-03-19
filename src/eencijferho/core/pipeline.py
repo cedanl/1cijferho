@@ -136,8 +136,6 @@ def run_turbo_convert_pipeline(
     ch.convert_csv_headers_to_snake_case(output_dir)
     log += "[pipeline] Header normalization complete.\n"
     if progress_callback:
-        progress_callback(95)
-    if progress_callback:
         progress_callback(100)
     # Collect output files
     output_files = []
