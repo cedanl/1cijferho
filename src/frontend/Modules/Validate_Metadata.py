@@ -135,7 +135,7 @@ Wat gebeurt er:
 - Excel-bestanden koppelen aan hoofd- en dec-bestanden
 - Validatierapporten opslaan in `data/00-metadata/logs/`
 
-Als validatie of koppeling faalt, kunt u de .xlsx-bestanden aanpassen in `data/00-metadata/` en `data/01-input`. Bekijk het log hieronder om te zien welke bestanden aandacht nodig hebben.
+Als validatie of koppeling mislukt, kunt u de .xlsx-bestanden aanpassen in `data/00-metadata/` en `data/01-input`. Bekijk het log hieronder om te zien welke bestanden aandacht nodig hebben.
 """)
 # Get files and display status
 metadata_files = get_metadata_files()
@@ -149,7 +149,7 @@ if not metadata_files:
     st.info("💡 Voer eerst het extractieproces uit om metadata-bestanden te genereren.")
 else:
     st.success(f"✅ **{len(metadata_files)} Bestandsbeschrijving-metadata gevonden**")
-    st.info("💡 U kunt doorgaan, ook als er fouten zijn - doe dit met voorzichtigheid!")
+    st.info("💡 U kunt doorgaan, ook als er fouten zijn - wees hierbij voorzichtig!")
     # Side-by-side buttons with equal width
     col1, col2 = st.columns(2)
     

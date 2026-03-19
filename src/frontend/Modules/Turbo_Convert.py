@@ -121,7 +121,7 @@ st.title("⚡ Turbo Convert")
 st.write("""
 **Stap 3: Data omzetten en verwerken**
 
-We gebruiken de gevalideerde metadata om je hoofd- en dec-bestanden om te zetten. Je vaste-breedte data wordt zo omgezet naar veilige, gecomprimeerde en direct bruikbare bestanden.
+We gebruiken de gevalideerde metadata om uw hoofd- en dec-bestanden om te zetten. Uw vaste-breedte data wordt zo omgezet naar veilige, gecomprimeerde en direct bruikbare bestanden.
 
 Wat gebeurt er:
 - Bestanden omzetten naar CSV met de juiste velden
@@ -295,7 +295,7 @@ else:
                 # Show converted files
                 output_files = get_output_files()
                 if output_files:
-                    with st.expander(f"📁 Converted Files ({len(output_files)} files)", expanded=True):
+                    with st.expander(f"📁 Geconverteerde bestanden ({len(output_files)} bestanden)", expanded=True):
                         st.write(f"**Bestanden succesvol aangemaakt in `{output_dir}/`:**")
                         
                         # Group files by type for better organization
@@ -310,7 +310,7 @@ else:
                                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
 
                         if decoded_files:
-                            st.write("**🔤 Decoded Files (Main files with decoded columns):**")
+                            st.write("**🔤 Gedecodeerde bestanden (hoofdbestanden met gedecodeerde kolommen):**")
                             for file in decoded_files:
                                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
 
@@ -352,7 +352,7 @@ with st.expander("📋 Console Log", expanded=True):
     if 'convert_console_log' in st.session_state and st.session_state.convert_console_log:
         st.code(st.session_state.convert_console_log, language=None)
     else:
-        st.info("Nog geen conversieproces gestart. Klik op 'Start Turbo Conversie' om te beginnen.")
+        st.info("Nog geen conversieproces gestart. Klik op 'Start Turbo Convert' om te beginnen.")
 
 
 

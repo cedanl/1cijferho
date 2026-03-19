@@ -107,7 +107,7 @@ st.title("Output valideren")
 st.write("""
 **Optionele stap: geconverteerde bestanden valideren**
 
-Draai deze stap nadat de pipeline klaar is. Er zijn twee validaties beschikbaar:
+Voer deze stap uit nadat de pipeline klaar is. Er zijn twee validaties beschikbaar:
 
 - **Kolomwaarden** — controleert of waarden overeenkomen met de toegestane waarden
   uit de bestandsbeschrijving (`variable_metadata.json`).
@@ -119,7 +119,7 @@ output_dir = get_output_dir()
 if not os.path.isdir(output_dir) or not any(
     f.endswith(".csv") for f in os.listdir(output_dir)
 ):
-    st.error("Geen geconverteerde CSV-bestanden gevonden. Draai eerst de Turbo Conversie.")
+    st.error("Geen geconverteerde CSV-bestanden gevonden. Voer eerst de Turbo Conversie uit.")
 else:
     # --- Section 1: Value validation ---
     st.subheader("Kolomwaarden validatie")
@@ -165,7 +165,7 @@ else:
                 st.warning(f"**{f['file']}** — kolom `{f['column']}`: {vals}")
         with st.expander("Volledige details"):
             for fname, details in val_log.get("details", {}).items():
-                st.markdown(f"**{fname}** — {details.get('columns_checked',0)} gecontroleerd, {details.get('columns_failed',0)} gefaald")
+                st.markdown(f"**{fname}** — {details.get('columns_checked',0)} gecontroleerd, {details.get('columns_failed',0)} mislukt")
                 for col_result in details.get("column_results", []):
                     icon = "✅" if col_result["status"] == "ok" else "❌"
                     st.markdown(f"  {icon} `{col_result['column']}`")
@@ -216,7 +216,7 @@ else:
                 st.warning(f"**{f['file']}** — kolom `{f['column']}` (via `{f['dec_file']}`): {vals}")
         with st.expander("Volledige details"):
             for fname, details in dec_log.get("details", {}).items():
-                st.markdown(f"**{fname}** — {details.get('columns_checked',0)} gecontroleerd, {details.get('columns_failed',0)} gefaald")
+                st.markdown(f"**{fname}** — {details.get('columns_checked',0)} gecontroleerd, {details.get('columns_failed',0)} mislukt")
                 for col_result in details.get("column_results", []):
                     icon = "✅" if col_result["status"] == "ok" else "❌"
                     st.markdown(f"  {icon} `{col_result['column']}` via `{col_result.get('dec_file','')}`")

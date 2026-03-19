@@ -75,10 +75,10 @@ Wat gebeurt er:
 - Opslaan in de map `data/00-metadata/`
 """)
 
-with st.expander("🚨 Bestaande Bestandbeschrijvingen"):
+with st.expander("🚨 Bestaande Bestandsbeschrijvingen"):
     st.markdown("""
-    Heeft u reeds gestructureerde Bestandbeschrijving-bestanden ontvangen? Plaats deze dan in `data/00-metadata/` 
-    en ga door naar stap 2. Voer niet `start extraction` uit, want bestaande bestanden worden overschreven.
+    Heeft u al gestructureerde Bestandsbeschrijving-bestanden ontvangen? Plaats deze dan in `data/00-metadata/`
+    en ga door naar stap 2. Voer de extractie niet uit, want bestaande bestanden worden overschreven.
                 
     Zorg ervoor dat de bestandsnamen overeenkomen met de inputbestanden, bijvoorbeeld `Dec_land_naar_herkomstindikking.asc.xlsx` 
     met de kolommen `Startpositie`, `Aantal posities` en `Opmerking`.

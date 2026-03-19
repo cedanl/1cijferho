@@ -34,7 +34,7 @@ st.markdown("""
 st.markdown("""
 <div class="hero-banner">
     <h1>🚀 Welkom bij 1CijferHO</h1>
-    <p>Ontgrendel de kracht van uw onderwijsdatasets</p>
+    <p>Verwerk DUO-onderwijsdata naar onderzoeksklare bestanden</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -44,7 +44,7 @@ st.markdown("""
 
 # Intro text
 st.write("""
-Maak van DUO-bestanden snel duidelijke informatie. Met deze tool kun je 1CHO-bestanden makkelijk openen en gebruiken, zonder technische kennis.
+Zet DUO-bestanden automatisch om naar bruikbare CSV- en Parquet-bestanden. Geen technische kennis vereist.
 """)
 
 # Beta version info
