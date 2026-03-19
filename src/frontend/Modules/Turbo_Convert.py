@@ -133,8 +133,7 @@ successful_pairs, skipped_pairs = get_matched_files()
 total_pairs = len(successful_pairs) + len(skipped_pairs)
 
 if total_pairs == 0:
-    st.error("🚨 **Geen gekoppelde bestanden gevonden**")
-    st.info("💡 Voer eerst de validatie uit zodat uw bestanden klaar zijn voor conversie.")
+    st.error("🚨 **Geen bestanden klaar voor conversie.** Voer eerst de validatiestap uit en zorg dat alle bestanden succesvol zijn gekoppeld.")
 else:
     st.success(f"✅ **{len(successful_pairs)} bestanden klaar voor conversie** ({len(skipped_pairs)} niet verwerkt wegens validatiefouten)")
     
@@ -276,7 +275,7 @@ else:
                 status_text.text("❌ Verwerking mislukt")
                 st.error(f"❌ **Verwerking mislukt:** {str(e)}")
     else:
-        st.warning("⚠️ Geen bestanden klaar voor conversie. Controleer de validatieresultaten.")
+        st.warning("⚠️ Alle gekoppelde bestanden hebben validatiefouten en kunnen niet worden geconverteerd. Ga terug naar de validatiestap om de fouten te bekijken en te corrigeren.")
 
 # Console Log expander
 with st.expander("📋 Console Log", expanded=True):
@@ -320,4 +319,4 @@ else:
 
 # Warning about existing files
 if os.path.exists(output_dir) and os.listdir(output_dir):
-    st.warning(f"⚠️ Nieuwe conversie zal bestaande bestanden in `{output_dir}/` overschrijven")
+    st.warning("⚠️ Er zijn al eerder geconverteerde bestanden aanwezig. Een nieuwe conversie overschrijft deze.")

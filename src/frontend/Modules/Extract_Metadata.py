@@ -89,12 +89,12 @@ bestandsbeschrijvingen = get_bestandsbeschrijvingen()
 
 input_dir = get_input_dir()
 if not bestandsbeschrijvingen:
-    st.error(f"🚨 **Geen Bestandsbeschrijving-bestanden gevonden in `{input_dir}`**")
+    st.error("🚨 **Geen bestandsbeschrijvingen gevonden.** Zorg dat u de juiste DUO-bestanden in de invoermap hebt geplaatst en ververs de pagina.")
 else:
     st.success(
         f"✅ **{len(bestandsbeschrijvingen)} Bestandsbeschrijving-bestanden gevonden**"
     )
-    st.info("💡 U kunt doorgaan, ook als er fouten zijn - doe dit met voorzichtigheid!")
+    st.info("💡 Klopt het aantal bestanden niet? Controleer of alle DUO-bestanden in de invoermap staan.")
 
     # Side-by-side buttons with equal width
     col1, col2 = st.columns(2)
@@ -223,5 +223,5 @@ else:
     _metadata_dir = get_metadata_dir()
     if os.path.exists(_metadata_dir) and os.listdir(_metadata_dir):
         st.warning(
-            f"⚠️ Extractie zal bestaande bestanden in `{_metadata_dir}/` overschrijven"
+            "⚠️ Er zijn al eerder geëxtraheerde bestanden aanwezig. Een nieuwe extractie overschrijft deze."
         )

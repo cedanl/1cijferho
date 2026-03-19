@@ -144,11 +144,10 @@ input_folder = get_input_dir()
 
 if not metadata_files:
     metadata_dir = get_metadata_dir()
-    st.error(f"🚨 **Geen metadata-bestanden gevonden in `{metadata_dir}`**")
-    st.info("💡 Voer eerst het extractieproces uit om metadata-bestanden te genereren.")
+    st.error("🚨 **Geen metadata-bestanden gevonden.** Voer eerst de extractiestap uit voordat u verder gaat met valideren.")
 else:
     st.success(f"✅ **{len(metadata_files)} Bestandsbeschrijving-metadata gevonden**")
-    st.info("💡 U kunt doorgaan, ook als er fouten zijn - wees hierbij voorzichtig!")
+    st.info("💡 Klopt het aantal bestanden niet? Controleer of alle DUO-bestanden in de invoermap staan.")
     # Side-by-side buttons with equal width
     col1, col2 = st.columns(2)
     
@@ -177,7 +176,7 @@ else:
     
     # Show validation issues (no tabs, stacked vertically)
     if xlsx_failures:
-        st.warning(f"⚠️ **{len(xlsx_failures)} validatiefouten** - Bekijk het log hieronder voor details of voer de validatie opnieuw uit") 
+        st.warning(f"⚠️ **{len(xlsx_failures)} validatiefout(en) gevonden.** Bekijk het log hieronder en pas uw Excel-bestanden aan voordat u doorgaat.")
     
     # Show file matching issues
     unmatched_input = [f for f in matching_failures if f['type'] == 'Unmatched input file']
@@ -185,7 +184,7 @@ else:
     total_unmatched = len(unmatched_input) + len(unmatched_metadata)
     
     if total_unmatched > 0:
-        st.warning(f"⚠️ **{total_unmatched} niet-gekoppelde bestanden** - Bekijk het log hieronder voor details of voer de validatie opnieuw uit")
+        st.warning(f"⚠️ **{total_unmatched} bestand(en) konden niet worden gekoppeld.** Controleer of voor elk invoerbestand een bijpassende bestandsbeschrijving aanwezig is.")
     
     # Handle validation logic
     if validate_clicked:
@@ -236,4 +235,4 @@ else:
     # Warning about existing validation results
     _logs_dir = os.path.join(get_metadata_dir(), "logs")
     if os.path.exists(_logs_dir) and os.listdir(_logs_dir):
-        st.warning(f"⚠️ Validatie zal bestaande resultaten in `{_logs_dir}/` overschrijven")
+        st.warning("⚠️ Er zijn al eerder validatieresultaten aanwezig. Een nieuwe validatie overschrijft deze.")
