@@ -9,6 +9,7 @@ defined in the bestandsbeschrijving (variable_metadata.json).
 
 import json
 import re
+import unicodedata
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -16,10 +17,12 @@ import polars as pl
 
 
 def _to_snake(name: str) -> str:
-    """Rough snake_case conversion matching converter_headers logic."""
-    s = name.lower().strip()
-    s = re.sub(r"[\s\-/]+", "_", s)
-    s = re.sub(r"[^a-z0-9_]", "", s)
+    """snake_case conversion matching converter_headers.normalize_name exactly."""
+    # Strip accents the same way as converter_headers.strip_accents
+    normalized = unicodedata.normalize("NFKD", name)
+    s = normalized.encode("ascii", "ignore").decode("ascii")
+    s = s.lower()
+    s = re.sub(r"[^a-z0-9]+", "_", s)
     s = re.sub(r"_+", "_", s).strip("_")
     return s
 
