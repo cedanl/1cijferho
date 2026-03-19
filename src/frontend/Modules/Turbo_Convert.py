@@ -175,7 +175,7 @@ else:
         with col2:
             output_files = get_output_files()
             next_page_clicked = st.button(
-                "➡️ Ga door naar stap 4",
+                "➡️ Output valideren (optioneel)",
                 type="secondary",
                 disabled=len(output_files) == 0,
                 use_container_width=True,
