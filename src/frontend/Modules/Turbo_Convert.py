@@ -288,10 +288,10 @@ else:
 
 
                 status_text.text("✅ Verwerking succesvol voltooid!")
-                
+
                 output_dir = get_output_dir()
                 st.success(f"✅ **Verwerking voltooid!** Bestanden geconverteerd, gevalideerd, gecomprimeerd en versleuteld. Resultaten opgeslagen in `{output_dir}/`")
-                
+
                 # Show converted files
                 output_files = get_output_files()
                 if output_files:

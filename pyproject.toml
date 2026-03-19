@@ -60,6 +60,11 @@ dev = [
 [project.scripts]
 eencijferho = "eencijferho.cli:main"
 
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["eencijferho*"]

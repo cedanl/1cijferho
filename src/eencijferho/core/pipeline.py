@@ -2,6 +2,8 @@
 Modular pipeline orchestrator for conversion, decoding, validation, compression, encryption, header normalization.
 """
 
+import json
+import datetime
 import os
 from eencijferho.core import converter, decoder
 import eencijferho.utils.converter_validation as cv
