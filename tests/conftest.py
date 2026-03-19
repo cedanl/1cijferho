@@ -111,3 +111,24 @@ def make_match_log(tmp_path):
         return p
 
     return _make
+
+
+# ---------------------------------------------------------------------------
+# Generic temp file fixture
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def make_temp_file(tmp_path):
+    """Factory: Write arbitrary text content to a unique temp file. Returns Path.
+
+    Each call within the same test gets a uniquely named file inside tmp_path,
+    so cleanup is handled automatically by pytest.
+    """
+    _counter = [0]
+
+    def _make(content: str, suffix: str = ".txt", encoding: str = "utf-8") -> Path:
+        _counter[0] += 1
+        path = tmp_path / f"temp_{_counter[0]}{suffix}"
+        path.write_text(content, encoding=encoding)
+        return path
+
+    return _make

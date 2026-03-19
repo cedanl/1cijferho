@@ -9,8 +9,6 @@ Tests:
 """
 
 import json
-import tempfile
-import os
 import pytest
 
 from eencijferho.utils.value_validation import validate_column_values
@@ -42,32 +40,19 @@ CSV_VALID = "Opleidingsvorm;Geslacht\n1;M\n2;V\n3;O\n1;M\n"
 CSV_INVALID = "Opleidingsvorm;Geslacht\n1;M\n9;V\n2;X\n"  # 9 and X are not allowed
 
 
-def _write_temp(content: str, suffix: str) -> str:
-    fd, path = tempfile.mkstemp(suffix=suffix)
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        f.write(content)
-    return path
+@pytest.fixture
+def metadata_file(make_temp_file):
+    return make_temp_file(json.dumps(METADATA, ensure_ascii=False), ".json")
 
 
 @pytest.fixture
-def metadata_file():
-    path = _write_temp(json.dumps(METADATA, ensure_ascii=False), ".json")
-    yield path
-    os.unlink(path)
+def valid_csv(make_temp_file):
+    return make_temp_file(CSV_VALID, ".csv")
 
 
 @pytest.fixture
-def valid_csv():
-    path = _write_temp(CSV_VALID, ".csv")
-    yield path
-    os.unlink(path)
-
-
-@pytest.fixture
-def invalid_csv():
-    path = _write_temp(CSV_INVALID, ".csv")
-    yield path
-    os.unlink(path)
+def invalid_csv(make_temp_file):
+    return make_temp_file(CSV_INVALID, ".csv")
 
 
 # ---------------------------------------------------------------------------
@@ -117,17 +102,13 @@ def test_reference_column_skipped(valid_csv, metadata_file):
     assert "Instellingscode" not in checked_cols
 
 
-def test_missing_column_gracefully_skipped(metadata_file):
+def test_missing_column_gracefully_skipped(metadata_file, make_temp_file):
     """CSV without a column defined in metadata: column is skipped silently."""
-    csv_content = "Geslacht\nM\nV\n"
-    path = _write_temp(csv_content, ".csv")
-    try:
-        success, results = validate_column_values(path, metadata_file)
-        # Only Geslacht is in the CSV, Opleidingsvorm is missing -> checked=1
-        assert results["columns_checked"] == 1
-        assert success is True
-    finally:
-        os.unlink(path)
+    path = make_temp_file("Geslacht\nM\nV\n", ".csv")
+    success, results = validate_column_values(path, metadata_file)
+    # Only Geslacht is in the CSV, Opleidingsvorm is missing -> checked=1
+    assert results["columns_checked"] == 1
+    assert success is True
 
 
 def test_missing_metadata_file(valid_csv):

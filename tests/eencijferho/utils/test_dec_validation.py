@@ -12,25 +12,12 @@ Tests:
     - test_composite_key_validation_invalid: ongeldig paar in composite DEC -> success=False
 """
 
-import os
-import tempfile
 import pytest
 
 from eencijferho.utils.dec_validation import (
     parse_dec_mapping,
     validate_with_dec_files,
 )
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _write(content: str, suffix: str, encoding: str = "utf-8") -> str:
-    fd, path = tempfile.mkstemp(suffix=suffix)
-    with os.fdopen(fd, "w", encoding=encoding) as f:
-        f.write(content)
-    return path
 
 
 # ---------------------------------------------------------------------------
@@ -95,17 +82,13 @@ MAIN_CSV_COMPOSITE_INVALID = "Instellingscode;Vestigingsnummer\n1234;01\n9999;99
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
-def dec_txt_simple():
-    path = _write(DEC_TXT_SIMPLE, ".txt")
-    yield path
-    os.unlink(path)
+def dec_txt_simple(make_temp_file):
+    return make_temp_file(DEC_TXT_SIMPLE, ".txt")
 
 
 @pytest.fixture
-def dec_txt_composite():
-    path = _write(DEC_TXT_COMPOSITE, ".txt")
-    yield path
-    os.unlink(path)
+def dec_txt_composite(make_temp_file):
+    return make_temp_file(DEC_TXT_COMPOSITE, ".txt")
 
 
 @pytest.fixture
@@ -122,31 +105,23 @@ def dec_dir_composite(tmp_path):
 
 
 @pytest.fixture
-def valid_main_csv():
-    path = _write(MAIN_CSV_VALID, ".csv")
-    yield path
-    os.unlink(path)
+def valid_main_csv(make_temp_file):
+    return make_temp_file(MAIN_CSV_VALID, ".csv")
 
 
 @pytest.fixture
-def invalid_main_csv():
-    path = _write(MAIN_CSV_INVALID, ".csv")
-    yield path
-    os.unlink(path)
+def invalid_main_csv(make_temp_file):
+    return make_temp_file(MAIN_CSV_INVALID, ".csv")
 
 
 @pytest.fixture
-def composite_valid_csv():
-    path = _write(MAIN_CSV_COMPOSITE_VALID, ".csv")
-    yield path
-    os.unlink(path)
+def composite_valid_csv(make_temp_file):
+    return make_temp_file(MAIN_CSV_COMPOSITE_VALID, ".csv")
 
 
 @pytest.fixture
-def composite_invalid_csv():
-    path = _write(MAIN_CSV_COMPOSITE_INVALID, ".csv")
-    yield path
-    os.unlink(path)
+def composite_invalid_csv(make_temp_file):
+    return make_temp_file(MAIN_CSV_COMPOSITE_INVALID, ".csv")
 
 
 # ---------------------------------------------------------------------------
