@@ -47,8 +47,8 @@ def run_turbo_convert_pipeline(
     log = ""
     # Step 1: Convert files
     if status_callback:
-        status_callback("⚡ Stap 3: Converting fixed-width files...")
-    log += "[pipeline] Converting files...\n"
+        status_callback("⚡ Bestanden omzetten...")
+    log += "[pipeline] Bestanden omzetten...\n"
     match_log_file = os.path.join(logs_dir, "(4)_file_matching_log_latest.json")
     converter.run_conversions_from_matches(
         input_dir,
@@ -57,13 +57,13 @@ def run_turbo_convert_pipeline(
         output_folder=output_dir,
     )
     converter.convert_dec_files(input_dir, metadata_folder=metadata_dir, output_folder=output_dir)
-    log += "[pipeline] Conversion complete.\n"
+    log += "[pipeline] Omzetting voltooid.\n"
     if progress_callback:
         progress_callback(30)
     # Step 2: Decode main files
     if status_callback:
-        status_callback("🔤 Stap 3b: Decoding main files...")
-    log += "[pipeline] Decoding main files...\n"
+        status_callback("🔤 Gedecodeerde bestanden aanmaken...")
+    log += "[pipeline] Gedecodeerde bestanden aanmaken...\n"
     dec_dir = output_dir
     os.makedirs(dec_dir, exist_ok=True)
     decoded_count = 0
@@ -98,43 +98,43 @@ def run_turbo_convert_pipeline(
                     f.write(enriched_csv)
 
                 decoded_count += 1
-    log += f"[pipeline] Decoding completed for {decoded_count} file(s).\n"
+    log += f"[pipeline] {decoded_count} bestand(en) gedecodeerd.\n"
     if progress_callback:
         progress_callback(40)
     # Step 3: Validate conversion
     if status_callback:
-        status_callback("🔍 Stap 4: Validating conversion results...")
-    log += "[pipeline] Validating conversion...\n"
+        status_callback("🔍 Conversie controleren...")
+    log += "[pipeline] Conversie controleren...\n"
     cv.converter_validation(
         conversion_log_path=os.path.join(logs_dir, "(5)_conversion_log_latest.json"),
         matching_log_path=os.path.join(logs_dir, "(4)_file_matching_log_latest.json"),
         output_log_path=os.path.join(logs_dir, "(6)_conversion_validation_log_latest.json"),
     )
-    log += "[pipeline] Validation complete.\n"
+    log += "[pipeline] Controle voltooid.\n"
     if progress_callback:
         progress_callback(50)
     # Step 4: Compress to Parquet
     if status_callback:
-        status_callback("🗜️ Stap 5: Compressing to Parquet format...")
-    log += "[pipeline] Compressing to Parquet...\n"
+        status_callback("🗜️ Bestanden comprimeren...")
+    log += "[pipeline] Bestanden comprimeren...\n"
     co.convert_csv_to_parquet(output_dir)
-    log += "[pipeline] Compression complete.\n"
+    log += "[pipeline] Compressie voltooid.\n"
     if progress_callback:
         progress_callback(75)
     # Step 5: Encrypt final files
     if status_callback:
-        status_callback("🔒 Stap 6: Encrypting final files...")
-    log += "[pipeline] Encrypting files...\n"
+        status_callback("🔒 Gevoelige gegevens versleutelen...")
+    log += "[pipeline] Gevoelige gegevens versleutelen...\n"
     en.encryptor(output_dir, output_dir)
-    log += "[pipeline] Encryption complete.\n"
+    log += "[pipeline] Versleuteling voltooid.\n"
     if progress_callback:
         progress_callback(90)
     # Step 6: Header normalization
     if status_callback:
-        status_callback("🔨 Stap 7: Converteer headers naar snake_case...")
-    log += "[pipeline] Normalizing headers...\n"
+        status_callback("🔨 Kolomnamen standaardiseren...")
+    log += "[pipeline] Kolomnamen standaardiseren...\n"
     ch.convert_csv_headers_to_snake_case(output_dir)
-    log += "[pipeline] Header normalization complete.\n"
+    log += "[pipeline] Kolomnamen gestandaardiseerd.\n"
     if progress_callback:
         progress_callback(100)
     # Collect output files

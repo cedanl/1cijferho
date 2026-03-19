@@ -224,7 +224,7 @@ else:
                 status_text.text("✅ Verwerking succesvol voltooid!")
 
                 output_dir = get_output_dir()
-                st.success("✅ **Verwerking voltooid!** Bestanden geconverteerd, gevalideerd, gecomprimeerd en versleuteld.")
+                st.success(f"✅ **Verwerking voltooid!** Bestanden geconverteerd, gevalideerd, gecomprimeerd en versleuteld. Resultaten staan in `{get_output_dir()}/`.")
 
                 # Show converted files
                 output_files = get_output_files()
@@ -283,7 +283,7 @@ else:
 
 # Console Log expander
 with st.expander("📋 Console Log", expanded=True):
-    st.caption("💡 Let op: Meldingen zoals 'Could not determine dtype for column X, falling back to string' zijn onschuldig - dit is een eigenaardigheid van de Polars Excel-bibliotheek.")
+    st.caption("💡 Let op: Sommige technische meldingen in het log zijn onschuldig en kunnen worden genegeerd — ze horen bij de normale werking van de conversiebibliotheek.")
     if 'convert_console_log' in st.session_state and st.session_state.convert_console_log:
         st.code(st.session_state.convert_console_log, language=None)
     else:
