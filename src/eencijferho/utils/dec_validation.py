@@ -28,21 +28,12 @@ Two mapping types are supported:
 
 import json
 import re
-import unicodedata
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
 
 import polars as pl
 
-
-def _to_snake(name: str) -> str:
-    """snake_case conversion matching converter_headers.normalize_name exactly."""
-    normalized = unicodedata.normalize("NFKD", name)
-    s = normalized.encode("ascii", "ignore").decode("ascii")
-    s = s.lower()
-    s = re.sub(r"[^a-z0-9]+", "_", s)
-    s = re.sub(r"_+", "_", s).strip("_")
-    return s
+from eencijferho.utils.converter_headers import normalize_name as _to_snake
 
 
 def parse_dec_mapping(dec_txt_path: str | Path) -> Dict[str, Dict[str, Any]]:
