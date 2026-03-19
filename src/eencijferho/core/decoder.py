@@ -158,11 +158,11 @@ def load_dec_tables_from_metadata(
                 df = pl.read_csv(
                     dec_path,
                     separator=";",
-                    encoding="latin1",
+                    encoding="utf8",
                     schema_overrides=schema_overrides,
                 )
             else:
-                df = pl.read_csv(dec_path, separator=";", encoding="latin1")
+                df = pl.read_csv(dec_path, separator=";", encoding="utf8")
             dec_tables[table["table_title"]] = df
         except Exception:
             try:
@@ -170,12 +170,12 @@ def load_dec_tables_from_metadata(
                     df = pl.read_csv(
                         dec_path,
                         separator=";",
-                        encoding="latin1",
+                        encoding="utf8",
                         quote_char=None,
                         schema_overrides=schema_overrides,
                     )
                 else:
-                    df = pl.read_csv(dec_path, separator=";", encoding="latin1", quote_char=None)
+                    df = pl.read_csv(dec_path, separator=";", encoding="utf8", quote_char=None)
                 dec_tables[table["table_title"]] = df
             except Exception as e:
                 print(f"[decoder] Warning: Could not load {dec_file}: {e}")
