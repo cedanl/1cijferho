@@ -120,6 +120,25 @@ def run_turbo_convert_pipeline(
                 status_callback(f"⚠️ Kolomwaarden: {len(failed_cols)} kolom(men) met ongeldige waarden gevonden")
         else:
             log += "[pipeline] Column value validation passed.\n"
+        # Save value validation log
+        import json as _json
+        import datetime as _dt
+        val_log = {
+            "timestamp": _dt.datetime.now().strftime("%Y%m%d_%H%M%S"),
+            "status": "completed",
+            "total_files_checked": len(value_val_summary),
+            "total_failed_columns": len(failed_cols),
+            "details": {
+                fname: res["results"]
+                for fname, res in value_val_summary.items()
+                if res["results"].get("columns_checked", 0) > 0
+            },
+        }
+        val_log_path = os.path.join(logs_dir, "(5b)_value_validation_log_latest.json")
+        os.makedirs(logs_dir, exist_ok=True)
+        with open(val_log_path, "w", encoding="utf-8") as _f:
+            _json.dump(val_log, _f, ensure_ascii=False, indent=2)
+        log += f"[pipeline] Value validation log saved to {val_log_path}\n"
     else:
         log += "[pipeline] variable_metadata.json niet gevonden, kolomwaarden validatie overgeslagen.\n"
     if progress_callback:
