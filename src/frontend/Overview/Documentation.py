@@ -68,7 +68,7 @@ with tab2:
     
     st.markdown("## Problemen oplossen")
     
-    with st.expander("Common Issues"):
+    with st.expander("Veelvoorkomende problemen"):
         st.markdown("""
         **Geen tabellen gevonden in metadata-bestand**  
         Controleer of het .txt-bestand "Startpositie" en "Aantal posities" bevat

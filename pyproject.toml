@@ -7,7 +7,7 @@ cache-dir = "./.uv_cache"
 
 [project]
 name = "eencijferho"
-version = "0.1.1"
+version = "0.1.2"
 description = "Standalone backend processing toolkit for 1CijferHO"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
@@ -59,6 +59,18 @@ dev = [
 [project.scripts]
 eencijferho = "eencijferho.cli:main"
 
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["eencijferho*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+filterwarnings = [
+    "ignore:.*use of fork.*may lead to deadlocks in the child.*:DeprecationWarning",
+]

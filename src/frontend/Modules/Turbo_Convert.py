@@ -1,13 +1,7 @@
 import os
 import glob
 import streamlit as st
-import subprocess
-import eencijferho.utils.converter_validation as cv
-import eencijferho.utils.compressor as co
-import eencijferho.utils.encryptor as en
-import eencijferho.utils.converter_headers as ch
-import io
-import contextlib
+import eencijferho.core.pipeline as pipeline
 from typing import Any, Dict, List, Tuple
 from config import get_input_dir, get_output_dir, get_metadata_dir
 
@@ -121,7 +115,7 @@ st.title("⚡ Turbo Convert")
 st.write("""
 **Stap 3: Data omzetten en verwerken**
 
-We gebruiken de gevalideerde metadata om je hoofd- en dec-bestanden om te zetten. Je vaste-breedte data wordt zo omgezet naar veilige, gecomprimeerde en direct bruikbare bestanden.
+We gebruiken de gevalideerde metadata om uw hoofd- en dec-bestanden om te zetten. Uw vaste-breedte data wordt zo omgezet naar veilige, gecomprimeerde en direct bruikbare bestanden.
 
 Wat gebeurt er:
 - Bestanden omzetten naar CSV met de juiste velden
@@ -166,17 +160,30 @@ else:
                 else:
                     st.info("Geen validatiefouten.")
     
-    # Centered button - only show if there are successful pairs
+    # Side-by-side buttons with equal width
     if successful_pairs:
-        col1, col2, col3 = st.columns([1, 2, 1])
-        
-        with col2:
+        col1, col2 = st.columns(2)
+
+        with col1:
             # Use callback-based button (recommended Streamlit pattern)
-            st.button("⚡ Start Turbo Convert ⚡", 
-                     type="primary", 
-                     use_container_width=True, 
+            st.button("⚡ Start Turbo Convert ⚡",
+                     type="primary",
+                     use_container_width=True,
                      key="turbo_convert_btn",
                      on_click=start_conversion)
+
+        with col2:
+            output_files = get_output_files()
+            next_page_clicked = st.button(
+                "➡️ Output valideren (optioneel)",
+                type="secondary",
+                disabled=len(output_files) == 0,
+                use_container_width=True,
+                key="next_step_btn",
+            )
+
+        if next_page_clicked:
+            st.switch_page("frontend/Modules/Validate_Output.py")
 
         # Handle conversion logic using session state flag
         if st.session_state.start_turbo_convert:
@@ -203,99 +210,28 @@ else:
                 st.session_state.convert_console_log += "🔄 Start conversie pipeline...\n"
                 update_console()
                 progress_bar.progress(10)
-                status_text.text("⚡ Stap 3: Converting fixed-width files...")
-                
-                # Step 3: Convert Files
-                st.session_state.convert_console_log += "⚡ Stap 3: Converting fixed-width files...\n"
-                update_console()
-                result = subprocess.run(["uv", "run", "src/eencijferho/core/converter.py", get_input_dir(), get_output_dir()], 
-                                      capture_output=True, text=True, cwd=".")
-                if result.stdout:
-                    st.session_state.convert_console_log += result.stdout
-                if result.stderr:
-                    st.session_state.convert_console_log += f"Warning: {result.stderr}\n"
-                st.session_state.convert_console_log += "✅ File conversion completed\n"
-                update_console()
-                progress_bar.progress(30)
 
-                # --- Decoding step for EV* and VAKHAVW* files ---
-                # Decoding is now handled in eencijferho/core/pipeline.py
-                import eencijferho.core.pipeline as pipeline
                 log, output_files = pipeline.run_turbo_convert_pipeline(
-                    input_dir=get_input_dir(), 
+                    input_dir=get_input_dir(),
                     output_dir=get_output_dir(),
                     metadata_dir=get_metadata_dir(),
-                    progress_callback=progress_bar.progress, 
+                    progress_callback=progress_bar.progress,
                     status_callback=status_text.text
                 )
                 st.session_state.convert_console_log += log
                 update_console()
                 progress_bar.progress(100)
-                
-                # Step 4: Validate Conversion
-                status_text.text("🔍 Stap 4: Validating conversion results...")
-                st.session_state.convert_console_log += "🔍 Stap 4: Validating conversion results...\n"
-                update_console()
-                captured_output = io.StringIO()
-                with contextlib.redirect_stdout(captured_output):
-                    logs_dir = os.path.join(get_metadata_dir(), "logs")
-                    cv.converter_validation(
-                        conversion_log_path=os.path.join(logs_dir, "(5)_conversion_log_latest.json"),
-                        matching_log_path=os.path.join(logs_dir, "(4)_file_matching_log_latest.json"),
-                        output_log_path=os.path.join(logs_dir, "(6)_conversion_validation_log_latest.json"),
-                    )
-                st.session_state.convert_console_log += captured_output.getvalue()
-                st.session_state.convert_console_log += "✅ Conversion validation completed\n"
-                update_console()
-                progress_bar.progress(50)
-                
-                # Step 5: Run Compressor
-                status_text.text("🗜️ Stap 5: Compressing to Parquet format...")
-                st.session_state.convert_console_log += "🗜️ Stap 5: Compressing to Parquet format...\n"
-                update_console()
-                captured_output = io.StringIO()
-                with contextlib.redirect_stdout(captured_output):
-                    co.convert_csv_to_parquet(get_output_dir())
-                st.session_state.convert_console_log += captured_output.getvalue()
-                st.session_state.convert_console_log += "✅ Compression completed\n"
-                update_console()
-                progress_bar.progress(75)
-
-                # Step 6: Run Encryptor
-                status_text.text("🔒 Stap 6: Encrypting final files...")
-                st.session_state.convert_console_log += "🔒 Stap 6: Encrypting final files...\n"
-                update_console()
-                captured_output = io.StringIO()
-                with contextlib.redirect_stdout(captured_output):
-                    en.encryptor(get_output_dir(), get_output_dir())
-                st.session_state.convert_console_log += captured_output.getvalue()
-                st.session_state.convert_console_log += "✅ Encryptie afgerond\n"
-                st.session_state.convert_console_log += "🎉 Complete processing pipeline succesvol afgerond!\n"
-                update_console()
-                progress_bar.progress(90)
-                
-                # Step 7: Run Converter Headers (snake_case)
-                status_text.text("🔨 Stap 7: Converteer headers naar snake_case...")
-                st.session_state.convert_console_log += "🔨 Stap 7: Converteer headers naar snake_case...\n"
-                update_console()
-                captured_output = io.StringIO()
-                with contextlib.redirect_stdout(captured_output):
-                    ch.convert_csv_headers_to_snake_case(get_output_dir())
-                st.session_state.convert_console_log += captured_output.getvalue()
-                st.session_state.convert_console_log += "✅ Header conversie afgerond\n"
-                update_console()
-                progress_bar.progress(100)
 
 
                 status_text.text("✅ Verwerking succesvol voltooid!")
-                
+
                 output_dir = get_output_dir()
                 st.success(f"✅ **Verwerking voltooid!** Bestanden geconverteerd, gevalideerd, gecomprimeerd en versleuteld. Resultaten opgeslagen in `{output_dir}/`")
-                
+
                 # Show converted files
                 output_files = get_output_files()
                 if output_files:
-                    with st.expander(f"📁 Converted Files ({len(output_files)} files)", expanded=True):
+                    with st.expander(f"📁 Geconverteerde bestanden ({len(output_files)} bestanden)", expanded=True):
                         st.write(f"**Bestanden succesvol aangemaakt in `{output_dir}/`:**")
                         
                         # Group files by type for better organization
@@ -310,7 +246,7 @@ else:
                                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
 
                         if decoded_files:
-                            st.write("**🔤 Decoded Files (Main files with decoded columns):**")
+                            st.write("**🔤 Gedecodeerde bestanden (hoofdbestanden met gedecodeerde kolommen):**")
                             for file in decoded_files:
                                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
 
@@ -327,9 +263,6 @@ else:
                 # Celebrate with balloons!
                 st.balloons()
                 
-                # Clear the progress indicators after a moment
-                import time
-                time.sleep(300)
                 progress_bar.empty()
                 status_text.empty()
                 console_container.empty()
@@ -352,7 +285,7 @@ with st.expander("📋 Console Log", expanded=True):
     if 'convert_console_log' in st.session_state and st.session_state.convert_console_log:
         st.code(st.session_state.convert_console_log, language=None)
     else:
-        st.info("Nog geen conversieproces gestart. Klik op 'Start Turbo Conversie' om te beginnen.")
+        st.info("Nog geen conversieproces gestart. Klik op 'Start Turbo Convert' om te beginnen.")
 
 
 

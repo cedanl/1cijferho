@@ -20,15 +20,18 @@ a complete pipeline run looks like:
         *.csv / *.parquet  ← converted data files
 
 Usage:
-    eencijferho extract  --input data/01-input  --output data/02-output
-    eencijferho validate --input data/01-input  --output data/02-output
-    eencijferho convert  --input data/01-input  --output data/02-output
-    eencijferho pipeline --input data/01-input  --output data/02-output
+    eencijferho extract          --input data/01-input  --output data/02-output
+    eencijferho validate         --input data/01-input  --output data/02-output
+    eencijferho convert          --input data/01-input  --output data/02-output
+    eencijferho pipeline         --input data/01-input  --output data/02-output
+    eencijferho validate-output  --input data/01-input  --output data/02-output
 """
 
 import argparse
 import os
 from typing import Tuple
+from rich.console import Console
+from rich.panel import Panel
 from eencijferho.core.extractor import (
     process_txt_folder,
     write_variable_metadata,
@@ -37,6 +40,10 @@ from eencijferho.core.extractor import (
 from eencijferho.utils.extractor_validation import validate_metadata_folder
 from eencijferho.utils.converter_match import match_files
 from eencijferho.core.pipeline import run_turbo_convert_pipeline
+import eencijferho.utils.value_validation as vv
+import eencijferho.utils.dec_validation as dv
+
+_console = Console()
 
 
 def _resolve_dirs(output_dir: str) -> Tuple[str, str, str]:
@@ -66,6 +73,106 @@ def cmd_validate(args: argparse.Namespace) -> None:
     validate_metadata_folder(metadata_folder=metadata_dir)
     match_files(args.input, log_path=validation_log)
     print("[eencijferho] Validation complete.")
+
+
+def cmd_validate_output(args: argparse.Namespace) -> None:
+    """Validate converted output files: column values and DEC decoder files."""
+    import json, datetime
+
+    metadata_dir, json_dir, logs_dir = _resolve_dirs(args.output)
+    os.makedirs(logs_dir, exist_ok=True)
+
+    print(f"[eencijferho] Validating output files in: {args.output}")
+
+    # --- 1. Value validation (variable_metadata.json) ---
+    variable_metadata_path = os.path.join(json_dir, "variable_metadata.json")
+    if not os.path.isfile(variable_metadata_path):
+        print("[eencijferho] variable_metadata.json niet gevonden, kolomwaarden validatie overgeslagen.")
+    else:
+        val_summary = vv.validate_column_values_folder(args.output, variable_metadata_path)
+        failed_cols = [
+            (fname, col["column"], col["invalid_values"])
+            for fname, res in val_summary.items()
+            for col in res["results"].get("column_results", [])
+            if col["status"] == "failed"
+        ]
+        val_log = {
+            "timestamp": datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
+            "status": "completed",
+            "total_files_checked": len(val_summary),
+            "total_failed_columns": len(failed_cols),
+            "details": {
+                fname: res["results"]
+                for fname, res in val_summary.items()
+                if res["results"].get("columns_checked", 0) > 0
+            },
+        }
+        val_log_path = os.path.join(logs_dir, "(5b)_value_validation_log_latest.json")
+        with open(val_log_path, "w", encoding="utf-8") as fh:
+            json.dump(val_log, fh, ensure_ascii=False, indent=2)
+        print(f"[eencijferho] Kolomwaarden validatie log opgeslagen: {val_log_path}")
+
+        val_failures = vv.read_value_validation_log(val_log_path)
+        if not val_failures:
+            _console.print("[green]Kolomwaarden validatie: alle kolommen OK[/green]")
+        else:
+            lines = ["[bold]Kolomwaarden: ongeldige waarden gevonden:[/bold]"]
+            for f in val_failures:
+                vals = ", ".join(str(v) for v in f["invalid_values"][:5])
+                if len(f["invalid_values"]) > 5:
+                    vals += f" ... (+{len(f['invalid_values']) - 5} meer)"
+                lines.append(
+                    f"  • [bold]{f['file']}[/bold] → kolom [yellow]{f['column']}[/yellow]: {vals}"
+                )
+            _console.print(Panel("\n".join(lines), title="⚠️  Kolomwaarden validatie", border_style="yellow"))
+
+    # --- 2. DEC validation (Bestandsbeschrijving_Dec-bestanden) ---
+    dec_txt_candidates = [
+        f for f in os.listdir(args.input)
+        if f.startswith("Bestandsbeschrijving_Dec") and f.endswith(".txt")
+    ] if os.path.isdir(args.input) else []
+
+    if not dec_txt_candidates:
+        print("[eencijferho] Geen Bestandsbeschrijving_Dec*.txt gevonden, DEC validatie overgeslagen.")
+    else:
+        dec_txt_path = os.path.join(args.input, dec_txt_candidates[0])
+        dec_summary = dv.validate_with_dec_files_folder(args.output, dec_txt_path)
+        dec_failed = [
+            (fname, col["column"], col["dec_file"], col["invalid_values"])
+            for fname, res in dec_summary.items()
+            for col in res["results"].get("column_results", [])
+            if col["status"] == "failed"
+        ]
+        dec_log = {
+            "timestamp": datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
+            "status": "completed",
+            "total_files_checked": len(dec_summary),
+            "total_failed_columns": len(dec_failed),
+            "details": {
+                fname: res["results"]
+                for fname, res in dec_summary.items()
+                if res["results"].get("columns_checked", 0) > 0
+            },
+        }
+        dec_log_path = os.path.join(logs_dir, "(5c)_dec_validation_log_latest.json")
+        with open(dec_log_path, "w", encoding="utf-8") as fh:
+            json.dump(dec_log, fh, ensure_ascii=False, indent=2)
+        print(f"[eencijferho] DEC validatie log opgeslagen: {dec_log_path}")
+
+        dec_failures = dv.read_dec_validation_log(dec_log_path)
+        if not dec_failures:
+            _console.print("[green]DEC validatie: alle kolommen OK[/green]")
+        else:
+            lines = ["[bold]DEC: ongeldige waarden gevonden:[/bold]"]
+            for f in dec_failures:
+                vals = ", ".join(str(v) for v in f["invalid_values"][:5])
+                if len(f["invalid_values"]) > 5:
+                    vals += f" ... (+{len(f['invalid_values']) - 5} meer)"
+                lines.append(
+                    f"  • [bold]{f['file']}[/bold] → kolom [yellow]{f['column']}[/yellow]"
+                    f" (via {f['dec_file']}): {vals}"
+                )
+            _console.print(Panel("\n".join(lines), title="⚠️  DEC validatie", border_style="yellow"))
 
 
 def cmd_convert(args: argparse.Namespace) -> None:
@@ -145,6 +252,11 @@ def main() -> None:
         parents=[_common],
         help="Run complete end-to-end pipeline (extract → validate → convert)",
     )
+    subparsers.add_parser(
+        "validate-output",
+        parents=[_common],
+        help="Validate converted output: column values + DEC decoder files (run after pipeline)",
+    )
 
     args = parser.parse_args()
 
@@ -153,6 +265,7 @@ def main() -> None:
         "validate": cmd_validate,
         "convert": cmd_convert,
         "pipeline": cmd_pipeline,
+        "validate-output": cmd_validate_output,
     }
     dispatch[args.command](args)
 
