@@ -6,6 +6,7 @@ import eencijferho.utils.converter_validation as cv
 import eencijferho.utils.compressor as co
 import eencijferho.utils.encryptor as en
 import eencijferho.utils.converter_headers as ch
+import eencijferho.utils.value_validation as vv
 import io
 import contextlib
 from typing import Any, Dict, List, Tuple
@@ -288,9 +289,21 @@ else:
 
 
                 status_text.text("✅ Verwerking succesvol voltooid!")
-                
+
                 output_dir = get_output_dir()
                 st.success(f"✅ **Verwerking voltooid!** Bestanden geconverteerd, gevalideerd, gecomprimeerd en versleuteld. Resultaten opgeslagen in `{output_dir}/`")
+
+                # Kolomwaarden validatie samenvatting
+                val_log_path = os.path.join(get_metadata_dir(), "logs", "(5b)_value_validation_log_latest.json")
+                val_failures = vv.read_value_validation_log(val_log_path)
+                if val_failures:
+                    lines = []
+                    for f in val_failures:
+                        vals = ", ".join(str(v) for v in f["invalid_values"][:5])
+                        if len(f["invalid_values"]) > 5:
+                            vals += f" ... (+{len(f['invalid_values']) - 5} meer)"
+                        lines.append(f"**{f['file']}** → kolom `{f['column']}`: {vals}")
+                    st.warning("**Let op: de volgende kolommen bevatten ongeldige waarden:**\n\n" + "\n\n".join(lines))
                 
                 # Show converted files
                 output_files = get_output_files()

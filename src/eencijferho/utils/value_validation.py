@@ -197,3 +197,27 @@ def validate_column_values_folder(
         summary[csv_file.name] = {"success": success, "results": results}
 
     return summary
+
+
+def read_value_validation_log(log_path: str | Path) -> List[Dict[str, Any]]:
+    """
+    Read (5b)_value_validation_log_latest.json and return a flat list of failing columns.
+
+    Returns list of dicts with keys: file, column, invalid_values.
+    Returns empty list if log does not exist or has no failures.
+    """
+    log_path = Path(log_path)
+    if not log_path.exists():
+        return []
+    with open(log_path, encoding="utf-8") as f:
+        data = json.load(f)
+    failures = []
+    for fname, file_results in data.get("details", {}).items():
+        for col in file_results.get("column_results", []):
+            if col.get("status") == "failed":
+                failures.append({
+                    "file": fname,
+                    "column": col["column"],
+                    "invalid_values": col["invalid_values"],
+                })
+    return failures

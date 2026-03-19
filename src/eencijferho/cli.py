@@ -29,6 +29,8 @@ Usage:
 import argparse
 import os
 from typing import Tuple
+from rich.console import Console
+from rich.panel import Panel
 from eencijferho.core.extractor import (
     process_txt_folder,
     write_variable_metadata,
@@ -37,6 +39,25 @@ from eencijferho.core.extractor import (
 from eencijferho.utils.extractor_validation import validate_metadata_folder
 from eencijferho.utils.converter_match import match_files
 from eencijferho.core.pipeline import run_turbo_convert_pipeline
+from eencijferho.utils.value_validation import read_value_validation_log
+
+_console = Console()
+
+
+def _print_value_validation_summary(logs_dir: str) -> None:
+    """Print a clear summary of value validation results to the CLI."""
+    log_path = os.path.join(logs_dir, "(5b)_value_validation_log_latest.json")
+    failures = read_value_validation_log(log_path)
+    if not failures:
+        _console.print("[green]Kolomwaarden validatie: alle kolommen OK[/green]")
+        return
+    lines = [f"[bold]Let op: de volgende kolommen bevatten ongeldige waarden:[/bold]"]
+    for f in failures:
+        vals = ", ".join(str(v) for v in f["invalid_values"][:5])
+        if len(f["invalid_values"]) > 5:
+            vals += f" ... (+{len(f['invalid_values']) - 5} meer)"
+        lines.append(f"  • [bold]{f['file']}[/bold] → kolom [yellow]{f['column']}[/yellow]: {vals}")
+    _console.print(Panel("\n".join(lines), title="⚠️  Kolomwaarden validatie", border_style="yellow"))
 
 
 def _resolve_dirs(output_dir: str) -> Tuple[str, str, str]:
@@ -70,7 +91,7 @@ def cmd_validate(args: argparse.Namespace) -> None:
 
 def cmd_convert(args: argparse.Namespace) -> None:
     """Run the full turbo convert pipeline."""
-    metadata_dir, _, _ = _resolve_dirs(args.output)
+    metadata_dir, _, logs_dir = _resolve_dirs(args.output)
     print(f"[eencijferho] Running turbo convert pipeline: {args.input} → {args.output}")
     log, output_files = run_turbo_convert_pipeline(
         input_dir=args.input,
@@ -81,6 +102,7 @@ def cmd_convert(args: argparse.Namespace) -> None:
     print(f"[eencijferho] Output files: {len(output_files)}")
     for f in output_files:
         print(f"  - {f['name']} ({f['size_formatted']})")
+    _print_value_validation_summary(logs_dir)
 
 
 def cmd_pipeline(args: argparse.Namespace) -> None:
@@ -111,6 +133,7 @@ def cmd_pipeline(args: argparse.Namespace) -> None:
     )
     print(log)
     print(f"[eencijferho] Pipeline complete. Output files: {len(output_files)}")
+    _print_value_validation_summary(logs_dir)
 
 
 def main() -> None:
