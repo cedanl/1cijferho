@@ -133,6 +133,9 @@ validate_page = st.Page(
 turbo_convert_page = st.Page(
     "frontend/Modules/Turbo_Convert.py", icon="⚡", title="Turbo Conversie"
 )
+validate_output_page = st.Page(
+    "frontend/Modules/Validate_Output.py", icon="🔎", title="Output valideren"
+)
 tip_page = st.Page("frontend/Modules/Tip.py", icon="💡", title="Tip")
 
 # -----------------------------------------------------------------------------
@@ -154,7 +157,7 @@ pg = st.navigation(
     {
         "Overview": [home_page, documentation_page],
         "Files": [data_upload_page],
-        "Modules": [extract_page, validate_page, turbo_convert_page, tip_page],
+        "Modules": [extract_page, validate_page, turbo_convert_page, validate_output_page, tip_page],
     }
 )
 

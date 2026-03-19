@@ -6,7 +6,6 @@ import eencijferho.utils.converter_validation as cv
 import eencijferho.utils.compressor as co
 import eencijferho.utils.encryptor as en
 import eencijferho.utils.converter_headers as ch
-import eencijferho.utils.dec_validation as dv
 import io
 import contextlib
 from typing import Any, Dict, List, Tuple
@@ -292,18 +291,6 @@ else:
                 
                 output_dir = get_output_dir()
                 st.success(f"✅ **Verwerking voltooid!** Bestanden geconverteerd, gevalideerd, gecomprimeerd en versleuteld. Resultaten opgeslagen in `{output_dir}/`")
-
-                # DEC validatie samenvatting
-                dec_log_path = os.path.join(get_metadata_dir(), "logs", "(5c)_dec_validation_log_latest.json")
-                dec_failures = dv.read_dec_validation_log(dec_log_path)
-                if dec_failures:
-                    lines = []
-                    for f in dec_failures:
-                        vals = ", ".join(str(v) for v in f["invalid_values"][:5])
-                        if len(f["invalid_values"]) > 5:
-                            vals += f" ... (+{len(f['invalid_values']) - 5} meer)"
-                        lines.append(f"**{f['file']}** → kolom `{f['column']}` (via `{f['dec_file']}`): {vals}")
-                    st.warning("**Let op: de volgende kolommen bevatten ongeldige waarden (DEC validatie):**\n\n" + "\n\n".join(lines))
 
                 # Show converted files
                 output_files = get_output_files()
