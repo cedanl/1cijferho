@@ -2,6 +2,8 @@
 Modular pipeline orchestrator for conversion, decoding, validation, compression, encryption, header normalization.
 """
 
+import json
+import datetime
 import os
 from eencijferho.core import converter, decoder
 import eencijferho.utils.converter_validation as cv
@@ -121,10 +123,8 @@ def run_turbo_convert_pipeline(
         else:
             log += "[pipeline] Column value validation passed.\n"
         # Save value validation log
-        import json as _json
-        import datetime as _dt
         val_log = {
-            "timestamp": _dt.datetime.now().strftime("%Y%m%d_%H%M%S"),
+            "timestamp": datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
             "status": "completed",
             "total_files_checked": len(value_val_summary),
             "total_failed_columns": len(failed_cols),
@@ -137,7 +137,7 @@ def run_turbo_convert_pipeline(
         val_log_path = os.path.join(logs_dir, "(5b)_value_validation_log_latest.json")
         os.makedirs(logs_dir, exist_ok=True)
         with open(val_log_path, "w", encoding="utf-8") as _f:
-            _json.dump(val_log, _f, ensure_ascii=False, indent=2)
+            json.dump(val_log, _f, ensure_ascii=False, indent=2)
         log += f"[pipeline] Value validation log saved to {val_log_path}\n"
     else:
         log += "[pipeline] variable_metadata.json niet gevonden, kolomwaarden validatie overgeslagen.\n"

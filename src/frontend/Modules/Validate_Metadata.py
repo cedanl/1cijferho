@@ -8,7 +8,7 @@ import eencijferho.utils.value_validation as vv
 import io
 import contextlib
 from typing import Any, Dict, List, Optional, Tuple
-from config import get_input_dir, get_metadata_dir
+from config import get_input_dir, get_metadata_dir, get_output_dir
 
 # -----------------------------------------------------------------------------
 # Helper Functions
@@ -248,8 +248,6 @@ st.write(
     "Controleer of de waarden in geconverteerde CSV-bestanden overeenkomen met de "
     "toegestane waarden uit de bestandsbeschrijving. Voer dit uit nadat **Turbo Convert** is voltooid."
 )
-
-from config import get_output_dir  # noqa: E402
 
 output_dir = get_output_dir()
 variable_metadata_path = os.path.join(get_metadata_dir(), "json", "variable_metadata.json")
