@@ -123,7 +123,7 @@ Wat gebeurt er:
 - Bestanden comprimeren voor efficiënte opslag
 - Gevoelige gegevens versleutelen in een aparte kopie
 - Kolomnamen standaardiseren
-- Alles opslaan in `data/02-output/` + ballonnen 🎈 als het klaar is!
+- Alles opslaan in de uitvoermap + ballonnen 🎈 als het klaar is!
 
 Gaat er iets mis? Kijk dan hieronder in het log voor details.
 """)
@@ -224,13 +224,13 @@ else:
                 status_text.text("✅ Verwerking succesvol voltooid!")
 
                 output_dir = get_output_dir()
-                st.success(f"✅ **Verwerking voltooid!** Bestanden geconverteerd, gevalideerd, gecomprimeerd en versleuteld. Resultaten opgeslagen in `{output_dir}/`")
+                st.success("✅ **Verwerking voltooid!** Bestanden geconverteerd, gevalideerd, gecomprimeerd en versleuteld.")
 
                 # Show converted files
                 output_files = get_output_files()
                 if output_files:
                     with st.expander(f"📁 Geconverteerde bestanden ({len(output_files)} bestanden)", expanded=True):
-                        st.write(f"**Bestanden succesvol aangemaakt in `{output_dir}/`:**")
+                        st.write("**Aangemaakte bestanden:**")
                         
                         # Group files by type for better organization
                         csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv') and not f['name'].endswith('_decoded.csv')]
@@ -295,8 +295,8 @@ with st.expander("📋 Console Log", expanded=True):
 output_files = get_output_files()
 output_dir = get_output_dir()
 if output_files:
-    with st.expander(f"📁 Geconverteerde bestanden ({len(output_files)} files)", expanded=False):
-        st.write(f"**Bestanden momenteel in `{output_dir}/`:**")
+    with st.expander(f"📁 Geconverteerde bestanden ({len(output_files)} bestanden)", expanded=False):
+        st.write("**Bestanden in de uitvoermap:**")
         
         # Group files by type for better organization
         csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv')]
@@ -319,7 +319,7 @@ if output_files:
                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
         
 else:
-    st.info(f"📁 Nog geen geconverteerde bestanden gevonden in `{output_dir}/`.")
+    st.info("📁 Nog geen geconverteerde bestanden gevonden. Voer eerst de conversie uit.")
 
 # Warning about existing files
 if os.path.exists(output_dir) and os.listdir(output_dir):

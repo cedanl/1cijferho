@@ -137,7 +137,7 @@ else:
         with st.spinner("Kolomwaarden valideren..."):
             val_log, error = _run_value_validation()
         if error:
-            st.warning(error)
+            st.error(error)
         else:
             total = sum(d.get("columns_checked", 0) for d in val_log["details"].values())
             failed = val_log["total_failed_columns"]
@@ -172,7 +172,7 @@ else:
 
     # --- Section 2: DEC validation ---
     st.subheader("DEC codes validatie")
-    st.caption("Controleert codes en codeparen uit `Bestandsbeschrijving_Dec-bestanden_*.txt`")
+    st.caption("Controleert of codes en codeparen voorkomen in de DEC-decodeerbestanden")
 
     col3, col4 = st.columns(2)
     with col3:
@@ -188,7 +188,7 @@ else:
         with st.spinner("DEC validatie uitvoeren..."):
             dec_log, error = _run_dec_validation()
         if error:
-            st.warning(error)
+            st.error(error)
         else:
             total = sum(d.get("columns_checked", 0) for d in dec_log["details"].values())
             failed = dec_log["total_failed_columns"]

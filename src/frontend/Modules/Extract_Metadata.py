@@ -72,7 +72,7 @@ We lezen nu uw Bestandsbeschrijving-bestanden om te bepalen waar elk veld staat 
 Wat gebeurt er:
 - Veldposities extraheren uit uw .txt-bestanden
 - Omzetten naar JSON-formaat, daarna Excel
-- Opslaan in de map `data/00-metadata/`
+- Opslaan als bestandsbeschrijvingen klaar voor validatie
 """)
 
 with st.expander("🚨 Bestaande Bestandsbeschrijvingen"):
