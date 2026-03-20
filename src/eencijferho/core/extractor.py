@@ -196,7 +196,7 @@ def extract_tables_from_txt(txt_file: str, json_output_folder: str) -> Optional[
         base_filename = os.path.splitext(os.path.basename(txt_file))[0]
         json_path = os.path.join(json_output_folder, f"{base_filename}.json")
 
-        with open(json_path, "w", encoding="latin-1") as json_file:
+        with open(json_path, "w", encoding="utf-8") as json_file:
             json.dump(
                 {"filename": base_filename, "tables": all_tables},
                 json_file,
@@ -294,9 +294,9 @@ def process_txt_folder(
     log_data["total_files_extracted"] = len(extracted_files)
 
     # Save log file to both locations
-    with open(timestamped_log_file, "w", encoding="latin1") as f:
+    with open(timestamped_log_file, "w", encoding="utf-8") as f:
         json.dump(log_data, f, indent=2)
-    with open(latest_log_file, "w", encoding="latin1") as f:
+    with open(latest_log_file, "w", encoding="utf-8") as f:
         json.dump(log_data, f, indent=2)
 
     # Print summary to console
@@ -314,9 +314,9 @@ def process_txt_folder(
     dec_json = next((f for f in extracted_files if "Dec-bestanden" in f), None)
     if vakken_json and dec_json and os.path.exists(vakken_json) and os.path.exists(dec_json):
         try:
-            with open(vakken_json, "r", encoding="latin-1") as f_vak:
+            with open(vakken_json, "r", encoding="utf-8") as f_vak:
                 vak_data = json.load(f_vak)
-            with open(dec_json, "r", encoding="latin-1") as f_dec:
+            with open(dec_json, "r", encoding="utf-8") as f_dec:
                 dec_data = json.load(f_dec)
             # Find Dec_vakcode table in vak_data
             vakcode_tables = [
@@ -345,7 +345,7 @@ def process_txt_folder(
                         dec_data["tables"].append(t)
                         existing_titles.append(t["table_title"].lower())
                 # Save back
-                with open(dec_json, "w", encoding="latin-1") as f_dec:
+                with open(dec_json, "w", encoding="utf-8") as f_dec:
                     json.dump(dec_data, f_dec, indent=2, ensure_ascii=False)
                 console.print(
                     f"[cyan]Patched: Added Dec_vakcode table(s) from Vakkenbestanden JSON to Dec-bestanden JSON with correct title and table_number."
@@ -467,7 +467,7 @@ def extract_excel_from_json(
 
     # Load the JSON file with appropriate encoding
     try:
-        with open(json_file, "r", encoding="latin1") as file:
+        with open(json_file, "r", encoding="utf-8") as file:
             data = json.load(file)
     except json.JSONDecodeError as e:
         # Handle JSON parsing errors
@@ -834,9 +834,9 @@ def process_json_folder(
         log_data["status"] = "completed"
         log_data["message"] = "No JSON files found"
         # Save to both log files
-        with open(timestamped_log_file, "w", encoding="latin1") as f:
+        with open(timestamped_log_file, "w", encoding="utf-8") as f:
             json.dump(log_data, f, indent=2)
-        with open(latest_log_file, "w", encoding="latin1") as f:
+        with open(latest_log_file, "w", encoding="utf-8") as f:
             json.dump(log_data, f, indent=2)
         return None
 
@@ -886,9 +886,9 @@ def process_json_folder(
     log_data["row_count_mismatches"] = total_row_mismatches
 
     # Save log file to both locations
-    with open(timestamped_log_file, "w", encoding="latin1") as f:
+    with open(timestamped_log_file, "w", encoding="utf-8") as f:
         json.dump(log_data, f, indent=2)
-    with open(latest_log_file, "w", encoding="latin1") as f:
+    with open(latest_log_file, "w", encoding="utf-8") as f:
         json.dump(log_data, f, indent=2)
 
     # Print summary to console

@@ -36,19 +36,16 @@ def clean_header_name(name: str) -> str:
         str: Cleaned header name.
 
     Edge Cases:
-        - Handles corrupted characters and fraction slashes.
-        - Strips whitespace and fixes specific corruption patterns.
+        - Handles fraction slashes (U+2044 → /).
+        - Strips leading/trailing whitespace.
 
     Example:
-        >>> clean_header_name('vóór/3a3')
-        'voor/a'
+        >>> clean_header_name('vóór')
+        'voor'
     """
     name = unicodedata.normalize('NFKD', str(name))
     name = ''.join(c for c in name if not unicodedata.combining(c))
-    name = name.replace('\u2044', '/')  # Replace fraction slash if present
-    name = name.replace('�', 'e')  # Replace common corruption with 'e'
-    name = name.replace('3a3', 'a')  # Fix specific corruption pattern
-    name = name.encode('utf-8', errors='replace').decode('utf-8')
+    name = name.replace('⁄', '/')  # Replace fraction slash if present
     name = name.strip()
     return name
 

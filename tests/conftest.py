@@ -81,7 +81,7 @@ def make_validation_log(tmp_path):
         data = {"timestamp": "20240101_000000", "processed_files": entries}
         p = tmp_path / "logs" / filename
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps(data, indent=2), encoding="latin-1")
+        p.write_text(json.dumps(data, indent=2), encoding="utf-8")
         return p
 
     return _make
