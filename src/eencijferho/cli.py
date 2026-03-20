@@ -213,11 +213,12 @@ def cmd_decode(args: argparse.Namespace) -> None:
 def cmd_enrich(args: argparse.Namespace) -> None:
     """Apply variable_metadata label substitution to decoded CSV files.
 
-    Skips writing _enriched when the result is identical to _decoded
-    (e.g. for VAKHAVW which has no variable_metadata mappings).
+    Skips decode_fields entirely when no variable_metadata mappings apply to
+    the columns of a given file (avoids unnecessary computation on large files).
     """
     import glob as _glob
-    from eencijferho.core.decoder import decode_fields, load_dec_tables_from_metadata
+    from eencijferho.core.decoder import decode_fields, load_dec_tables_from_metadata, load_variable_mappings
+    from eencijferho.utils.converter_headers import normalize_name, clean_header_name
     import polars as pl
 
     _, json_dir, _ = _resolve_dirs(args.output)
@@ -231,6 +232,7 @@ def cmd_enrich(args: argparse.Namespace) -> None:
     dec_metadata_json = dec_json_matches[0]
     dec_tables = load_dec_tables_from_metadata(dec_metadata_json, args.output)
     variable_metadata_json = os.path.join(json_dir, "variable_metadata.json")
+    var_maps = load_variable_mappings(variable_metadata_json)
 
     written = skipped = 0
     for fname in os.listdir(args.output):
@@ -240,22 +242,22 @@ def cmd_enrich(args: argparse.Namespace) -> None:
         base = in_path.replace("_decoded.csv", ".csv")
         if not os.path.exists(base):
             continue
-        decoded_df = pl.read_csv(in_path, separator=";", encoding="utf-8")
         main_df = pl.read_csv(base, separator=";", encoding="utf-8")
+        normalized_cols = {normalize_name(clean_header_name(c)) for c in main_df.columns}
+        if not (var_maps and normalized_cols & set(var_maps.keys())):
+            print(f"[eencijferho] Overgeslagen (geen mappings): {fname}")
+            skipped += 1
+            continue
         enriched_df = decode_fields(
             main_df, dec_metadata_json, dec_tables,
             variable_metadata_path=variable_metadata_json,
         )
-        if enriched_df.equals(decoded_df):
-            print(f"[eencijferho] Overgeslagen (identiek): {fname}")
-            skipped += 1
-        else:
-            out_path = in_path.replace("_decoded.csv", "_enriched.csv")
-            with open(out_path, "w", encoding="utf-8") as f:
-                f.write(enriched_df.write_csv(separator=";"))
-            print(f"[eencijferho] Verrijkt: {fname} → {os.path.basename(out_path)}")
-            written += 1
-    print(f"[eencijferho] {written} verrijkt, {skipped} overgeslagen (identiek aan _decoded).")
+        out_path = in_path.replace("_decoded.csv", "_enriched.csv")
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(enriched_df.write_csv(separator=";"))
+        print(f"[eencijferho] Verrijkt: {fname} → {os.path.basename(out_path)}")
+        written += 1
+    print(f"[eencijferho] {written} verrijkt, {skipped} overgeslagen (geen mappings).")
 
 
 def cmd_convert(args: argparse.Namespace) -> None:
