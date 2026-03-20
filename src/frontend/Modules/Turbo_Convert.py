@@ -3,6 +3,7 @@ import glob
 import streamlit as st
 import eencijferho.core.pipeline as pipeline
 from eencijferho.config import OutputConfig
+from eencijferho.core.decoder import get_available_decode_columns, get_available_enrich_variables
 from typing import Any, Dict, List, Tuple
 from config import get_input_dir, get_output_dir, get_metadata_dir
 
@@ -184,6 +185,39 @@ else:
                 opt_snake_case = st.checkbox("Kolomnamen standaardiseren (snake_case)", value=True, key="opt_snake_case",
                     help="Converteert kolomnamen naar snake_case (bijv. 'Naam Student' → 'naam_student').")
 
+            # Column selection — populated from metadata produced by the extract step
+            import glob as _glob
+            metadata_dir = get_metadata_dir()
+            json_dir = os.path.join(metadata_dir, "json")
+            dec_json_matches = _glob.glob(os.path.join(json_dir, "Bestandsbeschrijving_Dec-bestanden*.json"))
+            variable_metadata_path = os.path.join(json_dir, "variable_metadata.json")
+
+            available_decode = get_available_decode_columns(dec_json_matches[0] if dec_json_matches else "")
+            available_enrich = get_available_enrich_variables(variable_metadata_path)
+
+            if available_decode:
+                opt_decode_columns = st.multiselect(
+                    "Te decoderen kolommen",
+                    options=available_decode,
+                    default=available_decode,
+                    key="opt_decode_columns",
+                    help="Kies welke kolommen worden gekoppeld aan Dec_*-opzoekbestanden. Standaard alle beschikbare kolommen.",
+                )
+            else:
+                opt_decode_columns = None
+                st.caption("_Dec-metadata nog niet beschikbaar — voer eerst de extractiestap uit._")
+
+            if available_enrich:
+                opt_enrich_variables = st.multiselect(
+                    "Te verrijken variabelen",
+                    options=available_enrich,
+                    default=available_enrich,
+                    key="opt_enrich_variables",
+                    help="Kies welke variabelen worden verrijkt met labels uit de bestandsbeschrijvingen. Standaard alle beschikbare variabelen.",
+                )
+            else:
+                opt_enrich_variables = None
+
     # Side-by-side buttons with equal width
     if successful_pairs:
         col1, col2 = st.columns(2)
@@ -243,6 +277,8 @@ else:
                     variants.append("decoded")
                     if st.session_state.get("opt_enriched", True):
                         variants.append("enriched")
+                sel_decode = st.session_state.get("opt_decode_columns")
+                sel_enrich = st.session_state.get("opt_enrich_variables")
                 output_cfg = OutputConfig(
                     variants=variants,
                     formats=["parquet"] if st.session_state.get("opt_parquet", True) else [],
@@ -250,6 +286,8 @@ else:
                     column_casing="snake_case" if st.session_state.get("opt_snake_case", True) else "none",
                     convert_ev=do_convert_ev,
                     convert_vakhavw=do_convert_vakhavw,
+                    decode_columns=sel_decode if sel_decode and len(sel_decode) < len(available_decode) else None,
+                    enrich_variables=sel_enrich if sel_enrich and len(sel_enrich) < len(available_enrich) else None,
                 )
 
                 log, output_files = pipeline.run_turbo_convert_pipeline(

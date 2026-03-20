@@ -271,13 +271,22 @@ def _apply_dec_tables(
     meta: dict,
     dec_tables: dict[str, pl.DataFrame],
     naming_func: Optional[Callable] = None,
+    decode_columns: Optional[list[str]] = None,
 ) -> pl.DataFrame:
     """Apply all Dec table joins defined in metadata to result_df.
 
     Fixes a previous bug where an outer loop shadowed itself, causing each
     table's join to be applied N times instead of once.
+
+    Args:
+        decode_columns: When not None, only decode variables whose name
+            appears in this list (matched after normalization).
     """
     from eencijferho.utils.converter_headers import strip_accents
+
+    allowed: Optional[set[str]] = None
+    if decode_columns is not None:
+        allowed = {normalize_name(strip_accents(c), naming_func) for c in decode_columns}
 
     for table in meta["tables"]:
         dec_vars = table.get("decoding_variables", [])
@@ -289,6 +298,11 @@ def _apply_dec_tables(
             dec_vars = [content[1].split("  ")[0].strip()]
 
         if not dec_vars or dec_table is None or len(content) < 2:
+            continue
+
+        if allowed is not None:
+            dec_vars = [v for v in dec_vars if normalize_name(strip_accents(v), naming_func) in allowed]
+        if not dec_vars:
             continue
 
         code_col_raw = content[1].split("  ")[0].strip()
@@ -540,14 +554,27 @@ def _apply_variable_mappings(
     naming_func: Optional[Callable],
     norm_map: dict[str, str],
     orig_columns: list[str],
+    enrich_variables: Optional[list[str]] = None,
 ) -> pl.DataFrame:
     """Apply variable-level code→label mappings from variable_metadata.json.
 
     When variable_metadata_path is None or the file is absent, returns result_df unchanged.
     This is the step that differentiates decode_fields from decode_fields_dec_only.
+
+    Args:
+        enrich_variables: When not None, only apply mappings for variables
+            whose name appears in this list (matched after normalization).
     """
+    allowed_enrich: Optional[set[str]] = None
+    if enrich_variables is not None:
+        allowed_enrich = {normalize_name(v, naming_func) for v in enrich_variables}
+
     try:
         var_maps = load_variable_mappings(variable_metadata_path, naming_func=naming_func)
+        if not var_maps:
+            return result_df
+        if allowed_enrich is not None:
+            var_maps = {k: v for k, v in var_maps.items() if k in allowed_enrich}
         if not var_maps:
             return result_df
         print(f"[decoder] {len(var_maps)} variabele-mappings toepassen...")
@@ -670,6 +697,61 @@ def _apply_single_mapping(
 
 
 # ---------------------------------------------------------------------------
+# Public: metadata discovery helpers
+# ---------------------------------------------------------------------------
+
+
+def get_available_decode_columns(dec_metadata_json_path: str) -> list[str]:
+    """Return all column names that can be decoded via Dec_* lookup tables.
+
+    Reads the decoding_variables from each table in the Dec bestandsbeschrijving
+    JSON produced by the extract step.  Returns an empty list when the file is
+    absent or unreadable.
+
+    Args:
+        dec_metadata_json_path: Path to Bestandsbeschrijving_Dec-bestanden*.json.
+
+    Returns:
+        Sorted list of unique column names available for Dec decoding.
+    """
+    if not dec_metadata_json_path or not os.path.exists(dec_metadata_json_path):
+        return []
+    try:
+        with open(dec_metadata_json_path, encoding="utf-8") as f:
+            meta = json.load(f)
+        seen: set[str] = set()
+        for table in meta.get("tables", []):
+            for var in table.get("decoding_variables", []):
+                if var and var not in seen:
+                    seen.add(var)
+        return sorted(seen)
+    except Exception:
+        return []
+
+
+def get_available_enrich_variables(variable_metadata_json_path: str) -> list[str]:
+    """Return all variable names available for label enrichment.
+
+    Reads the variable names from variable_metadata.json produced by the
+    extract step.  Returns an empty list when the file is absent or unreadable.
+
+    Args:
+        variable_metadata_json_path: Path to variable_metadata.json.
+
+    Returns:
+        Sorted list of unique variable names available for enrichment.
+    """
+    if not variable_metadata_json_path or not os.path.exists(variable_metadata_json_path):
+        return []
+    try:
+        with open(variable_metadata_json_path, encoding="utf-8") as f:
+            items = json.load(f)
+        return sorted(item["name"] for item in items if item.get("name"))
+    except Exception:
+        return []
+
+
+# ---------------------------------------------------------------------------
 # Public: decode functions
 # ---------------------------------------------------------------------------
 
@@ -679,6 +761,7 @@ def decode_fields_dec_only(
     metadata_json_path: str,
     dec_tables: dict[str, pl.DataFrame],
     naming_func: Optional[Callable[[str], str]] = None,
+    decode_columns: Optional[list[str]] = None,
 ) -> pl.DataFrame:
     """
     Decode fields using only Dec_* lookup tables (no variable_metadata enrichment).
@@ -692,13 +775,15 @@ def decode_fields_dec_only(
         metadata_json_path: Path to Bestandsbeschrijving_Dec-bestanden JSON.
         dec_tables: Dec_* DataFrames keyed by table title.
         naming_func: Optional column name normalizer.
+        decode_columns: When not None, only decode these column names.
+            Use get_available_decode_columns() to discover valid names.
 
     Returns:
         DataFrame with Dec-decoded columns appended.
     """
     meta = _load_meta(metadata_json_path)
     norm_df, norm_map, _orig = _normalize_df(df, naming_func)
-    result_df = _apply_dec_tables(norm_df, meta, dec_tables, naming_func)
+    result_df = _apply_dec_tables(norm_df, meta, dec_tables, naming_func, decode_columns)
     result_df = _apply_vakken_patch(result_df, meta, dec_tables, naming_func)
     return result_df.rename({k: v for k, v in norm_map.items() if k in result_df.columns})
 
@@ -709,6 +794,8 @@ def decode_fields(
     dec_tables: dict[str, pl.DataFrame],
     naming_func: Optional[Callable[[str], str]] = None,
     variable_metadata_path: Optional[str] = None,
+    decode_columns: Optional[list[str]] = None,
+    enrich_variables: Optional[list[str]] = None,
 ) -> pl.DataFrame:
     """
     Decode fields using Dec_* tables, then apply variable_metadata label substitution.
@@ -724,6 +811,11 @@ def decode_fields(
         naming_func: Optional column name normalizer.
         variable_metadata_path: Path to variable_metadata.json. Falls back to
             the default location when None.
+        decode_columns: When not None, only decode these column names via
+            Dec_* tables.  Use get_available_decode_columns() to discover valid names.
+        enrich_variables: When not None, only apply variable_metadata labels
+            for these variable names.  Use get_available_enrich_variables() to
+            discover valid names.
 
     Returns:
         DataFrame with Dec-decoded columns appended and variable-level labels
@@ -731,10 +823,10 @@ def decode_fields(
     """
     meta = _load_meta(metadata_json_path)
     norm_df, norm_map, orig_columns = _normalize_df(df, naming_func)
-    result_df = _apply_dec_tables(norm_df, meta, dec_tables, naming_func)
+    result_df = _apply_dec_tables(norm_df, meta, dec_tables, naming_func, decode_columns)
     result_df = _apply_vakken_patch(result_df, meta, dec_tables, naming_func)
     result_df = _apply_variable_mappings(
-        result_df, variable_metadata_path, naming_func, norm_map, orig_columns
+        result_df, variable_metadata_path, naming_func, norm_map, orig_columns, enrich_variables
     )
     return result_df.rename({k: v for k, v in norm_map.items() if k in result_df.columns})
 
