@@ -47,9 +47,6 @@ st.write("""
 Zet DUO-bestanden automatisch om naar bruikbare CSV- en Parquet-bestanden. Geen technische kennis vereist.
 """)
 
-# Beta version info
-st.info("✨ v0.9 - Alle kernfuncties gereed! Help ons verbeteren met uw feedback.", icon="🎯")
-
 # Try the application section
 st.write("Begin door uw databestanden hieronder te uploaden:")
 
