@@ -279,6 +279,8 @@ def _build_output_config(args: argparse.Namespace) -> OutputConfig:
         formats=formats,
         encrypt=not args.skip_encrypt,
         column_casing="none" if args.skip_snake_case else "snake_case",
+        convert_ev=not args.skip_ev,
+        convert_vakhavw=not args.skip_vakhavw,
     )
 
 
@@ -361,6 +363,14 @@ def main() -> None:
     _output_opts.add_argument(
         "--skip-snake-case", action="store_true",
         help="Keep original column names (do not convert to snake_case)",
+    )
+    _output_opts.add_argument(
+        "--skip-ev", action="store_true",
+        help="Do not convert EV main data files",
+    )
+    _output_opts.add_argument(
+        "--skip-vakhavw", action="store_true",
+        help="Do not convert VAKHAVW main data files",
     )
 
     subparsers.add_parser(

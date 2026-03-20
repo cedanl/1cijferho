@@ -219,6 +219,7 @@ def run_conversions_from_matches(
     metadata_folder: str = "data/00-metadata",
     match_log_file: str = "data/00-metadata/logs/(4)_file_matching_log_latest.json",
     output_folder: str | None = None,
+    skip_prefixes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     Runs conversion for all matched input/metadata file pairs based on a match log.
@@ -228,6 +229,9 @@ def run_conversions_from_matches(
         metadata_folder (str): Folder with metadata files. Defaults to 'data/00-metadata'.
         match_log_file (str): Path to the match log JSON.
         output_folder (str | None): Output folder for converted CSVs.
+        skip_prefixes (list[str] | None): File name prefixes to skip. When None
+            all matched files are converted.  Example: ``["EV", "VAKHAVW"]``
+            skips main data files and only converts Dec_* lookup files.
 
     Returns:
         dict[str, Any]: Summary with counts and per-file details.
@@ -284,6 +288,21 @@ def run_conversions_from_matches(
         task = progress.add_task("", total=len(valid_files))
 
         for file_info in processed_files:
+            if skip_prefixes and any(
+                file_info["input_file"].startswith(p) for p in skip_prefixes
+            ):
+                results["skipped_files"] += 1
+                results["skipped_file_pairs"].append({
+                    "input_file": file_info["input_file"],
+                    "reason": "Overgeslagen op basis van bestandsprefix-filter",
+                })
+                results["details"].append({
+                    "input_file": file_info["input_file"],
+                    "status": "skipped",
+                    "reason": "Overgeslagen op basis van bestandsprefix-filter",
+                })
+                progress.update(task, advance=1)
+                continue
             file_result = _convert_one(file_info, input_folder, metadata_folder, output_folder)
 
             if file_result["status"] == "success":
