@@ -208,7 +208,7 @@ else:
                 opt_decode_columns = []
                 for col in available_decode:
                     labels = decode_info.get(col, [])
-                    col_help = "Toegevoegde kolommen:\n" + "\n".join(labels) if labels else None
+                    col_help = "Toegevoegde kolommen:  \n" + "  \n".join(labels) if labels else None
                     if st.checkbox(col, value=True, key=f"decode_col_{col}", help=col_help):
                         opt_decode_columns.append(col)
             else:
@@ -220,7 +220,7 @@ else:
                 opt_enrich_variables = []
                 for var in available_enrich:
                     sample = enrich_info.get(var, {})
-                    var_help = "\n".join(f"{k}→{v}" for k, v in sample.items()) if sample else None
+                    var_help = "  \n".join(f"{k}→{v}" for k, v in sample.items()) if sample else None
                     if st.checkbox(var, value=True, key=f"enrich_var_{var}", help=var_help):
                         opt_enrich_variables.append(var)
             else:
