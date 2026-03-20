@@ -77,10 +77,10 @@ def _load_metadata(metadata_file: str) -> tuple[list[str], list[tuple[int, int]]
     return column_names, positions
 
 
-def _count_lines(input_file: str) -> int:
-    """Count lines in a binary file without loading the full content into memory."""
-    with open(input_file, 'rb') as f:
-        return sum(1 for _ in f)
+def _read_lines(input_file: str) -> list[str]:
+    """Read all lines from a latin-1 encoded fixed-width file."""
+    with open(input_file, 'r', encoding='latin1') as f:
+        return f.readlines()
 
 
 def _write_header(output_file: str, column_names: list[str]) -> None:
@@ -137,11 +137,10 @@ def converter(input_file: str, metadata_file: str, output_dir: str | None = None
     os.makedirs(os.path.dirname(output_file) or '.', exist_ok=True)
 
     column_names, positions = _load_metadata(metadata_file)
-    total_lines = _count_lines(input_file)
     _write_header(output_file, column_names)
 
-    with open(input_file, 'r', encoding='latin1') as f:
-        all_lines = f.readlines()
+    all_lines = _read_lines(input_file)
+    total_lines = len(all_lines)
 
     if mp.current_process().name == 'MainProcess':
         _run_parallel(all_lines, positions, output_file)

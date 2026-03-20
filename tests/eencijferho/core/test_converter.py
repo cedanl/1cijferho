@@ -9,7 +9,7 @@ from eencijferho.core.converter import (
     converter,
     _resolve_output_path,
     _load_metadata,
-    _count_lines,
+    _read_lines,
     _write_header,
     _run_serial,
     _load_match_log,
@@ -135,18 +135,26 @@ def test_load_metadata_positions_are_cumulative(metadata_xlsx):
 
 
 # ---------------------------------------------------------------------------
-# _count_lines
+# _read_lines
 # ---------------------------------------------------------------------------
 
 
-def test_count_lines_correct(fixed_width_file):
-    assert _count_lines(str(fixed_width_file)) == 3
+def test_read_lines_returns_all_lines(fixed_width_file):
+    lines = _read_lines(str(fixed_width_file))
+    assert len(lines) == 3
 
 
-def test_count_lines_empty_file(tmp_path):
+def test_read_lines_empty_file(tmp_path):
     f = tmp_path / "empty.asc"
     f.write_bytes(b"")
-    assert _count_lines(str(f)) == 0
+    assert _read_lines(str(f)) == []
+
+
+def test_read_lines_latin1_encoding(tmp_path):
+    f = tmp_path / "latin1.asc"
+    f.write_bytes("café".encode("latin-1"))
+    lines = _read_lines(str(f))
+    assert "caf" in lines[0]
 
 
 # ---------------------------------------------------------------------------
