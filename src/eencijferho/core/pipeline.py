@@ -6,6 +6,7 @@ import glob
 import json
 import datetime
 import os
+from eencijferho.config import OutputConfig
 from eencijferho.core import converter, decoder
 import eencijferho.utils.converter_validation as cv
 import eencijferho.utils.compressor as co
@@ -21,6 +22,7 @@ def run_turbo_convert_pipeline(
     metadata_dir: str | None = None,
     progress_callback: Optional[Callable[[int], None]] = None,
     status_callback: Optional[Callable[[str], None]] = None,
+    output_config: OutputConfig | None = None,
 ) -> Tuple[str, List[Dict[str, Any]]]:
     """Run the full turbo-convert pipeline.
 
@@ -33,7 +35,12 @@ def run_turbo_convert_pipeline(
             *None* it defaults to ``data/00-metadata`` (legacy behaviour).
         progress_callback: Optional callable(int) for progress 0-100.
         status_callback: Optional callable(str) for status messages.
+        output_config: Controls which output variants are produced.  When
+            *None* the defaults from :class:`OutputConfig` are used
+            (decoded + enriched + parquet + encrypt + snake_case).
     """
+    if output_config is None:
+        output_config = OutputConfig()
     # Resolve metadata_dir and dec_metadata_json from arguments
     if metadata_dir is None:
         from eencijferho.config import METADATA_DIR
@@ -62,9 +69,12 @@ def run_turbo_convert_pipeline(
     if progress_callback:
         progress_callback(30)
     # Step 2: Decode main files
-    if status_callback:
-        status_callback("🔤 Gedecodeerde bestanden aanmaken...")
-    log += "[pipeline] Gedecodeerde bestanden aanmaken...\n"
+    do_decode = "decoded" in output_config.variants
+    do_enrich = "enriched" in output_config.variants
+    if do_decode or do_enrich:
+        if status_callback:
+            status_callback("🔤 Gedecodeerde bestanden aanmaken...")
+        log += "[pipeline] Gedecodeerde bestanden aanmaken...\n"
     dec_dir = output_dir
     os.makedirs(dec_dir, exist_ok=True)
     decoded_count = 0
@@ -73,7 +83,7 @@ def run_turbo_convert_pipeline(
     dec_tables = decoder.load_dec_tables_from_metadata(dec_metadata_json, dec_dir)
     var_maps = decoder.load_variable_mappings(variable_metadata_json)
 
-    if os.path.isdir(dec_dir):
+    if (do_decode or do_enrich) and os.path.isdir(dec_dir):
         for file in os.listdir(dec_dir):
             if (
                 (file.startswith("EV") or file.startswith("VAKHAVW"))
@@ -83,37 +93,42 @@ def run_turbo_convert_pipeline(
                 file_path = os.path.join(dec_dir, file)
                 main_df = decoder.pl.read_csv(file_path, separator=";", encoding="utf-8")
 
-                # DEC-only decode
-                dec_only_df = decoder.decode_fields_dec_only(
-                    main_df, dec_metadata_json, dec_tables
-                )
-                dec_only_file = file_path.replace(".csv", "_decoded.csv")
-                with open(dec_only_file, "w", encoding="utf-8") as f:
-                    f.write(dec_only_df.write_csv(separator=";"))
-
-                # Enriched decode:
-                # 1. Skip entirely when no column names overlap with var_maps (fast path).
-                # 2. When overlap exists, compute decode_fields and only write when the
-                #    result actually differs from _decoded (correct, no redundant files).
-                normalized_cols = {
-                    ch.normalize_name(ch.clean_header_name(c)) for c in main_df.columns
-                }
-                if not (var_maps and normalized_cols & set(var_maps.keys())):
-                    log += f"[pipeline] {os.path.basename(file_path)}: geen variable_metadata mappings, _enriched overgeslagen.\n"
-                else:
-                    enriched_df = decoder.decode_fields(
-                        main_df, dec_metadata_json, dec_tables,
-                        variable_metadata_path=variable_metadata_json,
+                if do_decode:
+                    # DEC-only decode
+                    dec_only_df = decoder.decode_fields_dec_only(
+                        main_df, dec_metadata_json, dec_tables
                     )
-                    if not enriched_df.equals(dec_only_df):
-                        enriched_file = file_path.replace(".csv", "_enriched.csv")
-                        with open(enriched_file, "w", encoding="utf-8") as f:
-                            f.write(enriched_df.write_csv(separator=";"))
+                    dec_only_file = file_path.replace(".csv", "_decoded.csv")
+                    with open(dec_only_file, "w", encoding="utf-8") as f:
+                        f.write(dec_only_df.write_csv(separator=";"))
+                else:
+                    dec_only_df = None
+
+                if do_enrich:
+                    # Enriched decode:
+                    # 1. Skip entirely when no column names overlap with var_maps (fast path).
+                    # 2. When overlap exists, compute decode_fields and only write when the
+                    #    result actually differs from _decoded (correct, no redundant files).
+                    normalized_cols = {
+                        ch.normalize_name(ch.clean_header_name(c)) for c in main_df.columns
+                    }
+                    if not (var_maps and normalized_cols & set(var_maps.keys())):
+                        log += f"[pipeline] {os.path.basename(file_path)}: geen variable_metadata mappings, _enriched overgeslagen.\n"
                     else:
-                        log += f"[pipeline] {os.path.basename(file_path)}: _enriched identiek aan _decoded, overgeslagen.\n"
+                        enriched_df = decoder.decode_fields(
+                            main_df, dec_metadata_json, dec_tables,
+                            variable_metadata_path=variable_metadata_json,
+                        )
+                        if dec_only_df is None or not enriched_df.equals(dec_only_df):
+                            enriched_file = file_path.replace(".csv", "_enriched.csv")
+                            with open(enriched_file, "w", encoding="utf-8") as f:
+                                f.write(enriched_df.write_csv(separator=";"))
+                        else:
+                            log += f"[pipeline] {os.path.basename(file_path)}: _enriched identiek aan _decoded, overgeslagen.\n"
 
                 decoded_count += 1
-    log += f"[pipeline] {decoded_count} bestand(en) gedecodeerd.\n"
+    if do_decode or do_enrich:
+        log += f"[pipeline] {decoded_count} bestand(en) gedecodeerd.\n"
     if progress_callback:
         progress_callback(40)
     # Step 3: Validate conversion
@@ -129,27 +144,30 @@ def run_turbo_convert_pipeline(
     if progress_callback:
         progress_callback(50)
     # Step 4: Compress to Parquet
-    if status_callback:
-        status_callback("🗜️ Bestanden comprimeren...")
-    log += "[pipeline] Bestanden comprimeren...\n"
-    co.convert_csv_to_parquet(output_dir)
-    log += "[pipeline] Compressie voltooid.\n"
+    if "parquet" in output_config.formats:
+        if status_callback:
+            status_callback("🗜️ Bestanden comprimeren...")
+        log += "[pipeline] Bestanden comprimeren...\n"
+        co.convert_csv_to_parquet(output_dir)
+        log += "[pipeline] Compressie voltooid.\n"
     if progress_callback:
         progress_callback(75)
     # Step 5: Encrypt final files
-    if status_callback:
-        status_callback("🔒 Gevoelige gegevens versleutelen...")
-    log += "[pipeline] Gevoelige gegevens versleutelen...\n"
-    en.encryptor(output_dir, output_dir)
-    log += "[pipeline] Versleuteling voltooid.\n"
+    if output_config.encrypt:
+        if status_callback:
+            status_callback("🔒 Gevoelige gegevens versleutelen...")
+        log += "[pipeline] Gevoelige gegevens versleutelen...\n"
+        en.encryptor(output_dir, output_dir)
+        log += "[pipeline] Versleuteling voltooid.\n"
     if progress_callback:
         progress_callback(90)
     # Step 6: Header normalization
-    if status_callback:
-        status_callback("🔨 Kolomnamen standaardiseren...")
-    log += "[pipeline] Kolomnamen standaardiseren...\n"
-    ch.convert_csv_headers_to_snake_case(output_dir)
-    log += "[pipeline] Kolomnamen gestandaardiseerd.\n"
+    if output_config.column_casing == "snake_case":
+        if status_callback:
+            status_callback("🔨 Kolomnamen standaardiseren...")
+        log += "[pipeline] Kolomnamen standaardiseren...\n"
+        ch.convert_csv_headers_to_snake_case(output_dir)
+        log += "[pipeline] Kolomnamen gestandaardiseerd.\n"
     if progress_callback:
         progress_callback(100)
     # Collect output files
