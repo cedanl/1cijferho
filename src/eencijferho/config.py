@@ -37,6 +37,25 @@ class OutputConfig:
     encrypt: bool = True
     column_casing: str = "snake_case"
 
+    def __post_init__(self) -> None:
+        valid_variants = frozenset({"decoded", "enriched"})
+        valid_formats = frozenset({"parquet"})
+        valid_casing = frozenset({"snake_case", "none"})
+
+        invalid_variants = set(self.variants) - valid_variants
+        if invalid_variants:
+            raise ValueError(f"Ongeldige variants: {invalid_variants}. Toegestaan: {valid_variants}")
+
+        if "enriched" in self.variants and "decoded" not in self.variants:
+            raise ValueError("'enriched' vereist dat 'decoded' ook in variants staat.")
+
+        invalid_formats = set(self.formats) - valid_formats
+        if invalid_formats:
+            raise ValueError(f"Ongeldige formats: {invalid_formats}. Toegestaan: {valid_formats}")
+
+        if self.column_casing not in valid_casing:
+            raise ValueError(f"Ongeldige column_casing: '{self.column_casing}'. Toegestaan: {valid_casing}")
+
 
 # Default demo mode
 DEFAULT_DEMO_MODE: bool = True
