@@ -203,28 +203,65 @@ else:
             decode_info = get_decode_column_info(dec_json)
             enrich_info = get_enrich_variable_info(variable_metadata_path)
 
-            if available_decode:
-                st.markdown("**Te decoderen kolommen** — vink uit om een kolom over te slaan:")
-                opt_decode_columns = []
-                for col in available_decode:
-                    labels = decode_info.get(col, [])
-                    col_help = "Toegevoegde kolommen:  \n" + "  \n".join(labels) if labels else None
-                    if st.checkbox(col, value=True, key=f"decode_col_{col}", help=col_help):
-                        opt_decode_columns.append(col)
-            else:
-                opt_decode_columns = None
-                st.caption("_Dec-metadata nog niet beschikbaar — voer eerst de extractiestap uit._")
+            opt_decode_columns = None
+            opt_enrich_variables = None
 
-            if available_enrich:
-                st.markdown("**Te verrijken variabelen** — vink uit om een variabele over te slaan:")
-                opt_enrich_variables = []
-                for var in available_enrich:
-                    sample = enrich_info.get(var, {})
-                    var_help = "  \n".join(f"{k}→{v}" for k, v in sample.items()) if sample else None
-                    if st.checkbox(var, value=True, key=f"enrich_var_{var}", help=var_help):
-                        opt_enrich_variables.append(var)
-            else:
-                opt_enrich_variables = None
+            show_decode = not no_main_files and st.session_state.get("opt_decoded", True)
+            show_enrich = show_decode and st.session_state.get("opt_enriched", True)
+
+            if show_decode:
+                st.divider()
+                if available_decode:
+                    st.markdown(
+                        "**Decoderen** — kies welke kolommen worden gekoppeld aan de Dec-opzoekbestanden. "
+                        "Per geselecteerde kolom wordt een extra kolom met de omschrijving toegevoegd "
+                        "(bijv. `landcode` → `landcode_oms`). Hover over **?** voor de exacte kolommen per item."
+                    )
+                    btn_c1, btn_c2, _ = st.columns([1, 1, 6])
+                    with btn_c1:
+                        if st.button("Alles aan", key="decode_select_all"):
+                            for col in available_decode:
+                                st.session_state[f"decode_col_{col}"] = True
+                            st.rerun()
+                    with btn_c2:
+                        if st.button("Alles uit", key="decode_deselect_all"):
+                            for col in available_decode:
+                                st.session_state[f"decode_col_{col}"] = False
+                            st.rerun()
+                    opt_decode_columns = []
+                    for col in available_decode:
+                        labels = decode_info.get(col, [])
+                        col_help = "Toegevoegde kolommen:  \n" + "  \n".join(labels) if labels else None
+                        if st.checkbox(col, value=True, key=f"decode_col_{col}", help=col_help):
+                            opt_decode_columns.append(col)
+                else:
+                    st.caption("_Dec-metadata nog niet beschikbaar — voer eerst de extractiestap uit._")
+
+            if show_enrich:
+                st.divider()
+                if available_enrich:
+                    st.markdown(
+                        "**Verrijken** — kies welke variabelen worden vervangen door leesbare labels uit de "
+                        "bestandsbeschrijving. Een verrijkte versie vervangt codes door tekstwaarden "
+                        "(bijv. `1` → `Man`). Hover over **?** voor de volledige mapping per variabele."
+                    )
+                    btn_c1, btn_c2, _ = st.columns([1, 1, 6])
+                    with btn_c1:
+                        if st.button("Alles aan", key="enrich_select_all"):
+                            for var in available_enrich:
+                                st.session_state[f"enrich_var_{var}"] = True
+                            st.rerun()
+                    with btn_c2:
+                        if st.button("Alles uit", key="enrich_deselect_all"):
+                            for var in available_enrich:
+                                st.session_state[f"enrich_var_{var}"] = False
+                            st.rerun()
+                    opt_enrich_variables = []
+                    for var in available_enrich:
+                        sample = enrich_info.get(var, {})
+                        var_help = "  \n".join(f"{k}→{v}" for k, v in sample.items()) if sample else None
+                        if st.checkbox(var, value=True, key=f"enrich_var_{var}", help=var_help):
+                            opt_enrich_variables.append(var)
 
     # Side-by-side buttons with equal width
     if successful_pairs:
