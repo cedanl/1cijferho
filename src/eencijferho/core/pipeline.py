@@ -68,6 +68,11 @@ def run_turbo_convert_pipeline(
     dec_dir = output_dir
     os.makedirs(dec_dir, exist_ok=True)
     decoded_count = 0
+
+    # Load dec_tables and variable_mappings once — shared across all files
+    dec_tables = decoder.load_dec_tables_from_metadata(dec_metadata_json, dec_dir)
+    var_maps = decoder.load_variable_mappings(variable_metadata_json)
+
     if os.path.isdir(dec_dir):
         for file in os.listdir(dec_dir):
             if (
@@ -76,27 +81,36 @@ def run_turbo_convert_pipeline(
                 and not file.endswith("_decoded.csv")
             ):
                 file_path = os.path.join(dec_dir, file)
-                # Always read as UTF-8
                 main_df = decoder.pl.read_csv(file_path, separator=";", encoding="utf-8")
-                dec_tables = decoder.load_dec_tables_from_metadata(
-                    dec_metadata_json, dec_dir
-                )
 
                 # DEC-only decode
                 dec_only_df = decoder.decode_fields_dec_only(
                     main_df, dec_metadata_json, dec_tables
                 )
                 dec_only_file = file_path.replace(".csv", "_decoded.csv")
-                dec_only_csv = dec_only_df.write_csv(separator=";")
                 with open(dec_only_file, "w", encoding="utf-8") as f:
-                    f.write(dec_only_csv)
+                    f.write(dec_only_df.write_csv(separator=";"))
 
-                # Full enriched decode (if needed, write as _enriched.csv to keep outputs clear)
-                enriched_df = decoder.decode_fields(main_df, dec_metadata_json, dec_tables, variable_metadata_path=variable_metadata_json)
-                enriched_file = file_path.replace(".csv", "_enriched.csv")
-                enriched_csv = enriched_df.write_csv(separator=";")
-                with open(enriched_file, "w", encoding="utf-8") as f:
-                    f.write(enriched_csv)
+                # Enriched decode:
+                # 1. Skip entirely when no column names overlap with var_maps (fast path).
+                # 2. When overlap exists, compute decode_fields and only write when the
+                #    result actually differs from _decoded (correct, no redundant files).
+                normalized_cols = {
+                    ch.normalize_name(ch.clean_header_name(c)) for c in main_df.columns
+                }
+                if not (var_maps and normalized_cols & set(var_maps.keys())):
+                    log += f"[pipeline] {os.path.basename(file_path)}: geen variable_metadata mappings, _enriched overgeslagen.\n"
+                else:
+                    enriched_df = decoder.decode_fields(
+                        main_df, dec_metadata_json, dec_tables,
+                        variable_metadata_path=variable_metadata_json,
+                    )
+                    if not enriched_df.equals(dec_only_df):
+                        enriched_file = file_path.replace(".csv", "_enriched.csv")
+                        with open(enriched_file, "w", encoding="utf-8") as f:
+                            f.write(enriched_df.write_csv(separator=";"))
+                    else:
+                        log += f"[pipeline] {os.path.basename(file_path)}: _enriched identiek aan _decoded, overgeslagen.\n"
 
                 decoded_count += 1
     log += f"[pipeline] {decoded_count} bestand(en) gedecodeerd.\n"

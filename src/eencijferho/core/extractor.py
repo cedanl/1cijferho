@@ -5,18 +5,20 @@
 # License: MIT
 # -----------------------------------------------------------------------------
 """
-Extractor module for 1cijferho data. Contains functions for extracting tables from text files and converting them
-into a JSON then XLSX format.
+Extractor module for 1cijferho data. Extracts field tables from DUO bestandsbeschrijving
+text files and converts them to JSON and Excel formats.
 
-Functions:
-    [x] extract_tables_from_txt(txt_file_path, json_folder)
-        - Extracts tables from a .txt file and saves them as JSON.
-    [M] process_txt_folder(txt_folder, json_output_folder) -> Main function
-        - Finds all .txt files containing 'Bestandsbeschrijving' and extracts tables from them.
-    [x] extract_excel_from_json(json_file_path, excel_output_folder)
-        - Extracts tables from a JSON file and saves them as Excel files.
-    [M] process_excel_folder(excel_folder, json_output_folder) -> Main function
-        - Processes all JSON files in the metadata/json folder, converting tables to Excel files.
+Public API:
+    extract_tables_from_txt(txt_file, json_output_folder)
+        Extracts tables from a .txt/.asc file and saves them as JSON.
+    process_txt_folder(input_folder, json_output_folder)
+        Processes all Bestandsbeschrijving*.txt and *.asc files in a folder.
+    extract_excel_from_json(json_file, excel_output_folder)
+        Converts a JSON metadata file to one Excel file per table.
+    process_json_folder(json_input_folder, excel_output_folder)
+        Converts all JSON files in a folder to Excel files.
+    write_variable_metadata(input_dir, json_folder)
+        Writes a consolidated variable_metadata.json from all input text files.
 """
 
 import os
@@ -24,7 +26,9 @@ import json
 import re
 import datetime
 from rich.console import Console
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
+
+_console = Console()
 
 # Constants for table extraction
 MAX_LOOKAHEAD_LINES_FOR_DECODING_SECTION = (
@@ -33,7 +37,7 @@ MAX_LOOKAHEAD_LINES_FOR_DECODING_SECTION = (
 MAX_LOOKAHEAD_LINES_FOR_VARIABLE_LIST = 50  # Lines to search for bullet-pointed variable list (longer because list can be extended)
 
 
-def extract_decoding_variables(lines: list[str], start_index: int) -> list[str]:
+def _extract_decoding_variables(lines: list[str], start_index: int) -> list[str]:
     """
     Extracts decoding variables from lines starting at start_index.
 
@@ -51,7 +55,7 @@ def extract_decoding_variables(lines: list[str], start_index: int) -> list[str]:
         - Handles empty lines and notes.
 
     Example:
-        >>> extract_decoding_variables(lines, 10)
+        >>> _extract_decoding_variables(lines, 10)
     """
     decoding_variables = []
     j = start_index
@@ -101,7 +105,91 @@ def extract_decoding_variables(lines: list[str], start_index: int) -> list[str]:
     return decoding_variables
 
 
-def extract_tables_from_txt(txt_file: str, json_output_folder: str) -> Optional[str]:
+# ---------------------------------------------------------------------------
+# Private helpers for extract_tables_from_txt
+# ---------------------------------------------------------------------------
+
+
+def _read_txt_latin1(path: str) -> str | None:
+    """Read a text file using latin-1 encoding. Returns None on error."""
+    try:
+        with open(path, "r", encoding="latin-1") as fh:
+            return fh.read()
+    except Exception as e:
+        print(f"Error reading {path}: {e}")
+        return None
+
+
+def _find_title_above(lines: list[str], header_index: int) -> str:
+    """Look backwards from header_index for a title above a '==' divider line."""
+    for j in range(header_index - 1, max(0, header_index - 10), -1):
+        if lines[j].strip().startswith("=="):
+            if j > 0 and lines[j - 1].strip():
+                return lines[j - 1].strip()
+            break
+    return ""
+
+
+def _parse_tables(lines: list[str]) -> list[dict]:
+    """Parse all tables from a list of lines from a bestandsbeschrijving file."""
+    found = False
+    table_title = ""
+    table_content: list[str] = []
+    table_start_idx = 0
+    tables_found = 0
+    all_tables: list[dict] = []
+
+    for i, line in enumerate(lines):
+        if "startpositie" in line.lower() and not found:
+            found = True
+            tables_found += 1
+            table_start_idx = i
+            table_content = [line]
+            title = _find_title_above(lines, i)
+            table_title = title if title else f"untitled_table_{tables_found}"
+        elif found:
+            if not line.strip():
+                found = False
+                decoding_variables = _extract_decoding_variables(lines, i + 1)
+                all_tables.append({
+                    "table_number": tables_found,
+                    "table_title": table_title,
+                    "content": table_content,
+                    "decoding_variables": decoding_variables,
+                })
+                table_content = []
+                continue
+            table_content.append(line)
+
+    if found and table_content:
+        decoding_variables = _extract_decoding_variables(
+            lines, table_start_idx + len(table_content)
+        )
+        all_tables.append({
+            "table_number": tables_found,
+            "table_title": table_title,
+            "content": table_content,
+            "decoding_variables": decoding_variables,
+        })
+
+    return all_tables
+
+
+def _save_tables_json(
+    all_tables: list[dict], txt_file: str, json_output_folder: str
+) -> str:
+    """Write all_tables to a JSON file named after txt_file. Returns the path."""
+    base_filename = os.path.splitext(os.path.basename(txt_file))[0]
+    json_path = os.path.join(json_output_folder, f"{base_filename}.json")
+    with open(json_path, "w", encoding="utf-8") as fh:
+        json.dump(
+            {"filename": base_filename, "tables": all_tables},
+            fh, indent=2, ensure_ascii=False,
+        )
+    return json_path
+
+
+def extract_tables_from_txt(txt_file: str, json_output_folder: str) -> str | None:
     """
     Extracts tables from a .txt or .asc file and saves them as JSON.
 
@@ -110,7 +198,7 @@ def extract_tables_from_txt(txt_file: str, json_output_folder: str) -> Optional[
         json_output_folder (str): Folder to save the output JSON.
 
     Returns:
-        Optional[str]: Path to the saved JSON file, or None if extraction failed.
+        str | None: Path to the saved JSON file, or None if extraction failed.
 
     Edge Cases:
         - Handles file read errors gracefully.
@@ -120,93 +208,13 @@ def extract_tables_from_txt(txt_file: str, json_output_folder: str) -> Optional[
         >>> extract_tables_from_txt('Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.txt', 'data/00-metadata/json')
     """
     os.makedirs(json_output_folder, exist_ok=True)
-
-    try:
-        with open(txt_file, "r", encoding="latin-1") as file:
-            text = file.read()
-    except Exception as e:
-        print(f"Error reading {txt_file}: {e}")
+    text = _read_txt_latin1(txt_file)
+    if text is None:
         return None
-
-    # Process the text to find tables
-    lines = text.split("\n")
-    found = False
-    table_title = ""
-    table_content = []
-    tables_found = 0
-    all_tables = []
-
-    for i, line in enumerate(lines):
-        # Check for table header
-        if "startpositie" in line.lower() and not found:
-            found = True
-            tables_found += 1
-            table_content = [line]  # Start collecting table content
-
-            # Look backwards to find the title
-            table_title = f"untitled_table_{tables_found}"  # Default title
-            search_range = 10
-            for j in range(i - 1, max(0, i - search_range), -1):
-                if lines[j].strip().startswith("=="):
-                    # Title is the line above the === line
-                    if j > 0 and lines[j - 1].strip():
-                        table_title = lines[j - 1].strip()
-                        break
-
-        # Collect table content
-        elif found:
-            if not line.strip():
-                found = False
-
-                # Extract decoding variables using helper function
-                decoding_variables = extract_decoding_variables(lines, i + 1)
-
-                all_tables.append(
-                    {
-                        "table_number": tables_found,
-                        "table_title": table_title,
-                        "content": table_content,
-                        "decoding_variables": decoding_variables,
-                    }
-                )
-                table_content = []
-                continue
-
-            table_content.append(line)
-
-    # Check if the last table extends to the end of the file
-    if found and table_content:
-        # Extract decoding variables for the last table using helper function
-        start_idx = len(lines) - len(table_content)
-        decoding_variables = extract_decoding_variables(
-            lines, start_idx + len(table_content)
-        )
-
-        all_tables.append(
-            {
-                "table_number": tables_found,
-                "table_title": table_title,
-                "content": table_content,
-                "decoding_variables": decoding_variables,
-            }
-        )
-
-    # Save all tables to a single JSON file
-    if all_tables:
-        base_filename = os.path.splitext(os.path.basename(txt_file))[0]
-        json_path = os.path.join(json_output_folder, f"{base_filename}.json")
-
-        with open(json_path, "w", encoding="utf-8") as json_file:
-            json.dump(
-                {"filename": base_filename, "tables": all_tables},
-                json_file,
-                indent=2,
-                ensure_ascii=False,
-            )
-
-        return json_path
-
-    return None
+    all_tables = _parse_tables(text.split("\n"))
+    if not all_tables:
+        return None
+    return _save_tables_json(all_tables, txt_file, json_output_folder)
 
 
 def process_txt_folder(
@@ -300,12 +308,11 @@ def process_txt_folder(
         json.dump(log_data, f, indent=2)
 
     # Print summary to console
-    console = Console()
-    console.print(f"[green]Processed {log_data['total_files_processed']} text files")
-    console.print(
+    _console.print(f"[green]Processed {log_data['total_files_processed']} text files")
+    _console.print(
         f"[green]Extracted tables to {log_data['total_files_extracted']} JSON files"
     )
-    console.print(
+    _console.print(
         f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}"
     )
 
@@ -347,11 +354,11 @@ def process_txt_folder(
                 # Save back
                 with open(dec_json, "w", encoding="utf-8") as f_dec:
                     json.dump(dec_data, f_dec, indent=2, ensure_ascii=False)
-                console.print(
+                _console.print(
                     f"[cyan]Patched: Added Dec_vakcode table(s) from Vakkenbestanden JSON to Dec-bestanden JSON with correct title and table_number."
                 )
         except Exception as e:
-            console.print(
+            _console.print(
                 f"[red]Error patching Dec_vakcode into Dec-bestanden JSON: {e}"
             )
 
@@ -383,14 +390,12 @@ def write_variable_metadata(
     """
     os.makedirs(json_folder, exist_ok=True)
     output_path = os.path.join(json_folder, output_filename)
-    from rich.console import Console
     import glob
 
     try:
         from .parse_metadata import parse_metadata_file
     except ImportError:
-        console = Console()
-        console.print(f"[red]Error importing canonical parser for variable metadata")
+        _console.print(f"[red]Error importing canonical parser for variable metadata")
         return
 
     # Recursively find all Bestandsbeschrijving*.txt files in input_dir
@@ -398,8 +403,7 @@ def write_variable_metadata(
     file_glob = os.path.join(input_dir, "**", "Bestandsbeschrijving*.txt")
     txt_files = glob.glob(file_glob, recursive=True)
     if not txt_files:
-        console = Console()
-        console.print(
+        _console.print(
             f"[yellow]No Bestandsbeschrijving*.txt files found in {input_dir}"
         )
         return
@@ -415,25 +419,165 @@ def write_variable_metadata(
                     all_vars.append(variable)
                     seen_names.add(name)
         except Exception as e:
-            console = Console()
-            console.print(f"[red]Parser failed for {txt_file}: {e}")
+            _console.print(f"[red]Parser failed for {txt_file}: {e}")
 
     if all_vars:
         with open(output_path, "w", encoding="utf-8") as out_f:
             json.dump(all_vars, out_f, ensure_ascii=False, indent=2)
-        console = Console()
-        console.print(
+        _console.print(
             f"[blue]Consolidated {len(all_vars)} variables from {len(txt_files)} files into {output_path}"
         )
     else:
-        console = Console()
-        console.print(f"[yellow]No variables found in any file! Did parsing fail?")
+        _console.print(f"[yellow]No variables found in any file! Did parsing fail?")
     return
+
+
+# ---------------------------------------------------------------------------
+# Private helpers for extract_excel_from_json
+# ---------------------------------------------------------------------------
+
+
+def _sanitize_filename(filename: str) -> str:
+    """Remove or replace characters that are invalid in filenames."""
+    return re.sub(r'[\\/*?:"<>|]', "_", filename)
+
+
+def _parse_data_line(
+    line: str, start_pos_index: int, aantal_pos_index: int
+) -> tuple[str, int, int, str] | None:
+    """Parse one content line into (field_name, start_pos, aantal_pos, comment).
+
+    Returns None when the line cannot produce a valid row.
+    Handles two cases:
+      1. Line contains both 'Startpositie' and 'Aantal posities' keywords (repeated header).
+      2. Normal data line parsed by character position.
+    """
+    # Case 1: line repeats both header keywords
+    if "Startpositie" in line and "Aantal posities" in line:
+        modified = line.replace("Startpositie", "|Startpositie")
+        modified = modified.replace("Aantal posities", "|Aantal posities|")
+        parts = modified.split("|")
+        if len(parts) >= 3:
+            field_name = parts[0].strip()
+            start_str = parts[1].replace("Startpositie", "").strip()
+            aantal_str = parts[2].replace("Aantal posities", "").strip()
+            comment = parts[3].strip() if len(parts) > 3 else ""
+            if field_name and start_str.isdigit() and aantal_str.isdigit():
+                return field_name, int(start_str), int(aantal_str), comment
+        return None
+
+    # Case 2: normal data line
+    if len(line) <= start_pos_index:
+        return None
+
+    # Field name: everything before the first digit at/after start_pos_index
+    pos_start = next(
+        (j for j in range(start_pos_index, len(line)) if line[j].isdigit()), None
+    )
+    field_name = (
+        line[:pos_start].rstrip() if pos_start is not None
+        else line[:start_pos_index].rstrip()
+    )
+
+    # Start position digits
+    i = start_pos_index
+    while i < len(line) and not line[i].isdigit():
+        i += 1
+    start_digits = ""
+    while i < len(line) and line[i].isdigit():
+        start_digits += line[i]
+        i += 1
+    if not start_digits:
+        return None
+
+    # Aantal posities digits
+    if len(line) <= aantal_pos_index:
+        return None
+    i = aantal_pos_index
+    while i < len(line) and not line[i].isdigit():
+        i += 1
+    aantal_digits = ""
+    while i < len(line) and line[i].isdigit():
+        aantal_digits += line[i]
+        i += 1
+    if not aantal_digits:
+        return None
+
+    # Optional comment after aantal posities
+    while i < len(line) and line[i].isspace():
+        i += 1
+    comment = line[i:].strip() if i < len(line) else ""
+
+    if not field_name:
+        return None
+    return field_name, int(start_digits), int(aantal_digits), comment
+
+
+def _build_table_rows(
+    content_array: list[str], start_pos_index: int, aantal_pos_index: int
+) -> tuple[list[list[Any]], int]:
+    """Build Excel row data from a table's content_array.
+
+    Returns (rows, valid_content_lines) where rows[0] is the header row
+    and valid_content_lines counts successfully parsed data rows.
+    """
+    rows: list[list[Any]] = [
+        ["ID", "Naam", "Startpositie", "Aantal posities", "Opmerking"]
+    ]
+    valid_content_lines = 0
+    row_id = 1
+
+    for line in content_array[1:]:
+        if not line.strip():
+            continue
+        parsed = _parse_data_line(line, start_pos_index, aantal_pos_index)
+        if parsed is None:
+            _console.print(
+                f"[yellow]Skipping row: could not parse line: {line[:80]!r}"
+            )
+            continue
+        field_name, start_pos, aantal_pos, comment = parsed
+        try:
+            rows.append([row_id, field_name, start_pos, aantal_pos, comment])
+            row_id += 1
+            valid_content_lines += 1
+        except Exception as e:
+            _console.print(
+                f"[red]Row creation error: {e} | field_name={field_name}, "
+                f"start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}"
+            )
+
+    return rows, valid_content_lines
+
+
+def _write_table_excel(
+    rows: list[list[Any]],
+    decoding_variables: list[str],
+    output_path: str,
+) -> int:
+    """Write rows (and optional decoding variables) to an Excel file.
+
+    Returns the number of data rows written. Raises on write failure.
+    """
+    import pandas as pd
+
+    main_rows = [row for row in rows if isinstance(row[0], int)]
+    df_main = pd.DataFrame(main_rows, columns=rows[0])
+
+    if decoding_variables:
+        df_dec = pd.DataFrame({"DecodingVariables": decoding_variables})
+        with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
+            df_main.to_excel(writer, index=False, sheet_name="Table")
+            df_dec.to_excel(writer, index=False, sheet_name="DecodingVariables")
+    else:
+        df_main.to_excel(output_path, index=False)
+
+    return df_main.shape[0]
 
 
 def extract_excel_from_json(
     json_file: str, excel_output_folder: str
-) -> Tuple[List[Dict[str, Any]], int, int]:
+) -> tuple[list[dict[str, Any]], int, int]:
     """
     Extracts tables from a JSON file and saves them as Excel files.
 
@@ -447,7 +591,7 @@ def extract_excel_from_json(
         excel_output_folder (str): Folder to save the Excel files.
 
     Returns:
-        Tuple[List[Dict[str, Any]], int, int]: Processing results for table reporting.
+        tuple[list[dict[str, Any]], int, int]: Processing results for table reporting.
 
     Edge Cases:
         - Handles missing or corrupt JSON files gracefully.
@@ -456,60 +600,38 @@ def extract_excel_from_json(
     Example:
         >>> extract_excel_from_json('Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.json', 'data/00-metadata')
     """
-    # Initialize Rich console for better output
-    console = Console()
-
-    # Create output directory if it doesn't exist
     os.makedirs(excel_output_folder, exist_ok=True)
+    results: list[dict[str, Any]] = []
 
-    # Initialize results tracking
-    results = []
-
-    # Load the JSON file with appropriate encoding
     try:
-        with open(json_file, "r", encoding="utf-8") as file:
-            data = json.load(file)
+        with open(json_file, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
     except json.JSONDecodeError as e:
-        # Handle JSON parsing errors
-        console.print(f"[red]Error decoding JSON: {e}")
+        _console.print(f"[red]Error decoding JSON: {e}")
         return [], 0, 0
     except Exception as e:
-        # Handle other exceptions
-        console.print(f"[red]Error opening file: {e}")
+        _console.print(f"[red]Error opening file: {e}")
         return [], 0, 0
 
-    # Get the base filename without extension
-    base_filename = os.path.basename(json_file)
-    base_filename = os.path.splitext(base_filename)[0]
-
-    # Extract the filename from the JSON if available
-    if "filename" in data:
-        base_filename = data["filename"]
-
-    # Function to sanitize filenames
-    def sanitize_filename(filename: str) -> str:
-        """Sanitize the filename by removing or replacing invalid characters."""
-        return re.sub(r'[\\/*?:"<>|]', "_", filename)
-
-    # Get the list of tables from the JSON
+    base_filename = data.get(
+        "filename", os.path.splitext(os.path.basename(json_file))[0]
+    )
     tables = data.get("tables", [])
     total_tables = len(tables)
 
     if total_tables == 0:
-        console.print("[yellow]Warning: No tables found in the JSON file.")
+        _console.print("[yellow]Warning: No tables found in the JSON file.")
         return [], 0, 0
 
-    # Process tables
     files_created = 0
 
     try:
-        for i, table in enumerate(tables):
-            table_number = table.get("table_number", i + 1)
+        for idx, table in enumerate(tables):
+            table_number = table.get("table_number", idx + 1)
             table_title = table.get("table_title", f"Table_{table_number}")
             content_array = table.get("content", [])
 
-            # Initialize result for this table
-            table_result = {
+            table_result: dict[str, Any] = {
                 "table_number": table_number,
                 "table_title": table_title,
                 "status": "Processed",
@@ -518,238 +640,65 @@ def extract_excel_from_json(
                 "notes": "",
             }
 
-            # Skip empty tables
             if not content_array:
                 table_result["status"] = "Skipped"
                 table_result["notes"] = "Empty content"
                 results.append(table_result)
                 continue
 
-            # Sanitize the table title for use in filename
-            safe_table_title = sanitize_filename(table_title)
-
-            # Create output filename
-            output_filename = f"{base_filename}_{table_number}_{safe_table_title}.xlsx"
+            output_filename = (
+                f"{base_filename}_{table_number}_{_sanitize_filename(table_title)}.xlsx"
+            )
             output_path = os.path.join(excel_output_folder, output_filename)
             table_result["output_file"] = output_filename
 
-            # Get the header line
             header = content_array[0]
-
-            # Check if header contains the expected keywords
             if "Startpositie" not in header or "Aantal posities" not in header:
                 table_result["status"] = "Skipped"
                 table_result["notes"] = "Missing required headers"
                 results.append(table_result)
                 continue
 
-            # Find the positions of the key headers
             start_pos_index = header.find("Startpositie")
             aantal_pos_index = header.find("Aantal posities")
-
             if start_pos_index == -1 or aantal_pos_index == -1:
                 table_result["status"] = "Skipped"
                 table_result["notes"] = "Could not locate positions for header columns"
                 results.append(table_result)
                 continue
 
-            # Check if header contains "Opmerking"
-            has_opmerking = "Opmerking" in header
+            rows, valid_content_lines = _build_table_rows(
+                content_array, start_pos_index, aantal_pos_index
+            )
 
-            # Create rows for Excel
-            rows = []
-
-            # Add header row with ID column and the fourth column
-            if has_opmerking:
-                rows.append(
-                    ["ID", "Naam", "Startpositie", "Aantal posities", "Opmerking"]
-                )
-            else:
-                rows.append(
-                    ["ID", "Naam", "Startpositie", "Aantal posities", "Opmerking"]
-                )
-
-            # Count the number of valid content lines for later verification
-            valid_content_lines = 0
-
-            # Process each data line
-            row_id = 1  # Start ID counter
-            for line in content_array[1:]:
-                # Skip empty lines
-                if not line.strip():
-                    continue
-
-                # Skip if the line is shorter than our reference indices
-                if len(line) <= start_pos_index:
-                    continue
-
-                # Handle lines that might contain both header keywords
-                if "Startpositie" in line and "Aantal posities" in line:
-                    modified_line = line.replace("Startpositie", "|Startpositie")
-                    modified_line = modified_line.replace(
-                        "Aantal posities", "|Aantal posities|"
-                    )
-                    parts = modified_line.split("|")
-                    if len(parts) >= 3:
-                        field_name = parts[0].strip()
-                        start_pos = parts[1].replace("Startpositie", "").strip()
-                        aantal_pos = parts[2].replace("Aantal posities", "").strip()
-
-                        # Extract comment if any (content after Aantal posities)
-                        comment = ""
-                        if len(parts) > 3:
-                            comment = parts[3].strip()
-
-                        # Only add row if both start_pos and aantal_pos are valid digits
-                        if field_name and start_pos.isdigit() and aantal_pos.isdigit():
-                            try:
-                                rows.append(
-                                    [
-                                        row_id,
-                                        field_name,
-                                        int(start_pos),
-                                        int(aantal_pos),
-                                        comment,
-                                    ]
-                                )
-                                row_id += 1
-                                valid_content_lines += 1
-                            except Exception as e:
-                                console.print(
-                                    f"[red]Row creation error: {e} | field_name={field_name}, start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}"
-                                )
-                        else:
-                            # Debug log for invalid row
-                            if not (
-                                field_name
-                                and start_pos.isdigit()
-                                and aantal_pos.isdigit()
-                            ):
-                                console.print(
-                                    f"[yellow]Skipping row: field_name={field_name}, start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}"
-                                )
-                    continue
-
-                # Extract field name - use a more precise approach that preserves all characters
-                field_name = ""
-                pos_start = None
-
-                # Find where the actual digits of start position begin
-                for j in range(start_pos_index, len(line)):
-                    if line[j].isdigit():
-                        pos_start = j
-                        break
-
-                # If we found the start of the position digits, extract the field name before it
-                if pos_start is not None:
-                    field_name = line[:pos_start].rstrip()
-                else:
-                    field_name = line[:start_pos_index].rstrip()
-
-                # Extract start position
-                start_pos = None
-                i = start_pos_index
-                start_digits = ""
-                while i < len(line) and not line[i].isdigit():
-                    i += 1
-                while i < len(line) and line[i].isdigit():
-                    start_digits += line[i]
-                    i += 1
-                if start_digits:
-                    start_pos = int(start_digits)
-
-                # Extract aantal posities
-                aantal_pos = None
-                comment = ""
-                if len(line) > aantal_pos_index:
-                    i = aantal_pos_index
-                    aantal_digits = ""
-                    while i < len(line) and not line[i].isdigit():
-                        i += 1
-                    while i < len(line) and line[i].isdigit():
-                        aantal_digits += line[i]
-                        i += 1
-                    if aantal_digits:
-                        aantal_pos = int(aantal_digits)
-                    # Improved comment extraction to preserve all characters
-                    if i < len(line):
-                        while i < len(line) and line[i].isspace():
-                            i += 1
-                        if i < len(line):
-                            comment = line[i:].strip()
-
-                # Only add row if both start_pos and aantal_pos are not None
-                if field_name and start_pos is not None and aantal_pos is not None:
-                    try:
-                        rows.append(
-                            [row_id, field_name, start_pos, aantal_pos, comment]
-                        )
-                        row_id += 1
-                        valid_content_lines += 1
-                    except Exception as e:
-                        console.print(
-                            f"[red]Row creation error: {e} | field_name={field_name}, start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}"
-                        )
-                else:
-                    # Debug log for invalid row
-                    if not (
-                        field_name and start_pos is not None and aantal_pos is not None
-                    ):
-                        console.print(
-                            f"[yellow]Skipping row: field_name={field_name}, start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}"
-                        )
-
-            # Skip if no data rows were found
             if len(rows) <= 1:
                 table_result["status"] = "Skipped"
                 table_result["notes"] = "No data rows found"
                 results.append(table_result)
                 continue
 
-            # Record the number of data rows
-            table_result["rows"] = len(rows) - 1  # Subtract header row
+            table_result["rows"] = len(rows) - 1
 
-            # Add decoding variables information if available
             decoding_variables = table.get("decoding_variables", [])
             if decoding_variables:
-                # Store info about decoding variables in the table result
                 table_result["decoding_variables"] = decoding_variables
                 table_result["notes"] += (
                     f" Includes {len(decoding_variables)} decoding variable(s)."
                 )
 
-            # Write to Excel file (main sheet: only valid column rows)
             try:
-                import pandas as pd
-
-                # Only keep rows with valid ID (int) for the main table
-                main_rows = [row for row in rows if isinstance(row[0], int)]
-                df_main = pd.DataFrame(main_rows, columns=rows[0])
-
-                # Prepare decoding variables DataFrame if present
-                if decoding_variables:
-                    df_decoding = pd.DataFrame(
-                        {"DecodingVariables": decoding_variables}
-                    )
-                    with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
-                        df_main.to_excel(writer, index=False, sheet_name="Table")
-                        df_decoding.to_excel(
-                            writer, index=False, sheet_name="DecodingVariables"
-                        )
-                else:
-                    df_main.to_excel(output_path, index=False)
-
-                # Check if the number of rows in the DataFrame matches the expected count
-                df_row_count = df_main.shape[0]
+                df_row_count = _write_table_excel(rows, decoding_variables, output_path)
                 if df_row_count != valid_content_lines:
-                    console.print(
+                    _console.print(
                         f"[yellow]Warning: Row count mismatch for table {table_title}."
                     )
-                    console.print(
-                        f"[yellow]Expected {valid_content_lines} rows, got {df_row_count} rows in DataFrame."
+                    _console.print(
+                        f"[yellow]Expected {valid_content_lines} rows, "
+                        f"got {df_row_count} rows in DataFrame."
                     )
                     table_result["notes"] += (
-                        f" Row count mismatch: {valid_content_lines} valid content lines vs {df_row_count} DataFrame rows."
+                        f" Row count mismatch: {valid_content_lines} valid content "
+                        f"lines vs {df_row_count} DataFrame rows."
                     )
                 files_created += 1
                 results.append(table_result)
@@ -765,7 +714,7 @@ def extract_excel_from_json(
                 results.append(table_result)
 
     except Exception as e:
-        console.print(f"[red]Error during processing: {str(e)}")
+        _console.print(f"[red]Error during processing: {str(e)}")
         return results, files_created, total_tables
 
     return results, files_created, total_tables
@@ -892,20 +841,19 @@ def process_json_folder(
         json.dump(log_data, f, indent=2)
 
     # Print summary to console
-    console = Console()
-    console.print(f"[green]Processed {total_json_files} JSON files")
-    console.print(
+    _console.print(f"[green]Processed {total_json_files} JSON files")
+    _console.print(
         f"[green]Created {total_excel_files} Excel files from {processed_json_files} JSON files"
     )
 
     if total_row_mismatches > 0:
-        console.print(
+        _console.print(
             f"[yellow]Warning: {total_row_mismatches} tables had row count mismatches. Check logs for details."
         )
     else:
-        console.print(f"[green]All tables passed row count verification")
+        _console.print(f"[green]All tables passed row count verification")
 
-    console.print(
+    _console.print(
         f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}"
     )
 
