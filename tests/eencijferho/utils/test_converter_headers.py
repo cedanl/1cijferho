@@ -40,10 +40,24 @@ def test_normalize_name_strips_leading_trailing_underscores():
 @pytest.mark.parametrize(
     "text,expected",
     [
-        ("é", "e"),
-        ("ê", "e"),
+        # e-varianten
+        ("é", "e"), ("ë", "e"), ("è", "e"), ("ê", "e"),
+        # o-varianten
+        ("ó", "o"), ("ö", "o"), ("ò", "o"), ("ô", "o"),
+        # u-varianten
+        ("ü", "u"), ("ú", "u"), ("ù", "u"), ("û", "u"),
+        # a-varianten
+        ("ä", "a"), ("á", "a"), ("à", "a"), ("â", "a"),
+        # i-varianten
+        ("ï", "i"), ("í", "i"), ("ì", "i"), ("î", "i"),
+        # overige diakrieten
+        ("ñ", "n"), ("ç", "c"),
+        # hoofdletters
+        ("Ë", "E"), ("Ü", "U"), ("Ï", "I"),
+        # woorden
+        ("vóór", "voor"), ("België", "Belgie"), ("Oekraïne", "Oekraine"),
+        # ascii ongewijzigd
         ("hello", "hello"),
-        ("vóór", "voor"),
     ],
 )
 def test_strip_accents(text, expected):
