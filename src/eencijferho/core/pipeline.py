@@ -91,22 +91,26 @@ def run_turbo_convert_pipeline(
                 with open(dec_only_file, "w", encoding="utf-8") as f:
                     f.write(dec_only_df.write_csv(separator=";"))
 
-                # Enriched decode — only compute when variable_mappings overlap with
-                # the columns in this file (avoids full decode_fields on large files
-                # that have no applicable mappings, e.g. VAKHAVW)
+                # Enriched decode:
+                # 1. Skip entirely when no column names overlap with var_maps (fast path).
+                # 2. When overlap exists, compute decode_fields and only write when the
+                #    result actually differs from _decoded (correct, no redundant files).
                 normalized_cols = {
                     ch.normalize_name(ch.clean_header_name(c)) for c in main_df.columns
                 }
-                if var_maps and normalized_cols & set(var_maps.keys()):
+                if not (var_maps and normalized_cols & set(var_maps.keys())):
+                    log += f"[pipeline] {os.path.basename(file_path)}: geen variable_metadata mappings, _enriched overgeslagen.\n"
+                else:
                     enriched_df = decoder.decode_fields(
                         main_df, dec_metadata_json, dec_tables,
                         variable_metadata_path=variable_metadata_json,
                     )
-                    enriched_file = file_path.replace(".csv", "_enriched.csv")
-                    with open(enriched_file, "w", encoding="utf-8") as f:
-                        f.write(enriched_df.write_csv(separator=";"))
-                else:
-                    log += f"[pipeline] {os.path.basename(file_path)}: geen variable_metadata mappings, _enriched overgeslagen.\n"
+                    if not enriched_df.equals(dec_only_df):
+                        enriched_file = file_path.replace(".csv", "_enriched.csv")
+                        with open(enriched_file, "w", encoding="utf-8") as f:
+                            f.write(enriched_df.write_csv(separator=";"))
+                    else:
+                        log += f"[pipeline] {os.path.basename(file_path)}: _enriched identiek aan _decoded, overgeslagen.\n"
 
                 decoded_count += 1
     log += f"[pipeline] {decoded_count} bestand(en) gedecodeerd.\n"

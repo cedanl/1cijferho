@@ -248,16 +248,21 @@ def cmd_enrich(args: argparse.Namespace) -> None:
             print(f"[eencijferho] Overgeslagen (geen mappings): {fname}")
             skipped += 1
             continue
+        decoded_df = pl.read_csv(in_path, separator=";", encoding="utf-8")
         enriched_df = decode_fields(
             main_df, dec_metadata_json, dec_tables,
             variable_metadata_path=variable_metadata_json,
         )
+        if enriched_df.equals(decoded_df):
+            print(f"[eencijferho] Overgeslagen (identiek aan decoded): {fname}")
+            skipped += 1
+            continue
         out_path = in_path.replace("_decoded.csv", "_enriched.csv")
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(enriched_df.write_csv(separator=";"))
         print(f"[eencijferho] Verrijkt: {fname} → {os.path.basename(out_path)}")
         written += 1
-    print(f"[eencijferho] {written} verrijkt, {skipped} overgeslagen (geen mappings).")
+    print(f"[eencijferho] {written} verrijkt, {skipped} overgeslagen.")
 
 
 def cmd_convert(args: argparse.Namespace) -> None:
