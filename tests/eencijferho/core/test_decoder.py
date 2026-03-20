@@ -9,6 +9,11 @@
 #   - _apply_variable_mappings: variable_metadata label substitution
 #   - decode_fields_dec_only / decode_fields: public API contract
 #   - skip-if-identical behaviour (VAKHAVW scenario)
+#   - _has_real_mappings: placeholder filter
+#   - get_available_enrich_variables: filters [leeg]/[gevuld]-only entries
+#   - get_available_decode_columns: reads decoding_variables from Dec JSON
+#   - get_decode_column_info: maps decoding variables to label columns
+#   - get_enrich_variable_info: returns real code→label samples only
 
 import json
 import pytest
@@ -22,9 +27,14 @@ from eencijferho.core.decoder import (
     _apply_dec_tables,
     _parse_vakken_opmerking,
     _apply_variable_mappings,
+    _has_real_mappings,
     decode_fields_dec_only,
     decode_fields,
     load_dec_tables_from_metadata,
+    get_available_decode_columns,
+    get_available_enrich_variables,
+    get_decode_column_info,
+    get_enrich_variable_info,
 )
 
 
@@ -404,3 +414,162 @@ def test_decode_fields_vakhavw_scenario(tmp_path, dec_metadata_json):
     decoded = decode_fields_dec_only(df, dec_metadata_json, dec_tables)
     enriched = decode_fields(df, dec_metadata_json, dec_tables)
     assert enriched.equals(decoded), "VAKHAVW zonder variable_metadata: enriched moet identiek zijn aan decoded"
+
+
+# ---------------------------------------------------------------------------
+# _has_real_mappings
+# ---------------------------------------------------------------------------
+
+def test_has_real_mappings_true_for_code_label():
+    assert _has_real_mappings({"1": "Man", "2": "Vrouw"}) is True
+
+
+def test_has_real_mappings_false_for_only_leeg():
+    assert _has_real_mappings({"[leeg]": "onbekend"}) is False
+
+
+def test_has_real_mappings_false_for_only_gevuld():
+    assert _has_real_mappings({"[gevuld]": "brinnummer aanwezig"}) is False
+
+
+def test_has_real_mappings_false_for_leeg_and_gevuld():
+    assert _has_real_mappings({"[leeg]": "onbekend", "[gevuld]": "aanwezig"}) is False
+
+
+def test_has_real_mappings_true_for_mix_with_real_code():
+    assert _has_real_mappings({"[leeg]": "onbekend", "1": "Man"}) is True
+
+
+def test_has_real_mappings_false_for_empty_dict():
+    assert _has_real_mappings({}) is False
+
+
+# ---------------------------------------------------------------------------
+# get_available_enrich_variables
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def variable_metadata_json(tmp_path):
+    data = [
+        {"name": "Geslacht", "values": {"1": "Man", "2": "Vrouw"}},
+        {"name": "Geboorteland", "values": {"[leeg]": "onbekend"}},
+        {"name": "Instelling van de hoogste vooropl.", "values": {"[leeg]": "onbekend", "[gevuld]": "brinnummer"}},
+        {"name": "Opleidingsvorm", "values": {"1": "voltijd", "2": "deeltijd"}},
+    ]
+    path = tmp_path / "variable_metadata.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    return str(path)
+
+
+def test_get_available_enrich_variables_excludes_placeholder_only(variable_metadata_json):
+    result = get_available_enrich_variables(variable_metadata_json)
+    assert "Geboorteland" not in result
+    assert "Instelling van de hoogste vooropl." not in result
+
+
+def test_get_available_enrich_variables_includes_real_mappings(variable_metadata_json):
+    result = get_available_enrich_variables(variable_metadata_json)
+    assert "Geslacht" in result
+    assert "Opleidingsvorm" in result
+
+
+def test_get_available_enrich_variables_returns_sorted(variable_metadata_json):
+    result = get_available_enrich_variables(variable_metadata_json)
+    assert result == sorted(result)
+
+
+def test_get_available_enrich_variables_missing_file():
+    assert get_available_enrich_variables("/nonexistent/path.json") == []
+
+
+# ---------------------------------------------------------------------------
+# get_enrich_variable_info
+# ---------------------------------------------------------------------------
+
+def test_get_enrich_variable_info_excludes_placeholder_only(variable_metadata_json):
+    result = get_enrich_variable_info(variable_metadata_json)
+    assert "Geboorteland" not in result
+    assert "Instelling van de hoogste vooropl." not in result
+
+
+def test_get_enrich_variable_info_sample_contains_real_codes(variable_metadata_json):
+    result = get_enrich_variable_info(variable_metadata_json)
+    assert "1" in result["Geslacht"]
+    assert result["Geslacht"]["1"] == "Man"
+
+
+def test_get_enrich_variable_info_sample_excludes_placeholder_keys(variable_metadata_json):
+    data = [{"name": "Mix", "values": {"[leeg]": "leeg", "1": "Man"}}]
+    path = Path(variable_metadata_json).parent / "mix.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    result = get_enrich_variable_info(str(path))
+    assert "[leeg]" not in result["Mix"]
+    assert "1" in result["Mix"]
+
+
+# ---------------------------------------------------------------------------
+# get_available_decode_columns
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def dec_metadata_json_path(tmp_path):
+    data = {
+        "filename": "Bestandsbeschrijving_Dec-bestanden_TEST",
+        "tables": [
+            {
+                "table_number": 1,
+                "table_title": "Dec_landcode.asc",
+                "content": ["Startpositie  Lengte", "Code  2  2", "Naam land  4  40"],
+                "decoding_variables": ["Geboorteland", "Nationaliteit"],
+            },
+            {
+                "table_number": 2,
+                "table_title": "Dec_opleidingscode.asc",
+                "content": ["Startpositie  Lengte", "Code  2  2", "Omschrijving  4  60"],
+                "decoding_variables": ["Opleiding"],
+            },
+        ],
+    }
+    path = tmp_path / "Bestandsbeschrijving_Dec-bestanden_TEST.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    return str(path)
+
+
+def test_get_available_decode_columns_returns_all_variables(dec_metadata_json_path):
+    result = get_available_decode_columns(dec_metadata_json_path)
+    assert "Geboorteland" in result
+    assert "Nationaliteit" in result
+    assert "Opleiding" in result
+
+
+def test_get_available_decode_columns_returns_sorted(dec_metadata_json_path):
+    result = get_available_decode_columns(dec_metadata_json_path)
+    assert result == sorted(result)
+
+
+def test_get_available_decode_columns_no_duplicates(dec_metadata_json_path):
+    result = get_available_decode_columns(dec_metadata_json_path)
+    assert len(result) == len(set(result))
+
+
+def test_get_available_decode_columns_missing_file():
+    assert get_available_decode_columns("/nonexistent/path.json") == []
+
+
+# ---------------------------------------------------------------------------
+# get_decode_column_info
+# ---------------------------------------------------------------------------
+
+def test_get_decode_column_info_maps_variable_to_label_cols(dec_metadata_json_path):
+    result = get_decode_column_info(dec_metadata_json_path)
+    assert "Geboorteland" in result
+    assert "Naam land" in result["Geboorteland"]
+
+
+def test_get_decode_column_info_shared_table_all_variables(dec_metadata_json_path):
+    result = get_decode_column_info(dec_metadata_json_path)
+    assert result["Geboorteland"] == result["Nationaliteit"]
+
+
+def test_get_decode_column_info_missing_file():
+    assert get_decode_column_info("/nonexistent/path.json") == {}
