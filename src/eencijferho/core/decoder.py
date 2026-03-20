@@ -137,8 +137,21 @@ def load_dec_tables_from_metadata(
             else:
                 df = pl.read_csv(dec_path, separator=";", encoding="utf8")
             dec_tables[table["table_title"]] = df
-        except Exception as e:
-            print(f"[decoder] Kon {dec_file} niet laden: {e}")
+        except Exception:
+            try:
+                if schema_overrides:
+                    df = pl.read_csv(
+                        dec_path,
+                        separator=";",
+                        encoding="utf8",
+                        quote_char=None,
+                        schema_overrides=schema_overrides,
+                    )
+                else:
+                    df = pl.read_csv(dec_path, separator=";", encoding="utf8", quote_char=None)
+                dec_tables[table["table_title"]] = df
+            except Exception as e:
+                print(f"[decoder] Kon {dec_file} niet laden: {e}")
 
     return dec_tables
 
