@@ -175,6 +175,89 @@ def cmd_validate_output(args: argparse.Namespace) -> None:
             _console.print(Panel("\n".join(lines), title="⚠️  DEC validatie", border_style="yellow"))
 
 
+def cmd_decode(args: argparse.Namespace) -> None:
+    """Decode CSV files using Dec_* lookup tables (Dec-only, no label substitution)."""
+    import glob as _glob
+    from eencijferho.core.decoder import decode_fields_dec_only, load_dec_tables_from_metadata
+    import polars as pl
+
+    _, json_dir, _ = _resolve_dirs(args.output)
+    dec_json_matches = _glob.glob(
+        os.path.join(json_dir, "Bestandsbeschrijving_Dec-bestanden*.json")
+    )
+    if not dec_json_matches:
+        print("[eencijferho] Geen Bestandsbeschrijving_Dec-bestanden JSON gevonden. Eerst 'extract' uitvoeren.")
+        return
+
+    dec_metadata_json = dec_json_matches[0]
+    dec_tables = load_dec_tables_from_metadata(dec_metadata_json, args.output)
+
+    count = 0
+    for fname in os.listdir(args.output):
+        if (
+            (fname.startswith("EV") or fname.startswith("VAKHAVW"))
+            and fname.endswith(".csv")
+            and not fname.endswith("_decoded.csv")
+        ):
+            in_path = os.path.join(args.output, fname)
+            df = pl.read_csv(in_path, separator=";", encoding="utf-8")
+            decoded_df = decode_fields_dec_only(df, dec_metadata_json, dec_tables)
+            out_path = in_path.replace(".csv", "_decoded.csv")
+            with open(out_path, "w", encoding="utf-8") as f:
+                f.write(decoded_df.write_csv(separator=";"))
+            print(f"[eencijferho] Gedecodeerd: {fname} → {os.path.basename(out_path)}")
+            count += 1
+    print(f"[eencijferho] {count} bestand(en) gedecodeerd.")
+
+
+def cmd_enrich(args: argparse.Namespace) -> None:
+    """Apply variable_metadata label substitution to decoded CSV files.
+
+    Skips writing _enriched when the result is identical to _decoded
+    (e.g. for VAKHAVW which has no variable_metadata mappings).
+    """
+    import glob as _glob
+    from eencijferho.core.decoder import decode_fields, load_dec_tables_from_metadata
+    import polars as pl
+
+    _, json_dir, _ = _resolve_dirs(args.output)
+    dec_json_matches = _glob.glob(
+        os.path.join(json_dir, "Bestandsbeschrijving_Dec-bestanden*.json")
+    )
+    if not dec_json_matches:
+        print("[eencijferho] Geen Bestandsbeschrijving_Dec-bestanden JSON gevonden. Eerst 'extract' uitvoeren.")
+        return
+
+    dec_metadata_json = dec_json_matches[0]
+    dec_tables = load_dec_tables_from_metadata(dec_metadata_json, args.output)
+    variable_metadata_json = os.path.join(json_dir, "variable_metadata.json")
+
+    written = skipped = 0
+    for fname in os.listdir(args.output):
+        if not (fname.endswith("_decoded.csv") and not fname.endswith("_decoded_encrypted.csv")):
+            continue
+        in_path = os.path.join(args.output, fname)
+        base = in_path.replace("_decoded.csv", ".csv")
+        if not os.path.exists(base):
+            continue
+        decoded_df = pl.read_csv(in_path, separator=";", encoding="utf-8")
+        main_df = pl.read_csv(base, separator=";", encoding="utf-8")
+        enriched_df = decode_fields(
+            main_df, dec_metadata_json, dec_tables,
+            variable_metadata_path=variable_metadata_json,
+        )
+        if enriched_df.equals(decoded_df):
+            print(f"[eencijferho] Overgeslagen (identiek): {fname}")
+            skipped += 1
+        else:
+            out_path = in_path.replace("_decoded.csv", "_enriched.csv")
+            with open(out_path, "w", encoding="utf-8") as f:
+                f.write(enriched_df.write_csv(separator=";"))
+            print(f"[eencijferho] Verrijkt: {fname} → {os.path.basename(out_path)}")
+            written += 1
+    print(f"[eencijferho] {written} verrijkt, {skipped} overgeslagen (identiek aan _decoded).")
+
+
 def cmd_convert(args: argparse.Namespace) -> None:
     """Run the full turbo convert pipeline."""
     metadata_dir, _, _ = _resolve_dirs(args.output)
@@ -243,6 +326,16 @@ def main() -> None:
         help="Validate extracted metadata and match input files",
     )
     subparsers.add_parser(
+        "decode",
+        parents=[_common],
+        help="Decode output CSV files using Dec_* lookup tables (run after convert)",
+    )
+    subparsers.add_parser(
+        "enrich",
+        parents=[_common],
+        help="Apply variable_metadata labels to decoded files; skips if identical to _decoded",
+    )
+    subparsers.add_parser(
         "convert",
         parents=[_common],
         help="Run turbo convert pipeline (requires prior extract+validate)",
@@ -263,6 +356,8 @@ def main() -> None:
     dispatch = {
         "extract": cmd_extract,
         "validate": cmd_validate,
+        "decode": cmd_decode,
+        "enrich": cmd_enrich,
         "convert": cmd_convert,
         "pipeline": cmd_pipeline,
         "validate-output": cmd_validate_output,

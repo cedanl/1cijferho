@@ -1,8 +1,17 @@
-import polars as pl
+import difflib
 import json
 import os
-from eencijferho.utils.converter_headers import normalize_name, clean_header_name
+import re as _re
+
+import polars as pl
+
+from eencijferho.utils.converter_headers import clean_header_name, normalize_name
 from typing import Any, Callable, Optional
+
+
+# ---------------------------------------------------------------------------
+# Public: load helpers
+# ---------------------------------------------------------------------------
 
 
 def load_variable_mappings(
@@ -13,78 +22,56 @@ def load_variable_mappings(
     Loads variable-level value mappings from a variable metadata JSON file.
 
     Args:
-            variable_metadata_path (Optional[str]): Path to the variable metadata JSON file. If None, tries sensible defaults.
-            naming_func (Optional[Callable[[str], str]]): Optional function to normalize variable names.
+        variable_metadata_path: Path to variable_metadata.json. Falls back to
+            the default location inside data/00-metadata/json/ when None.
+        naming_func: Optional column name normalizer.
 
     Returns:
-            dict[str, dict[str, Any]]: Mapping of normalized variable names to code-label dictionaries.
-
-    Edge Cases:
-            - If file is missing or corrupt, returns empty dict and prints warning.
-            - If values are not a dict, skips that variable.
-
-    Example:
-            >>> mappings = load_variable_mappings()
-            >>> print(mappings['GESLACHT'])
+        Mapping of normalized variable names to ``{"orig_name": ..., "mapping": {...}}``.
+        Returns an empty dict when the file is absent or unreadable.
     """
     candidates = []
     if variable_metadata_path:
         candidates.append(variable_metadata_path)
     candidates.append(
-        os.path.join(
-            os.getcwd(), "data", "00-metadata", "json", "variable_metadata.json"
-        )
+        os.path.join(os.getcwd(), "data", "00-metadata", "json", "variable_metadata.json")
     )
-    for p in candidates:
-        if os.path.exists(p):
-            path = p
-            break
-    else:
+    path = next((p for p in candidates if os.path.exists(p)), None)
+    if path is None:
         return {}
-    # --- Sanitize variable_metadata.json before loading ---
-    try:
-        from eencijferho.utils.sanitize_variable_metadata import (
-            sanitize_variable_metadata_json,
-        )
 
+    try:
+        from eencijferho.utils.sanitize_variable_metadata import sanitize_variable_metadata_json
         sanitize_variable_metadata_json(path)
     except Exception as e:
-        print(f"[decoder] Warning: could not sanitize variable metadata {path}: {e}")
+        print(f"[decoder] Waarschuwing: kon variable metadata niet opschonen {path}: {e}")
+
     try:
         with open(path, encoding="utf-8") as f:
             items = json.load(f)
     except Exception as e:
-        print(f"[decoder] Warning: could not load variable metadata {path}: {e}")
+        print(f"[decoder] Waarschuwing: kon variable metadata niet laden {path}: {e}")
         return {}
-    maps = {}
+
+    maps: dict[str, dict[str, Any]] = {}
     for item in items:
         name = item.get("name")
         values = item.get("values") or {}
         if not name or not isinstance(values, dict):
             continue
         norm = normalize_name(name, naming_func)
-        entry = {}
+        entry: dict[str, Any] = {}
         for k, v in values.items():
-            # keep raw key as-is (including markers like '[leeg]') but strip surrounding whitespace
-            if isinstance(k, str):
-                key = k.strip()
-            else:
-                key = str(k)
-            # Add original string
+            key = k.strip() if isinstance(k, str) else str(k)
             entry[key] = v
-            # Add uppercase variant if different
-            if key.upper() != key:
+            if isinstance(key, str) and key.upper() != key:
                 entry[key.upper()] = v
-            # Add zero-padded variant for numeric codes (up to 2 digits)
-            if key.isdigit():
-                zfill2 = key.zfill(2)
-                entry[zfill2] = v
+            if isinstance(key, str) and key.isdigit():
+                entry[key.zfill(2)] = v
                 try:
-                    int_key = int(key)
-                    entry[int_key] = v
+                    entry[int(key)] = v
                 except Exception:
                     pass
-            # Add int version if possible and not already present
             else:
                 try:
                     int_key = int(key)
@@ -93,23 +80,10 @@ def load_variable_mappings(
                 except Exception:
                     pass
         if entry:
-            # store original name and mapping for richer diagnostics
             maps[norm] = {"orig_name": name, "mapping": entry}
-    # Logging: show how many variable mappings were loaded
+
     if maps:
-        try:
-            print(f"[decoder] Loaded {len(maps)} variable mappings from {path}")
-            # print a small sample of variable names and key counts
-            sample = list(maps.items())[:5]
-            for k, v in sample:
-                try:
-                    print(
-                        f"[decoder]  - {v.get('orig_name')} (normalized: {k}) -> {len(v.get('mapping', {}))} keys"
-                    )
-                except Exception:
-                    pass
-        except Exception:
-            pass
+        print(f"[decoder] {len(maps)} variabele-mappings geladen uit {path}")
     return maps
 
 
@@ -122,37 +96,36 @@ def load_dec_tables_from_metadata(
     Loads Dec_* tables as Polars DataFrames based on metadata JSON.
 
     Args:
-            metadata_json_path (str): Path to the metadata JSON file.
-            dec_output_dir (str): Directory containing Dec_* CSV files.
-            naming_func (Optional[Callable[[str], str]]): Optional function to normalize names.
+        metadata_json_path: Path to the metadata JSON file.
+        dec_output_dir: Directory containing Dec_* CSV files.
+        naming_func: Optional column name normalizer.
 
     Returns:
-            dict[str, pl.DataFrame]: Mapping of table titles to DataFrames.
-
-    Edge Cases:
-            - Skips missing or unreadable files with warning.
-            - Tries to infer code columns from metadata content.
+        Mapping of table titles to DataFrames. Missing files are skipped.
 
     Example:
-            >>> dec_tables = load_dec_tables_from_metadata('variable_metadata.json', 'data/02-output')
+        >>> dec_tables = load_dec_tables_from_metadata(
+        ...     "data/00-metadata/json/Bestandsbeschrijving_Dec-bestanden.json",
+        ...     "data/02-output/DEMO",
+        ... )
     """
     with open(metadata_json_path, encoding="utf-8") as f:
         meta = json.load(f)
-    dec_tables = {}
+
+    dec_tables: dict[str, pl.DataFrame] = {}
     for table in meta["tables"]:
         dec_file = table["table_title"].replace(".asc", ".csv")
         dec_path = os.path.join(dec_output_dir, dec_file)
-        # Try to determine code columns from metadata content
-        schema_overrides = {}
+
+        schema_overrides: dict[str, Any] = {}
         content = table.get("content", [])
         if len(content) >= 2:
-            # First code column is usually in the second row, first word
             code_col = content[1].split("  ")[0].strip()
             schema_overrides[code_col] = pl.String
-            # If a composite key, second code column is in the third row
             if len(content) > 2:
                 code_col2 = content[2].split("  ")[0].strip()
                 schema_overrides[code_col2] = pl.String
+
         try:
             if schema_overrides:
                 df = pl.read_csv(
@@ -164,22 +137,557 @@ def load_dec_tables_from_metadata(
             else:
                 df = pl.read_csv(dec_path, separator=";", encoding="utf8")
             dec_tables[table["table_title"]] = df
-        except Exception:
-            try:
-                if schema_overrides:
-                    df = pl.read_csv(
-                        dec_path,
-                        separator=";",
-                        encoding="utf8",
-                        quote_char=None,
-                        schema_overrides=schema_overrides,
-                    )
-                else:
-                    df = pl.read_csv(dec_path, separator=";", encoding="utf8", quote_char=None)
-                dec_tables[table["table_title"]] = df
-            except Exception as e:
-                print(f"[decoder] Warning: Could not load {dec_file}: {e}")
+        except Exception as e:
+            print(f"[decoder] Kon {dec_file} niet laden: {e}")
+
     return dec_tables
+
+
+# ---------------------------------------------------------------------------
+# Private helpers
+# ---------------------------------------------------------------------------
+
+
+def _load_meta(metadata_json_path: str) -> dict:
+    with open(metadata_json_path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _normalize_df(
+    df: pl.DataFrame,
+    naming_func: Optional[Callable] = None,
+) -> tuple[pl.DataFrame, dict[str, str], list[str]]:
+    """Normalize column names and cast all values to stripped strings.
+
+    Returns:
+        (norm_df, norm_map, orig_columns)
+        norm_map maps normalized_name → original_name.
+    """
+    from eencijferho.utils.converter_headers import strip_accents
+
+    orig_columns = list(df.columns)
+    norm_map = {normalize_name(col, naming_func): col for col in orig_columns}
+    norm_df = df.rename({v: k for k, v in norm_map.items()})
+    for col in norm_df.columns:
+        norm_df = norm_df.with_columns(
+            pl.col(col).cast(pl.Utf8).str.strip_chars().alias(col)
+        )
+    return norm_df, norm_map, orig_columns
+
+
+def _normalize_dec_table(
+    dec_table: pl.DataFrame,
+    code_col_norm: str,
+    naming_func: Optional[Callable] = None,
+) -> pl.DataFrame:
+    """Normalize Dec table column names and strip leading zeros from the code column."""
+    from eencijferho.utils.converter_headers import strip_accents
+
+    join_df = dec_table.rename(
+        {c: normalize_name(strip_accents(c), naming_func) for c in dec_table.columns}
+    )
+    if code_col_norm in join_df.columns:
+        join_df = join_df.with_columns(
+            pl.col(code_col_norm)
+            .cast(pl.Utf8)
+            .str.strip_chars_start("0")
+            .str.replace("^$", "0")
+            .str.strip_chars()
+            .alias(code_col_norm)
+        )
+    return join_df
+
+
+def _apply_single_dec_join(
+    result_df: pl.DataFrame,
+    join_df: pl.DataFrame,
+    var_norm: str,
+    code_col_norm: str,
+    is_composite: bool,
+    code_col2_norm: Optional[str],
+    naming_func: Optional[Callable] = None,
+) -> pl.DataFrame:
+    """Apply one Dec table join (simple or composite key) to result_df."""
+    from eencijferho.utils.converter_headers import strip_accents
+
+    result_df = result_df.with_columns(
+        pl.col(var_norm)
+        .cast(pl.Utf8)
+        .str.strip_chars_start("0")
+        .str.replace("^$", "0")
+        .str.strip_chars()
+        .alias(var_norm)
+    )
+    try:
+        if is_composite:
+            dec_cols = [
+                c for c in join_df.columns
+                if c != code_col_norm and c != code_col2_norm
+            ]
+            joined = result_df.join(
+                join_df,
+                left_on=[code_col_norm, var_norm],
+                right_on=[code_col_norm, code_col2_norm],
+                how="left",
+            )
+        else:
+            dec_cols = [c for c in join_df.columns if c != code_col_norm]
+            joined = result_df.join(
+                join_df, left_on=var_norm, right_on=code_col_norm, how="left"
+            )
+
+        for col in dec_cols:
+            new_col = f"{var_norm}__{normalize_name(strip_accents(col), naming_func)}"
+            result_df = result_df.with_columns(joined[col].alias(new_col))
+
+        if dec_cols:
+            unmatched = joined.filter(
+                pl.col(var_norm).is_not_null() & pl.col(dec_cols[0]).is_null()
+            )
+            if unmatched.height > 0:
+                sample = unmatched[var_norm].unique().to_list()[:5]
+                print(f"[decoder] Niet-gematchte codes voor {var_norm}: {sample}")
+    except Exception as e:
+        print(f"[decoder] Fout bij Dec-join voor {var_norm}: {e}")
+
+    return result_df
+
+
+def _apply_dec_tables(
+    result_df: pl.DataFrame,
+    meta: dict,
+    dec_tables: dict[str, pl.DataFrame],
+    naming_func: Optional[Callable] = None,
+) -> pl.DataFrame:
+    """Apply all Dec table joins defined in metadata to result_df.
+
+    Fixes a previous bug where an outer loop shadowed itself, causing each
+    table's join to be applied N times instead of once.
+    """
+    from eencijferho.utils.converter_headers import strip_accents
+
+    for table in meta["tables"]:
+        dec_vars = table.get("decoding_variables", [])
+        dec_table = dec_tables.get(table["table_title"])
+        content = table.get("content", [])
+
+        # Fallback: derive decoding variable from first content row
+        if not dec_vars and len(content) > 1:
+            dec_vars = [content[1].split("  ")[0].strip()]
+
+        if not dec_vars or dec_table is None or len(content) < 2:
+            continue
+
+        code_col_raw = content[1].split("  ")[0].strip()
+        code_col_norm = normalize_name(strip_accents(code_col_raw), naming_func)
+        join_df = _normalize_dec_table(dec_table, code_col_norm, naming_func)
+
+        # Special column-name fallbacks for known Dec tables
+        title_lower = table["table_title"].lower()
+        if title_lower.startswith("dec_landcode") and code_col_norm not in join_df.columns:
+            if "code_land" in join_df.columns:
+                code_col_norm = "code_land"
+            else:
+                continue
+        if title_lower.startswith("dec_nationaliteitscode") and code_col_norm not in join_df.columns:
+            if "code_nationaliteit" in join_df.columns:
+                code_col_norm = "code_nationaliteit"
+            else:
+                continue
+
+        # Detect composite key: second content row carries "}" marker
+        is_composite = False
+        code_col2_norm = None
+        if len(content) > 2 and "}" in content[2]:
+            code_col2_raw = content[2].split("  ")[0].strip()
+            code_col2_norm = normalize_name(strip_accents(code_col2_raw), naming_func)
+            if (
+                code_col2_norm in join_df.columns
+                and code_col_norm in join_df.columns
+                and code_col_norm in result_df.columns
+            ):
+                is_composite = True
+                join_df = join_df.with_columns(
+                    pl.col(code_col2_norm)
+                    .cast(pl.Utf8)
+                    .str.strip_chars_start("0")
+                    .str.replace("^$", "0")
+                    .str.strip_chars()
+                    .alias(code_col2_norm)
+                )
+
+        for var in dec_vars:
+            var_norm = normalize_name(strip_accents(var), naming_func)
+            if var_norm not in result_df.columns:
+                closest = difflib.get_close_matches(var_norm, result_df.columns, n=1, cutoff=0.8)
+                if closest:
+                    var_norm = closest[0]
+                else:
+                    print(f"[decoder] Sla '{var}' over — niet gevonden in DataFrame.")
+                    continue
+
+            result_df = _apply_single_dec_join(
+                result_df, join_df, var_norm, code_col_norm,
+                is_composite, code_col2_norm, naming_func,
+            )
+
+    return result_df
+
+
+def _apply_vakken_patch(
+    result_df: pl.DataFrame,
+    meta: dict,
+    dec_tables: dict[str, pl.DataFrame],
+    naming_func: Optional[Callable] = None,
+) -> pl.DataFrame:
+    """Apply Vakkenbestanden decoding via 'te decoderen met Dec_X' in Opmerking column."""
+    for table in meta["tables"]:
+        if table.get("decoding_variables", []):
+            continue  # Already handled by _apply_dec_tables
+
+        content = table.get("content", [])
+        if not content or len(content) < 2:
+            continue
+
+        header_row = next(
+            (i for i, row in enumerate(content) if "opmerking" in row.lower()), None
+        )
+        if header_row is None:
+            continue
+
+        headers = [h.strip().lower() for h in content[header_row].split()]
+        col_idx = {h: i for i, h in enumerate(headers)}
+
+        for row in content[header_row + 1:]:
+            parts = row.split(None, len(headers) - 1)
+            if len(parts) < len(headers):
+                continue
+
+            naam = parts[col_idx.get("naam", 0)]
+            opm = parts[col_idx.get("opmerking", -1)] if "opmerking" in col_idx else ""
+
+            composite, dec_table_title = _parse_vakken_opmerking(opm)
+            if not dec_table_title:
+                continue
+
+            dec_table = dec_tables.get(dec_table_title)
+            if dec_table is None:
+                print(f"[decoder][vakken] Dec-tabel niet geladen: {dec_table_title}")
+                continue
+
+            dec_content = next(
+                (t.get("content", []) for t in meta["tables"] if t["table_title"] == dec_table_title),
+                None,
+            )
+            if not dec_content or len(dec_content) < 2:
+                continue
+
+            dec_code_col_norm = normalize_name(dec_content[1].split()[0], naming_func)
+            join_df = dec_table.rename(
+                {c: normalize_name(c, naming_func) for c in dec_table.columns}
+            )
+            var_norm = normalize_name(naam, naming_func)
+
+            if composite:
+                result_df = _apply_vakken_composite(
+                    result_df, join_df, var_norm, composite,
+                    dec_code_col_norm, dec_content, dec_table_title, naming_func,
+                )
+            else:
+                result_df = _apply_vakken_simple(
+                    result_df, join_df, var_norm, dec_code_col_norm, naam, dec_table_title,
+                )
+
+    return result_df
+
+
+def _parse_vakken_opmerking(opm: str) -> tuple[Optional[str], Optional[str]]:
+    """Parse an Opmerking value for decode instructions.
+
+    Returns (composite_col, dec_table_title) or (None, None) if no instruction found.
+    """
+    opm_lower = opm.lower()
+    if "in combinatie met" in opm_lower and "te decoderen met dec_" in opm_lower:
+        m = _re.search(
+            r"in combinatie met ([A-Za-z0-9_]+) te decoderen met (Dec_[A-Za-z0-9_]+)\.asc",
+            opm, _re.IGNORECASE,
+        )
+        if m:
+            return m.group(1), m.group(2) + ".asc"
+    elif "te decoderen met dec_" in opm_lower:
+        m = _re.search(r"te decoderen met (Dec_[A-Za-z0-9_]+)\.asc", opm)
+        if m:
+            return None, m.group(1) + ".asc"
+    return None, None
+
+
+def _apply_vakken_simple(
+    result_df: pl.DataFrame,
+    join_df: pl.DataFrame,
+    var_norm: str,
+    dec_code_col_norm: str,
+    naam: str,
+    dec_table_title: str,
+) -> pl.DataFrame:
+    """Apply a simple (single-key) Vakkenbestanden join."""
+    if var_norm not in result_df.columns:
+        closest = difflib.get_close_matches(var_norm, result_df.columns, n=1)
+        print(f"[decoder][vakken] Sla '{naam}' over — niet in DataFrame. Dichtste: {closest}")
+        return result_df
+
+    result_df = result_df.with_columns(
+        pl.col(var_norm).cast(pl.Utf8).str.strip_chars().alias(var_norm)
+    )
+    if dec_code_col_norm in join_df.columns:
+        join_df = join_df.with_columns(
+            pl.col(dec_code_col_norm).cast(pl.Utf8).str.strip_chars().alias(dec_code_col_norm)
+        )
+    try:
+        dec_cols = [c for c in join_df.columns if c != dec_code_col_norm]
+        joined = result_df.join(
+            join_df, left_on=var_norm, right_on=dec_code_col_norm, how="left"
+        )
+        for col in dec_cols:
+            result_df = result_df.with_columns(joined[col].alias(f"{var_norm}__{col}"))
+        if dec_cols:
+            unmatched = joined.filter(
+                pl.col(var_norm).is_not_null() & pl.col(dec_cols[0]).is_null()
+            )
+            if unmatched.height > 0:
+                print(f"[decoder][vakken] Niet-gematcht voor {naam}: {unmatched[var_norm].unique().to_list()[:5]}")
+    except Exception as e:
+        print(f"[decoder][vakken] Fout bij join voor {naam}: {e}")
+    return result_df
+
+
+def _apply_vakken_composite(
+    result_df: pl.DataFrame,
+    join_df: pl.DataFrame,
+    var_norm: str,
+    composite: str,
+    dec_code_col_norm: str,
+    dec_content: list,
+    dec_table_title: str,
+    naming_func: Optional[Callable] = None,
+) -> pl.DataFrame:
+    """Apply a composite-key Vakkenbestanden join."""
+    composite_norm = normalize_name(composite, naming_func)
+    if len(dec_content) <= 2:
+        print(f"[decoder][vakken] Geen tweede sleutelkolom voor samengestelde join in {dec_table_title}")
+        return result_df
+
+    dec_code_col2_norm = normalize_name(dec_content[2].split()[0], naming_func)
+
+    for col in [var_norm, composite_norm]:
+        if col not in result_df.columns:
+            closest = difflib.get_close_matches(col, result_df.columns, n=1)
+            print(f"[decoder][vakken] Sla {col} over (samengesteld) — niet in DataFrame. Dichtste: {closest}")
+            return result_df
+        result_df = result_df.with_columns(
+            pl.col(col).cast(pl.Utf8).str.zfill(2).str.strip_chars().alias(col)
+        )
+    for col in [dec_code_col_norm, dec_code_col2_norm]:
+        if col in join_df.columns:
+            join_df = join_df.with_columns(
+                pl.col(col).cast(pl.Utf8).str.zfill(2).str.strip_chars().alias(col)
+            )
+    try:
+        dec_cols = [
+            c for c in join_df.columns
+            if c not in (dec_code_col_norm, dec_code_col2_norm)
+        ]
+        joined = result_df.join(
+            join_df,
+            left_on=[var_norm, composite_norm],
+            right_on=[dec_code_col_norm, dec_code_col2_norm],
+            how="left",
+        )
+        for col in dec_cols:
+            result_df = result_df.with_columns(joined[col].alias(f"{var_norm}__{col}"))
+        if dec_cols:
+            unmatched = joined.filter(
+                pl.col(var_norm).is_not_null()
+                & pl.col(composite_norm).is_not_null()
+                & pl.col(dec_cols[0]).is_null()
+            )
+            if unmatched.height > 0:
+                pairs = list(zip(
+                    unmatched[var_norm].unique().to_list()[:5],
+                    unmatched[composite_norm].unique().to_list()[:5],
+                ))
+                print(f"[decoder][vakken] Niet-gematchte samengestelde codes: {pairs}")
+    except Exception as e:
+        print(f"[decoder][vakken] Fout bij samengestelde join voor {var_norm}: {e}")
+    return result_df
+
+
+def _apply_variable_mappings(
+    result_df: pl.DataFrame,
+    variable_metadata_path: Optional[str],
+    naming_func: Optional[Callable],
+    norm_map: dict[str, str],
+    orig_columns: list[str],
+) -> pl.DataFrame:
+    """Apply variable-level code→label mappings from variable_metadata.json.
+
+    When variable_metadata_path is None or the file is absent, returns result_df unchanged.
+    This is the step that differentiates decode_fields from decode_fields_dec_only.
+    """
+    try:
+        var_maps = load_variable_mappings(variable_metadata_path, naming_func=naming_func)
+        if not var_maps:
+            return result_df
+        print(f"[decoder] {len(var_maps)} variabele-mappings toepassen...")
+        for var_norm, info in var_maps.items():
+            mapping = info.get("mapping") if isinstance(info, dict) else info
+            orig_name = info.get("orig_name") if isinstance(info, dict) else None
+            chosen_col = _resolve_mapping_column(
+                var_norm, orig_name, result_df, norm_map, orig_columns, naming_func
+            )
+            if chosen_col is None:
+                continue
+            result_df = _apply_single_mapping(result_df, chosen_col, mapping, var_norm, orig_name)
+    except Exception as e:
+        print(f"[decoder] Fout bij toepassen variabele-mappings: {e}")
+    return result_df
+
+
+def _resolve_mapping_column(
+    var_norm: str,
+    orig_name: Optional[str],
+    result_df: pl.DataFrame,
+    norm_map: dict[str, str],
+    orig_columns: list[str],
+    naming_func: Optional[Callable],
+) -> Optional[str]:
+    """Find the best matching column in result_df for a variable mapping."""
+    if var_norm in result_df.columns:
+        return var_norm
+
+    candidates = list(result_df.columns) + list(norm_map.keys())
+    for orig in orig_columns:
+        try:
+            candidates.append(normalize_name(clean_header_name(orig), naming_func))
+        except Exception:
+            pass
+
+    closest = difflib.get_close_matches(var_norm, candidates, n=3)
+    if not closest:
+        print(f"[decoder] Mapping voor '{var_norm}' (orig: '{orig_name}') — kolom niet gevonden.")
+        return None
+
+    pick = next((c for c in closest if c in result_df.columns), None)
+    if pick is None and closest[0] in norm_map:
+        pick = closest[0]
+    if pick is None:
+        pick = closest[0]
+    print(f"[decoder] Mapping voor '{var_norm}' → dichtste match '{pick}'")
+    return pick
+
+
+def _apply_single_mapping(
+    result_df: pl.DataFrame,
+    chosen_col: str,
+    mapping: dict,
+    var_norm: str,
+    orig_name: Optional[str],
+) -> pl.DataFrame:
+    """Replace values in chosen_col using code→label mapping."""
+    try:
+        result_df = result_df.with_columns(
+            pl.col(chosen_col).cast(pl.Utf8).str.strip_chars().alias(chosen_col)
+        )
+        src_vals = result_df[chosen_col].to_list()
+        lower_map = {k.lower(): v for k, v in mapping.items() if isinstance(k, str)}
+        mapped_vals = []
+        unmapped_seen: set = set()
+        total_non_null = mapped_count = 0
+
+        for v in src_vals:
+            if v is None:
+                mapped_vals.append(None)
+                continue
+            s = str(v).strip()
+            total_non_null += 1
+
+            if s == "":
+                found = next(
+                    (mapping[k] for k in mapping if isinstance(k, str) and "leeg" in k.lower()),
+                    None,
+                )
+                mapped_vals.append(found if found is not None else s)
+                if found is not None:
+                    mapped_count += 1
+                elif s not in unmapped_seen:
+                    unmapped_seen.add(s)
+                continue
+
+            found = None
+            for variant in (s, s.upper(), s.zfill(2)):
+                if variant in mapping:
+                    found = mapping[variant]
+                    break
+            if found is None:
+                try:
+                    found = mapping.get(int(s))
+                except (ValueError, TypeError):
+                    pass
+            if found is None:
+                found = lower_map.get(s.lower())
+
+            mapped_vals.append(found if found is not None else s)
+            if found is not None:
+                mapped_count += 1
+            elif s not in unmapped_seen:
+                unmapped_seen.add(s)
+
+        try:
+            result_df = result_df.with_columns(pl.Series(mapped_vals).alias(chosen_col))
+        except Exception:
+            result_df = result_df.with_columns(
+                pl.Series(mapped_vals).cast(pl.Utf8).alias(chosen_col)
+            )
+        print(
+            f"[decoder] '{chosen_col}' (orig: '{orig_name}'): "
+            f"{mapped_count}/{total_non_null} gemapt, niet-gemapt: {list(unmapped_seen)[:5]}"
+        )
+    except Exception as e:
+        print(f"[decoder] Fout bij mapping voor {var_norm}: {e}")
+    return result_df
+
+
+# ---------------------------------------------------------------------------
+# Public: decode functions
+# ---------------------------------------------------------------------------
+
+
+def decode_fields_dec_only(
+    df: pl.DataFrame,
+    metadata_json_path: str,
+    dec_tables: dict[str, pl.DataFrame],
+    naming_func: Optional[Callable[[str], str]] = None,
+) -> pl.DataFrame:
+    """
+    Decode fields using only Dec_* lookup tables (no variable_metadata enrichment).
+
+    Use this when variable_metadata.json is unavailable or when the caller
+    wants to explicitly skip label substitution (e.g. for VAKHAVW files where
+    no variable_metadata mappings exist).
+
+    Args:
+        df: Input DataFrame with coded fields.
+        metadata_json_path: Path to Bestandsbeschrijving_Dec-bestanden JSON.
+        dec_tables: Dec_* DataFrames keyed by table title.
+        naming_func: Optional column name normalizer.
+
+    Returns:
+        DataFrame with Dec-decoded columns appended.
+    """
+    meta = _load_meta(metadata_json_path)
+    norm_df, norm_map, _orig = _normalize_df(df, naming_func)
+    result_df = _apply_dec_tables(norm_df, meta, dec_tables, naming_func)
+    result_df = _apply_vakken_patch(result_df, meta, dec_tables, naming_func)
+    return result_df.rename({k: v for k, v in norm_map.items() if k in result_df.columns})
 
 
 def decode_fields(
@@ -190,994 +698,52 @@ def decode_fields(
     variable_metadata_path: Optional[str] = None,
 ) -> pl.DataFrame:
     """
-    For each field in df listed in decoding_variables in the metadata, left-joins decoded values from the corresponding Dec_* table.
+    Decode fields using Dec_* tables, then apply variable_metadata label substitution.
+
+    For datasets that have no variable_metadata mappings (e.g. VAKHAVW), the
+    result is identical to decode_fields_dec_only.  Callers can detect this by
+    comparing the two outputs and skip writing a redundant _enriched file.
 
     Args:
-            df (pl.DataFrame): Input DataFrame with coded fields.
-            metadata_json_path (str): Path to the metadata JSON file.
-            dec_tables (dict[str, pl.DataFrame]): Mapping of table titles to DataFrames.
-            naming_func (Optional[Callable[[str], str]]): Optional function to normalize names.
+        df: Input DataFrame with coded fields.
+        metadata_json_path: Path to Bestandsbeschrijving_Dec-bestanden JSON.
+        dec_tables: Dec_* DataFrames keyed by table title.
+        naming_func: Optional column name normalizer.
+        variable_metadata_path: Path to variable_metadata.json. Falls back to
+            the default location when None.
 
     Returns:
-            pl.DataFrame: DataFrame with decoded columns appended.
-
-    Edge Cases:
-            - Skips fields not present in dec_tables
-            - Handles missing or corrupt metadata gracefully
-
-    Example:
-            >>> df_decoded = decode_fields(df, 'variable_metadata.json', dec_tables)
+        DataFrame with Dec-decoded columns appended and variable-level labels
+        substituted where variable_metadata provides mappings.
     """
-    with open(metadata_json_path, encoding="utf-8") as f:
-        meta = json.load(f)
-    # --- Normalize main DataFrame columns and keep mapping to original names ---
-    orig_columns = list(df.columns)
-    from eencijferho.utils.converter_headers import strip_accents
-
-    norm_map = {normalize_name(col, naming_func): col for col in orig_columns}
-    norm_columns = list(norm_map.keys())
-    norm_df = df.rename({v: k for k, v in norm_map.items()})
-    # Force all columns to string to preserve leading zeros for codes
-    for col in norm_df.columns:
-        norm_df = norm_df.with_columns(
-            pl.col(col).cast(pl.Utf8).str.strip_chars().alias(col)
-        )
-    decode_summary = []
-    dec_tables_used = set()
-    dec_tables_not_used = set(dec_tables.keys())
-    result_df = norm_df.clone()
-    import difflib
-
-    for table in meta["tables"]:
-        dec_vars = table.get("decoding_variables", [])
-        for table in meta["tables"]:
-            dec_vars = table.get("decoding_variables", [])
-            dec_table = dec_tables.get(table["table_title"])
-            content = table.get("content", [])
-            # PATCH: If no decoding_variables, use first column as decoding variable for any table
-            if not dec_vars and len(content) > 1:
-                code_col = content[1].split("  ")[0].strip()
-                dec_vars = [code_col]
-            if dec_vars:
-                if dec_table is None:
-                    continue
-                if len(content) < 2:
-                    continue
-                code_col = content[1].split("  ")[0].strip()
-                code_col_norm = normalize_name(strip_accents(code_col), naming_func)
-                join_df = dec_table.rename(
-                    {
-                        c: normalize_name(strip_accents(c), naming_func)
-                        for c in dec_table.columns
-                    }
-                )
-                # Special handling for Dec_landcode and Dec_nationaliteitscode: fallback to correct code column if 'code' is missing
-                if (
-                    table["table_title"].lower().startswith("dec_landcode")
-                    and code_col_norm not in join_df.columns
-                ):
-                    if "code_land" in join_df.columns:
-                        code_col_norm = "code_land"
-                    else:
-                        continue
-                if (
-                    table["table_title"].lower().startswith("dec_nationaliteitscode")
-                    and code_col_norm not in join_df.columns
-                ):
-                    if "code_nationaliteit" in join_df.columns:
-                        code_col_norm = "code_nationaliteit"
-                    else:
-                        continue
-                if code_col_norm in join_df.columns:
-                    join_df = join_df.with_columns(
-                        pl.col(code_col_norm)
-                        .cast(pl.Utf8)
-                        .str.strip_chars_start("0")
-                        .str.replace("^$", "0")
-                        .str.strip_chars()
-                        .alias(code_col_norm)
-                    )
-                # Detect composite-key DEC table: second content row also has a
-                # key marker ("}") meaning it is part of the compound key.
-                is_composite_table = False
-                code_col2_norm = None
-                if len(content) > 2 and "}" in content[2]:
-                    code_col2_raw = content[2].split("  ")[0].strip()
-                    code_col2_norm = normalize_name(strip_accents(code_col2_raw), naming_func)
-                    if (
-                        code_col2_norm in join_df.columns
-                        and code_col_norm in join_df.columns
-                        and code_col_norm in result_df.columns
-                    ):
-                        is_composite_table = True
-                        # Strip leading zeros from second key in join_df too
-                        join_df = join_df.with_columns(
-                            pl.col(code_col2_norm)
-                            .cast(pl.Utf8)
-                            .str.strip_chars_start("0")
-                            .str.replace("^$", "0")
-                            .str.strip_chars()
-                            .alias(code_col2_norm)
-                        )
-                for var in dec_vars:
-                    var_norm = normalize_name(strip_accents(var), naming_func)
-                    if var_norm not in result_df.columns:
-                        closest = difflib.get_close_matches(
-                            var_norm, result_df.columns, n=1, cutoff=0.8
-                        )
-                        if closest:
-                            print(
-                                f"[decode_fields][DEBUG] Fuzzy match '{var}' (normalized: '{var_norm}') → '{closest[0]}'"
-                            )
-                            var_norm = closest[0]
-                        else:
-                            print(
-                                f"[decode_fields][DEBUG] Skipping '{var}' (normalized: '{var_norm}') - not in main DataFrame. No close match found."
-                            )
-                            continue
-                    # Normalize main df code column to string and strip whitespace
-                    result_df = result_df.with_columns(
-                        pl.col(var_norm)
-                        .cast(pl.Utf8)
-                        .str.strip_chars_start("0")
-                        .str.replace("^$", "0")
-                        .str.strip_chars()
-                        .alias(var_norm)
-                    )
-                    try:
-                        if is_composite_table:
-                            # Composite key: exclude both key columns from enrichment,
-                            # join on (anchor_col, var_norm) = (anchor_col, second_key)
-                            dec_cols = [
-                                c for c in join_df.columns
-                                if c != code_col_norm and c != code_col2_norm
-                            ]
-                            before_rows = result_df.height
-                            joined = result_df.join(
-                                join_df,
-                                left_on=[code_col_norm, var_norm],
-                                right_on=[code_col_norm, code_col2_norm],
-                                how="left",
-                            )
-                        else:
-                            dec_cols = [c for c in join_df.columns if c != code_col_norm]
-                            before_rows = result_df.height
-                            joined = result_df.join(
-                                join_df,
-                                left_on=var_norm,
-                                right_on=code_col_norm,
-                                how="left",
-                            )
-                        for col in dec_cols:
-                            new_col = f"{var_norm}__{normalize_name(strip_accents(col), naming_func)}"
-                            result_df = result_df.with_columns(
-                                joined[col].alias(new_col)
-                            )
-                        after_rows = result_df.height
-                        decode_summary.append(
-                            f"Decoded {var} ({before_rows} rows, {len(dec_cols)} columns added)"
-                        )
-                        unmatched = joined.filter(
-                            pl.col(var_norm).is_not_null()
-                            & pl.col(dec_cols[0]).is_null()
-                        )
-                        if unmatched.height > 0:
-                            sample_codes = unmatched[var_norm].unique().to_list()[:5]
-                            print(
-                                f"[decode_fields][DEBUG] Unmatched codes for {var} with {table['table_title']}: {sample_codes}"
-                            )
-                    except Exception as e:
-                        print(
-                            f"[decode_fields][DEBUG] Error decoding {var} with {table['table_title']}: {e}"
-                        )
-    # Vakkenbestanden patch: checking Opmerking for decode instructions
-    for table in meta["tables"]:
-        if table.get("decoding_variables", []):
-            continue  # Already handled
-        # Look for columns with 'te decoderen met Dec_' in their Opmerking
-        content = table.get("content", [])
-        if not content or len(content) < 2:
-            continue
-        # Find header row (should contain 'Opmerking' or similar)
-        header_row = None
-        for i, row in enumerate(content):
-            if "opmerking" in row.lower():
-                header_row = i
-                break
-        if header_row is None:
-            continue
-        headers = [h.strip().lower() for h in content[header_row].split()]
-        # Find column indices
-        col_idx = {h: i for i, h in enumerate(headers)}
-        # For each data row, check if Opmerking contains 'te decoderen met Dec_'
-        for row in content[header_row + 1 :]:
-            parts = row.split(None, len(headers) - 1)
-            if len(parts) < len(headers):
-                continue
-            naam = parts[col_idx.get("naam", 0)]
-            opm = parts[col_idx.get("opmerking", -1)] if "opmerking" in col_idx else ""
-            import re as _re
-
-            # Detect composite key: "in combinatie met ... te decoderen met Dec_X.asc"
-            composite = None
-            dec_table_title = None
-            if (
-                "in combinatie met" in opm.lower()
-                and "te decoderen met dec_" in opm.lower()
-            ):
-                m = _re.search(
-                    r"in combinatie met ([A-Za-z0-9_]+) te decoderen met (Dec_[A-Za-z0-9_]+)\.asc",
-                    opm,
-                    _re.IGNORECASE,
-                )
-                if m:
-                    composite = m.group(1)
-                    dec_table_title = m.group(2) + ".asc"
-            elif "te decoderen met dec_" in opm.lower():
-                m = _re.search(r"te decoderen met (Dec_[A-Za-z0-9_]+)\.asc", opm)
-                if m:
-                    dec_table_title = m.group(1) + ".asc"
-                else:
-                    continue
-            else:
-                continue
-            if dec_table_title:
-                if dec_table_title in dec_tables:
-                    dec_tables_used.add(dec_table_title)
-                    dec_tables_not_used.discard(dec_table_title)
-            var_norm = normalize_name(naam, naming_func)
-            print(
-                f"[decode_fields][DEBUG][vakken] Checking column: '{naam}' (normalized: '{var_norm}') | Opmerking: '{opm}'"
-            )
-            print(
-                f"[decode_fields][DEBUG][vakken] Main DataFrame columns: {list(result_df.columns)}"
-            )
-            # Find DEC table
-            dec_table = dec_tables.get(dec_table_title)
-            if dec_table is None:
-                print(
-                    f"[decode_fields][DEBUG][vakken] DEC table not loaded for {dec_table_title}"
-                )
-                continue
-            # Find code column(s) in DEC table
-            dec_content = None
-            for t in meta["tables"]:
-                if t["table_title"] == dec_table_title:
-                    dec_content = t.get("content", [])
-                    break
-            if not dec_content or len(dec_content) < 2:
-                continue
-            dec_code_col = dec_content[1].split()[0]
-            dec_code_col_norm = normalize_name(dec_code_col, naming_func)
-            join_df = dec_table.rename(
-                {c: normalize_name(c, naming_func) for c in dec_table.columns}
-            )
-            # Composite key join
-            if composite:
-                composite_norm = normalize_name(composite, naming_func)
-                # Find second key in DEC table (should be second column)
-                if len(dec_content) > 2:
-                    dec_code_col2 = dec_content[2].split()[0]
-                    dec_code_col2_norm = normalize_name(dec_code_col2, naming_func)
-                else:
-                    print(
-                        f"[decoder][vakken] Could not find second key for composite join in {dec_table_title}"
-                    )
-                    continue
-                # Prepare both columns in main and join_df
-                for col in [var_norm, composite_norm]:
-                    if col not in result_df.columns:
-                        closest = difflib.get_close_matches(col, result_df.columns, n=1)
-                        print(
-                            f"[decoder][vakken] Skipping {col} (composite join) - not in main DataFrame."
-                        )
-                        print(
-                            f"[decoder][vakken] Available columns: {list(result_df.columns)}"
-                        )
-                        if closest:
-                            print(f"[decoder][vakken] Closest match: {closest[0]}")
-                        continue
-                    result_df = result_df.with_columns(
-                        pl.col(col)
-                        .cast(pl.Utf8)
-                        .str.zfill(2)
-                        .str.strip_chars()
-                        .alias(col)
-                    )
-                for col in [dec_code_col_norm, dec_code_col2_norm]:
-                    if col in join_df.columns:
-                        join_df = join_df.with_columns(
-                            pl.col(col)
-                            .cast(pl.Utf8)
-                            .str.zfill(2)
-                            .str.strip_chars()
-                            .alias(col)
-                        )
-                try:
-                    dec_cols = [
-                        c
-                        for c in join_df.columns
-                        if c not in [dec_code_col_norm, dec_code_col2_norm]
-                    ]
-                    before_rows = result_df.height
-                    joined = result_df.join(
-                        join_df,
-                        left_on=[var_norm, composite_norm],
-                        right_on=[dec_code_col_norm, dec_code_col2_norm],
-                        how="left",
-                    )
-                    for col in dec_cols:
-                        new_col = f"{var_norm}__{col}"
-                        result_df = result_df.with_columns(joined[col].alias(new_col))
-                    after_rows = result_df.height
-                    decode_summary.append(
-                        f"Decoded {naam} + {composite} ({before_rows} rows, {len(dec_cols)} columns added) [vakken-composite]"
-                    )
-                    unmatched = joined.filter(
-                        pl.col(var_norm).is_not_null()
-                        & pl.col(composite_norm).is_not_null()
-                        & pl.col(dec_cols[0]).is_null()
-                    )
-                    if unmatched.height > 0:
-                        sample_codes = list(
-                            zip(
-                                unmatched[var_norm].unique().to_list()[:5],
-                                unmatched[composite_norm].unique().to_list()[:5],
-                            )
-                        )
-                        print(
-                            f"[decoder][vakken] Unmatched codes for {naam} + {composite} with {dec_table_title}: {sample_codes}"
-                        )
-                except Exception as e:
-                    print(
-                        f"[decoder][vakken] Error decoding {naam} + {composite} with {dec_table_title}: {e}"
-                    )
-            else:
-                if var_norm not in result_df.columns:
-                    closest = difflib.get_close_matches(
-                        var_norm, result_df.columns, n=1
-                    )
-                    print(
-                        f"[decoder][vakken] Skipping {naam} (normalized: {var_norm}) - not in main DataFrame."
-                    )
-                    print(
-                        f"[decoder][vakken] Available columns: {list(result_df.columns)}"
-                    )
-                    if closest:
-                        print(f"[decoder][vakken] Closest match: {closest[0]}")
-                    continue
-                # Normalize main df code column to string and strip whitespace
-                result_df = result_df.with_columns(
-                    pl.col(var_norm).cast(pl.Utf8).str.strip_chars().alias(var_norm)
-                )
-                if dec_code_col_norm in join_df.columns:
-                    join_df = join_df.with_columns(
-                        pl.col(dec_code_col_norm)
-                        .cast(pl.Utf8)
-                        .str.strip_chars()
-                        .alias(dec_code_col_norm)
-                    )
-                try:
-                    dec_cols = [c for c in join_df.columns if c != dec_code_col_norm]
-                    before_rows = result_df.height
-                    joined = result_df.join(
-                        join_df,
-                        left_on=var_norm,
-                        right_on=dec_code_col_norm,
-                        how="left",
-                    )
-                    for col in dec_cols:
-                        new_col = f"{var_norm}__{col}"
-                        result_df = result_df.with_columns(joined[col].alias(new_col))
-                    after_rows = result_df.height
-                    decode_summary.append(
-                        f"Decoded {naam} ({before_rows} rows, {len(dec_cols)} columns added) [vakken]"
-                    )
-                    unmatched = joined.filter(
-                        pl.col(var_norm).is_not_null() & pl.col(dec_cols[0]).is_null()
-                    )
-                    if unmatched.height > 0:
-                        sample_codes = unmatched[var_norm].unique().to_list()[:5]
-                        print(
-                            f"[decoder][vakken] Unmatched codes for {naam} with {dec_table_title}: {sample_codes}"
-                        )
-                except Exception as e:
-                    print(
-                        f"[decoder][vakken] Error decoding {naam} with {dec_table_title}: {e}"
-                    )
-    # Decoding summary and DEC tables used/not used can be logged elsewhere if needed
-    # --- Apply variable-level mappings from variable_metadata.json (if present) ---
-    try:
-        var_maps = load_variable_mappings(variable_metadata_path, naming_func=naming_func)
-        if var_maps:
-            import difflib as _difflib
-
-            print(
-                f"[decode_fields][VAR_MAP] Applying variable mappings to DataFrame columns..."
-            )
-            for var_norm, info in var_maps.items():
-                mapping = info.get("mapping") if isinstance(info, dict) else info
-                orig_name = info.get("orig_name") if isinstance(info, dict) else None
-                # If exact normalized column not present, try fuzzy matching against cleaned/original headers
-                chosen_col = var_norm
-                if var_norm not in result_df.columns:
-                    # Candidates: normalized result_df columns and normalized original headers
-                    candidates = list(result_df.columns)
-                    # also include normalized versions of original headers (from norm_map)
-                    candidates += list(norm_map.keys())
-                    # also try cleaning original headers and normalizing
-                    cleaned_candidates = []
-                    for orig in orig_columns:
-                        try:
-                            cn = normalize_name(clean_header_name(orig), naming_func)
-                            cleaned_candidates.append(cn)
-                        except Exception:
-                            pass
-                    candidates += cleaned_candidates
-                    closest = _difflib.get_close_matches(var_norm, candidates, n=3)
-                    if closest:
-                        # prefer a candidate that is actually a column in result_df
-                        pick = None
-                        for c in closest:
-                            if c in result_df.columns:
-                                pick = c
-                                break
-                        if pick is None and closest[0] in norm_map:
-                            pick = closest[0]
-                        if pick is None:
-                            pick = closest[0]
-                        chosen_col = pick
-                        print(
-                            f"[decode_fields][VAR_MAP] Mapping for '{var_norm}' (orig: '{orig_name}') not found; using closest match '{chosen_col}'"
-                        )
-                    else:
-                        print(
-                            f"[decode_fields][VAR_MAP] Mapping for '{var_norm}' (orig: '{orig_name}') present but column missing. Closest columns: {closest}"
-                        )
-                        continue
-                try:
-                    # Ensure code column is string and stripped
-                    result_df = result_df.with_columns(
-                        pl.col(chosen_col)
-                        .cast(pl.Utf8)
-                        .str.strip_chars()
-                        .alias(chosen_col)
-                    )
-                    # sample up to 10 distinct values from the column for diagnostics
-                    try:
-                        sample_vals = result_df[chosen_col].unique().to_list()[:10]
-                    except Exception:
-                        sample_vals = []
-                    map_keys = list(mapping.keys()) if isinstance(mapping, dict) else []
-                    sample_map_keys = map_keys[:10]
-                    # compute simple intersection counts (case-insensitive)
-                    lower_map_keys = {k.lower() for k in map_keys if isinstance(k, str)}
-                    matched = 0
-                    matched_examples = []
-                    for sv in sample_vals:
-                        if sv is None:
-                            continue
-                        s = str(sv).strip()
-                        if s in mapping or s.lower() in lower_map_keys:
-                            matched += 1
-                            matched_examples.append(s)
-                    print(
-                        f"[decode_fields][VAR_MAP][DIAG] '{var_norm}' (orig: '{orig_name}') sample_values={sample_vals[:5]} sample_map_keys={sample_map_keys} matched_sample_count={matched}/{len(sample_vals)}"
-                    )
-                    # Replace original column values with mapped labels (no extra _label column)
-                    try:
-                        src_vals = result_df[chosen_col].to_list()
-                    except Exception:
-                        src_vals = []
-                    mapped_vals = []
-                    unq_unmapped_examples = []
-                    total_non_null = 0
-                    mapped_count = 0
-                    seen_unmapped = set()
-                    for v in src_vals:
-                        if v is None:
-                            mapped_vals.append(None)
-                            continue
-                        s = str(v).strip()
-                        found = None
-                        if s == "":
-                            total_non_null += 1
-                            for k in mapping:
-                                if isinstance(k, str) and "leeg" in k.lower():
-                                    found = mapping[k]
-                                    break
-                            mapped_vals.append(found if found is not None else s)
-                            if found is None:
-                                if s not in seen_unmapped:
-                                    unq_unmapped_examples.append(s)
-                                    seen_unmapped.add(s)
-                            else:
-                                mapped_count += 1
-                            continue
-                        total_non_null += 1
-                        # Try all reasonable variants for lookup
-                        variants = [s, s.upper()]
-                        if s.isdigit():
-                            variants.append(s.zfill(2))
-                            try:
-                                variants.append(int(s))
-                            except Exception:
-                                pass
-                        # Try each variant
-                        for variant in variants:
-                            if variant in mapping:
-                                mapped_vals.append(mapping[variant])
-                                mapped_count += 1
-                                break
-                        else:
-                            # Fallback: try case-insensitive match and int-string equivalence
-                            matched = None
-                            for k, val in mapping.items():
-                                if isinstance(k, str) and k.lower() == s.lower():
-                                    matched = val
-                                    break
-                                try:
-                                    if isinstance(k, int) and str(k) == s:
-                                        matched = val
-                                        break
-                                except Exception:
-                                    pass
-                            mapped_vals.append(matched if matched is not None else s)
-                            if matched is None:
-                                if s not in seen_unmapped:
-                                    unq_unmapped_examples.append(s)
-                                    seen_unmapped.add(s)
-                            else:
-                                mapped_count += 1
-                    # Replace column in DataFrame
-                    try:
-                        result_df = result_df.with_columns(
-                            pl.Series(mapped_vals).alias(chosen_col)
-                        )
-                    except Exception:
-                        # fallback: create Series with explicit dtype
-                        result_df = result_df.with_columns(
-                            pl.Series(mapped_vals).cast(pl.Utf8).alias(chosen_col)
-                        )
-                    print(
-                        f"[decode_fields][VAR_MAP] '{chosen_col}' (orig: '{orig_name}'): total non-null={total_non_null}, mapped={mapped_count}, sample_unmapped={unq_unmapped_examples[:5]} (replaced in-place)"
-                    )
-                except Exception as e:
-                    print(
-                        f"[decode_fields][VAR_MAP][ERROR] Applying mapping for {var_norm}: {e}"
-                    )
-    except Exception as e:
-        print(f"[decode_fields][DEBUG] Error applying variable mappings: {e}")
-
-    # --- Restore original column names for output ---
-    result_df = result_df.rename(
-        {k: v for k, v in norm_map.items() if k in result_df.columns}
+    meta = _load_meta(metadata_json_path)
+    norm_df, norm_map, orig_columns = _normalize_df(df, naming_func)
+    result_df = _apply_dec_tables(norm_df, meta, dec_tables, naming_func)
+    result_df = _apply_vakken_patch(result_df, meta, dec_tables, naming_func)
+    result_df = _apply_variable_mappings(
+        result_df, variable_metadata_path, naming_func, norm_map, orig_columns
     )
-    return result_df
+    return result_df.rename({k: v for k, v in norm_map.items() if k in result_df.columns})
 
 
-def decode_fields_dec_only(
-    df: pl.DataFrame,
-    metadata_json_path: str,
-    dec_tables: dict[str, pl.DataFrame],
-    naming_func: Optional[Callable[[str], str]] = None,
-) -> pl.DataFrame:
-    """
-    For each field in df listed in decoding_variables in the metadata, left-joins decoded values from the corresponding Dec_* table.
-    Only uses DEC mapping tables and skips variable_metadata enrichment (DEC-only mode).
-
-    Args:
-        df (pl.DataFrame): Input DataFrame with coded fields.
-        metadata_json_path (str): Path to the metadata JSON file (Bestandsbeschrijving_Dec-bestanden).
-        dec_tables (dict[str, pl.DataFrame]): Mapping of table titles to DataFrames.
-        naming_func (Optional[Callable[[str], str]]): Optional function to normalize names.
-
-    Returns:
-        pl.DataFrame: DataFrame with decoded columns appended, DEC tables only.
-    """
-    with open(metadata_json_path, encoding="utf-8") as f:
-        meta = json.load(f)
-    orig_columns = list(df.columns)
-    from eencijferho.utils.converter_headers import strip_accents
-
-    norm_map = {normalize_name(col, naming_func): col for col in orig_columns}
-    norm_columns = list(norm_map.keys())
-    norm_df = df.rename({v: k for k, v in norm_map.items()})
-    # Force all columns to string to preserve leading zeros for codes
-    for col in norm_df.columns:
-        norm_df = norm_df.with_columns(
-            pl.col(col).cast(pl.Utf8).str.strip_chars().alias(col)
-        )
-    decode_summary = []
-    dec_tables_used = set()
-    dec_tables_not_used = set(dec_tables.keys())
-    result_df = norm_df.clone()
-    import difflib
-
-    for table in meta["tables"]:
-        dec_vars = table.get("decoding_variables", [])
-        for table in meta["tables"]:
-            dec_vars = table.get("decoding_variables", [])
-            dec_table = dec_tables.get(table["table_title"])
-            content = table.get("content", [])
-            # PATCH: If no decoding_variables, use first column as decoding variable for any table
-            if not dec_vars and len(content) > 1:
-                code_col = content[1].split("  ")[0].strip()
-                dec_vars = [code_col]
-            if dec_vars:
-                if dec_table is None:
-                    continue
-                if len(content) < 2:
-                    continue
-                code_col = content[1].split("  ")[0].strip()
-                code_col_norm = normalize_name(strip_accents(code_col), naming_func)
-                join_df = dec_table.rename(
-                    {
-                        c: normalize_name(strip_accents(c), naming_func)
-                        for c in dec_table.columns
-                    }
-                )
-                if (
-                    table["table_title"].lower().startswith("dec_landcode")
-                    and code_col_norm not in join_df.columns
-                ):
-                    if "code_land" in join_df.columns:
-                        code_col_norm = "code_land"
-                    else:
-                        continue
-                if (
-                    table["table_title"].lower().startswith("dec_nationaliteitscode")
-                    and code_col_norm not in join_df.columns
-                ):
-                    if "code_nationaliteit" in join_df.columns:
-                        code_col_norm = "code_nationaliteit"
-                    else:
-                        continue
-                if code_col_norm in join_df.columns:
-                    join_df = join_df.with_columns(
-                        pl.col(code_col_norm)
-                        .cast(pl.Utf8)
-                        .str.strip_chars_start("0")
-                        .str.replace("^$", "0")
-                        .str.strip_chars()
-                        .alias(code_col_norm)
-                    )
-                # Detect composite-key DEC table: second content row also has a
-                # key marker ("}") meaning it is part of the compound key.
-                is_composite_table = False
-                code_col2_norm = None
-                if len(content) > 2 and "}" in content[2]:
-                    code_col2_raw = content[2].split("  ")[0].strip()
-                    code_col2_norm = normalize_name(strip_accents(code_col2_raw), naming_func)
-                    if (
-                        code_col2_norm in join_df.columns
-                        and code_col_norm in join_df.columns
-                        and code_col_norm in result_df.columns
-                    ):
-                        is_composite_table = True
-                        join_df = join_df.with_columns(
-                            pl.col(code_col2_norm)
-                            .cast(pl.Utf8)
-                            .str.strip_chars_start("0")
-                            .str.replace("^$", "0")
-                            .str.strip_chars()
-                            .alias(code_col2_norm)
-                        )
-                for var in dec_vars:
-                    var_norm = normalize_name(strip_accents(var), naming_func)
-                    if var_norm not in result_df.columns:
-                        closest = difflib.get_close_matches(
-                            var_norm, result_df.columns, n=1, cutoff=0.8
-                        )
-                        if closest:
-                            print(
-                                f"[decode_fields_dec_only][DEBUG] Fuzzy match '{var}' (normalized: '{var_norm}') → '{closest[0]}'"
-                            )
-                            var_norm = closest[0]
-                        else:
-                            print(
-                                f"[decode_fields_dec_only][DEBUG] Skipping '{var}' (normalized: '{var_norm}') - not in main DataFrame. No close match found."
-                            )
-                            continue
-                    # Normalize main df code column to string and strip whitespace
-                    result_df = result_df.with_columns(
-                        pl.col(var_norm)
-                        .cast(pl.Utf8)
-                        .str.strip_chars_start("0")
-                        .str.replace("^$", "0")
-                        .str.strip_chars()
-                        .alias(var_norm)
-                    )
-                    try:
-                        if is_composite_table:
-                            dec_cols = [
-                                c for c in join_df.columns
-                                if c != code_col_norm and c != code_col2_norm
-                            ]
-                            before_rows = result_df.height
-                            joined = result_df.join(
-                                join_df,
-                                left_on=[code_col_norm, var_norm],
-                                right_on=[code_col_norm, code_col2_norm],
-                                how="left",
-                            )
-                        else:
-                            dec_cols = [c for c in join_df.columns if c != code_col_norm]
-                            before_rows = result_df.height
-                            joined = result_df.join(
-                                join_df,
-                                left_on=var_norm,
-                                right_on=code_col_norm,
-                                how="left",
-                            )
-                        for col in dec_cols:
-                            new_col = f"{var_norm}__{normalize_name(strip_accents(col), naming_func)}"
-                            result_df = result_df.with_columns(
-                                joined[col].alias(new_col)
-                            )
-                        after_rows = result_df.height
-                        decode_summary.append(
-                            f"Decoded {var} ({before_rows} rows, {len(dec_cols)} columns added)"
-                        )
-                        unmatched = joined.filter(
-                            pl.col(var_norm).is_not_null()
-                            & pl.col(dec_cols[0]).is_null()
-                        )
-                        if unmatched.height > 0:
-                            sample_codes = unmatched[var_norm].unique().to_list()[:5]
-                            print(
-                                f"[decode_fields_dec_only][DEBUG] Unmatched codes for {var} with {table['table_title']}: {sample_codes}"
-                            )
-                    except Exception as e:
-                        print(
-                            f"[decode_fields_dec_only][DEBUG] Error decoding {var} with {table['table_title']}: {e}"
-                        )
-    # Vakkenbestanden patch: checking Opmerking for decode instructions (identical to full decode, but still no variable_metadata enrichment)
-    for table in meta["tables"]:
-        if table.get("decoding_variables", []):
-            continue  # Already handled
-        # Look for columns with 'te decoderen met Dec_' in their Opmerking
-        content = table.get("content", [])
-        if not content or len(content) < 2:
-            continue
-        # Find header row (should contain 'Opmerking' or similar)
-        header_row = None
-        for i, row in enumerate(content):
-            if "opmerking" in row.lower():
-                header_row = i
-                break
-        if header_row is None:
-            continue
-        headers = [h.strip().lower() for h in content[header_row].split()]
-        # Find column indices
-        col_idx = {h: i for i, h in enumerate(headers)}
-        # For each data row, check if Opmerking contains 'te decoderen met Dec_'
-        for row in content[header_row + 1 :]:
-            parts = row.split(None, len(headers) - 1)
-            if len(parts) < len(headers):
-                continue
-            naam = parts[col_idx.get("naam", 0)]
-            opm = parts[col_idx.get("opmerking", -1)] if "opmerking" in col_idx else ""
-            import re as _re
-
-            # Detect composite key: "in combinatie met ... te decoderen met Dec_X.asc"
-            composite = None
-            dec_table_title = None
-            if (
-                "in combinatie met" in opm.lower()
-                and "te decoderen met dec_" in opm.lower()
-            ):
-                m = _re.search(
-                    r"in combinatie met ([A-Za-z0-9_]+) te decoderen met (Dec_[A-Za-z0-9_]+)\.asc",
-                    opm,
-                    _re.IGNORECASE,
-                )
-                if m:
-                    composite = m.group(1)
-                    dec_table_title = m.group(2) + ".asc"
-            elif "te decoderen met dec_" in opm.lower():
-                m = _re.search(r"te decoderen met (Dec_[A-Za-z0-9_]+)\.asc", opm)
-                if m:
-                    dec_table_title = m.group(1) + ".asc"
-                else:
-                    continue
-            else:
-                continue
-            if dec_table_title:
-                if dec_table_title in dec_tables:
-                    dec_tables_used.add(dec_table_title)
-                    dec_tables_not_used.discard(dec_table_title)
-            var_norm = normalize_name(naam, naming_func)
-            print(
-                f"[decode_fields_dec_only][DEBUG][vakken] Checking column: '{naam}' (normalized: '{var_norm}') | Opmerking: '{opm}'"
-            )
-            print(
-                f"[decode_fields_dec_only][DEBUG][vakken] Main DataFrame columns: {list(result_df.columns)}"
-            )
-            # Find DEC table
-            dec_table = dec_tables.get(dec_table_title)
-            if dec_table is None:
-                print(
-                    f"[decode_fields_dec_only][DEBUG][vakken] DEC table not loaded for {dec_table_title}"
-                )
-                continue
-            # Find code column(s) in DEC table
-            dec_content = None
-            for t in meta["tables"]:
-                if t["table_title"] == dec_table_title:
-                    dec_content = t.get("content", [])
-                    break
-            if not dec_content or len(dec_content) < 2:
-                continue
-            dec_code_col = dec_content[1].split()[0]
-            dec_code_col_norm = normalize_name(dec_code_col, naming_func)
-            join_df = dec_table.rename(
-                {c: normalize_name(c, naming_func) for c in dec_table.columns}
-            )
-            # Composite key join
-            if composite:
-                composite_norm = normalize_name(composite, naming_func)
-                # Find second key in DEC table (should be second column)
-                if len(dec_content) > 2:
-                    dec_code_col2 = dec_content[2].split()[0]
-                    dec_code_col2_norm = normalize_name(dec_code_col2, naming_func)
-                else:
-                    print(
-                        f"[decode_fields_dec_only][vakken] Could not find second key for composite join in {dec_table_title}"
-                    )
-                    continue
-                # Prepare both columns in main and join_df
-                for col in [var_norm, composite_norm]:
-                    if col not in result_df.columns:
-                        closest = difflib.get_close_matches(col, result_df.columns, n=1)
-                        print(
-                            f"[decode_fields_dec_only][vakken] Skipping {col} (composite join) - not in main DataFrame."
-                        )
-                        print(
-                            f"[decode_fields_dec_only][vakken] Available columns: {list(result_df.columns)}"
-                        )
-                        if closest:
-                            print(
-                                f"[decode_fields_dec_only][vakken] Closest match: {closest[0]}"
-                            )
-                        continue
-                    result_df = result_df.with_columns(
-                        pl.col(col)
-                        .cast(pl.Utf8)
-                        .str.zfill(2)
-                        .str.strip_chars()
-                        .alias(col)
-                    )
-                for col in [dec_code_col_norm, dec_code_col2_norm]:
-                    if col in join_df.columns:
-                        join_df = join_df.with_columns(
-                            pl.col(col)
-                            .cast(pl.Utf8)
-                            .str.zfill(2)
-                            .str.strip_chars()
-                            .alias(col)
-                        )
-                try:
-                    dec_cols = [
-                        c
-                        for c in join_df.columns
-                        if c not in [dec_code_col_norm, dec_code_col2_norm]
-                    ]
-                    before_rows = result_df.height
-                    joined = result_df.join(
-                        join_df,
-                        left_on=[var_norm, composite_norm],
-                        right_on=[dec_code_col_norm, dec_code_col2_norm],
-                        how="left",
-                    )
-                    for col in dec_cols:
-                        new_col = f"{var_norm}__{col}"
-                        result_df = result_df.with_columns(joined[col].alias(new_col))
-                    after_rows = result_df.height
-                    decode_summary.append(
-                        f"Decoded {naam} + {composite} ({before_rows} rows, {len(dec_cols)} columns added) [vakken-composite]"
-                    )
-                    unmatched = joined.filter(
-                        pl.col(var_norm).is_not_null()
-                        & pl.col(composite_norm).is_not_null()
-                        & pl.col(dec_cols[0]).is_null()
-                    )
-                    if unmatched.height > 0:
-                        sample_codes = list(
-                            zip(
-                                unmatched[var_norm].unique().to_list()[:5],
-                                unmatched[composite_norm].unique().to_list()[:5],
-                            )
-                        )
-                        print(
-                            f"[decode_fields_dec_only][vakken] Unmatched codes for {naam} + {composite} with {dec_table_title}: {sample_codes}"
-                        )
-                except Exception as e:
-                    print(
-                        f"[decode_fields_dec_only][vakken] Error decoding {naam} + {composite} with {dec_table_title}: {e}"
-                    )
-            else:
-                if var_norm not in result_df.columns:
-                    closest = difflib.get_close_matches(
-                        var_norm, result_df.columns, n=1
-                    )
-                    print(
-                        f"[decode_fields_dec_only][vakken] Skipping {naam} (normalized: {var_norm}) - not in main DataFrame."
-                    )
-                    print(
-                        f"[decode_fields_dec_only][vakken] Available columns: {list(result_df.columns)}"
-                    )
-                    if closest:
-                        print(
-                            f"[decode_fields_dec_only][vakken] Closest match: {closest[0]}"
-                        )
-                    continue
-                # Normalize main df code column to string and strip whitespace
-                result_df = result_df.with_columns(
-                    pl.col(var_norm).cast(pl.Utf8).str.strip_chars().alias(var_norm)
-                )
-                if dec_code_col_norm in join_df.columns:
-                    join_df = join_df.with_columns(
-                        pl.col(dec_code_col_norm)
-                        .cast(pl.Utf8)
-                        .str.strip_chars()
-                        .alias(dec_code_col_norm)
-                    )
-                try:
-                    dec_cols = [c for c in join_df.columns if c != dec_code_col_norm]
-                    before_rows = result_df.height
-                    joined = result_df.join(
-                        join_df,
-                        left_on=var_norm,
-                        right_on=dec_code_col_norm,
-                        how="left",
-                    )
-                    for col in dec_cols:
-                        new_col = f"{var_norm}__{col}"
-                        result_df = result_df.with_columns(joined[col].alias(new_col))
-                    after_rows = result_df.height
-                    decode_summary.append(
-                        f"Decoded {naam} ({before_rows} rows, {len(dec_cols)} columns added) [vakken]"
-                    )
-                    unmatched = joined.filter(
-                        pl.col(var_norm).is_not_null() & pl.col(dec_cols[0]).is_null()
-                    )
-                    if unmatched.height > 0:
-                        sample_codes = unmatched[var_norm].unique().to_list()[:5]
-                        print(
-                            f"[decode_fields_dec_only][vakken] Unmatched codes for {naam} with {dec_table_title}: {sample_codes}"
-                        )
-                except Exception as e:
-                    print(
-                        f"[decode_fields_dec_only][vakken] Error decoding {naam} with {dec_table_title}: {e}"
-                    )
-    # --- Restore original column names for output (as in normal decode_fields) ---
-    result_df = result_df.rename(
-        {k: v for k, v in norm_map.items() if k in result_df.columns}
-    )
-    return result_df
+# ---------------------------------------------------------------------------
+# Utility
+# ---------------------------------------------------------------------------
 
 
 def clean_for_latin1(df: pl.DataFrame) -> pl.DataFrame:
     """
-    Replaces problematic unicode characters in all string columns to ensure latin-1 compatibility.
+    Replace characters outside latin-1 range in all string columns.
+
+    Replaces fraction slash (U+2044) with '/' and all other non-latin-1
+    characters with '?'.
 
     Args:
-            df (pl.DataFrame): Input DataFrame to sanitize.
+        df: Input DataFrame to sanitize.
 
     Returns:
-            pl.DataFrame: DataFrame with problematic characters replaced.
-
-    Edge Cases:
-            - Replaces all non-latin1 characters with '?'
-            - Replaces '⁄' (U+2044) with '/'
-
-    Example:
-            >>> df_clean = clean_for_latin1(df)
+        DataFrame with non-latin-1 characters replaced.
     """
-    import polars as pl
-
-    # Regex for any character not in latin-1 (U+0000 to U+00FF)
     non_latin1_regex = r"[^\x00-\xFF]"
     for col in df.columns:
         if df[col].dtype == pl.Utf8:

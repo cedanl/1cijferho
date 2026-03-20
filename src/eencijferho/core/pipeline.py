@@ -91,12 +91,16 @@ def run_turbo_convert_pipeline(
                 with open(dec_only_file, "w", encoding="utf-8") as f:
                     f.write(dec_only_csv)
 
-                # Full enriched decode (if needed, write as _enriched.csv to keep outputs clear)
+                # Full enriched decode — skip writing when identical to _decoded
+                # (happens for datasets without variable_metadata mappings, e.g. VAKHAVW)
                 enriched_df = decoder.decode_fields(main_df, dec_metadata_json, dec_tables, variable_metadata_path=variable_metadata_json)
-                enriched_file = file_path.replace(".csv", "_enriched.csv")
-                enriched_csv = enriched_df.write_csv(separator=";")
-                with open(enriched_file, "w", encoding="utf-8") as f:
-                    f.write(enriched_csv)
+                if not enriched_df.equals(dec_only_df):
+                    enriched_file = file_path.replace(".csv", "_enriched.csv")
+                    enriched_csv = enriched_df.write_csv(separator=";")
+                    with open(enriched_file, "w", encoding="utf-8") as f:
+                        f.write(enriched_csv)
+                else:
+                    log += f"[pipeline] {os.path.basename(file_path)}: _enriched identiek aan _decoded, overgeslagen.\n"
 
                 decoded_count += 1
     log += f"[pipeline] {decoded_count} bestand(en) gedecodeerd.\n"
