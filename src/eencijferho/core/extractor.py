@@ -211,7 +211,7 @@ def extract_tables_from_txt(txt_file: str, json_output_folder: str) -> Optional[
 
 def process_txt_folder(
     input_folder: str, json_output_folder: str = "data/00-metadata/json"
-) -> None:
+) -> list[str]:
     """
     Finds all .txt files containing 'Bestandsbeschrijving' in the root directory and extracts tables from them.
     Also processes all .asc files in the root directory.
@@ -221,7 +221,7 @@ def process_txt_folder(
         json_output_folder (str, optional): Output folder for JSON files. Defaults to 'data/00-metadata/json'.
 
     Returns:
-        None
+        list[str]: Paths to all extracted JSON files.
 
     Edge Cases:
         - Removes any existing JSON files in the output folder.
@@ -310,13 +310,9 @@ def process_txt_folder(
     )
 
     # --- PATCH: Merge Dec_vakcode table from Vakkenbestanden JSON into Dec-bestanden JSON ---
-    vakken_json = os.path.join(
-        json_output_folder, "Bestandsbeschrijving_Vakkenbestanden_DEMO.json"
-    )
-    dec_json = os.path.join(
-        json_output_folder, "Bestandsbeschrijving_Dec-bestanden_DEMO.json"
-    )
-    if os.path.exists(vakken_json) and os.path.exists(dec_json):
+    vakken_json = next((f for f in extracted_files if "Vakkenbestanden" in f), None)
+    dec_json = next((f for f in extracted_files if "Dec-bestanden" in f), None)
+    if vakken_json and dec_json and os.path.exists(vakken_json) and os.path.exists(dec_json):
         try:
             with open(vakken_json, "r", encoding="latin-1") as f_vak:
                 vak_data = json.load(f_vak)
@@ -359,7 +355,7 @@ def process_txt_folder(
                 f"[red]Error patching Dec_vakcode into Dec-bestanden JSON: {e}"
             )
 
-    return None
+    return extracted_files
 
 
 def write_variable_metadata(

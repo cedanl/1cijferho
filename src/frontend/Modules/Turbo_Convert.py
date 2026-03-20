@@ -213,6 +213,7 @@ else:
                     input_dir=get_input_dir(),
                     output_dir=get_output_dir(),
                     metadata_dir=get_metadata_dir(),
+                    dec_metadata_json=st.session_state.get("dec_metadata_json"),
                     progress_callback=progress_bar.progress,
                     status_callback=status_text.text
                 )

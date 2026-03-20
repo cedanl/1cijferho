@@ -2,6 +2,7 @@
 Modular pipeline orchestrator for conversion, decoding, validation, compression, encryption, header normalization.
 """
 
+import glob
 import json
 import datetime
 import os
@@ -38,9 +39,9 @@ def run_turbo_convert_pipeline(
         from eencijferho.config import METADATA_DIR
         metadata_dir = METADATA_DIR
     if dec_metadata_json is None:
-        dec_metadata_json = os.path.join(
-            metadata_dir, "json", "Bestandsbeschrijving_Dec-bestanden_DEMO.json"
-        )
+        json_dir = os.path.join(metadata_dir, "json")
+        matches = glob.glob(os.path.join(json_dir, "Bestandsbeschrijving_Dec-bestanden*.json"))
+        dec_metadata_json = matches[0] if matches else None
     logs_dir = os.path.join(metadata_dir, "logs")
 
     variable_metadata_json = os.path.join(metadata_dir, "json", "variable_metadata.json")
