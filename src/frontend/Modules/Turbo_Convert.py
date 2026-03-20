@@ -3,7 +3,12 @@ import glob
 import streamlit as st
 import eencijferho.core.pipeline as pipeline
 from eencijferho.config import OutputConfig
-from eencijferho.core.decoder import get_available_decode_columns, get_available_enrich_variables
+from eencijferho.core.decoder import (
+    get_available_decode_columns,
+    get_available_enrich_variables,
+    get_decode_column_info,
+    get_enrich_variable_info,
+)
 from typing import Any, Dict, List, Tuple
 from config import get_input_dir, get_output_dir, get_metadata_dir
 
@@ -192,28 +197,43 @@ else:
             dec_json_matches = _glob.glob(os.path.join(json_dir, "Bestandsbeschrijving_Dec-bestanden*.json"))
             variable_metadata_path = os.path.join(json_dir, "variable_metadata.json")
 
-            available_decode = get_available_decode_columns(dec_json_matches[0] if dec_json_matches else "")
+            dec_json = dec_json_matches[0] if dec_json_matches else ""
+            available_decode = get_available_decode_columns(dec_json)
             available_enrich = get_available_enrich_variables(variable_metadata_path)
+            decode_info = get_decode_column_info(dec_json)
+            enrich_info = get_enrich_variable_info(variable_metadata_path)
 
             if available_decode:
+                decode_help_lines = ["Toegevoegde kolommen per decodeerkolom:\n"]
+                for col in available_decode:
+                    labels = decode_info.get(col, [])
+                    label_str = ", ".join(labels) if labels else "—"
+                    decode_help_lines.append(f"{col} → {label_str}")
+                decode_help = "\n".join(decode_help_lines)
                 opt_decode_columns = st.multiselect(
                     "Te decoderen kolommen",
                     options=available_decode,
                     default=available_decode,
                     key="opt_decode_columns",
-                    help="Kies welke kolommen worden gekoppeld aan Dec_*-opzoekbestanden. Standaard alle beschikbare kolommen.",
+                    help=decode_help,
                 )
             else:
                 opt_decode_columns = None
                 st.caption("_Dec-metadata nog niet beschikbaar — voer eerst de extractiestap uit._")
 
             if available_enrich:
+                enrich_help_lines = ["Voorbeeldvervanging per variabele (code → label):\n"]
+                for var in available_enrich:
+                    sample = enrich_info.get(var, {})
+                    sample_str = ", ".join(f"{k}→{v}" for k, v in sample.items()) if sample else "—"
+                    enrich_help_lines.append(f"{var}: {sample_str}")
+                enrich_help = "\n".join(enrich_help_lines)
                 opt_enrich_variables = st.multiselect(
                     "Te verrijken variabelen",
                     options=available_enrich,
                     default=available_enrich,
                     key="opt_enrich_variables",
-                    help="Kies welke variabelen worden verrijkt met labels uit de bestandsbeschrijvingen. Standaard alle beschikbare variabelen.",
+                    help=enrich_help,
                 )
             else:
                 opt_enrich_variables = None
