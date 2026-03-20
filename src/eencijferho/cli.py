@@ -39,7 +39,8 @@ from eencijferho.core.extractor import (
 )
 from eencijferho.utils.extractor_validation import validate_metadata_folder
 from eencijferho.utils.converter_match import match_files
-from eencijferho.core.pipeline import run_turbo_convert_pipeline, OutputConfig
+from eencijferho.config import OutputConfig
+from eencijferho.core.pipeline import run_turbo_convert_pipeline
 import eencijferho.utils.value_validation as vv
 import eencijferho.utils.dec_validation as dv
 

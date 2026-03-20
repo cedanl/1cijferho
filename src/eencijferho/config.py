@@ -10,6 +10,33 @@ No Streamlit dependency - safe to use in any Python environment.
 """
 
 import os
+from dataclasses import dataclass, field
+
+@dataclass
+class OutputConfig:
+    """Controls which output variants the pipeline produces.
+
+    Attributes:
+        variants: Which decoded variants to create. Supported values:
+            ``"decoded"`` (Dec-only substitution) and ``"enriched"``
+            (Dec + variable_metadata label substitution).
+        formats: Extra output formats. ``"parquet"`` compresses each CSV
+            to a Parquet file.
+        encrypt: When True, sensitive columns (e.g. BSN) are encrypted.
+        column_casing: Header style applied to all output CSV/Parquet files.
+            ``"snake_case"`` converts headers to snake_case; ``"none"``
+            leaves headers unchanged.
+
+    Example — CSV-only, no encryption, no header rename::
+
+        OutputConfig(variants=["decoded"], formats=[], encrypt=False, column_casing="none")
+    """
+
+    variants: list[str] = field(default_factory=lambda: ["decoded", "enriched"])
+    formats: list[str] = field(default_factory=lambda: ["parquet"])
+    encrypt: bool = True
+    column_casing: str = "snake_case"
+
 
 # Default demo mode
 DEFAULT_DEMO_MODE: bool = True

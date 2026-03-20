@@ -2,7 +2,7 @@ import os
 import glob
 import streamlit as st
 import eencijferho.core.pipeline as pipeline
-from eencijferho.core.pipeline import OutputConfig
+from eencijferho.config import OutputConfig
 from typing import Any, Dict, List, Tuple
 from config import get_input_dir, get_output_dir, get_metadata_dir
 
