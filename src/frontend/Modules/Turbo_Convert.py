@@ -243,7 +243,7 @@ else:
                     st.markdown(
                         "**Verrijken** — kies welke variabelen worden vervangen door leesbare labels uit de "
                         "bestandsbeschrijving. Een verrijkte versie vervangt codes door tekstwaarden "
-                        "(bijv. `1` → `Man`). Hover over **?** voor de volledige mapping per variabele."
+                        "(bijv. `M` → `man`). Hover over **?** voor de volledige mapping per variabele."
                     )
                     btn_c1, btn_c2, _ = st.columns([1, 1, 6])
                     with btn_c1:
