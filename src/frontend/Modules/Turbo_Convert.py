@@ -165,10 +165,13 @@ else:
             st.caption("Pas aan welke uitvoerbestanden worden aangemaakt. De standaardinstellingen zijn geschikt voor de meeste gebruikers.")
             col_a, col_b = st.columns(2)
             with col_a:
+                opt_convert_ev = st.checkbox("EV/VAKHAVW bestanden omzetten", value=True, key="opt_convert_ev",
+                    help="Zet de hoofdbestanden (EV en VAKHAVW) om van vaste-breedte naar CSV. Uitschakelen converteert alleen de Dec_*-opzoekbestanden.")
                 opt_decoded = st.checkbox("Gedecodeerde bestanden (_decoded)", value=True, key="opt_decoded",
+                    disabled=not st.session_state.get("opt_convert_ev", True),
                     help="Koppelt codes aan omschrijvingen uit de Dec_*-opzoekbestanden (bijv. '01' → 'Nederland' dmv Dec_landcode). Vereist voor verrijkte bestanden.")
                 opt_enriched = st.checkbox("Verrijkte bestanden (_enriched)", value=True, key="opt_enriched",
-                    disabled=not st.session_state.get("opt_decoded", True),
+                    disabled=not st.session_state.get("opt_decoded", True) or not st.session_state.get("opt_convert_ev", True),
                     help="Vervangt codes met waarden uit de bestandsbeschrijvingen. Alleen beschikbaar als 'Gedecodeerde bestanden' is aangevinkt.")
             with col_b:
                 opt_parquet = st.checkbox("Parquet-bestanden (gecomprimeerd)", value=True, key="opt_parquet",
@@ -229,8 +232,9 @@ else:
                 update_console()
                 progress_bar.progress(10)
 
+                do_convert_ev = st.session_state.get("opt_convert_ev", True)
                 variants = []
-                do_decoded = st.session_state.get("opt_decoded", True)
+                do_decoded = do_convert_ev and st.session_state.get("opt_decoded", True)
                 if do_decoded:
                     variants.append("decoded")
                     if st.session_state.get("opt_enriched", True):
@@ -240,6 +244,7 @@ else:
                     formats=["parquet"] if st.session_state.get("opt_parquet", True) else [],
                     encrypt=st.session_state.get("opt_encrypt", True),
                     column_casing="snake_case" if st.session_state.get("opt_snake_case", True) else "none",
+                    convert_ev=do_convert_ev,
                 )
 
                 log, output_files = pipeline.run_turbo_convert_pipeline(

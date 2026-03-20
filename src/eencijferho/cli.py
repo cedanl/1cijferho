@@ -279,6 +279,7 @@ def _build_output_config(args: argparse.Namespace) -> OutputConfig:
         formats=formats,
         encrypt=not args.skip_encrypt,
         column_casing="none" if args.skip_snake_case else "snake_case",
+        convert_ev=not args.skip_ev,
     )
 
 
@@ -361,6 +362,10 @@ def main() -> None:
     _output_opts.add_argument(
         "--skip-snake-case", action="store_true",
         help="Keep original column names (do not convert to snake_case)",
+    )
+    _output_opts.add_argument(
+        "--skip-ev", action="store_true",
+        help="Do not convert EV/VAKHAVW main data files (only Dec_* lookup files are converted)",
     )
 
     subparsers.add_parser(
