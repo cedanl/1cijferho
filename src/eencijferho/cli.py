@@ -39,7 +39,7 @@ from eencijferho.core.extractor import (
 )
 from eencijferho.utils.extractor_validation import validate_metadata_folder
 from eencijferho.utils.converter_match import match_files
-from eencijferho.core.pipeline import run_turbo_convert_pipeline
+from eencijferho.core.pipeline import run_turbo_convert_pipeline, OutputConfig
 import eencijferho.utils.value_validation as vv
 import eencijferho.utils.dec_validation as dv
 
@@ -265,6 +265,22 @@ def cmd_enrich(args: argparse.Namespace) -> None:
     print(f"[eencijferho] {written} verrijkt, {skipped} overgeslagen.")
 
 
+def _build_output_config(args: argparse.Namespace) -> OutputConfig:
+    """Build an OutputConfig from CLI flags."""
+    variants = []
+    if not args.skip_decode:
+        variants.append("decoded")
+    if not args.skip_enrich:
+        variants.append("enriched")
+    formats = [] if args.skip_parquet else ["parquet"]
+    return OutputConfig(
+        variants=variants,
+        formats=formats,
+        encrypt=not args.skip_encrypt,
+        column_casing="none" if args.skip_snake_case else "snake_case",
+    )
+
+
 def cmd_convert(args: argparse.Namespace) -> None:
     """Run the full turbo convert pipeline."""
     metadata_dir, _, _ = _resolve_dirs(args.output)
@@ -273,6 +289,7 @@ def cmd_convert(args: argparse.Namespace) -> None:
         input_dir=args.input,
         output_dir=args.output,
         metadata_dir=metadata_dir,
+        output_config=_build_output_config(args),
     )
     print(log)
     print(f"[eencijferho] Output files: {len(output_files)}")
@@ -305,6 +322,7 @@ def cmd_pipeline(args: argparse.Namespace) -> None:
         input_dir=args.input,
         output_dir=args.output,
         metadata_dir=metadata_dir,
+        output_config=_build_output_config(args),
     )
     print(log)
     print(f"[eencijferho] Pipeline complete. Output files: {len(output_files)}")
@@ -321,6 +339,28 @@ def main() -> None:
     _common = argparse.ArgumentParser(add_help=False)
     _common.add_argument("--input", required=True, help="Path to input directory")
     _common.add_argument("--output", required=True, help="Path to output directory")
+
+    _output_opts = argparse.ArgumentParser(add_help=False)
+    _output_opts.add_argument(
+        "--skip-decode", action="store_true",
+        help="Do not create _decoded CSV variants",
+    )
+    _output_opts.add_argument(
+        "--skip-enrich", action="store_true",
+        help="Do not create _enriched CSV variants",
+    )
+    _output_opts.add_argument(
+        "--skip-parquet", action="store_true",
+        help="Do not compress output to Parquet",
+    )
+    _output_opts.add_argument(
+        "--skip-encrypt", action="store_true",
+        help="Do not encrypt sensitive columns",
+    )
+    _output_opts.add_argument(
+        "--skip-snake-case", action="store_true",
+        help="Keep original column names (do not convert to snake_case)",
+    )
 
     subparsers.add_parser(
         "extract",
@@ -344,12 +384,12 @@ def main() -> None:
     )
     subparsers.add_parser(
         "convert",
-        parents=[_common],
+        parents=[_common, _output_opts],
         help="Run turbo convert pipeline (requires prior extract+validate)",
     )
     subparsers.add_parser(
         "pipeline",
-        parents=[_common],
+        parents=[_common, _output_opts],
         help="Run complete end-to-end pipeline (extract → validate → convert)",
     )
     subparsers.add_parser(
