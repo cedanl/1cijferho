@@ -204,37 +204,28 @@ else:
             enrich_info = get_enrich_variable_info(variable_metadata_path)
 
             if available_decode:
-                decode_help_lines = ["Toegevoegde kolommen per decodeerkolom:\n"]
+                st.markdown("**Te decoderen kolommen** — vink uit om een kolom over te slaan:")
+                opt_decode_columns = []
                 for col in available_decode:
                     labels = decode_info.get(col, [])
-                    label_str = ", ".join(labels) if labels else "—"
-                    decode_help_lines.append(f"{col} → {label_str}")
-                decode_help = "\n".join(decode_help_lines)
-                opt_decode_columns = st.multiselect(
-                    "Te decoderen kolommen",
-                    options=available_decode,
-                    default=available_decode,
-                    key="opt_decode_columns",
-                    help=decode_help,
-                )
+                    label_str = ", ".join(labels) if labels else ""
+                    checkbox_label = f"{col} → {label_str}" if label_str else col
+                    if st.checkbox(checkbox_label, value=True, key=f"decode_col_{col}"):
+                        opt_decode_columns.append(col)
             else:
                 opt_decode_columns = None
                 st.caption("_Dec-metadata nog niet beschikbaar — voer eerst de extractiestap uit._")
 
             if available_enrich:
-                enrich_help_lines = ["Voorbeeldvervanging per variabele (code → label):\n"]
+                st.markdown("**Te verrijken variabelen** — vink uit om een variabele over te slaan:")
+                opt_enrich_variables = []
                 for var in available_enrich:
                     sample = enrich_info.get(var, {})
-                    sample_str = ", ".join(f"{k}→{v}" for k, v in sample.items()) if sample else "—"
-                    enrich_help_lines.append(f"{var}: {sample_str}")
-                enrich_help = "\n".join(enrich_help_lines)
-                opt_enrich_variables = st.multiselect(
-                    "Te verrijken variabelen",
-                    options=available_enrich,
-                    default=available_enrich,
-                    key="opt_enrich_variables",
-                    help=enrich_help,
-                )
+                    sample_str = ", ".join(f"{k}→{v}" for k, v in list(sample.items())[:4]) if sample else ""
+                    extra = " …" if len(sample) > 4 else ""
+                    checkbox_label = f"{var}  (bijv. {sample_str}{extra})" if sample_str else var
+                    if st.checkbox(checkbox_label, value=True, key=f"enrich_var_{var}"):
+                        opt_enrich_variables.append(var)
             else:
                 opt_enrich_variables = None
 
@@ -297,8 +288,6 @@ else:
                     variants.append("decoded")
                     if st.session_state.get("opt_enriched", True):
                         variants.append("enriched")
-                sel_decode = st.session_state.get("opt_decode_columns")
-                sel_enrich = st.session_state.get("opt_enrich_variables")
                 output_cfg = OutputConfig(
                     variants=variants,
                     formats=["parquet"] if st.session_state.get("opt_parquet", True) else [],
@@ -306,8 +295,8 @@ else:
                     column_casing="snake_case" if st.session_state.get("opt_snake_case", True) else "none",
                     convert_ev=do_convert_ev,
                     convert_vakhavw=do_convert_vakhavw,
-                    decode_columns=sel_decode if sel_decode and len(sel_decode) < len(available_decode) else None,
-                    enrich_variables=sel_enrich if sel_enrich and len(sel_enrich) < len(available_enrich) else None,
+                    decode_columns=opt_decode_columns if opt_decode_columns and available_decode and len(opt_decode_columns) < len(available_decode) else None,
+                    enrich_variables=opt_enrich_variables if opt_enrich_variables and available_enrich and len(opt_enrich_variables) < len(available_enrich) else None,
                 )
 
                 log, output_files = pipeline.run_turbo_convert_pipeline(
