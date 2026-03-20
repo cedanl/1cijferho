@@ -270,8 +270,8 @@ def _build_output_config(args: argparse.Namespace) -> OutputConfig:
     variants = []
     if not args.skip_decode:
         variants.append("decoded")
-    if not args.skip_enrich:
-        variants.append("enriched")
+        if not args.skip_enrich:
+            variants.append("enriched")
     formats = [] if args.skip_parquet else ["parquet"]
     return OutputConfig(
         variants=variants,
