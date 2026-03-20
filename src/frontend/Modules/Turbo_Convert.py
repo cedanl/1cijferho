@@ -59,6 +59,13 @@ def get_matched_files() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     
     return successful_pairs, skipped_pairs
 
+def _fix_display_encoding(s: str) -> str:
+    """Fix mojibake in column/variable names from latin-1 source files."""
+    try:
+        return s.encode("latin-1").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return s
+
 def clear_console_log() -> None:
     """Clear the console log in session state"""
     if 'convert_console_log' in st.session_state:
@@ -231,8 +238,10 @@ else:
                     opt_decode_columns = []
                     for col in available_decode:
                         labels = decode_info.get(col, [])
-                        col_help = "Toegevoegde kolommen:  \n" + "  \n".join(labels) if labels else None
-                        if st.checkbox(col, value=True, key=f"decode_col_{col}", help=col_help):
+                        col_display = _fix_display_encoding(col)
+                        labels_display = [_fix_display_encoding(l) for l in labels]
+                        col_help = "Toegevoegde kolommen:  \n" + "  \n".join(labels_display) if labels_display else None
+                        if st.checkbox(col_display, value=True, key=f"decode_col_{col}", help=col_help):
                             opt_decode_columns.append(col)
                 else:
                     st.caption("_Dec-metadata nog niet beschikbaar — voer eerst de extractiestap uit._")
