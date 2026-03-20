@@ -162,8 +162,11 @@ else:
                 with contextlib.redirect_stdout(captured_output):
                     metadata_dir = get_metadata_dir()
                     json_dir = os.path.join(metadata_dir, "json")
-                    ex.process_txt_folder(get_input_dir(), json_output_folder=json_dir)
+                    extracted_files = ex.process_txt_folder(get_input_dir(), json_output_folder=json_dir)
                 st.session_state.extract_console_log += captured_output.getvalue()
+                dec_matches = [f for f in (extracted_files or []) if "Dec-bestanden" in f]
+                if dec_matches:
+                    st.session_state.dec_metadata_json = dec_matches[0]
                 st.session_state.extract_console_log += (
                     "✅ Bestandsbeschrijvingen verwerkt\n"
                 )
