@@ -102,6 +102,12 @@ eencijferho validate         --input data/01-input --output data/02-output
 # Stap 3: Converteer de fixed-width bestanden naar CSV/Parquet op basis van de gevalideerde metadata
 eencijferho convert          --input data/01-input --output data/02-output
 
+# Stap 3b: Decodeer outputbestanden met Dec_* opzoektabellen (draai na convert)
+eencijferho decode           --input data/01-input --output data/02-output
+
+# Stap 3c: Verrijk gedecodeerde bestanden met variable_metadata labels (draai na decode)
+eencijferho enrich           --input data/01-input --output data/02-output
+
 # Stap 4 (optioneel): Valideer de geconverteerde outputbestanden op kolomwaarden en DEC-codes
 eencijferho validate-output  --input data/01-input --output data/02-output
 ```
