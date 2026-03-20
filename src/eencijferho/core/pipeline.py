@@ -58,9 +58,14 @@ def run_turbo_convert_pipeline(
         status_callback("⚡ Bestanden omzetten...")
     log += "[pipeline] Bestanden omzetten...\n"
     match_log_file = os.path.join(logs_dir, "(4)_file_matching_log_latest.json")
-    skip_prefixes = None if output_config.convert_ev else ["EV", "VAKHAVW"]
+    skip_prefixes = []
     if not output_config.convert_ev:
-        log += "[pipeline] EV/VAKHAVW-omzetting overgeslagen.\n"
+        skip_prefixes.append("EV")
+        log += "[pipeline] EV-omzetting overgeslagen.\n"
+    if not output_config.convert_vakhavw:
+        skip_prefixes.append("VAKHAVW")
+        log += "[pipeline] VAKHAVW-omzetting overgeslagen.\n"
+    skip_prefixes = skip_prefixes or None
     converter.run_conversions_from_matches(
         input_dir,
         metadata_folder=metadata_dir,

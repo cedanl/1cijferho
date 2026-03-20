@@ -26,9 +26,10 @@ class OutputConfig:
         column_casing: Header style applied to all output CSV/Parquet files.
             ``"snake_case"`` converts headers to snake_case; ``"none"``
             leaves headers unchanged.
-        convert_ev: When True (default), EV and VAKHAVW main data files are
-            converted from fixed-width to CSV.  Set to False to skip this
-            step and only produce Dec_* lookup CSVs.
+        convert_ev: When True (default), EV main data files are converted
+            from fixed-width to CSV.
+        convert_vakhavw: When True (default), VAKHAVW main data files are
+            converted from fixed-width to CSV.
 
     Example — CSV-only, no encryption, no header rename::
 
@@ -40,6 +41,7 @@ class OutputConfig:
     encrypt: bool = True
     column_casing: str = "snake_case"
     convert_ev: bool = True
+    convert_vakhavw: bool = True
 
     def __post_init__(self) -> None:
         valid_variants = frozenset({"decoded", "enriched"})
