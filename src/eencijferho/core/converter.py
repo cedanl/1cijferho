@@ -1,199 +1,258 @@
+"""
+Fixed-width to CSV converter for 1CijferHO data files.
+
+Public API:
+    process_chunk(chunk_data)
+        Converts a chunk of fixed-width lines to semicolon-delimited CSV lines.
+    converter(input_file, metadata_file, output_dir)
+        Converts a single fixed-width .asc file to CSV using multiprocessing.
+    run_conversions_from_matches(input_folder, metadata_folder, match_log_file, output_folder)
+        Runs converter for all matched file pairs from a match log.
+    convert_dec_files(input_folder, metadata_folder, output_folder)
+        Converts all Dec_*.asc files using their corresponding metadata.
+"""
+
 import sys
 import os
 import multiprocessing as mp
 import json
 import polars as pl
 import datetime
-from typing import Any, Union
+from typing import Any
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 from eencijferho.config import INPUT_DIR, OUTPUT_DIR, DECODER_INPUT_DIR
 
-"""
-Fixed-width to CSV converter for 1CHO data files. Contains functionality for efficient conversion
-of fixed-width format files to CSV format using multiprocessing.
+_console = Console()
 
-Functions:
-    [x] process_chunk(chunk_data) - Processes a chunk of lines in a fixed-width file
-        - Process a chunk of lines and return the converted output
-    [M] converter(input_file, metadata_file) - Converts a fixed-width file to CSV using a metadata specification
-        - Convert fixed-width file to CSV using multiprocessing for better performance
-    [N] run_conversions_from_matches(input_folder, metadata_folder, match_log_file) - Run the converter for each valid match in the JSON log
-        - Processes all valid matches in the JSON file, applying the converter function
-"""
 
-def process_chunk(chunk_data: tuple[list[tuple[int, int]], list[Union[str, bytes]]]) -> list[str]:
+def process_chunk(chunk_data: tuple[list[tuple[int, int]], list[str | bytes]]) -> list[str]:
     """
     Processes a chunk of lines from a fixed-width file and returns the converted output as CSV lines.
 
     Args:
-        chunk_data (tuple[list[tuple[int, int]], list[Union[str, bytes]]]):
-            - positions: List of (start, end) tuples for slicing fields
-            - chunk: List of lines (str or bytes) to process
+        chunk_data: (positions, chunk) where positions is a list of (start, end) tuples
+            and chunk is a list of lines (str or bytes) to process.
 
     Returns:
-        list[str]: List of CSV-formatted strings (semicolon-delimited)
+        list[str]: List of semicolon-delimited CSV strings.
 
     Edge Cases:
-        - Handles both str and bytes input lines
-        - Skips empty lines
-        - Strips whitespace from each field
+        - Handles both str and bytes input lines.
+        - Skips empty lines.
+        - Strips whitespace from each field.
 
     Example:
-        >>> chunk = [(0, 5), (5, 10)], [b'abc  def  ']
-        >>> process_chunk(chunk)
+        >>> process_chunk(([(0, 5), (5, 10)], [b'abc  def  ']))
         ['abc;def']
     """
     positions, chunk = chunk_data
     output_lines = []
     for line in chunk:
         if isinstance(line, bytes):
-            line = line.decode('latin1')  # Adjust encoding as needed
-        if line.strip():  # Skip empty lines
+            line = line.decode('latin1')
+        if line.strip():
             fields = [line[start:end].strip() for start, end in positions]
             output_lines.append(';'.join(fields))
     return output_lines
 
 
-def converter(input_file: str, metadata_file: str, output_dir: str | None = None) -> tuple[str, int]:
+# ---------------------------------------------------------------------------
+# Private helpers for converter
+# ---------------------------------------------------------------------------
 
+
+def _resolve_output_path(input_file: str, output_dir: str) -> str:
+    """Derive the output CSV path from the input file name and output directory."""
+    base_name = os.path.splitext(os.path.basename(input_file))[0]
+    return os.path.join(output_dir, f"{base_name}.csv")
+
+
+def _load_metadata(metadata_file: str) -> tuple[list[str], list[tuple[int, int]]]:
+    """Load column names and field (start, end) positions from an Excel metadata file."""
+    df = pl.read_excel(metadata_file)
+    widths = [int(w) for w in df["Aantal posities"].to_list()]
+    column_names = df["Naam"].to_list()
+    positions = [(sum(widths[:i]), sum(widths[:i + 1])) for i in range(len(widths))]
+    return column_names, positions
+
+
+def _read_lines(input_file: str) -> list[str]:
+    """Read all lines from a latin-1 encoded fixed-width file."""
+    with open(input_file, 'r', encoding='latin1') as f:
+        return f.readlines()
+
+
+def _write_header(output_file: str, column_names: list[str]) -> None:
+    """Write the semicolon-delimited header row, creating or overwriting output_file."""
+    with open(output_file, 'w', encoding='utf-8', newline='') as f:
+        f.write(';'.join(column_names) + '\n')
+
+
+def _run_parallel(all_lines: list[str], positions: list[tuple[int, int]], output_file: str) -> None:
+    """Convert all_lines using a multiprocessing pool, appending results to output_file."""
+    num_processes = max(1, mp.cpu_count() - 1)
+    chunk_size = max(1, len(all_lines) // (num_processes * 4))
+    chunks = [all_lines[i:i + chunk_size] for i in range(0, len(all_lines), chunk_size)]
+    chunk_data = [(positions, chunk) for chunk in chunks]
+    with mp.Pool(processes=num_processes) as pool:
+        with open(output_file, 'a', encoding='utf-8', newline='') as f_out:
+            for result in pool.imap_unordered(process_chunk, chunk_data):
+                if result:
+                    f_out.write('\n'.join(result) + '\n')
+
+
+def _run_serial(all_lines: list[str], positions: list[tuple[int, int]], output_file: str) -> None:
+    """Convert all_lines serially (used in child processes), appending results to output_file."""
+    result = process_chunk((positions, all_lines))
+    with open(output_file, 'a', encoding='utf-8', newline='') as f_out:
+        if result:
+            f_out.write('\n'.join(result) + '\n')
+
+
+def converter(input_file: str, metadata_file: str, output_dir: str | None = None) -> tuple[str, int]:
     """
     Converts a fixed-width ASCII file to CSV using metadata for field positions.
 
     Args:
         input_file (str): Path to the input .asc file.
         metadata_file (str): Path to the metadata Excel file (.xlsx).
+        output_dir (str | None): Output directory. Defaults to OUTPUT_DIR from config.
 
     Returns:
-        tuple[str, int]: Tuple of (output CSV file path, total lines processed).
+        tuple[str, int]: (output CSV file path, total lines in input file).
 
     Edge Cases:
-        - Handles both small and large files (uses multiprocessing for large files)
-        - Creates output directory if missing
-        - Handles encoding issues (input: latin1, output: utf-8)
-        - Skips empty lines
-        - Fails gracefully if metadata columns are missing
+        - Uses multiprocessing in the main process; falls back to serial in child processes.
+        - Creates output directory if missing.
+        - Input read as latin-1; output written as utf-8.
+        - Skips empty lines.
 
     Example:
         >>> out, n = converter('Dec_landcode.asc', 'Bestandsbeschrijving_Dec-bestanden_DEMO.xlsx')
-        >>> print(out, n)
     """
-
-    # Determine output file path - same name but in output_dir (or OUTPUT_DIR if not provided)
     if output_dir is None:
         output_dir = OUTPUT_DIR
-    input_filename = os.path.basename(input_file)
-    base_name = os.path.splitext(input_filename)[0]  # Get filename without extension
-    output_file = os.path.join(output_dir, f"{base_name}.csv")
+    output_file = _resolve_output_path(input_file, output_dir)
+    os.makedirs(os.path.dirname(output_file) or '.', exist_ok=True)
 
-    
-    # Create output directory if it doesn't exist
-    output_dir = os.path.dirname(output_file)
-    if output_dir and not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    
-    # Load metadata from Excel file
-    metadata_df = pl.read_excel(metadata_file)
+    column_names, positions = _load_metadata(metadata_file)
+    _write_header(output_file, column_names)
 
-    # Convert widths to integers explicitly
-    widths = [int(w) for w in metadata_df["Aantal posities"].to_list()]
-    column_names = metadata_df["Naam"].to_list()
-    
-    # Calculate positions for each field
-    positions = [(sum(widths[:i]), sum(widths[:i+1])) for i in range(len(widths))]
-    
-    # Count total lines
-    with open(input_file, 'rb') as f:
-        total_lines = sum(1 for _ in f.readlines())
-    
-    # Write header first
-    with open(output_file, 'w', encoding='utf-8', newline='') as f_out:
-        f_out.write(';'.join(column_names) + '\n')
-    
-    # Read the entire file into memory (if it's not too large)
-    with open(input_file, 'r', encoding='latin1') as f_in:
-        all_lines = f_in.readlines()
-    
-    # Guard to prevent recursive multiprocessing
-    # This will only allow multiprocessing in the main process
-    is_main_process = mp.current_process().name == 'MainProcess'
-    
-    if is_main_process:
-        # Determine chunk size and number of processes
-        num_processes = max(1, mp.cpu_count() - 1)  # Leave one core free
-        chunk_size = max(1, len(all_lines) // (num_processes * 4))  # Create 4x as many chunks as processes
-        
-        # Split data into chunks
-        chunks = [all_lines[i:i + chunk_size] for i in range(0, len(all_lines), chunk_size)]
-        chunk_data = [(positions, chunk) for chunk in chunks]
-        
-        # Process in parallel with proper cleanup
-        with mp.Pool(processes=num_processes) as pool:
-            results_iter = pool.imap_unordered(process_chunk, chunk_data)
-            
-            # Write results as they come in
-            lines_processed = 0
-            with open(output_file, 'a', encoding='utf-8', newline='') as f_out:
-                for result in results_iter:
-                    if result:
-                        f_out.write('\n'.join(result) + '\n')
-                    lines_processed += len(result) if result else 0
+    all_lines = _read_lines(input_file)
+    total_lines = len(all_lines)
+
+    if mp.current_process().name == 'MainProcess':
+        _run_parallel(all_lines, positions, output_file)
     else:
-        # Process the data serially if we're in a child process
-        results = process_chunk((positions, all_lines))
-        with open(output_file, 'a', encoding='utf-8', newline='') as f_out:
-            if results:
-                f_out.write('\n'.join(results) + '\n')
-    
+        _run_serial(all_lines, positions, output_file)
+
     return output_file, total_lines
 
 
-def run_conversions_from_matches(input_folder: str, metadata_folder: str = "data/00-metadata", match_log_file: str = "data/00-metadata/logs/(4)_file_matching_log_latest.json", output_folder: str | None = None) -> dict[str, Any]:
+# ---------------------------------------------------------------------------
+# Private helpers for run_conversions_from_matches
+# ---------------------------------------------------------------------------
+
+
+def _load_match_log(match_log_file: str) -> list[dict] | None:
+    """Load processed_files from a match log JSON. Returns None on failure."""
+    if not os.path.exists(match_log_file):
+        _console.print(f"[red]Match log niet gevonden: {match_log_file}")
+        return None
+    try:
+        with open(match_log_file, 'r') as f:
+            return json.load(f)["processed_files"]
+    except Exception as e:
+        _console.print(f"[red]Fout bij laden match log: {e}")
+        return None
+
+
+def _convert_one(
+    file_info: dict,
+    input_folder: str,
+    metadata_folder: str,
+    output_folder: str | None,
+) -> dict:
+    """Process one entry from the match log. Returns a file_result dict."""
+    input_file_name = file_info["input_file"]
+    result: dict[str, Any] = {"input_file": input_file_name, "status": "skipped", "reason": ""}
+
+    if file_info["status"] != "matched":
+        result["reason"] = f"Bestandsstatus is {file_info['status']}"
+        return result
+
+    valid_matches = [m for m in file_info["matches"] if m["validation_status"] == "success"]
+    if not valid_matches:
+        result["reason"] = "Geen geldige validatiebestanden gevonden"
+        return result
+
+    input_path = os.path.join(input_folder, input_file_name)
+    metadata_path = os.path.join(metadata_folder, valid_matches[0]["validation_file"])
+
+    if not os.path.exists(input_path):
+        _console.print(f"[red]Invoerbestand niet gevonden: {input_path}")
+        result["status"] = "failed"
+        result["reason"] = "Invoerbestand niet gevonden"
+        return result
+
+    if not os.path.exists(metadata_path):
+        _console.print(f"[red]Metadatabestand niet gevonden: {metadata_path}")
+        result["status"] = "failed"
+        result["reason"] = "Metadatabestand niet gevonden"
+        return result
+
+    try:
+        output_file, total_lines = converter(input_path, metadata_path, output_folder)
+        result["status"] = "success"
+        result["output_file"] = output_file
+        result["total_lines"] = total_lines
+    except Exception as e:
+        result["status"] = "failed"
+        result["reason"] = f"Fout tijdens omzetting: {e}"
+
+    return result
+
+
+def run_conversions_from_matches(
+    input_folder: str,
+    metadata_folder: str = "data/00-metadata",
+    match_log_file: str = "data/00-metadata/logs/(4)_file_matching_log_latest.json",
+    output_folder: str | None = None,
+) -> dict[str, Any]:
     """
     Runs conversion for all matched input/metadata file pairs based on a match log.
 
     Args:
         input_folder (str): Folder containing input files.
-        metadata_folder (str, optional): Folder with metadata files. Defaults to 'data/00-metadata'.
-        match_log_file (str, optional): Path to the match log JSON. Defaults to latest log.
+        metadata_folder (str): Folder with metadata files. Defaults to 'data/00-metadata'.
+        match_log_file (str): Path to the match log JSON.
+        output_folder (str | None): Output folder for converted CSVs.
 
     Returns:
-        dict[str, Any]: Summary of conversion results, including counts and details.
+        dict[str, Any]: Summary with counts and per-file details.
 
     Edge Cases:
-        - Handles missing or corrupt log files
-        - Logs and skips files that fail conversion
-        - Tracks skipped file pairs
+        - Handles missing or corrupt log files.
+        - Logs and skips files that fail conversion.
 
     Example:
         >>> summary = run_conversions_from_matches('data/01-input')
         >>> print(summary['successful_conversions'])
     """
+    _console.print(f"[cyan]Starting conversion based on match log: {match_log_file}")
 
-    console = Console()
-    console.print(f"[cyan]Starting conversion based on match log: {match_log_file}")
-    
-    # Setup logging — derive log folder from the match log file path
     log_folder = os.path.dirname(match_log_file)
     os.makedirs(log_folder, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     timestamped_log_file = os.path.join(log_folder, f"conversion_log_{timestamp}.json")
     latest_log_file = os.path.join(log_folder, "(5)_conversion_log_latest.json")
-    
-    # Check if log file exists
-    if not os.path.exists(match_log_file):
-        console.print(f"[red]Match log file not found: {match_log_file}")
-        return {"status": "failed", "reason": "Log file not found"}
-    
-    # Load the JSON log file
-    try:
-        with open(match_log_file, 'r') as f:
-            log_data = json.load(f)
-    except Exception as e:
-        console.print(f"[red]Error loading JSON log file: {str(e)}")
-        return {"status": "failed", "reason": f"Error loading JSON: {str(e)}"}
-    
-    results = {
+
+    processed_files = _load_match_log(match_log_file)
+    if processed_files is None:
+        return {"status": "failed", "reason": "Log file not found or invalid"}
+
+    results: dict[str, Any] = {
         "timestamp": timestamp,
         "match_log_file": match_log_file,
         "total_files": 0,
@@ -201,144 +260,83 @@ def run_conversions_from_matches(input_folder: str, metadata_folder: str = "data
         "failed_conversions": 0,
         "skipped_files": 0,
         "details": [],
-        "skipped_file_pairs": []  # Add this to track skipped file pairs
+        "skipped_file_pairs": [],
     }
-    
-    # Iterate through processed files in the log
+
+    valid_files = [
+        f for f in processed_files
+        if f["status"] == "matched"
+        and any(m["validation_status"] == "success" for m in f["matches"])
+    ]
+    results["total_files"] = len(valid_files)
+
+    # Use a fresh Console for Progress to avoid "Only one live display may be active
+    # at once" when called repeatedly from Streamlit (module-level _console retains
+    # live-display state across calls if a previous run exited uncleanly).
     with Progress(
         SpinnerColumn(),
         TextColumn("[cyan]Processing files..."),
         BarColumn(),
         TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
         TimeElapsedColumn(),
-        console=console,
+        console=Console(),
     ) as progress:
-        # Count files with successful validation
-        valid_files = [f for f in log_data["processed_files"] 
-                      if f["status"] == "matched" and 
-                      any(m["validation_status"] == "success" for m in f["matches"])]
-        
-        total_files = len(valid_files)
-        results["total_files"] = total_files
-        
-        task = progress.add_task("", total=total_files)
-        
-        for file_info in log_data["processed_files"]:
-            input_file_name = file_info["input_file"]
-            file_result = {
-                "input_file": input_file_name,
-                "status": "skipped",
-                "reason": ""
-            }
-            
-            # Check if file has matches with successful validation
-            if file_info["status"] == "matched":
-                valid_matches = [m for m in file_info["matches"] if m["validation_status"] == "success"]
-                
-                if valid_matches:
-                    # Take the first successful match for processing
-                    validation_file_name = valid_matches[0]["validation_file"]
-                    
-                    # Construct full paths
-                    input_file_path = os.path.join(input_folder, input_file_name)
-                    validation_file_path = os.path.join(metadata_folder, validation_file_name)
-                    
-                    # Check if files exist
-                    if not os.path.exists(input_file_path):
-                        console.print(f"[red]Input file not found: {input_file_path}")
-                        file_result["status"] = "failed"
-                        file_result["reason"] = "Input file not found"
-                        results["failed_conversions"] += 1
-                        continue
-                    
-                    if not os.path.exists(validation_file_path):
-                        console.print(f"[red]Validation file not found: {validation_file_path}")
-                        file_result["status"] = "failed"
-                        file_result["reason"] = "Validation file not found"
-                        results["failed_conversions"] += 1
-                        continue
-                    
-                    try:
-                        # Call the converter function and capture both return values
-                        output_file, total_lines = converter(input_file_path, validation_file_path, output_folder)
-                        
-                        if output_file:
-                            file_result["status"] = "success"
-                            file_result["output_file"] = output_file
-                            file_result["total_lines"] = total_lines  # Add total lines to the file result
-                            results["successful_conversions"] += 1
-                        else:
-                            file_result["status"] = "failed"
-                            file_result["reason"] = "Conversion returned None"
-                            results["failed_conversions"] += 1
-                    except Exception as e:
-                        file_result["status"] = "failed"
-                        file_result["reason"] = f"Error during conversion: {str(e)}"
-                        results["failed_conversions"] += 1
-                else:
-                    file_result["reason"] = "No valid validation files found"
-                    results["skipped_files"] += 1
-                    # Track skipped file pair
-                    results["skipped_file_pairs"].append({
-                        "input_file": input_file_name,
-                        "reason": "No valid validation files found"
-                    })
+        task = progress.add_task("", total=len(valid_files))
+
+        for file_info in processed_files:
+            file_result = _convert_one(file_info, input_folder, metadata_folder, output_folder)
+
+            if file_result["status"] == "success":
+                results["successful_conversions"] += 1
+            elif file_result["status"] == "failed":
+                results["failed_conversions"] += 1
             else:
-                file_result["reason"] = f"File status is {file_info['status']}"
                 results["skipped_files"] += 1
-                # Track skipped file pair
                 results["skipped_file_pairs"].append({
-                    "input_file": input_file_name,
-                    "reason": f"File status is {file_info['status']}"
+                    "input_file": file_info["input_file"],
+                    "reason": file_result["reason"],
                 })
-            
+
             results["details"].append(file_result)
             progress.update(task, advance=1)
-    
-    # Set final status
+
     results["status"] = "completed"
-    
-    # Save log file to both locations
+
     with open(timestamped_log_file, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
     with open(latest_log_file, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
-    
-    # Print summary
-    console.print(f"[green]Conversion process completed")
-    console.print(f"[green]Total files: {results['total_files']}")
-    console.print(f"[green]Successfully converted: {results['successful_conversions']}")
-    
-    if results["failed_conversions"] > 0:
-        console.print(f"[red]Failed conversions: {results['failed_conversions']}")
-    
-    if results["skipped_files"] > 0:
-        console.print(f"[yellow]Skipped files: {results['skipped_files']}")
-        
-        # Display skipped file pairs
-        for idx, skipped in enumerate(results["skipped_file_pairs"], 1):
-            console.print(f"[yellow] {idx}. Input: {skipped['input_file']} - Reason: {skipped['reason']}[/yellow]")
-    
-    console.print(f"[blue]Log saved to: {os.path.basename(latest_log_file)} and conversion_log_{timestamp}.json in {log_folder}")
-    
-    return results  # Return the results
 
-def convert_dec_files(input_folder: str, metadata_folder: str = "data/00-metadata", output_folder: str | None = None) -> None:
+    _console.print(f"[green]Omzetting voltooid")
+    _console.print(f"[green]Totaal bestanden: {results['total_files']}")
+    _console.print(f"[green]Succesvol omgezet: {results['successful_conversions']}")
+    if results["failed_conversions"] > 0:
+        _console.print(f"[red]Mislukte omzettingen: {results['failed_conversions']}")
+    if results["skipped_files"] > 0:
+        _console.print(f"[yellow]Overgeslagen bestanden: {results['skipped_files']}")
+        for idx, skipped in enumerate(results["skipped_file_pairs"], 1):
+            _console.print(f"[yellow] {idx}. {skipped['input_file']} — {skipped['reason']}[/yellow]")
+    _console.print(f"[blue]Log opgeslagen: {os.path.basename(latest_log_file)} en conversion_log_{timestamp}.json in {log_folder}")
+
+    return results
+
+
+def convert_dec_files(
+    input_folder: str,
+    metadata_folder: str = "data/00-metadata",
+    output_folder: str | None = None,
+) -> None:
     """
-    Converts all Dec_* files in the input folder using their corresponding metadata, even if unmatched.
+    Converts all Dec_*.asc files in input_folder using their corresponding metadata.
 
     Args:
         input_folder (str): Folder containing Dec_*.asc files.
-        metadata_folder (str, optional): Folder with metadata files. Defaults to 'data/00-metadata'.
-        output_folder (str, optional): Output folder for converted CSVs. Defaults to OUTPUT_DIR from config.
-
-    Returns:
-        None
+        metadata_folder (str): Folder with metadata files. Defaults to 'data/00-metadata'.
+        output_folder (str | None): Output folder for converted CSVs.
 
     Edge Cases:
-        - Skips Dec_* files with no matching metadata
-        - Prefers .xlsx metadata, falls back to .txt
-        - Prints warnings for missing or failed conversions
+        - Skips Dec_* files with no matching metadata.
+        - Prefers .xlsx metadata, falls back to .txt.
 
     Example:
         >>> convert_dec_files('data/01-input')
@@ -346,35 +344,33 @@ def convert_dec_files(input_folder: str, metadata_folder: str = "data/00-metadat
     dec_files = [f for f in os.listdir(input_folder) if f.startswith("Dec_") and f.endswith(".asc")]
     for dec_file in dec_files:
         base = os.path.splitext(dec_file)[0]
-        # Try to find a metadata file for this Dec file (.xlsx preferred, fallback to .txt)
-        meta_candidates = [m for m in os.listdir(metadata_folder) if m.lower().startswith(f"bestandsbeschrijving_{base.lower()}") and (m.endswith(".xlsx") or m.endswith(".txt"))]
+        meta_candidates = [
+            m for m in os.listdir(metadata_folder)
+            if m.lower().startswith(f"bestandsbeschrijving_{base.lower()}")
+            and (m.endswith(".xlsx") or m.endswith(".txt"))
+        ]
         if not meta_candidates:
-            print(f"[converter] Warning: No metadata found for {dec_file}, skipping.")
+            print(f"[converter] Waarschuwing: geen metadata gevonden voor {dec_file}, overgeslagen.")
             continue
         meta_file = os.path.join(metadata_folder, meta_candidates[0])
         input_path = os.path.join(input_folder, dec_file)
         try:
             converter(input_path, meta_file, output_folder)
-            print(f"[converter] Converted Dec file: {dec_file}")
+            print(f"[converter] Omgezet: {dec_file}")
         except Exception as e:
-            print(f"[converter] Warning: Could not convert {dec_file}: {e}")
-
-
+            print(f"[converter] Waarschuwing: kon {dec_file} niet omzetten: {e}")
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         input_folder = sys.argv[1]
     else:
-        input_folder = INPUT_DIR  # fallback from config
-    
-    # Optional output folder argument
+        input_folder = INPUT_DIR
+
     if len(sys.argv) > 2:
         output_folder = sys.argv[2]
     else:
-        output_folder = OUTPUT_DIR  # fallback from config
-    
-    # Run main conversion pipeline
+        output_folder = OUTPUT_DIR
+
     run_conversions_from_matches(input_folder, output_folder=output_folder)
-    # Always convert Dec_* files from root input dir (they're reference data, not in DEMO subdir)
     convert_dec_files(DECODER_INPUT_DIR, output_folder=output_folder)
