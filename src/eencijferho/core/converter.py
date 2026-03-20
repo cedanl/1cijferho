@@ -270,13 +270,16 @@ def run_conversions_from_matches(
     ]
     results["total_files"] = len(valid_files)
 
+    # Use a fresh Console for Progress to avoid "Only one live display may be active
+    # at once" when called repeatedly from Streamlit (module-level _console retains
+    # live-display state across calls if a previous run exited uncleanly).
     with Progress(
         SpinnerColumn(),
         TextColumn("[cyan]Processing files..."),
         BarColumn(),
         TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
         TimeElapsedColumn(),
-        console=_console,
+        console=Console(),
     ) as progress:
         task = progress.add_task("", total=len(valid_files))
 
