@@ -1,9 +1,20 @@
-# Tests for eencijferho.core.converter: process_chunk and converter()
+# Tests for eencijferho.core.converter: process_chunk, converter, and private helpers
 
+import json
 import pytest
 from pathlib import Path
 
-from eencijferho.core.converter import process_chunk, converter
+from eencijferho.core.converter import (
+    process_chunk,
+    converter,
+    _resolve_output_path,
+    _load_metadata,
+    _count_lines,
+    _write_header,
+    _run_serial,
+    _load_match_log,
+    _convert_one,
+)
 
 
 @pytest.mark.parametrize(
@@ -89,3 +100,156 @@ def test_converter_creates_missing_output_dir(
     nested = tmp_path / "a" / "b" / "c"
     out_path, _ = converter(str(fixed_width_file), str(metadata_xlsx), str(nested))
     assert Path(out_path).exists()
+
+
+# ---------------------------------------------------------------------------
+# _resolve_output_path
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_output_path_csv_extension():
+    result = _resolve_output_path("/input/data/MyFile.asc", "/output")
+    assert result == "/output/MyFile.csv"
+
+
+def test_resolve_output_path_strips_directory():
+    result = _resolve_output_path("/deep/path/to/Dec_landcode.asc", "/out")
+    assert Path(result).name == "Dec_landcode.csv"
+
+
+# ---------------------------------------------------------------------------
+# _load_metadata
+# ---------------------------------------------------------------------------
+
+
+def test_load_metadata_returns_columns_and_positions(metadata_xlsx):
+    columns, positions = _load_metadata(str(metadata_xlsx))
+    assert columns == ["Naam", "Waarde"]
+    assert positions == [(0, 10), (10, 15)]
+
+
+def test_load_metadata_positions_are_cumulative(metadata_xlsx):
+    _, positions = _load_metadata(str(metadata_xlsx))
+    # Second field starts where first ends
+    assert positions[1][0] == positions[0][1]
+
+
+# ---------------------------------------------------------------------------
+# _count_lines
+# ---------------------------------------------------------------------------
+
+
+def test_count_lines_correct(fixed_width_file):
+    assert _count_lines(str(fixed_width_file)) == 3
+
+
+def test_count_lines_empty_file(tmp_path):
+    f = tmp_path / "empty.asc"
+    f.write_bytes(b"")
+    assert _count_lines(str(f)) == 0
+
+
+# ---------------------------------------------------------------------------
+# _write_header
+# ---------------------------------------------------------------------------
+
+
+def test_write_header_creates_file(tmp_path):
+    out = tmp_path / "out.csv"
+    _write_header(str(out), ["A", "B", "C"])
+    assert out.exists()
+    assert out.read_text(encoding="utf-8").strip() == "A;B;C"
+
+
+def test_write_header_overwrites_existing(tmp_path):
+    out = tmp_path / "out.csv"
+    out.write_text("old content", encoding="utf-8")
+    _write_header(str(out), ["X"])
+    assert out.read_text(encoding="utf-8").strip() == "X"
+
+
+# ---------------------------------------------------------------------------
+# _run_serial
+# ---------------------------------------------------------------------------
+
+
+def test_run_serial_appends_to_file(tmp_path):
+    out = tmp_path / "out.csv"
+    _write_header(str(out), ["Naam", "Waarde"])
+    lines = ["Jan       001  ", "Piet      042  "]
+    _run_serial(lines, [(0, 10), (10, 15)], str(out))
+    rows = [l for l in out.read_text(encoding="utf-8").splitlines() if l.strip()]
+    assert rows[0] == "Naam;Waarde"
+    assert rows[1] == "Jan;001"
+    assert rows[2] == "Piet;042"
+
+
+# ---------------------------------------------------------------------------
+# _load_match_log
+# ---------------------------------------------------------------------------
+
+
+def test_load_match_log_returns_processed_files(tmp_path):
+    log = tmp_path / "match.json"
+    data = {"processed_files": [{"input_file": "a.asc", "status": "matched", "matches": []}]}
+    log.write_text(json.dumps(data), encoding="utf-8")
+    result = _load_match_log(str(log))
+    assert result is not None
+    assert result[0]["input_file"] == "a.asc"
+
+
+def test_load_match_log_missing_file_returns_none(tmp_path):
+    assert _load_match_log(str(tmp_path / "geen.json")) is None
+
+
+def test_load_match_log_invalid_json_returns_none(tmp_path):
+    log = tmp_path / "bad.json"
+    log.write_text("geen json {{{", encoding="utf-8")
+    assert _load_match_log(str(log)) is None
+
+
+# ---------------------------------------------------------------------------
+# _convert_one
+# ---------------------------------------------------------------------------
+
+
+def test_convert_one_skips_unmatched_file():
+    file_info = {"input_file": "test.asc", "status": "unmatched", "matches": []}
+    result = _convert_one(file_info, "/in", "/meta", "/out")
+    assert result["status"] == "skipped"
+
+
+def test_convert_one_skips_no_valid_matches():
+    file_info = {
+        "input_file": "test.asc",
+        "status": "matched",
+        "matches": [{"validation_status": "failed", "validation_file": "meta.xlsx"}],
+    }
+    result = _convert_one(file_info, "/in", "/meta", "/out")
+    assert result["status"] == "skipped"
+
+
+def test_convert_one_fails_missing_input(tmp_path, metadata_xlsx):
+    file_info = {
+        "input_file": "bestaat_niet.asc",
+        "status": "matched",
+        "matches": [{"validation_status": "success", "validation_file": metadata_xlsx.name}],
+    }
+    result = _convert_one(file_info, str(tmp_path), str(metadata_xlsx.parent), str(tmp_path))
+    assert result["status"] == "failed"
+
+
+def test_convert_one_succeeds(fixed_width_file, metadata_xlsx, tmp_path):
+    file_info = {
+        "input_file": fixed_width_file.name,
+        "status": "matched",
+        "matches": [{"validation_status": "success", "validation_file": metadata_xlsx.name}],
+    }
+    result = _convert_one(
+        file_info,
+        str(fixed_width_file.parent),
+        str(metadata_xlsx.parent),
+        str(tmp_path),
+    )
+    assert result["status"] == "success"
+    assert Path(result["output_file"]).exists()
