@@ -276,9 +276,9 @@ def validate_metadata_folder(metadata_folder: str = "data/00-metadata", return_d
                     console.print(f"  - Column error: {issues['column_error']}")
     
     # Save log files
-    with open(timestamped_log_file, "w", encoding="latin1") as f:
+    with open(timestamped_log_file, "w", encoding="utf-8") as f:
         json.dump(log_data, f, indent=2, ensure_ascii=False)
-    with open(latest_log_file, "w", encoding="latin1") as f:
+    with open(latest_log_file, "w", encoding="utf-8") as f:
         json.dump(log_data, f, indent=2, ensure_ascii=False)
     
     console.print(f"\n[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}[/blue]")

@@ -201,9 +201,9 @@ def match_files(input_folder: str, log_path: str = "data/00-metadata/logs/(3)_xl
     ]
     
     # Save log file to both locations
-    with open(timestamped_log_file, "w", encoding="latin1") as f:
+    with open(timestamped_log_file, "w", encoding="utf-8") as f:
         json.dump(log_data, f, indent=2)
-    with open(latest_log_file, "w", encoding="latin1") as f:
+    with open(latest_log_file, "w", encoding="utf-8") as f:
         json.dump(log_data, f, indent=2)
     
     # Print summary to console
