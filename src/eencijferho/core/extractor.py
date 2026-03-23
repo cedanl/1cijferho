@@ -720,6 +720,113 @@ def extract_excel_from_json(
     return results, files_created, total_tables
 
 
+def get_fwf_params(txt_file: str, table_index: int = 0) -> dict:
+    """Extract field names and column specs from a DUO bestandsbeschrijving .txt file.
+
+    Returns a dict that can be passed directly to ``pandas.read_fwf()`` as
+    keyword arguments, so no manual parsing of the fixed-width metadata is
+    needed::
+
+        import pandas as pd
+        from eencijferho import get_fwf_params
+
+        params = get_fwf_params("Bestandsbeschrijving_1cyferho_2023_v1.1.txt")
+        df = pd.read_fwf("1cyferho_2023.asc", encoding="latin-1", header=None, **params)
+
+    The ``colspecs`` values follow the pandas convention: 0-based, half-open
+    intervals ``[start, end)``.  ``Startpositie`` from DUO is 1-based, so
+    ``start = Startpositie - 1`` and ``end = Startpositie - 1 + Aantal posities``.
+
+    Args:
+        txt_file: Path to the DUO bestandsbeschrijving ``.txt`` (or ``.asc``) file.
+        table_index: Which table to use when the file contains multiple tables.
+            Defaults to 0 (the first / main table).
+
+    Returns:
+        ``{"names": list[str], "colspecs": list[tuple[int, int]]}``
+
+    Raises:
+        ValueError: When the file cannot be parsed, no tables are found, or
+            ``table_index`` is out of range.
+
+    Example::
+
+        >>> params = get_fwf_params("Bestandsbeschrijving_1cyferho_2023_v1.1.txt")
+        >>> params["names"][:3]
+        ['Onderwijstype HO', 'BRIN-nummer', 'Opleidingscode (CROHO)']
+        >>> params["colspecs"][:3]
+        [(0, 3), (3, 7), (7, 12)]
+    """
+    text = _read_txt_latin1(txt_file)
+    if text is None:
+        raise ValueError(f"Kan bestand niet lezen: {txt_file}")
+
+    tables = _parse_tables(text.split("\n"))
+    if not tables:
+        raise ValueError(f"Geen tabellen gevonden in {txt_file}")
+    if table_index >= len(tables):
+        raise ValueError(
+            f"table_index {table_index} buiten bereik — bestand heeft {len(tables)} tabel(len)"
+        )
+
+    table = tables[table_index]
+    content = table.get("content", [])
+    if not content:
+        raise ValueError(f"Tabel {table_index} heeft geen inhoud in {txt_file}")
+
+    header = content[0]
+    if "Startpositie" not in header or "Aantal posities" not in header:
+        raise ValueError(
+            f"Tabel {table_index} mist de verwachte kolomkoppen "
+            f"'Startpositie' / 'Aantal posities' in {txt_file}"
+        )
+
+    start_pos_index = header.find("Startpositie")
+    aantal_pos_index = header.find("Aantal posities")
+
+    names: list[str] = []
+    colspecs: list[tuple[int, int]] = []
+
+    for line in content[1:]:
+        if not line.strip():
+            continue
+        parsed = _parse_data_line(line, start_pos_index, aantal_pos_index)
+        if parsed is None:
+            continue
+        field_name, start_pos, aantal_pos, _comment = parsed
+        # DUO positions are 1-based; pandas.read_fwf expects 0-based half-open [start, end)
+        names.append(field_name)
+        colspecs.append((start_pos - 1, start_pos - 1 + aantal_pos))
+
+    if not names:
+        raise ValueError(f"Geen velden gevonden in tabel {table_index} van {txt_file}")
+
+    return {"names": names, "colspecs": colspecs}
+
+
+def list_fwf_tables(txt_file: str) -> list[str]:
+    """List the table names found in a DUO bestandsbeschrijving .txt file.
+
+    Useful for discovering which tables are available before calling
+    :func:`get_fwf_params` with a specific ``table_index``::
+
+        >>> list_fwf_tables("Bestandsbeschrijving_1cyferho_2023_v1.1.txt")
+        ['1CijferHO 2023']
+
+    Args:
+        txt_file: Path to the DUO bestandsbeschrijving ``.txt`` (or ``.asc``) file.
+
+    Returns:
+        List of table titles, in order.  Returns an empty list when the file
+        cannot be read or contains no tables.
+    """
+    text = _read_txt_latin1(txt_file)
+    if text is None:
+        return []
+    tables = _parse_tables(text.split("\n"))
+    return [t.get("table_title", f"untitled_table_{i}") for i, t in enumerate(tables)]
+
+
 def process_json_folder(
     json_input_folder: str = "data/00-metadata/json",
     excel_output_folder: str = "data/00-metadata",

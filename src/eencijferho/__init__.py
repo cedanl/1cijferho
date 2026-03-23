@@ -15,7 +15,7 @@ Public API:
 __version__ = "0.1.0"
 
 from eencijferho.core.pipeline import run_turbo_convert_pipeline
-from eencijferho.core.extractor import process_txt_folder, write_variable_metadata, process_json_folder
+from eencijferho.core.extractor import process_txt_folder, write_variable_metadata, process_json_folder, get_fwf_params, list_fwf_tables
 from eencijferho.utils.converter_validation import converter_validation
 from eencijferho.utils.compressor import convert_csv_to_parquet
 from eencijferho.utils.encryptor import encryptor
@@ -35,4 +35,6 @@ __all__ = [
     "convert_csv_headers_to_snake_case",
     "validate_metadata_folder",
     "match_files",
+    "get_fwf_params",
+    "list_fwf_tables",
 ]
