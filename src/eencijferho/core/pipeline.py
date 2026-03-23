@@ -105,7 +105,8 @@ def run_turbo_convert_pipeline(
                 if do_decode:
                     # DEC-only decode
                     dec_only_df = decoder.decode_fields_dec_only(
-                        main_df, dec_metadata_json, dec_tables
+                        main_df, dec_metadata_json, dec_tables,
+                        decode_columns=output_config.decode_columns,
                     )
                     dec_only_file = file_path.replace(".csv", "_decoded.csv")
                     with open(dec_only_file, "w", encoding="utf-8") as f:
@@ -127,6 +128,8 @@ def run_turbo_convert_pipeline(
                         enriched_df = decoder.decode_fields(
                             main_df, dec_metadata_json, dec_tables,
                             variable_metadata_path=variable_metadata_json,
+                            decode_columns=output_config.decode_columns,
+                            enrich_variables=output_config.enrich_variables,
                         )
                         if dec_only_df is None or not enriched_df.equals(dec_only_df):
                             enriched_file = file_path.replace(".csv", "_enriched.csv")

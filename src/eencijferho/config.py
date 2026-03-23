@@ -30,6 +30,10 @@ class OutputConfig:
             from fixed-width to CSV.
         convert_vakhavw: When True (default), VAKHAVW main data files are
             converted from fixed-width to CSV.
+        decode_columns: Column names to decode via Dec_* lookup tables.
+            ``None`` decodes all available columns.
+        enrich_variables: Variable names to enrich via variable_metadata labels.
+            ``None`` enriches all available variables.
 
     Example — CSV-only, no encryption, no header rename::
 
@@ -42,6 +46,8 @@ class OutputConfig:
     column_casing: str = "snake_case"
     convert_ev: bool = True
     convert_vakhavw: bool = True
+    decode_columns: list[str] | None = None
+    enrich_variables: list[str] | None = None
 
     def __post_init__(self) -> None:
         valid_variants = frozenset({"decoded", "enriched"})
