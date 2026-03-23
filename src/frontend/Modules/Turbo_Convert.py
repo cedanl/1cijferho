@@ -59,10 +59,6 @@ def get_matched_files() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     
     return successful_pairs, skipped_pairs
 
-def clear_console_log() -> None:
-    """Clear the console log in session state"""
-    if 'convert_console_log' in st.session_state:
-        del st.session_state['convert_console_log']
 
 def get_output_files() -> List[Dict[str, Any]]:
     """Get all files from the output directory"""
@@ -99,12 +95,6 @@ def format_file_size(size_bytes: int) -> str:
 def start_conversion() -> None:
     """Callback function to start the conversion process"""
     st.session_state.start_turbo_convert = True
-
-# -----------------------------------------------------------------------------
-# Initialize/Clear Console Log on Page Load
-# -----------------------------------------------------------------------------
-# Clear console log when page is loaded
-clear_console_log()
 
 # Initialize conversion trigger
 if 'start_turbo_convert' not in st.session_state:
