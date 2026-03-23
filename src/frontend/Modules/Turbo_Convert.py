@@ -362,8 +362,8 @@ else:
                         st.write("**Aangemaakte bestanden:**")
                         
                         # Group files by type for better organization
-                        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv') and not f['name'].endswith('_decoded.csv')]
-                        decoded_files = [f for f in output_files if f['name'].endswith('_decoded.csv')]
+                        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv') and not f['name'].endswith('_decoded.csv') and not f['name'].endswith('_enriched.csv')]
+                        decoded_files = [f for f in output_files if f['name'].endswith('_decoded.csv') or f['name'].endswith('_enriched.csv')]
                         parquet_files = [f for f in output_files if f['name'].endswith('.parquet')]
                         encrypted_files = [f for f in output_files if f['name'].endswith('_encrypted.csv')]
 
@@ -428,7 +428,8 @@ if output_files:
         st.write("**Bestanden in de uitvoermap:**")
         
         # Group files by type for better organization
-        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv')]
+        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv') and not f['name'].endswith('_decoded.csv') and not f['name'].endswith('_enriched.csv')]
+        decoded_files = [f for f in output_files if f['name'].endswith('_decoded.csv') or f['name'].endswith('_enriched.csv')]
         parquet_files = [f for f in output_files if f['name'].endswith('.parquet')]
         encrypted_files = [f for f in output_files if f['name'].endswith('_encrypted.csv')]
         
@@ -436,12 +437,17 @@ if output_files:
             st.write("**📄 CSV-bestanden (geconverteerd):**")
             for file in csv_files:
                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
-        
+
+        if decoded_files:
+            st.write("**🔤 Gedecodeerde bestanden:**")
+            for file in decoded_files:
+                st.write(f"• `{file['name']}` ({file['size_formatted']})")
+
         if parquet_files:
             st.write("**🗜️ Parquet-bestanden (gecomprimeerd):**")
             for file in parquet_files:
                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
-        
+
         if encrypted_files:
             st.write("**🔒 Versleutelde bestanden (definitief):**")
             for file in encrypted_files:
