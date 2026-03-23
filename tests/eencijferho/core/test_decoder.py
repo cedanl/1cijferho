@@ -27,10 +27,12 @@ from eencijferho.core.decoder import (
     _apply_dec_tables,
     _parse_vakken_opmerking,
     _apply_variable_mappings,
-    _has_real_mappings,
     decode_fields_dec_only,
     decode_fields,
     load_dec_tables_from_metadata,
+)
+from eencijferho.core.decoder_info import (
+    _has_real_mappings,
     get_available_decode_columns,
     get_available_enrich_variables,
     get_decode_column_info,
