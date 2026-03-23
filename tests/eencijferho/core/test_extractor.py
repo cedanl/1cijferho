@@ -8,6 +8,8 @@ import pytest
 from eencijferho.core.extractor import (
     extract_tables_from_txt,
     process_txt_folder,
+    get_fwf_params,
+    list_fwf_tables,
     _find_title_above,
     _parse_tables,
     _parse_data_line,
@@ -301,3 +303,134 @@ def test_write_table_excel_with_decoding_variables(tmp_path):
     import pandas as pd
     sheets = pd.ExcelFile(out).sheet_names
     assert "DecodingVariables" in sheets
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
+def _make_fwf_txt(path: Path, fields: list[tuple[str, int, int]]) -> Path:
+    """Write a minimal DUO bestandsbeschrijving with the given (name, start, length) fields."""
+    header = "Naam                  Startpositie  Aantal posities"
+    sp = header.find("Startpositie")
+    ap = header.find("Aantal posities")
+    lines = [
+        "TestTabel",
+        "================",
+        header,
+    ]
+    for name, start, length in fields:
+        # Pad name to startpositie column, then right-align numbers
+        padded = name.ljust(sp)
+        start_str = str(start).ljust(ap - sp)
+        lines.append(f"{padded}{start_str}{length}")
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="latin-1")
+    return path
+
+
+# ---------------------------------------------------------------------------
+# get_fwf_params
+# ---------------------------------------------------------------------------
+
+
+def test_get_fwf_params_returns_names_and_colspecs(tmp_path):
+    txt = _make_fwf_txt(
+        tmp_path / "Bestandsbeschrijving_test.txt",
+        [("VeldA", 1, 3), ("VeldB", 4, 2)],
+    )
+    params = get_fwf_params(str(txt))
+    assert params["names"] == ["VeldA", "VeldB"]
+    assert params["colspecs"] == [(0, 3), (3, 5)]
+
+
+def test_get_fwf_params_colspecs_zero_based(tmp_path):
+    """Startpositie 1 → colspec start 0 (DUO is 1-based, pandas is 0-based)."""
+    txt = _make_fwf_txt(tmp_path / "Bestandsbeschrijving_test.txt", [("Veld", 1, 5)])
+    params = get_fwf_params(str(txt))
+    assert params["colspecs"][0] == (0, 5)
+
+
+def test_get_fwf_params_single_field(tmp_path):
+    txt = _make_fwf_txt(tmp_path / "Bestandsbeschrijving_test.txt", [("Enkel", 3, 4)])
+    params = get_fwf_params(str(txt))
+    assert params["names"] == ["Enkel"]
+    assert params["colspecs"] == [(2, 6)]
+
+
+def test_get_fwf_params_raises_for_missing_file(tmp_path):
+    with pytest.raises(ValueError, match="niet lezen"):
+        get_fwf_params(str(tmp_path / "bestaat_niet.txt"))
+
+
+def test_get_fwf_params_raises_for_no_tables(tmp_path):
+    txt = tmp_path / "Bestandsbeschrijving_leeg.txt"
+    txt.write_text("Geen tabellen\n", encoding="latin-1")
+    with pytest.raises(ValueError, match="Geen tabellen"):
+        get_fwf_params(str(txt))
+
+
+def test_get_fwf_params_raises_for_invalid_table_index(tmp_path):
+    txt = _make_fwf_txt(tmp_path / "Bestandsbeschrijving_test.txt", [("VeldA", 1, 3)])
+    with pytest.raises(ValueError, match="buiten bereik"):
+        get_fwf_params(str(txt), table_index=99)
+
+
+def test_get_fwf_params_keys_are_names_and_colspecs(tmp_path):
+    txt = _make_fwf_txt(tmp_path / "Bestandsbeschrijving_test.txt", [("VeldA", 1, 3)])
+    params = get_fwf_params(str(txt))
+    assert set(params.keys()) == {"names", "colspecs"}
+
+
+def test_get_fwf_params_names_and_colspecs_same_length(tmp_path):
+    txt = _make_fwf_txt(
+        tmp_path / "Bestandsbeschrijving_test.txt",
+        [("A", 1, 2), ("B", 3, 4), ("C", 7, 1)],
+    )
+    params = get_fwf_params(str(txt))
+    assert len(params["names"]) == len(params["colspecs"]) == 3
+
+
+# ---------------------------------------------------------------------------
+# list_fwf_tables
+# ---------------------------------------------------------------------------
+
+
+def test_list_fwf_tables_single_table(tmp_path):
+    txt = _make_fwf_txt(tmp_path / "Bestandsbeschrijving_test.txt", [("VeldA", 1, 3)])
+    names = list_fwf_tables(str(txt))
+    assert names == ["TestTabel"]
+
+
+def test_list_fwf_tables_two_tables(tmp_path):
+    header = "Naam                  Startpositie  Aantal posities"
+    sp = header.find("Startpositie")
+    content = "\n".join([
+        "TabelEen",
+        "================",
+        header,
+        "VeldA".ljust(sp) + "1             3",
+        "",
+        "TabelTwee",
+        "================",
+        header,
+        "VeldB".ljust(sp) + "1             5",
+        "",
+    ])
+    txt = tmp_path / "Bestandsbeschrijving_multi.txt"
+    txt.write_text(content, encoding="latin-1")
+    names = list_fwf_tables(str(txt))
+    assert names == ["TabelEen", "TabelTwee"]
+
+
+def test_list_fwf_tables_returns_empty_for_missing_file(tmp_path):
+    result = list_fwf_tables(str(tmp_path / "bestaat_niet.txt"))
+    assert result == []
+
+
+def test_list_fwf_tables_returns_empty_for_no_tables(tmp_path):
+    txt = tmp_path / "Bestandsbeschrijving_leeg.txt"
+    txt.write_text("Geen tabellen\n", encoding="latin-1")
+    result = list_fwf_tables(str(txt))
+    assert result == []
