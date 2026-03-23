@@ -3,7 +3,7 @@ import glob
 import streamlit as st
 import eencijferho.core.pipeline as pipeline
 from eencijferho.config import OutputConfig
-from eencijferho.core.decoder import (
+from eencijferho.core.decoder_info import (
     get_available_decode_columns,
     get_available_enrich_variables,
     get_decode_column_info,
