@@ -159,13 +159,15 @@ else:
     if successful_pairs:
         with st.expander("⚙️ Uitvoeropties (OPTIONEEL)", expanded=False):
             st.caption("Pas aan welke uitvoerbestanden worden aangemaakt. De standaardinstellingen zijn geschikt voor de meeste gebruikers.")
+            opt_convert_ev = st.checkbox("EV-bestanden omzetten", value=True, key="opt_convert_ev",
+                help="Zet de EV-hoofdbestanden om van vaste-breedte naar CSV.")
+            opt_convert_vakhavw = st.checkbox("VAKHAVW-bestanden omzetten", value=True, key="opt_convert_vakhavw",
+                help="Zet de VAKHAVW-hoofdbestanden om van vaste-breedte naar CSV.")
+            no_main_files = not st.session_state.get("opt_convert_ev", True) and not st.session_state.get("opt_convert_vakhavw", True)
+
+            st.divider()
             col_a, col_b = st.columns(2)
             with col_a:
-                opt_convert_ev = st.checkbox("EV-bestanden omzetten", value=True, key="opt_convert_ev",
-                    help="Zet de EV-hoofdbestanden om van vaste-breedte naar CSV.")
-                opt_convert_vakhavw = st.checkbox("VAKHAVW-bestanden omzetten", value=True, key="opt_convert_vakhavw",
-                    help="Zet de VAKHAVW-hoofdbestanden om van vaste-breedte naar CSV.")
-                no_main_files = not st.session_state.get("opt_convert_ev", True) and not st.session_state.get("opt_convert_vakhavw", True)
                 opt_decoded = st.checkbox("Gedecodeerde bestanden (_decoded)", value=True, key="opt_decoded",
                     disabled=no_main_files,
                     help="Koppelt codes aan omschrijvingen uit de Dec_*-opzoekbestanden (bijv. '01' → 'Nederland' dmv Dec_landcode). Vereist voor verrijkte bestanden.")
