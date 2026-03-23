@@ -3,6 +3,12 @@ import glob
 import streamlit as st
 import eencijferho.core.pipeline as pipeline
 from eencijferho.config import OutputConfig
+from eencijferho.core.decoder import (
+    get_available_decode_columns,
+    get_available_enrich_variables,
+    get_decode_column_info,
+    get_enrich_variable_info,
+)
 from typing import Any, Dict, List, Tuple
 from config import get_input_dir, get_output_dir, get_metadata_dir
 
@@ -53,10 +59,6 @@ def get_matched_files() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     
     return successful_pairs, skipped_pairs
 
-def clear_console_log() -> None:
-    """Clear the console log in session state"""
-    if 'convert_console_log' in st.session_state:
-        del st.session_state['convert_console_log']
 
 def get_output_files() -> List[Dict[str, Any]]:
     """Get all files from the output directory"""
@@ -93,12 +95,6 @@ def format_file_size(size_bytes: int) -> str:
 def start_conversion() -> None:
     """Callback function to start the conversion process"""
     st.session_state.start_turbo_convert = True
-
-# -----------------------------------------------------------------------------
-# Initialize/Clear Console Log on Page Load
-# -----------------------------------------------------------------------------
-# Clear console log when page is loaded
-clear_console_log()
 
 # Initialize conversion trigger
 if 'start_turbo_convert' not in st.session_state:
@@ -161,7 +157,7 @@ else:
     
     # Output options
     if successful_pairs:
-        with st.expander("⚙️ Uitvoeropties", expanded=True):
+        with st.expander("⚙️ Uitvoeropties (OPTIONEEL)", expanded=False):
             st.caption("Pas aan welke uitvoerbestanden worden aangemaakt. De standaardinstellingen zijn geschikt voor de meeste gebruikers.")
             col_a, col_b = st.columns(2)
             with col_a:
@@ -183,6 +179,82 @@ else:
                     help="Maakt een aparte versleutelde kopie van bestanden met gevoelige kolommen (bijv. BSN).")
                 opt_snake_case = st.checkbox("Kolomnamen standaardiseren (snake_case)", value=True, key="opt_snake_case",
                     help="Converteert kolomnamen naar snake_case (bijv. 'Naam Student' → 'naam_student').")
+
+            # Column selection — populated from metadata produced by the extract step
+            import glob as _glob
+            metadata_dir = get_metadata_dir()
+            json_dir = os.path.join(metadata_dir, "json")
+            dec_json_matches = _glob.glob(os.path.join(json_dir, "Bestandsbeschrijving_Dec-bestanden*.json"))
+            variable_metadata_path = os.path.join(json_dir, "variable_metadata.json")
+
+            dec_json = dec_json_matches[0] if dec_json_matches else ""
+            available_decode = get_available_decode_columns(dec_json)
+            available_enrich = get_available_enrich_variables(variable_metadata_path)
+            decode_info = get_decode_column_info(dec_json)
+            enrich_info = get_enrich_variable_info(variable_metadata_path)
+
+            opt_decode_columns = None
+            opt_enrich_variables = None
+
+            show_decode = not no_main_files and st.session_state.get("opt_decoded", True)
+            show_enrich = show_decode and st.session_state.get("opt_enriched", True)
+
+            if show_decode:
+                st.divider()
+                if available_decode:
+                    st.markdown(
+                        "**Decoderen** — kies welke kolommen worden gekoppeld aan de Dec-opzoekbestanden. "
+                        "Per geselecteerde kolom wordt een extra kolom met de omschrijving toegevoegd "
+                        "(bijv. `landcode` → `landcode_oms`). Hover over **?** voor de exacte kolommen per item."
+                    )
+                    btn_c1, btn_c2, _ = st.columns([1, 1, 6])
+                    with btn_c1:
+                        if st.button("Alles aan", key="decode_select_all"):
+                            for col in available_decode:
+                                st.session_state[f"decode_col_{col}"] = True
+                            st.rerun()
+                    with btn_c2:
+                        if st.button("Alles uit", key="decode_deselect_all"):
+                            for col in available_decode:
+                                st.session_state[f"decode_col_{col}"] = False
+                            st.rerun()
+                    has_corrupt_names = any("\ufffd" in col or "ï¿½" in col for col in available_decode)
+                    if has_corrupt_names:
+                        st.warning("⚠️ Kolomnamen bevatten onleesbare tekens door een eerdere extractiefout. Voer de extractiestap opnieuw uit voor correcte namen. De conversie zelf werkt nog gewoon.")
+                    opt_decode_columns = []
+                    for col in available_decode:
+                        labels = decode_info.get(col, [])
+                        col_help = "Toegevoegde kolommen:  \n" + "  \n".join(labels) if labels else None
+                        if st.checkbox(col, value=True, key=f"decode_col_{col}", help=col_help):
+                            opt_decode_columns.append(col)
+                else:
+                    st.caption("_Dec-metadata nog niet beschikbaar — voer eerst de extractiestap uit._")
+
+            if show_enrich:
+                st.divider()
+                if available_enrich:
+                    st.markdown(
+                        "**Verrijken** — kies welke variabelen worden vervangen door leesbare labels uit de "
+                        "bestandsbeschrijving. Een verrijkte versie vervangt codes door tekstwaarden "
+                        "(bijv. `M` → `man`). Hover over **?** voor de volledige mapping per variabele."
+                    )
+                    btn_c1, btn_c2, _ = st.columns([1, 1, 6])
+                    with btn_c1:
+                        if st.button("Alles aan", key="enrich_select_all"):
+                            for var in available_enrich:
+                                st.session_state[f"enrich_var_{var}"] = True
+                            st.rerun()
+                    with btn_c2:
+                        if st.button("Alles uit", key="enrich_deselect_all"):
+                            for var in available_enrich:
+                                st.session_state[f"enrich_var_{var}"] = False
+                            st.rerun()
+                    opt_enrich_variables = []
+                    for var in available_enrich:
+                        sample = enrich_info.get(var, {})
+                        var_help = "  \n".join(f"{k}→{v}" for k, v in sample.items()) if sample else None
+                        if st.checkbox(var, value=True, key=f"enrich_var_{var}", help=var_help):
+                            opt_enrich_variables.append(var)
 
     # Side-by-side buttons with equal width
     if successful_pairs:
@@ -250,6 +322,8 @@ else:
                     column_casing="snake_case" if st.session_state.get("opt_snake_case", True) else "none",
                     convert_ev=do_convert_ev,
                     convert_vakhavw=do_convert_vakhavw,
+                    decode_columns=opt_decode_columns if opt_decode_columns and available_decode and len(opt_decode_columns) < len(available_decode) else None,
+                    enrich_variables=opt_enrich_variables if opt_enrich_variables and available_enrich and len(opt_enrich_variables) < len(available_enrich) else None,
                 )
 
                 log, output_files = pipeline.run_turbo_convert_pipeline(
@@ -278,8 +352,8 @@ else:
                         st.write("**Aangemaakte bestanden:**")
                         
                         # Group files by type for better organization
-                        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv') and not f['name'].endswith('_decoded.csv')]
-                        decoded_files = [f for f in output_files if f['name'].endswith('_decoded.csv')]
+                        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv') and not f['name'].endswith('_decoded.csv') and not f['name'].endswith('_enriched.csv')]
+                        decoded_files = [f for f in output_files if f['name'].endswith('_decoded.csv') or f['name'].endswith('_enriched.csv')]
                         parquet_files = [f for f in output_files if f['name'].endswith('.parquet')]
                         encrypted_files = [f for f in output_files if f['name'].endswith('_encrypted.csv')]
 
@@ -344,7 +418,8 @@ if output_files:
         st.write("**Bestanden in de uitvoermap:**")
         
         # Group files by type for better organization
-        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv')]
+        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv') and not f['name'].endswith('_decoded.csv') and not f['name'].endswith('_enriched.csv')]
+        decoded_files = [f for f in output_files if f['name'].endswith('_decoded.csv') or f['name'].endswith('_enriched.csv')]
         parquet_files = [f for f in output_files if f['name'].endswith('.parquet')]
         encrypted_files = [f for f in output_files if f['name'].endswith('_encrypted.csv')]
         
@@ -352,12 +427,17 @@ if output_files:
             st.write("**📄 CSV-bestanden (geconverteerd):**")
             for file in csv_files:
                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
-        
+
+        if decoded_files:
+            st.write("**🔤 Gedecodeerde bestanden:**")
+            for file in decoded_files:
+                st.write(f"• `{file['name']}` ({file['size_formatted']})")
+
         if parquet_files:
             st.write("**🗜️ Parquet-bestanden (gecomprimeerd):**")
             for file in parquet_files:
                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
-        
+
         if encrypted_files:
             st.write("**🔒 Versleutelde bestanden (definitief):**")
             for file in encrypted_files:

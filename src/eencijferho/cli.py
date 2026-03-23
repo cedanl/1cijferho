@@ -281,6 +281,8 @@ def _build_output_config(args: argparse.Namespace) -> OutputConfig:
         column_casing="none" if args.skip_snake_case else "snake_case",
         convert_ev=not args.skip_ev,
         convert_vakhavw=not args.skip_vakhavw,
+        decode_columns=args.decode_columns or None,
+        enrich_variables=args.enrich_variables or None,
     )
 
 
@@ -371,6 +373,16 @@ def main() -> None:
     _output_opts.add_argument(
         "--skip-vakhavw", action="store_true",
         help="Do not convert VAKHAVW main data files",
+    )
+    _output_opts.add_argument(
+        "--decode-columns", nargs="*", metavar="KOLOM", default=None,
+        help="Alleen deze kolommen decoderen via Dec_*-opzoekbestanden (standaard: alle). "
+             "Gebruik get_available_decode_columns() om geldige namen te achterhalen.",
+    )
+    _output_opts.add_argument(
+        "--enrich-variables", nargs="*", metavar="VARIABELE", default=None,
+        help="Alleen deze variabelen verrijken via variable_metadata (standaard: alle). "
+             "Gebruik get_available_enrich_variables() om geldige namen te achterhalen.",
     )
 
     subparsers.add_parser(
