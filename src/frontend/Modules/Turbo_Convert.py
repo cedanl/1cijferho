@@ -167,7 +167,7 @@ else:
     
     # Output options
     if successful_pairs:
-        with st.expander("⚙️ Uitvoeropties (OPTIONEEL)", expanded=True):
+        with st.expander("⚙️ Uitvoeropties (OPTIONEEL)", expanded=False):
             st.caption("Pas aan welke uitvoerbestanden worden aangemaakt. De standaardinstellingen zijn geschikt voor de meeste gebruikers.")
             col_a, col_b = st.columns(2)
             with col_a:
