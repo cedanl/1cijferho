@@ -51,6 +51,17 @@ dev = [
     "sweetviz>=2.3",
     "jupyter>=1.0",
 ]
+minio = [
+    "minio>=7.2",
+]
+postgres = [
+    "psycopg2-binary>=2.9",
+    "sqlalchemy>=2.0",
+]
+all-backends = [
+    "eencijferho[minio]",
+    "eencijferho[postgres]",
+]
 
 [project.scripts]
 eencijferho = "eencijferho.cli:main"
