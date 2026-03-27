@@ -1,32 +1,32 @@
-import polars as pl
-from pathlib import Path
 from rich.console import Console
 from rich.progress import track
-import os
-from eencijferho.config import get_output_dir
 
-def convert_csv_to_parquet(input_dir: str | None = None) -> None:
-    # Use dynamic config default if not provided
+from eencijferho.io.decorators import with_storage
+
+
+@with_storage
+def convert_csv_to_parquet(storage, input_dir: str | None = None) -> None:
     if input_dir is None:
+        from eencijferho.config import get_output_dir
         input_dir = get_output_dir()
     console = Console()
-    input_path = Path(input_dir)
-    csv_files = list(input_path.glob("*.csv"))
-    
+    csv_files = storage.list_files(f"{input_dir}/*.csv")
+
     console.print(f"[bold green]Converting CSV files in {input_dir}[/]")
-    
+
     for csv_file in track(csv_files, description="Converting files"):
         # Skip files with "dec" in their name (case-insensitive)
-        if "dec" in csv_file.name.lower():
-            console.print(f"[yellow]↷[/] Skipping {csv_file.name}")
+        filename = csv_file.rsplit("/", 1)[-1] if "/" in csv_file else csv_file
+        if "dec" in filename.lower():
+            console.print(f"[yellow]↷[/] Skipping {filename}")
             continue
-            
-        parquet_file = csv_file.with_suffix(".parquet")
+
+        parquet_file = csv_file.rsplit(".", 1)[0] + ".parquet"
         try:
-            df = pl.read_csv(csv_file, separator=";", encoding="utf8")
-            df.write_parquet(parquet_file)
-            console.print(f"[green]✓[/] {csv_file.name}")
+            df = storage.read_dataframe(csv_file)
+            storage.write_dataframe(df, parquet_file, format="parquet")
+            console.print(f"[green]✓[/] {filename}")
         except Exception as e:
-            console.print(f"[bold red]✗[/] {csv_file.name}: {str(e)}")
-    
+            console.print(f"[bold red]✗[/] {filename}: {str(e)}")
+
     console.print("[bold green]Conversion completed![/]")

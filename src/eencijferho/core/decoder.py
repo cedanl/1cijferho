@@ -6,6 +6,7 @@ import re as _re
 import polars as pl
 
 from eencijferho.utils.converter_headers import clean_header_name, normalize_name, strip_accents
+from eencijferho.io.decorators import with_storage
 from typing import Any, Callable, Optional
 
 
@@ -14,7 +15,9 @@ from typing import Any, Callable, Optional
 # ---------------------------------------------------------------------------
 
 
+@with_storage
 def load_variable_mappings(
+    storage,
     variable_metadata_path: Optional[str] = None,
     naming_func: Optional[Callable[[str], str]] = None,
 ) -> dict[str, dict[str, Any]]:
@@ -36,19 +39,12 @@ def load_variable_mappings(
     candidates.append(
         os.path.join(os.getcwd(), "data", "00-metadata", "json", "variable_metadata.json")
     )
-    path = next((p for p in candidates if os.path.exists(p)), None)
+    path = next((p for p in candidates if storage.exists(p)), None)
     if path is None:
         return {}
 
     try:
-        from eencijferho.utils.sanitize_variable_metadata import sanitize_variable_metadata_json
-        sanitize_variable_metadata_json(path)
-    except Exception as e:
-        print(f"[decoder] Waarschuwing: kon variable metadata niet opschonen {path}: {e}")
-
-    try:
-        with open(path, encoding="utf-8") as f:
-            items = json.load(f)
+        items = storage.read_json(path)
     except Exception as e:
         print(f"[decoder] Waarschuwing: kon variable metadata niet laden {path}: {e}")
         return {}
@@ -87,7 +83,9 @@ def load_variable_mappings(
     return maps
 
 
+@with_storage
 def load_dec_tables_from_metadata(
+    storage,
     metadata_json_path: str,
     dec_output_dir: str,
     naming_func: Optional[Callable[[str], str]] = None,
@@ -109,8 +107,7 @@ def load_dec_tables_from_metadata(
         ...     "data/02-output/DEMO",
         ... )
     """
-    with open(metadata_json_path, encoding="utf-8") as f:
-        meta = json.load(f)
+    meta = storage.read_json(metadata_json_path)
 
     dec_tables: dict[str, pl.DataFrame] = {}
     for table in meta["tables"]:
@@ -127,28 +124,13 @@ def load_dec_tables_from_metadata(
                 schema_overrides[code_col2] = pl.String
 
         try:
-            if schema_overrides:
-                df = pl.read_csv(
-                    dec_path,
-                    separator=";",
-                    encoding="utf8",
-                    schema_overrides=schema_overrides,
-                )
-            else:
-                df = pl.read_csv(dec_path, separator=";", encoding="utf8")
+            df = storage.read_dataframe(dec_path, schema_overrides=schema_overrides)
             dec_tables[table["table_title"]] = df
         except Exception:
             try:
-                if schema_overrides:
-                    df = pl.read_csv(
-                        dec_path,
-                        separator=";",
-                        encoding="utf8",
-                        quote_char=None,
-                        schema_overrides=schema_overrides,
-                    )
-                else:
-                    df = pl.read_csv(dec_path, separator=";", encoding="utf8", quote_char=None)
+                df = storage.read_dataframe(
+                    dec_path, schema_overrides=schema_overrides, quote_char=None,
+                )
                 dec_tables[table["table_title"]] = df
             except Exception as e:
                 print(f"[decoder] Kon {dec_file} niet laden: {e}")
@@ -161,9 +143,9 @@ def load_dec_tables_from_metadata(
 # ---------------------------------------------------------------------------
 
 
-def _load_meta(metadata_json_path: str) -> dict:
-    with open(metadata_json_path, encoding="utf-8") as f:
-        return json.load(f)
+@with_storage
+def _load_meta(storage, metadata_json_path: str) -> dict:
+    return storage.read_json(metadata_json_path)
 
 
 def _normalize_df(

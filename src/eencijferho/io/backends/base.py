@@ -45,6 +45,33 @@ class StorageBackend(ABC):
     def exists(self, path: str) -> bool:
         """Check if a path exists."""
 
+    def delete(self, path: str) -> None:
+        """Delete a file at path. Default raises NotImplementedError."""
+        raise NotImplementedError(f"{type(self).__name__} does not support delete")
+
+    def read_json(self, path: str) -> dict | list:
+        """Read a JSON file. Default: read_bytes + json.loads."""
+        import json
+
+        return json.loads(self.read_bytes(path))
+
+    def write_json(self, data: dict | list, path: str, **kwargs) -> str:
+        """Write a JSON file. Default: json.dumps + write_bytes."""
+        import json
+
+        kwargs.setdefault("indent", 2)
+        kwargs.setdefault("ensure_ascii", False)
+        raw = json.dumps(data, **kwargs).encode("utf-8")
+        return self.write_bytes(raw, path)
+
+    def read_text(self, path: str, encoding: str = "utf-8") -> str:
+        """Read a text file with a given encoding."""
+        return self.read_bytes(path).decode(encoding)
+
+    def write_text(self, text: str, path: str, encoding: str = "utf-8") -> str:
+        """Write a text file with a given encoding."""
+        return self.write_bytes(text.encode(encoding), path)
+
     def detect_format(self, path: str) -> str:
         """Infer format from file extension."""
         path_lower = path.lower()

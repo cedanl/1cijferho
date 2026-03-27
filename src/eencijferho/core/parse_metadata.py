@@ -9,11 +9,14 @@ import os
 import re
 from typing import Any
 
+from eencijferho.io.decorators import with_storage
 
-def parse_metadata_file(path: str) -> list[dict[str, Any]]:
+
+@with_storage
+def parse_metadata_file(storage, path: str) -> List[Dict[str, Any]]:
     """Parse metadata text file for variable descriptions and possible values."""
-    with open(path, encoding="latin1") as f:
-        lines = [ln.rstrip("\n") for ln in f]
+    text = storage.read_text(path, encoding="latin-1")
+    lines = text.split("\n")
 
     n = len(lines)
     i = 0

@@ -63,8 +63,19 @@ class DiskBackend(StorageBackend):
         return str(resolved)
 
     def list_files(self, pattern: str) -> list[str]:
+        p = Path(pattern)
+        if p.is_absolute():
+            # Absolute pattern: glob from the pattern's root directly
+            anchor = Path(p.anchor)
+            matches = sorted(anchor.glob(str(p.relative_to(anchor))))
+            return [str(m) for m in matches if m.is_file()]
         matches = sorted(self.base_path.glob(pattern))
         return [str(m.relative_to(self.base_path)) for m in matches if m.is_file()]
 
     def exists(self, path: str) -> bool:
         return self._resolve(path).exists()
+
+    def delete(self, path: str) -> None:
+        resolved = self._resolve(path)
+        if resolved.exists():
+            resolved.unlink()

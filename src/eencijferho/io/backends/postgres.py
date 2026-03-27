@@ -60,12 +60,20 @@ class PostgresBackend(StorageBackend):
         if self._conn and not self._conn.closed:
             self._conn.close()
 
+    JSON_TABLE = "_json_storage"
+
     def _ensure_binary_table(self):
         with self.conn.cursor() as cur:
             cur.execute(f"""
                 CREATE TABLE IF NOT EXISTS {self.BINARY_TABLE} (
                     path TEXT PRIMARY KEY,
                     data BYTEA NOT NULL
+                )
+            """)
+            cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS {self.JSON_TABLE} (
+                    path TEXT PRIMARY KEY,
+                    data JSONB NOT NULL
                 )
             """)
 
@@ -85,6 +93,32 @@ class PostgresBackend(StorageBackend):
                 ON CONFLICT (path) DO UPDATE SET data = EXCLUDED.data
                 """,
                 (path, data),
+            )
+        return f"pg://{path}"
+
+    def read_json(self, path: str) -> dict | list:
+        import json as _json
+
+        with self.conn.cursor() as cur:
+            cur.execute(f"SELECT data FROM {self.JSON_TABLE} WHERE path = %s", (path,))
+            row = cur.fetchone()
+        if row is not None:
+            data = row[0]
+            return _json.loads(data) if isinstance(data, str) else data
+        # Fallback to binary storage
+        return _json.loads(self.read_bytes(path))
+
+    def write_json(self, data: dict | list, path: str, **kwargs) -> str:
+        import json as _json
+
+        raw = _json.dumps(data, ensure_ascii=False)
+        with self.conn.cursor() as cur:
+            cur.execute(
+                f"""
+                INSERT INTO {self.JSON_TABLE} (path, data) VALUES (%s, %s::jsonb)
+                ON CONFLICT (path) DO UPDATE SET data = EXCLUDED.data
+                """,
+                (path, raw),
             )
         return f"pg://{path}"
 
@@ -134,3 +168,15 @@ class PostgresBackend(StorageBackend):
         with self.conn.cursor() as cur:
             cur.execute(f"SELECT EXISTS (SELECT 1 FROM {self.BINARY_TABLE} WHERE path = %s)", (path,))
             return cur.fetchone()[0]
+
+    def delete(self, path: str) -> None:
+        table = _path_to_table(path)
+        with self.conn.cursor() as cur:
+            cur.execute(f"DELETE FROM {self.BINARY_TABLE} WHERE path = %s", (path,))
+            cur.execute(f"DELETE FROM {self.JSON_TABLE} WHERE path = %s", (path,))
+            cur.execute(
+                "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = %s)",
+                (table,),
+            )
+            if cur.fetchone()[0]:
+                cur.execute(f"DROP TABLE IF EXISTS {table}")

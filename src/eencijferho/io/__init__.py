@@ -16,7 +16,7 @@ Usage:
     df = storage.read_dataframe("01-input/data.csv")
 
     # Option 3: decorators
-    from eencijferho.io.decorators import reads_from, writes_to
+    from eencijferho.io.decorators import reads_from, writes_to, with_storage
 
     @reads_from("01-input/data.csv")
     def process(df):
@@ -25,6 +25,12 @@ Usage:
     @writes_to("02-output/result.parquet")
     def produce():
         return some_dataframe
+
+    @with_storage
+    def process_files(storage, input_dir):
+        for path in storage.list_files(f"{input_dir}/*.csv"):
+            df = storage.read_dataframe(path)
+            storage.write_dataframe(df, path.replace(".csv", ".parquet"))
 """
 
 from contextlib import contextmanager

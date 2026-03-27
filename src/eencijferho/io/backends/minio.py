@@ -106,3 +106,7 @@ class MinIOBackend(StorageBackend):
             return True
         except Exception:
             return False
+
+    def delete(self, path: str) -> None:
+        key = self._normalize_key(path)
+        self.client.remove_object(self.bucket, key)

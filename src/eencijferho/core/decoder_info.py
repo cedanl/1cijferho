@@ -1,7 +1,6 @@
-import json
-import os
 import re as _re
-from typing import Optional
+
+from eencijferho.io.decorators import with_storage
 
 
 _PLACEHOLDER_KEYS = frozenset({"[leeg]", "[gevuld]"})
@@ -12,7 +11,8 @@ def _has_real_mappings(values: dict) -> bool:
     return any(str(k).strip() not in _PLACEHOLDER_KEYS for k in values)
 
 
-def get_available_decode_columns(dec_metadata_json_path: str) -> list[str]:
+@with_storage
+def get_available_decode_columns(storage, dec_metadata_json_path: str) -> list[str]:
     """Return all column names that can be decoded via Dec_* lookup tables.
 
     Reads the decoding_variables from each table in the Dec bestandsbeschrijving
@@ -25,11 +25,10 @@ def get_available_decode_columns(dec_metadata_json_path: str) -> list[str]:
     Returns:
         Sorted list of unique column names available for Dec decoding.
     """
-    if not dec_metadata_json_path or not os.path.exists(dec_metadata_json_path):
+    if not dec_metadata_json_path or not storage.exists(dec_metadata_json_path):
         return []
     try:
-        with open(dec_metadata_json_path, encoding="utf-8") as f:
-            meta = json.load(f)
+        meta = storage.read_json(dec_metadata_json_path)
         seen: set[str] = set()
         for table in meta.get("tables", []):
             for var in table.get("decoding_variables", []):
@@ -40,7 +39,8 @@ def get_available_decode_columns(dec_metadata_json_path: str) -> list[str]:
         return []
 
 
-def get_decode_column_info(dec_metadata_json_path: str) -> dict[str, list[str]]:
+@with_storage
+def get_decode_column_info(storage, dec_metadata_json_path: str) -> dict[str, list[str]]:
     """Return what label columns each decodable column adds.
 
     Returns a dict mapping each decoding variable name to the list of label
@@ -49,11 +49,10 @@ def get_decode_column_info(dec_metadata_json_path: str) -> dict[str, list[str]]:
 
     Returns an empty dict when the file is absent or unreadable.
     """
-    if not dec_metadata_json_path or not os.path.exists(dec_metadata_json_path):
+    if not dec_metadata_json_path or not storage.exists(dec_metadata_json_path):
         return {}
     try:
-        with open(dec_metadata_json_path, encoding="utf-8") as f:
-            meta = json.load(f)
+        meta = storage.read_json(dec_metadata_json_path)
 
         def _parse_col_name(row: str) -> str:
             """Extract column name from a content row like 'Naam land   5   40'."""
@@ -75,7 +74,8 @@ def get_decode_column_info(dec_metadata_json_path: str) -> dict[str, list[str]]:
         return {}
 
 
-def get_enrich_variable_info(variable_metadata_json_path: str) -> dict[str, dict[str, str]]:
+@with_storage
+def get_enrich_variable_info(storage, variable_metadata_json_path: str) -> dict[str, dict[str, str]]:
     """Return a sample of code→label mappings for each enrichable variable.
 
     Returns a dict mapping variable name to a dict of up to 3 code→label
@@ -84,11 +84,10 @@ def get_enrich_variable_info(variable_metadata_json_path: str) -> dict[str, dict
 
     Returns an empty dict when the file is absent or unreadable.
     """
-    if not variable_metadata_json_path or not os.path.exists(variable_metadata_json_path):
+    if not variable_metadata_json_path or not storage.exists(variable_metadata_json_path):
         return {}
     try:
-        with open(variable_metadata_json_path, encoding="utf-8") as f:
-            items = json.load(f)
+        items = storage.read_json(variable_metadata_json_path)
         result: dict[str, dict[str, str]] = {}
         for item in items:
             name = item.get("name")
@@ -105,7 +104,8 @@ def get_enrich_variable_info(variable_metadata_json_path: str) -> dict[str, dict
         return {}
 
 
-def get_available_enrich_variables(variable_metadata_json_path: str) -> list[str]:
+@with_storage
+def get_available_enrich_variables(storage, variable_metadata_json_path: str) -> list[str]:
     """Return all variable names available for label enrichment.
 
     Reads the variable names from variable_metadata.json produced by the
@@ -119,11 +119,10 @@ def get_available_enrich_variables(variable_metadata_json_path: str) -> list[str
     Returns:
         Sorted list of unique variable names available for enrichment.
     """
-    if not variable_metadata_json_path or not os.path.exists(variable_metadata_json_path):
+    if not variable_metadata_json_path or not storage.exists(variable_metadata_json_path):
         return []
     try:
-        with open(variable_metadata_json_path, encoding="utf-8") as f:
-            items = json.load(f)
+        items = storage.read_json(variable_metadata_json_path)
         return sorted(
             item["name"]
             for item in items
