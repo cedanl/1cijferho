@@ -11,6 +11,11 @@ import uuid
 
 import pytest
 
+try:
+    import minio as _minio  # noqa: F401
+except ImportError:
+    pytest.skip("minio package not installed", allow_module_level=True)
+
 
 def _docker_available() -> bool:
     """Check if docker compose is reachable."""
