@@ -30,13 +30,13 @@ def _docker_available() -> bool:
 
 
 def _minio_healthy() -> bool:
-    """Check if the minio container is healthy."""
+    """Check if MinIO is responding to HTTP health checks."""
     try:
         r = subprocess.run(
-            ["docker", "inspect", "--format", "{{.State.Health.Status}}", "minio"],
-            capture_output=True, text=True, timeout=5,
+            ["curl", "-sf", "http://localhost:9000/minio/health/live"],
+            capture_output=True, timeout=5,
         )
-        return "healthy" in r.stdout
+        return r.returncode == 0
     except Exception:
         return False
 
