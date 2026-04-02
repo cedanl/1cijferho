@@ -1,5 +1,7 @@
 import os
 import glob
+import json
+import datetime
 import streamlit as st
 import eencijferho.core.pipeline as pipeline
 from eencijferho.config import OutputConfig
@@ -95,6 +97,36 @@ def format_file_size(size_bytes: int) -> str:
 def start_conversion() -> None:
     """Callback function to start the conversion process"""
     st.session_state.start_turbo_convert = True
+
+
+# Schema version for run_config.json — bump when structure changes
+_RUN_CONFIG_SCHEMA_VERSION = 1
+
+
+def write_run_config(output_dir: str, output_cfg: OutputConfig, opt_decode_columns: list | None, opt_enrich_variables: list | None) -> str:
+    """Write run_config.json to output_dir and return the file path."""
+    os.makedirs(output_dir, exist_ok=True)
+    config_path = os.path.join(output_dir, "run_config.json")
+    run_config = {
+        "meta": {
+            "_schema": _RUN_CONFIG_SCHEMA_VERSION,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        },
+        "settings": {
+            "opt_convert_ev": output_cfg.convert_ev,
+            "opt_convert_vakhavw": output_cfg.convert_vakhavw,
+            "opt_decoded": "decoded" in output_cfg.variants,
+            "opt_enriched": "enriched" in output_cfg.variants,
+            "opt_parquet": "parquet" in output_cfg.formats,
+            "opt_encrypt": output_cfg.encrypt,
+            "opt_snake_case": output_cfg.column_casing == "snake_case",
+            "opt_decode_columns": opt_decode_columns,
+            "opt_enrich_variables": opt_enrich_variables,
+        },
+    }
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump(run_config, f, indent=2, ensure_ascii=False)
+    return config_path
 
 # Initialize conversion trigger
 if 'start_turbo_convert' not in st.session_state:
@@ -379,6 +411,20 @@ else:
                             for file in encrypted_files:
                                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
                 
+                # Write run_config.json for reproducibility and future presets
+                try:
+                    config_path = write_run_config(
+                        output_dir=output_dir,
+                        output_cfg=output_cfg,
+                        opt_decode_columns=opt_decode_columns,
+                        opt_enrich_variables=opt_enrich_variables,
+                    )
+                    st.session_state.convert_console_log += f"💾 run_config.json opgeslagen: {config_path}\n"
+                    update_console()
+                except Exception as cfg_err:
+                    st.session_state.convert_console_log += f"⚠️ run_config.json kon niet worden opgeslagen: {cfg_err}\n"
+                    update_console()
+
                 # Celebrate with balloons!
                 st.balloons()
                 
