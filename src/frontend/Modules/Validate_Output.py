@@ -113,9 +113,8 @@ Voer deze stap uit nadat de pipeline klaar is. Er zijn twee validaties beschikba
 - **DEC codes** — controleert of codes en codeparen voorkomen in de DEC-decodeerbestanden, inclusief samengestelde sleutels.
 """)
 
-output_dir = get_output_dir()
-if not os.path.isdir(output_dir) or not any(
-    f.endswith(".csv") for f in os.listdir(output_dir)
+if not os.path.isdir(get_output_dir()) or not any(
+    f.endswith(".csv") for f in os.listdir(get_output_dir())
 ):
     st.error("Geen geconverteerde CSV-bestanden gevonden. Voer eerst de Turbo Conversie uit.")
 else:

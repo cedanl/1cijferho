@@ -12,7 +12,7 @@ import streamlit as st
 import glob
 import requests
 from pathlib import Path
-from config import get_demo_mode, set_demo_mode, get_input_dir, DEFAULT_DEMO_MODE
+from config import get_demo_mode, set_demo_mode, get_input_dir, get_initial_demo_mode
 
 # -----------------------------------------------------------------------------
 # App Configuration - Must be first Streamlit command
@@ -28,7 +28,7 @@ st.set_page_config(
 # Initialize Session State
 # -----------------------------------------------------------------------------
 if "demo_mode" not in st.session_state:
-    st.session_state.demo_mode = DEFAULT_DEMO_MODE
+    st.session_state.demo_mode = get_initial_demo_mode()
 
 
 # -----------------------------------------------------------------------------
@@ -50,10 +50,9 @@ def show_demo_toggle_and_notifications() -> bool:
         # Toggle for demo mode - uses 'demo_mode' key directly to persist state across pages
         st.toggle(
             "Demo Modus",
-            value=st.session_state.demo_mode,
             help="Schakel tussen demo-bestanden en uw eigen data",
             key="demo_mode",
-            on_change=lambda: None,  # State is automatically updated via key
+            on_change=lambda: set_demo_mode(st.session_state.demo_mode),
         )
 
         # Show current paths
