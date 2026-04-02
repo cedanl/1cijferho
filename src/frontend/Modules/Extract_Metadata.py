@@ -87,7 +87,6 @@ with st.expander("🚨 Bestaande Bestandsbeschrijvingen"):
 # Get files and display status
 bestandsbeschrijvingen = get_bestandsbeschrijvingen()
 
-input_dir = get_input_dir()
 if not bestandsbeschrijvingen:
     st.error("🚨 **Geen bestandsbeschrijvingen gevonden.** Zorg dat u de juiste DUO-bestanden in de invoermap hebt geplaatst en ververs de pagina.")
 else:

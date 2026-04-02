@@ -73,9 +73,8 @@ def categorize_files() -> Tuple[bool, Dict[str, List[str]], int]:
 # Main header and subtitle
 st.title("📂 Bestanden uploaden")
 
-input_dir = get_input_dir()
 if get_demo_mode():
-    st.info(f"🎯 **Demo modus actief** – demo-bestanden worden geladen uit `{input_dir}`.")
+    st.info(f"🎯 **Demo modus actief** – demo-bestanden worden geladen uit `{get_input_dir()}`.")
     st.write("""
 Volg deze stappen om te beginnen:
 
@@ -86,7 +85,7 @@ else:
     st.write(f"""
 Volg deze stappen om te beginnen:
 
-1. **Kopieer uw 1CHO-bestanden** naar de map `{input_dir}` van deze applicatie
+1. **Kopieer uw 1CHO-bestanden** naar de map `{get_input_dir()}` van deze applicatie
 2. **Plaats bestanden direct** in de map (niet in submappen)
 3. **Ververs deze pagina** om uw geüploade bestanden per type te bekijken
 """)
@@ -109,17 +108,16 @@ with col2:
 # Example Directory Structure
 # -----------------------------------------------------------------------------
 with st.expander("📂 Voorbeeld mapstructuur"):
-    input_dir = get_input_dir()
     st.write(f"""
     ### Voorbeeld mapstructuur
     
-    Uw `{input_dir}` map moet eruitzien zoals hieronder. Bestanden worden automatisch ingedeeld in drie types:
-    
+    Uw `{get_input_dir()}` map moet eruitzien zoals hieronder. Bestanden worden automatisch ingedeeld in drie types:
+
     - **📄 Bestandsbeschrijvingen**: .txt-bestanden met "bestandsbeschrijving" in de naam
     - **🔓 Decodeerbestanden**: Bestanden die beginnen met "Dec_"
     - **📊 Hoofdbestanden**: Bestanden die beginnen met "EV", "VAKHAVW", "Croho" of "Croho_vest"
-    
-    **Belangrijk:** Plaats bestanden direct in de map `{input_dir}`, niet in submappen.
+
+    **Belangrijk:** Plaats bestanden direct in de map `{get_input_dir()}`, niet in submappen.
     """)
     
     # Path to the image (if it exists)
@@ -131,17 +129,16 @@ with st.expander("📂 Voorbeeld mapstructuur"):
 # -----------------------------------------------------------------------------
 files_found, categorized_files, total_files = categorize_files()
 
-input_dir = get_input_dir()
 if not files_found:
     st.error(f"""
-    🚨 **Geen bestanden gevonden in de map `{input_dir}`**
-    
-    Kopieer uw uitgepakte 1CHO-bestanden naar de map `{input_dir}` en ververs deze pagina.
+    🚨 **Geen bestanden gevonden in de map `{get_input_dir()}`**
+
+    Kopieer uw uitgepakte 1CHO-bestanden naar de map `{get_input_dir()}` en ververs deze pagina.
     """)
 else:
     st.success(f"""
-    ✅ **{total_files} bestanden gevonden in de map `{input_dir}`**
-    
+    ✅ **{total_files} bestanden gevonden in de map `{get_input_dir()}`**
+
     Bestanden zijn automatisch ingedeeld per type. Controleer hieronder of alle verwachte bestanden aanwezig zijn.
     """)
 

@@ -414,7 +414,6 @@ with st.expander("📋 Console Log", expanded=True):
 
 # Show existing converted files (if any)
 output_files = get_output_files()
-output_dir = get_output_dir()
 if output_files:
     with st.expander(f"📁 Geconverteerde bestanden ({len(output_files)} bestanden)", expanded=False):
         st.write("**Bestanden in de uitvoermap:**")
@@ -449,5 +448,5 @@ else:
     st.info("📁 Nog geen geconverteerde bestanden gevonden. Voer eerst de conversie uit.")
 
 # Warning about existing files
-if os.path.exists(output_dir) and os.listdir(output_dir):
+if os.path.exists(get_output_dir()) and os.listdir(get_output_dir()):
     st.warning("⚠️ Er zijn al eerder geconverteerde bestanden aanwezig. Een nieuwe conversie overschrijft deze.")

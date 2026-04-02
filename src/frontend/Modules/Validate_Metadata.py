@@ -139,9 +139,6 @@ Als validatie of koppeling mislukt, kunt u uw Excel-bestanden aanpassen en de va
 # Get files and display status
 metadata_files = get_metadata_files()
 
-# Set input folder
-input_folder = get_input_dir()
-
 if not metadata_files:
     metadata_dir = get_metadata_dir()
     st.error("🚨 **Geen metadata-bestanden gevonden.** Voer eerst de extractiestap uit voordat u verder gaat met valideren.")
@@ -212,7 +209,7 @@ else:
                 # Capture stdout from match_files
                 captured_output = io.StringIO()
                 with contextlib.redirect_stdout(captured_output):
-                    cm.match_files(input_folder, log_path=validation_log_path)
+                    cm.match_files(get_input_dir(), log_path=validation_log_path)
                 st.session_state.validate_console_log += captured_output.getvalue()
                 st.session_state.validate_console_log += "✅ Bestanden gekoppeld\n"
                 st.session_state.validate_console_log += "🎉 Validatie succesvol afgerond!\n"
