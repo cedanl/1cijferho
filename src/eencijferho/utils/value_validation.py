@@ -9,22 +9,12 @@ defined in the bestandsbeschrijving (variable_metadata.json).
 
 import json
 import re
-import unicodedata
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 import polars as pl
 
-
-def _to_snake(name: str) -> str:
-    """snake_case conversion matching converter_headers.normalize_name exactly."""
-    # Strip accents the same way as converter_headers.strip_accents
-    normalized = unicodedata.normalize("NFKD", name)
-    s = normalized.encode("ascii", "ignore").decode("ascii")
-    s = s.lower()
-    s = re.sub(r"[^a-z0-9]+", "_", s)
-    s = re.sub(r"_+", "_", s).strip("_")
-    return s
+from eencijferho.utils.converter_headers import normalize_name
 
 
 def _build_lookup(variables: List[Dict[str, Any]]) -> Dict[str, set]:
@@ -84,7 +74,7 @@ def _build_lookup(variables: List[Dict[str, Any]]) -> Dict[str, set]:
                 if key.isdigit():
                     allowed_clean.add(key.lstrip("0") or "0")
 
-        norm_name = _to_snake(var["name"])
+        norm_name = normalize_name(var["name"])
         lookup[norm_name] = allowed_clean
     return lookup
 
@@ -133,7 +123,7 @@ def validate_column_values(
         return False, results
 
     # Normalise CSV column names for matching
-    csv_cols = {_to_snake(c): c for c in df.columns}
+    csv_cols = {normalize_name(c): c for c in df.columns}
 
     for norm_name, allowed in lookup.items():
         original_col = csv_cols.get(norm_name)
