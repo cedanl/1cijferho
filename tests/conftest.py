@@ -9,8 +9,8 @@ fully isolated.
 import json
 from pathlib import Path
 
+import polars as pl
 import pytest
-import pandas as pd
 
 # ---------------------------------------------------------------------------
 # Fixed-width ASCII fixture
@@ -40,7 +40,7 @@ def fixed_width_file(tmp_path):
 def metadata_xlsx(tmp_path):
     """Matching Excel metadata file for fixed_width_file."""
     path = tmp_path / "Bestandsbeschrijving_test.xlsx"
-    df = pd.DataFrame(
+    pl.DataFrame(
         {
             "ID": [1, 2],
             "Naam": FIXED_WIDTH_NAMES,
@@ -48,8 +48,7 @@ def metadata_xlsx(tmp_path):
             "Aantal posities": FIXED_WIDTH_WIDTHS,
             "Opmerking": ["", ""],
         }
-    )
-    df.to_excel(path, index=False)
+    ).write_excel(path)
     return path
 
 

@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+import openpyxl
 import pytest
 
 from eencijferho.core.extractor import (
@@ -300,8 +301,7 @@ def test_write_table_excel_with_decoding_variables(tmp_path):
     out = str(tmp_path / "test_dec.xlsx")
     n = _write_table_excel(rows, ["VeldA", "VeldB"], out)
     assert n == 1
-    import pandas as pd
-    sheets = pd.ExcelFile(out).sheet_names
+    sheets = openpyxl.load_workbook(out).sheetnames
     assert "DecodingVariables" in sheets
 
 

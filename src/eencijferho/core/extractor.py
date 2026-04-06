@@ -27,7 +27,8 @@ import json
 import re
 import datetime
 
-import pandas as pd
+import polars as pl
+import xlsxwriter
 from rich.console import Console
 from typing import Any
 
@@ -558,17 +559,21 @@ def _write_table_excel(
     Returns the number of data rows written. Raises on write failure.
     """
     main_rows = [row for row in rows if isinstance(row[0], int)]
-    df_main = pd.DataFrame(main_rows, columns=rows[0])
+    columns = rows[0]
+    df_main = pl.DataFrame(
+        {col: [row[i] for row in main_rows] for i, col in enumerate(columns)}
+    )
 
     if decoding_variables:
-        df_dec = pd.DataFrame({"DecodingVariables": decoding_variables})
-        with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
-            df_main.to_excel(writer, index=False, sheet_name="Table")
-            df_dec.to_excel(writer, index=False, sheet_name="DecodingVariables")
+        df_dec = pl.DataFrame({"DecodingVariables": decoding_variables})
+        workbook = xlsxwriter.Workbook(output_path)
+        df_main.write_excel(workbook, worksheet="Table")
+        df_dec.write_excel(workbook, worksheet="DecodingVariables")
+        workbook.close()
     else:
-        df_main.to_excel(output_path, index=False)
+        df_main.write_excel(output_path)
 
-    return df_main.shape[0]
+    return len(df_main)
 
 
 def extract_excel_from_json(
