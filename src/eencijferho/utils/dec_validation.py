@@ -33,7 +33,7 @@ from typing import Any
 
 import polars as pl
 
-from eencijferho.utils.converter_headers import normalize_name as _to_snake
+from eencijferho.utils.converter_headers import normalize_name
 
 
 def parse_dec_mapping(dec_txt_path: str | Path) -> dict[str, dict[str, Any]]:
@@ -137,14 +137,14 @@ def _resolve_col(
     match for names that contain U+FFFD replacement characters (encoding
     artefacts in the DEC txt file where e.g. "ó" in "vóór" was lost).
     """
-    norm = _to_snake(col_name)
+    norm = normalize_name(col_name)
     if norm in csv_cols:
         return csv_cols[norm]
 
     # Fallback for U+FFFD corruption
     if "\ufffd" in col_name:
         parts = re.split(r"\ufffd+", col_name)
-        snake_parts = [_to_snake(p) for p in parts if p.strip()]
+        snake_parts = [normalize_name(p) for p in parts if p.strip()]
         snake_parts = [p for p in snake_parts if p]
         if snake_parts:
             pattern = re.compile(r".+".join(re.escape(p) for p in snake_parts))
@@ -186,7 +186,7 @@ def validate_with_dec_files(
         return False, results
 
     # Build lookup: snake_case column name -> original column name
-    csv_cols = {_to_snake(c): c for c in df.columns}
+    csv_cols = {normalize_name(c): c for c in df.columns}
 
     dec_csv_dir = Path(dec_csv_dir)
 

@@ -40,7 +40,7 @@ def get_matched_files() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     
     if matching_log_files:
         try:
-                    with open(matching_log_files[0], 'r') as f:
+            with open(matching_log_files[0], 'r') as f:
                 matching_data = json.load(f)
             
             for file_info in matching_data.get('processed_files', []):
@@ -213,7 +213,7 @@ else:
             # Column selection — populated from metadata produced by the extract step
             metadata_dir = get_metadata_dir()
             json_dir = os.path.join(metadata_dir, "json")
-            dec_json_matches = __glob.glob(os.path.join(json_dir, "Bestandsbeschrijving_Dec-bestanden*.json"))
+            dec_json_matches = _glob.glob(os.path.join(json_dir, "Bestandsbeschrijving_Dec-bestanden*.json"))
             variable_metadata_path = os.path.join(json_dir, "variable_metadata.json")
 
             dec_json = dec_json_matches[0] if dec_json_matches else ""
