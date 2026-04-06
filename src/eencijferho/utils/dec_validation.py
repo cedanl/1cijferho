@@ -29,14 +29,14 @@ Two mapping types are supported:
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any
 
 import polars as pl
 
 from eencijferho.utils.converter_headers import normalize_name as _to_snake
 
 
-def parse_dec_mapping(dec_txt_path: str | Path) -> Dict[str, Dict[str, Any]]:
+def parse_dec_mapping(dec_txt_path: str | Path) -> dict[str, dict[str, Any]]:
     """
     Parse the bestandsbeschrijving .txt file to build a mapping of
     DEC filename -> validation spec.
@@ -54,7 +54,7 @@ def parse_dec_mapping(dec_txt_path: str | Path) -> Dict[str, Dict[str, Any]]:
     with open(dec_txt_path, encoding="utf-8", errors="replace") as f:
         lines = [ln.rstrip("\n") for ln in f]
 
-    mapping: Dict[str, Dict[str, Any]] = {}
+    mapping: dict[str, dict[str, Any]] = {}
     current_dec: str | None = None
 
     i = 0
@@ -79,7 +79,7 @@ def parse_dec_mapping(dec_txt_path: str | Path) -> Dict[str, Dict[str, Any]]:
             if composite_match:
                 anchor_raw = composite_match.group(1).strip()
                 i += 1
-                targets: List[str] = []
+                targets: list[str] = []
                 while i < len(lines):
                     col_line = lines[i].strip()
                     if col_line.startswith("*"):
@@ -102,7 +102,7 @@ def parse_dec_mapping(dec_txt_path: str | Path) -> Dict[str, Dict[str, Any]]:
             # --- Simple key: "Ten behoeve van de decodering van de veld(en):" ---
             if re.match(r"^Ten behoeve van de decodering van", line, re.IGNORECASE):
                 i += 1
-                columns: List[str] = []
+                columns: list[str] = []
                 while i < len(lines):
                     col_line = lines[i].strip()
                     if col_line.startswith("*"):
@@ -128,7 +128,7 @@ def parse_dec_mapping(dec_txt_path: str | Path) -> Dict[str, Dict[str, Any]]:
 
 def _resolve_col(
     col_name: str,
-    csv_cols: Dict[str, str],
+    csv_cols: dict[str, str],
 ) -> str | None:
     """
     Look up the original CSV column for a DEC txt column name.
@@ -158,8 +158,8 @@ def _resolve_col(
 def validate_with_dec_files(
     main_csv_path: str | Path,
     dec_csv_dir: str | Path,
-    mapping: Dict[str, Dict[str, Any]],
-) -> Tuple[bool, Dict[str, Any]]:
+    mapping: dict[str, dict[str, Any]],
+) -> tuple[bool, dict[str, Any]]:
     """
     Validate columns in a main CSV against valid codes from DEC CSV files.
 
@@ -171,7 +171,7 @@ def validate_with_dec_files(
     Returns:
         Tuple of (success, results) with per-column outcomes.
     """
-    results: Dict[str, Any] = {
+    results: dict[str, Any] = {
         "columns_checked": 0,
         "columns_failed": 0,
         "column_results": [],
@@ -206,7 +206,7 @@ def validate_with_dec_files(
 
         if spec["type"] == "simple":
             # Valid codes = all values in first column of DEC CSV
-            valid_codes: Set[str] = set(
+            valid_codes: set[str] = set(
                 dec_df.select(pl.col(dec_df.columns[0]).cast(pl.Utf8).str.strip_chars())
                 .to_series()
                 .drop_nulls()
@@ -229,7 +229,7 @@ def validate_with_dec_files(
                 unique_vals_str = {v if v is not None else "" for v in unique_vals}
                 invalid = sorted(unique_vals_str - valid_codes)
 
-                col_result: Dict[str, Any] = {
+                col_result: dict[str, Any] = {
                     "column": original_col,
                     "dec_file": dec_csv.name,
                     "invalid_values": invalid,
@@ -246,7 +246,7 @@ def validate_with_dec_files(
                 continue
 
             col1, col2 = dec_df.columns[0], dec_df.columns[1]
-            valid_pairs: Set[Tuple[str, str]] = set(
+            valid_pairs: set[tuple[str, str]] = set(
                 zip(
                     dec_df[col1].cast(pl.Utf8).str.strip_chars().to_list(),
                     dec_df[col2].cast(pl.Utf8).str.strip_chars().to_list(),
@@ -304,7 +304,7 @@ def validate_with_dec_files(
 def validate_with_dec_files_folder(
     output_dir: str | Path,
     dec_txt_path: str | Path,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Run DEC validation on all non-decoded, non-enriched CSV files in output_dir.
 
@@ -313,7 +313,7 @@ def validate_with_dec_files_folder(
     output_dir = Path(output_dir)
     mapping = parse_dec_mapping(dec_txt_path)
 
-    summary: Dict[str, Any] = {}
+    summary: dict[str, Any] = {}
 
     main_csvs = [
         f for f in output_dir.glob("*.csv")
@@ -330,7 +330,7 @@ def validate_with_dec_files_folder(
     return summary
 
 
-def read_dec_validation_log(log_path: str | Path) -> List[Dict[str, Any]]:
+def read_dec_validation_log(log_path: str | Path) -> list[dict[str, Any]]:
     """
     Read the dec_validation_log JSON and return a flat list of failing columns.
 

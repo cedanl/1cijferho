@@ -10,14 +10,14 @@ defined in the bestandsbeschrijving (variable_metadata.json).
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import polars as pl
 
 from eencijferho.utils.converter_headers import normalize_name
 
 
-def _build_lookup(variables: List[Dict[str, Any]]) -> Dict[str, set]:
+def _build_lookup(variables: list[dict[str, Any]]) -> dict[str, set]:
     """
     Build a dict mapping normalised column name -> set of allowed string values.
     Only includes variables that have an exhaustive key-value `values` spec.
@@ -28,7 +28,7 @@ def _build_lookup(variables: List[Dict[str, Any]]) -> Dict[str, set]:
       "value X for case Y > value Z for all other cases", meaning the list is
       not exhaustive and we cannot reliably validate against it.
     """
-    lookup: Dict[str, set] = {}
+    lookup: dict[str, set] = {}
     for var in variables:
         values = var.get("values", {})
         if not values:
@@ -82,7 +82,7 @@ def _build_lookup(variables: List[Dict[str, Any]]) -> Dict[str, set]:
 def validate_column_values(
     data_file_path: str | Path,
     variable_metadata_path: str | Path,
-) -> Tuple[bool, Dict[str, Any]]:
+) -> tuple[bool, dict[str, Any]]:
     """
     Validate column values in a CSV file against allowed values from metadata.
 
@@ -93,7 +93,7 @@ def validate_column_values(
     Returns:
         Tuple of (success, results) where results contains per-column outcomes.
     """
-    results: Dict[str, Any] = {
+    results: dict[str, Any] = {
         "columns_checked": 0,
         "columns_failed": 0,
         "column_results": [],
@@ -148,7 +148,7 @@ def validate_column_values(
         # (Only flag truly unexpected values)
         invalid_reported = {v for v in invalid if v != "" or "" not in allowed}
 
-        col_result: Dict[str, Any] = {
+        col_result: dict[str, Any] = {
             "column": original_col,
             "allowed_values": sorted(allowed),
             "invalid_values": sorted(invalid_reported),
@@ -168,14 +168,14 @@ def validate_column_values(
 def validate_column_values_folder(
     output_dir: str | Path,
     variable_metadata_path: str | Path,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Run validate_column_values on all non-decoded, non-enriched CSV files in output_dir.
 
     Returns a summary dict keyed by filename.
     """
     output_dir = Path(output_dir)
-    summary: Dict[str, Any] = {}
+    summary: dict[str, Any] = {}
 
     csv_files = [
         f for f in output_dir.glob("*.csv")
@@ -189,7 +189,7 @@ def validate_column_values_folder(
     return summary
 
 
-def read_value_validation_log(log_path: str | Path) -> List[Dict[str, Any]]:
+def read_value_validation_log(log_path: str | Path) -> list[dict[str, Any]]:
     """
     Read (5b)_value_validation_log_latest.json and return a flat list of failing columns.
 

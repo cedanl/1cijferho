@@ -6,13 +6,13 @@ import eencijferho.utils.extractor_validation as ex_val
 import eencijferho.utils.converter_match as cm
 import io
 import contextlib
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 from config import get_input_dir, get_metadata_dir
 
 # -----------------------------------------------------------------------------
 # Helper Functions
 # -----------------------------------------------------------------------------
-def get_metadata_files() -> List[str]:
+def get_metadata_files() -> list[str]:
     """Get all metadata files from the metadata directory"""
     metadata_dir = get_metadata_dir()
     if not os.path.exists(metadata_dir):
@@ -29,7 +29,7 @@ def get_metadata_files() -> List[str]:
     
     return sorted(all_files)
 
-def load_validation_logs() -> Optional[Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]]:
+def load_validation_logs() -> Optional[tuple[list[dict[str, Any]], list[dict[str, Any]]]]:
     """Load the latest validation logs and return failure information"""
     logs_dir = os.path.join(get_metadata_dir(), "logs")
     

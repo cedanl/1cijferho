@@ -13,7 +13,7 @@ import eencijferho.utils.converter_validation as cv
 import eencijferho.utils.compressor as co
 import eencijferho.utils.encryptor as en
 import eencijferho.utils.converter_headers as ch
-from typing import Any, Callable, Dict, List, Tuple, Optional
+from typing import Any, Callable, Optional
 
 
 def run_turbo_convert_pipeline(
@@ -24,7 +24,7 @@ def run_turbo_convert_pipeline(
     progress_callback: Optional[Callable[[int], None]] = None,
     status_callback: Optional[Callable[[str], None]] = None,
     output_config: OutputConfig | None = None,
-) -> Tuple[str, List[Dict[str, Any]]]:
+) -> tuple[str, list[dict[str, Any]]]:
     """Run the full turbo-convert pipeline.
 
     Args:

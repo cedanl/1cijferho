@@ -21,12 +21,17 @@ Public API:
         Writes a consolidated variable_metadata.json from all input text files.
 """
 
+import glob
 import os
 import json
 import re
 import datetime
+
+import pandas as pd
 from rich.console import Console
 from typing import Any
+
+from .parse_metadata import parse_metadata_file
 
 _console = Console()
 
@@ -390,13 +395,6 @@ def write_variable_metadata(
     """
     os.makedirs(json_folder, exist_ok=True)
     output_path = os.path.join(json_folder, output_filename)
-    import glob
-
-    try:
-        from .parse_metadata import parse_metadata_file
-    except ImportError:
-        _console.print(f"[red]Error importing canonical parser for variable metadata")
-        return
 
     # Recursively find all Bestandsbeschrijving*.txt files in input_dir
     # Handles .../DEMO/ as well as any deeper future organization
@@ -559,8 +557,6 @@ def _write_table_excel(
 
     Returns the number of data rows written. Raises on write failure.
     """
-    import pandas as pd
-
     main_rows = [row for row in rows if isinstance(row[0], int)]
     df_main = pd.DataFrame(main_rows, columns=rows[0])
 

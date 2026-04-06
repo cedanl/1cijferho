@@ -20,14 +20,14 @@ import glob
 import json
 import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 
 # Check column lenght in extractor with json  
 
 # Move .csv to 02-output
 
-def validate_metadata(file_path: str | Path) -> tuple[bool, Dict[str, Any]]:
+def validate_metadata(file_path: str | Path) -> tuple[bool, dict[str, Any]]:
     """
     Validates a single layout specification (Excel) file and returns validation results.
 
@@ -35,7 +35,7 @@ def validate_metadata(file_path: str | Path) -> tuple[bool, Dict[str, Any]]:
         file_path (str | Path): Path to the Excel file to validate. Should point to a layout specification file (.xlsx).
 
     Returns:
-        tuple[bool, Dict[str, Any]]: Tuple where the first element is True if validation passes (no issues),
+        tuple[bool, dict[str, Any]]: Tuple where the first element is True if validation passes (no issues),
         False otherwise. The second element is a dictionary with details about detected issues, including:
             - 'duplicates': List of duplicate field names (if any)
             - 'position_errors': List of position error dicts (if any)

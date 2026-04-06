@@ -1,5 +1,6 @@
+import math
 import os
-import glob
+import glob as _glob
 import json
 import datetime
 import streamlit as st
@@ -11,7 +12,7 @@ from eencijferho.core.decoder_info import (
     get_decode_column_info,
     get_enrich_variable_info,
 )
-from typing import Any, Dict, List, Tuple
+from typing import Any
 from config import get_input_dir, get_output_dir, get_metadata_dir
 
 # -----------------------------------------------------------------------------
@@ -26,21 +27,20 @@ from config import get_input_dir, get_output_dir, get_metadata_dir
 # -----------------------------------------------------------------------------
 # Helper Functions
 # -----------------------------------------------------------------------------
-def get_matched_files() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+def get_matched_files() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Get all matched files from the validation logs"""
     logs_dir = os.path.join(get_metadata_dir(), "logs")
     if not os.path.exists(logs_dir):
         return [], []
     
-    matching_log_files = glob.glob(os.path.join(logs_dir, "*file_matching_log_latest.json"))
+    matching_log_files = _glob.glob(os.path.join(logs_dir, "*file_matching_log_latest.json"))
     
     successful_pairs = []
     skipped_pairs = []
     
     if matching_log_files:
         try:
-            import json
-            with open(matching_log_files[0], 'r') as f:
+                    with open(matching_log_files[0], 'r') as f:
                 matching_data = json.load(f)
             
             for file_info in matching_data.get('processed_files', []):
@@ -62,7 +62,7 @@ def get_matched_files() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     return successful_pairs, skipped_pairs
 
 
-def get_output_files() -> List[Dict[str, Any]]:
+def get_output_files() -> list[dict[str, Any]]:
     """Get all files from the output directory"""
     output_dir = get_output_dir()
     if not os.path.exists(output_dir):
@@ -88,7 +88,6 @@ def format_file_size(size_bytes: int) -> str:
     if size_bytes == 0:
         return "0 B"
     size_names = ["B", "KB", "MB", "GB"]
-    import math
     i = int(math.floor(math.log(size_bytes, 1024)))
     p = math.pow(1024, i)
     s = round(size_bytes / p, 2)
@@ -212,10 +211,9 @@ else:
                     help="Converteert kolomnamen naar snake_case (bijv. 'Naam Student' → 'naam_student').")
 
             # Column selection — populated from metadata produced by the extract step
-            import glob as _glob
             metadata_dir = get_metadata_dir()
             json_dir = os.path.join(metadata_dir, "json")
-            dec_json_matches = _glob.glob(os.path.join(json_dir, "Bestandsbeschrijving_Dec-bestanden*.json"))
+            dec_json_matches = __glob.glob(os.path.join(json_dir, "Bestandsbeschrijving_Dec-bestanden*.json"))
             variable_metadata_path = os.path.join(json_dir, "variable_metadata.json")
 
             dec_json = dec_json_matches[0] if dec_json_matches else ""

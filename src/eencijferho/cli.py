@@ -28,26 +28,38 @@ Usage:
 """
 
 import argparse
+import datetime
+import glob as _glob
+import json
 import os
-from typing import Tuple
+
+import polars as pl
 from rich.console import Console
 from rich.panel import Panel
+
+from eencijferho.core.decoder import (
+    decode_fields,
+    decode_fields_dec_only,
+    load_dec_tables_from_metadata,
+    load_variable_mappings,
+)
 from eencijferho.core.extractor import (
     process_txt_folder,
     write_variable_metadata,
     process_json_folder,
 )
-from eencijferho.utils.extractor_validation import validate_metadata_folder
-from eencijferho.utils.converter_match import match_files
-from eencijferho.config import OutputConfig
 from eencijferho.core.pipeline import run_turbo_convert_pipeline
+from eencijferho.config import OutputConfig
+from eencijferho.utils.converter_headers import clean_header_name, normalize_name
+from eencijferho.utils.converter_match import match_files
+from eencijferho.utils.extractor_validation import validate_metadata_folder
 import eencijferho.utils.value_validation as vv
 import eencijferho.utils.dec_validation as dv
 
 _console = Console()
 
 
-def _resolve_dirs(output_dir: str) -> Tuple[str, str, str]:
+def _resolve_dirs(output_dir: str) -> tuple[str, str, str]:
     """Return (metadata_dir, json_dir, logs_dir) derived from output_dir."""
     metadata_dir = os.path.join(output_dir, "metadata")
     json_dir = os.path.join(metadata_dir, "json")
@@ -78,8 +90,6 @@ def cmd_validate(args: argparse.Namespace) -> None:
 
 def cmd_validate_output(args: argparse.Namespace) -> None:
     """Validate converted output files: column values and DEC decoder files."""
-    import json, datetime
-
     metadata_dir, json_dir, logs_dir = _resolve_dirs(args.output)
     os.makedirs(logs_dir, exist_ok=True)
 
@@ -178,10 +188,6 @@ def cmd_validate_output(args: argparse.Namespace) -> None:
 
 def cmd_decode(args: argparse.Namespace) -> None:
     """Decode CSV files using Dec_* lookup tables (Dec-only, no label substitution)."""
-    import glob as _glob
-    from eencijferho.core.decoder import decode_fields_dec_only, load_dec_tables_from_metadata
-    import polars as pl
-
     _, json_dir, _ = _resolve_dirs(args.output)
     dec_json_matches = _glob.glob(
         os.path.join(json_dir, "Bestandsbeschrijving_Dec-bestanden*.json")
@@ -217,11 +223,6 @@ def cmd_enrich(args: argparse.Namespace) -> None:
     Skips decode_fields entirely when no variable_metadata mappings apply to
     the columns of a given file (avoids unnecessary computation on large files).
     """
-    import glob as _glob
-    from eencijferho.core.decoder import decode_fields, load_dec_tables_from_metadata, load_variable_mappings
-    from eencijferho.utils.converter_headers import normalize_name, clean_header_name
-    import polars as pl
-
     _, json_dir, _ = _resolve_dirs(args.output)
     dec_json_matches = _glob.glob(
         os.path.join(json_dir, "Bestandsbeschrijving_Dec-bestanden*.json")

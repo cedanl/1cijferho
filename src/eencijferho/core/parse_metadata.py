@@ -7,10 +7,10 @@ Provides `parse_metadata_file(path)` for programmatic use.
 import json
 import os
 import re
-from typing import List, Dict, Any
+from typing import Any
 
 
-def parse_metadata_file(path: str) -> List[Dict[str, Any]]:
+def parse_metadata_file(path: str) -> list[dict[str, Any]]:
     """Parse metadata text file for variable descriptions and possible values."""
     with open(path, encoding="latin1") as f:
         lines = [ln.rstrip("\n") for ln in f]

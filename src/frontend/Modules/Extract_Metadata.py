@@ -4,14 +4,13 @@ import glob
 import eencijferho.core.extractor as ex
 import io
 import contextlib
-from typing import List
 from config import get_input_dir, get_metadata_dir
 
 
 # -----------------------------------------------------------------------------
 # Helper Functions
 # -----------------------------------------------------------------------------
-def clear_existing_files() -> List[str]:
+def clear_existing_files() -> list[str]:
     """Clear existing metadata files before starting new extraction"""
     metadata_dir = get_metadata_dir()
     json_dir = os.path.join(metadata_dir, "json")
@@ -41,7 +40,7 @@ def clear_existing_files() -> List[str]:
     return files_cleared
 
 
-def get_bestandsbeschrijvingen() -> List[str]:
+def get_bestandsbeschrijvingen() -> list[str]:
     """Get all bestandsbeschrijving files from the input directory"""
     input_dir = get_input_dir()
     if not os.path.exists(input_dir):

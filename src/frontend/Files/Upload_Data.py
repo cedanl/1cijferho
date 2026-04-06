@@ -1,13 +1,12 @@
 import streamlit as st
 import os
 import glob
-from typing import Dict, List, Tuple
 from config import get_demo_mode, get_input_dir, get_decoder_input_dir
 
 # -----------------------------------------------------------------------------
 # Helper Functions
 # -----------------------------------------------------------------------------
-def categorize_files() -> Tuple[bool, Dict[str, List[str]], int]:
+def categorize_files() -> tuple[bool, dict[str, list[str]], int]:
     """Check if the input directory exists and categorize files found"""
     input_dir = get_input_dir()
 

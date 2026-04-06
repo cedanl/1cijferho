@@ -5,7 +5,7 @@ import re as _re
 
 import polars as pl
 
-from eencijferho.utils.converter_headers import clean_header_name, normalize_name
+from eencijferho.utils.converter_headers import clean_header_name, normalize_name, strip_accents
 from typing import Any, Callable, Optional
 
 
@@ -176,7 +176,7 @@ def _normalize_df(
         (norm_df, norm_map, orig_columns)
         norm_map maps normalized_name → original_name.
     """
-    from eencijferho.utils.converter_headers import strip_accents
+
 
     orig_columns = list(df.columns)
     norm_map = {normalize_name(col, naming_func): col for col in orig_columns}
@@ -194,7 +194,7 @@ def _normalize_dec_table(
     naming_func: Optional[Callable] = None,
 ) -> pl.DataFrame:
     """Normalize Dec table column names and strip leading zeros from the code column."""
-    from eencijferho.utils.converter_headers import strip_accents
+
 
     join_df = dec_table.rename(
         {c: normalize_name(strip_accents(c), naming_func) for c in dec_table.columns}
@@ -221,7 +221,7 @@ def _apply_single_dec_join(
     naming_func: Optional[Callable] = None,
 ) -> pl.DataFrame:
     """Apply one Dec table join (simple or composite key) to result_df."""
-    from eencijferho.utils.converter_headers import strip_accents
+
 
     result_df = result_df.with_columns(
         pl.col(var_norm)
@@ -282,7 +282,7 @@ def _apply_dec_tables(
         decode_columns: When not None, only decode variables whose name
             appears in this list (matched after normalization).
     """
-    from eencijferho.utils.converter_headers import strip_accents
+
 
     allowed: Optional[set[str]] = None
     if decode_columns is not None:
