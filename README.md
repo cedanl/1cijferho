@@ -30,7 +30,7 @@ Met deze tool kun je in enkele minuten grote hoeveelheden data verwerken, zonder
 
 Tijdens de DAIR-conferentie in 2025 hebben we de 1CijferHO Tool gepresenteerd. Bekijk de slides van de presentatie hieronder:
 
-[📂 Presentatie DAIR 2025](presentatie-DAIR-2025.pdf)
+[📂 Presentatie DAIR 2025](docs/presentatie-DAIR-2025.pdf)
 
 
 ## Waarom is dit belangrijk?
