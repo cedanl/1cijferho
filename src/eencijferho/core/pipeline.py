@@ -7,6 +7,7 @@ import json
 import datetime
 import os
 from eencijferho.config import OutputConfig
+import polars as pl
 from eencijferho.core import converter, decoder
 import eencijferho.utils.converter_validation as cv
 import eencijferho.utils.compressor as co
@@ -100,7 +101,7 @@ def run_turbo_convert_pipeline(
                 and not file.endswith("_decoded.csv")
             ):
                 file_path = os.path.join(dec_dir, file)
-                main_df = decoder.pl.read_csv(file_path, separator=";", encoding="utf-8")
+                main_df = pl.read_csv(file_path, separator=";", encoding="utf-8")
 
                 if do_decode:
                     # DEC-only decode
