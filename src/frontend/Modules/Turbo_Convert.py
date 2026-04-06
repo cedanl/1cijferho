@@ -132,9 +132,6 @@ def write_run_config(output_dir: str, output_cfg: OutputConfig, opt_decode_colum
 if 'start_turbo_convert' not in st.session_state:
     st.session_state.start_turbo_convert = False
 
-# Set page initialization flag
-st.session_state.page_initialized_convert = True
-
 # -----------------------------------------------------------------------------
 # Main Content
 # -----------------------------------------------------------------------------
