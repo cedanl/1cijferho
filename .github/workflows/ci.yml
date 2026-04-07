@@ -10,5 +10,8 @@ jobs:
   unit:
     uses: ./.github/workflows/unit.yml
 
+  pipeline:
+    uses: ./.github/workflows/pipeline.yml
+
   minio:
     uses: ./.github/workflows/minio.yml

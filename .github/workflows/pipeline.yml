@@ -1,0 +1,49 @@
+name: Pipeline integration test
+
+on:
+  workflow_call:
+
+jobs:
+  test:
+    name: CLI pipeline (demo data)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Run CLI pipeline on demo data
+        run: uv run eencijferho pipeline --input data/01-input/DEMO --output data/test-output
+
+      - name: Verify output files exist
+        run: |
+          echo "=== Output files ==="
+          ls -la data/test-output/
+
+          echo "=== Metadata files ==="
+          ls -la data/test-output/metadata/
+
+          echo "=== Checking expected outputs ==="
+          test -f data/test-output/EV299XX24_DEMO.csv || { echo "FAIL: EV CSV missing"; exit 1; }
+          test -f data/test-output/VAKHAVW_99XX_DEMO.csv || { echo "FAIL: VAKHAVW CSV missing"; exit 1; }
+          test -f data/test-output/EV299XX24_DEMO_decoded.csv || { echo "FAIL: decoded CSV missing"; exit 1; }
+          test -f data/test-output/EV299XX24_DEMO.parquet || { echo "FAIL: EV parquet missing"; exit 1; }
+
+          # Verify metadata extraction worked
+          test -d data/test-output/metadata/json || { echo "FAIL: metadata/json missing"; exit 1; }
+          test -d data/test-output/metadata/logs || { echo "FAIL: metadata/logs missing"; exit 1; }
+
+          CSV_COUNT=$(ls data/test-output/*.csv 2>/dev/null | wc -l)
+          echo "Total CSV files: $CSV_COUNT"
+          test "$CSV_COUNT" -ge 2 || { echo "FAIL: expected at least 2 CSV files"; exit 1; }
+
+          echo "All checks passed!"
