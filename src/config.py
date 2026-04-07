@@ -21,7 +21,10 @@ except ImportError:
 # Default demo mode (used when no persisted setting exists)
 DEFAULT_DEMO_MODE: bool = False
 
-_USER_SETTINGS_FILE = "data/.user_settings.json"
+# Single source of truth for the data root directory
+DATA_DIR: str = "data"
+
+_USER_SETTINGS_FILE = f"{DATA_DIR}/.user_settings.json"
 
 
 def _load_persisted_demo_mode() -> bool:
@@ -71,27 +74,27 @@ def get_initial_demo_mode() -> bool:
 
 def get_input_dir() -> str:
     """Get input directory based on current demo mode."""
-    return "data/01-input/DEMO" if get_demo_mode() else "data/01-input"
+    return f"{DATA_DIR}/01-input/DEMO" if get_demo_mode() else f"{DATA_DIR}/01-input"
 
 
 def get_output_dir() -> str:
     """Get output directory based on current demo mode."""
-    return "data/02-output/DEMO" if get_demo_mode() else "data/02-output"
+    return f"{DATA_DIR}/02-output/DEMO" if get_demo_mode() else f"{DATA_DIR}/02-output"
 
 
 def get_decoder_input_dir() -> str:
     """Get decoder input directory based on current demo mode."""
-    return "data/01-input/DEMO" if get_demo_mode() else "data/01-input"
+    return f"{DATA_DIR}/01-input/DEMO" if get_demo_mode() else f"{DATA_DIR}/01-input"
 
 
 def get_metadata_dir() -> str:
     """Get metadata directory (always data/00-metadata for the Streamlit app)."""
-    return "data/00-metadata"
+    return f"{DATA_DIR}/00-metadata"
 
 
 # Legacy constants for backward compatibility (use functions above for dynamic behavior)
 DEMO_MODE: bool = DEFAULT_DEMO_MODE
-INPUT_DIR: str = "data/01-input/DEMO" if DEFAULT_DEMO_MODE else "data/01-input"
-OUTPUT_DIR: str = "data/02-output/DEMO" if DEFAULT_DEMO_MODE else "data/02-output"
-DECODER_INPUT_DIR: str = "data/01-input/DEMO" if DEFAULT_DEMO_MODE else "data/01-input"
-METADATA_DIR: str = "data/00-metadata"
+INPUT_DIR: str = f"{DATA_DIR}/01-input/DEMO" if DEFAULT_DEMO_MODE else f"{DATA_DIR}/01-input"
+OUTPUT_DIR: str = f"{DATA_DIR}/02-output/DEMO" if DEFAULT_DEMO_MODE else f"{DATA_DIR}/02-output"
+DECODER_INPUT_DIR: str = f"{DATA_DIR}/01-input/DEMO" if DEFAULT_DEMO_MODE else f"{DATA_DIR}/01-input"
+METADATA_DIR: str = f"{DATA_DIR}/00-metadata"

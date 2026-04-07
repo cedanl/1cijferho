@@ -4,11 +4,11 @@ Usage:
     from eencijferho.io.decorators import reads_from, writes_to, with_storage
 
     # Static path — decorator reads/writes for you
-    @reads_from("01-input/students.csv")
+    @reads_from("data/01-input/students.csv")
     def analyze(df):
         return df.describe()
 
-    @writes_to("02-output/result.parquet")
+    @writes_to("data/02-output/result.parquet")
     def produce():
         return some_dataframe
 

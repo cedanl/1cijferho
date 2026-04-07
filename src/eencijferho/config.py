@@ -72,26 +72,29 @@ class OutputConfig:
 # Default demo mode
 DEFAULT_DEMO_MODE: bool = True
 
+# Single source of truth for the data root directory
+DATA_DIR: str = "data"
+
 # Directory constants (based on default demo mode)
-INPUT_DIR: str = "data/01-input/DEMO" if DEFAULT_DEMO_MODE else "data/01-input"
-OUTPUT_DIR: str = "data/02-output/DEMO" if DEFAULT_DEMO_MODE else "data/02-output"
-DECODER_INPUT_DIR: str = "data/01-input"
-METADATA_DIR: str = "data/00-metadata"
+INPUT_DIR: str = f"{DATA_DIR}/01-input/DEMO" if DEFAULT_DEMO_MODE else f"{DATA_DIR}/01-input"
+OUTPUT_DIR: str = f"{DATA_DIR}/02-output/DEMO" if DEFAULT_DEMO_MODE else f"{DATA_DIR}/02-output"
+DECODER_INPUT_DIR: str = f"{DATA_DIR}/01-input"
+METADATA_DIR: str = f"{DATA_DIR}/00-metadata"
 
 
 def get_input_dir(demo_mode: bool = DEFAULT_DEMO_MODE) -> str:
     """Get input directory based on demo mode."""
-    return "data/01-input/DEMO" if demo_mode else "data/01-input"
+    return f"{DATA_DIR}/01-input/DEMO" if demo_mode else f"{DATA_DIR}/01-input"
 
 
 def get_output_dir(demo_mode: bool = DEFAULT_DEMO_MODE) -> str:
     """Get output directory based on demo mode."""
-    return "data/02-output/DEMO" if demo_mode else "data/02-output"
+    return f"{DATA_DIR}/02-output/DEMO" if demo_mode else f"{DATA_DIR}/02-output"
 
 
 def get_decoder_input_dir() -> str:
     """Get decoder input directory (always at root, regardless of demo mode)."""
-    return "data/01-input"
+    return f"{DATA_DIR}/01-input"
 
 
 def get_metadata_dir(output_dir: str | None = None) -> str:

@@ -12,7 +12,7 @@ from eencijferho.io.backends.base import StorageBackend
 class DiskBackend(StorageBackend):
     """Read/write files on the local filesystem."""
 
-    def __init__(self, base_path: str = "data"):
+    def __init__(self, base_path: str = "."):
         self.base_path = Path(base_path)
 
     def _resolve(self, path: str) -> Path:

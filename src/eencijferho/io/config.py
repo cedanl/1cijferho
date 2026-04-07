@@ -14,7 +14,7 @@ class StorageConfig:
     backend: str = "disk"
 
     # Disk
-    disk_base_path: str = "data"
+    disk_base_path: str = "."
 
     # MinIO
     minio_endpoint: str = "localhost:9000"
@@ -35,7 +35,7 @@ class StorageConfig:
         """Create config from environment variables."""
         return cls(
             backend=os.getenv("STORAGE_BACKEND", "disk"),
-            disk_base_path=os.getenv("STORAGE_DISK_BASE_PATH", "data"),
+            disk_base_path=os.getenv("STORAGE_DISK_BASE_PATH", "."),
             minio_endpoint=os.getenv("MINIO_ENDPOINT", "localhost:9000"),
             minio_access_key=os.getenv("MINIO_ACCESS_KEY", "minioadmin"),
             minio_secret_key=os.getenv("MINIO_SECRET_KEY", "minioadmin"),

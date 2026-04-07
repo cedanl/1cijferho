@@ -8,21 +8,21 @@ Usage:
 
     # Option 1: context manager (auto-cleanup)
     with storage_context() as storage:
-        df = storage.read_dataframe("01-input/data.csv")
-        storage.write_dataframe(df, "02-output/result.parquet")
+        df = storage.read_dataframe("data/01-input/data.csv")
+        storage.write_dataframe(df, "data/02-output/result.parquet")
 
     # Option 2: direct
     storage = get_backend()
-    df = storage.read_dataframe("01-input/data.csv")
+    df = storage.read_dataframe("data/01-input/data.csv")
 
     # Option 3: decorators
     from eencijferho.io.decorators import reads_from, writes_to, with_storage
 
-    @reads_from("01-input/data.csv")
+    @reads_from("data/01-input/data.csv")
     def process(df):
         return df.filter(...)
 
-    @writes_to("02-output/result.parquet")
+    @writes_to("data/02-output/result.parquet")
     def produce():
         return some_dataframe
 
