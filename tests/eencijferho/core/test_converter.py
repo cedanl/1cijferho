@@ -10,7 +10,6 @@ from eencijferho.core.converter import (
     _resolve_output_path,
     _load_metadata,
     _read_lines,
-    _write_header,
     _run_serial,
     _load_match_log,
     _convert_one,
@@ -158,38 +157,18 @@ def test_read_lines_latin1_encoding(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# _write_header
-# ---------------------------------------------------------------------------
-
-
-def test_write_header_creates_file(tmp_path):
-    out = tmp_path / "out.csv"
-    _write_header(str(out), ["A", "B", "C"])
-    assert out.exists()
-    assert out.read_text(encoding="utf-8").strip() == "A;B;C"
-
-
-def test_write_header_overwrites_existing(tmp_path):
-    out = tmp_path / "out.csv"
-    out.write_text("old content", encoding="utf-8")
-    _write_header(str(out), ["X"])
-    assert out.read_text(encoding="utf-8").strip() == "X"
-
-
-# ---------------------------------------------------------------------------
 # _run_serial
 # ---------------------------------------------------------------------------
 
 
-def test_run_serial_appends_to_file(tmp_path):
-    out = tmp_path / "out.csv"
-    _write_header(str(out), ["Naam", "Waarde"])
+def test_run_serial_returns_csv_lines():
     lines = ["Jan       001  ", "Piet      042  "]
-    _run_serial(lines, [(0, 10), (10, 15)], str(out))
-    rows = [l for l in out.read_text(encoding="utf-8").splitlines() if l.strip()]
-    assert rows[0] == "Naam;Waarde"
-    assert rows[1] == "Jan;001"
-    assert rows[2] == "Piet;042"
+    result = _run_serial(lines, [(0, 10), (10, 15)])
+    assert result == ["Jan;001", "Piet;042"]
+
+
+def test_run_serial_empty_input():
+    assert _run_serial([], [(0, 5)]) == []
 
 
 # ---------------------------------------------------------------------------

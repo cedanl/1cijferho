@@ -535,25 +535,43 @@ def _write_table_excel(
     rows: list[list[Any]],
     decoding_variables: list[str],
     output_path: str,
+    storage=None,
 ) -> int:
     """Write rows (and optional decoding variables) to an Excel file.
 
+    When *storage* is provided the file is written via the storage backend
+    (BytesIO buffer), otherwise it falls back to direct disk I/O.
+
     Returns the number of data rows written. Raises on write failure.
     """
+    from io import BytesIO
+
     main_rows = [row for row in rows if isinstance(row[0], int)]
     columns = rows[0]
     df_main = pl.DataFrame(
         {col: [row[i] for row in main_rows] for i, col in enumerate(columns)}
     )
 
-    if decoding_variables:
-        df_dec = pl.DataFrame({"DecodingVariables": decoding_variables})
-        workbook = xlsxwriter.Workbook(output_path)
-        df_main.write_excel(workbook, worksheet="Table")
-        df_dec.write_excel(workbook, worksheet="DecodingVariables")
-        workbook.close()
+    if storage is not None:
+        buf = BytesIO()
+        if decoding_variables:
+            df_dec = pl.DataFrame({"DecodingVariables": decoding_variables})
+            workbook = xlsxwriter.Workbook(buf)
+            df_main.write_excel(workbook, worksheet="Table")
+            df_dec.write_excel(workbook, worksheet="DecodingVariables")
+            workbook.close()
+        else:
+            df_main.write_excel(buf)
+        storage.write_bytes(buf.getvalue(), output_path)
     else:
-        df_main.write_excel(output_path)
+        if decoding_variables:
+            df_dec = pl.DataFrame({"DecodingVariables": decoding_variables})
+            workbook = xlsxwriter.Workbook(output_path)
+            df_main.write_excel(workbook, worksheet="Table")
+            df_dec.write_excel(workbook, worksheet="DecodingVariables")
+            workbook.close()
+        else:
+            df_main.write_excel(output_path)
 
     return len(df_main)
 
@@ -670,7 +688,7 @@ def extract_excel_from_json(
                 )
 
             try:
-                df_row_count = _write_table_excel(rows, decoding_variables, output_path)
+                df_row_count = _write_table_excel(rows, decoding_variables, output_path, storage=storage)
                 if df_row_count != valid_content_lines:
                     _console.print(
                         f"[yellow]Warning: Row count mismatch for table {table_title}."

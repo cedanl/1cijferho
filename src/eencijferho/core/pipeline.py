@@ -105,7 +105,7 @@ def run_turbo_convert_pipeline(
             ):
                 continue
 
-            main_df = storage.read_dataframe(filepath, format="csv")
+            main_df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
 
             if do_decode:
                 # DEC-only decode

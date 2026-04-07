@@ -84,34 +84,27 @@ def _read_lines(storage, input_file: str) -> list[str]:
     return text.splitlines(keepends=True)
 
 
-def _write_header(output_file: str, column_names: list[str]) -> None:
-    """Write the semicolon-delimited header row, creating or overwriting output_file."""
-    with open(output_file, 'w', encoding='utf-8', newline='') as f:
-        f.write(';'.join(column_names) + '\n')
-
-
-def _run_parallel(all_lines: list[str], positions: list[tuple[int, int]], output_file: str) -> None:
-    """Convert all_lines using a multiprocessing pool, appending results to output_file."""
+def _run_parallel(all_lines: list[str], positions: list[tuple[int, int]]) -> list[str]:
+    """Convert all_lines using a multiprocessing pool. Returns all CSV lines."""
     num_processes = max(1, mp.cpu_count() - 1)
     chunk_size = max(1, len(all_lines) // (num_processes * 4))
     chunks = [all_lines[i:i + chunk_size] for i in range(0, len(all_lines), chunk_size)]
     chunk_data = [(positions, chunk) for chunk in chunks]
+    output_lines = []
     with mp.Pool(processes=num_processes) as pool:
-        with open(output_file, 'a', encoding='utf-8', newline='') as f_out:
-            for result in pool.imap_unordered(process_chunk, chunk_data):
-                if result:
-                    f_out.write('\n'.join(result) + '\n')
+        for result in pool.imap_unordered(process_chunk, chunk_data):
+            if result:
+                output_lines.extend(result)
+    return output_lines
 
 
-def _run_serial(all_lines: list[str], positions: list[tuple[int, int]], output_file: str) -> None:
-    """Convert all_lines serially (used in child processes), appending results to output_file."""
-    result = process_chunk((positions, all_lines))
-    with open(output_file, 'a', encoding='utf-8', newline='') as f_out:
-        if result:
-            f_out.write('\n'.join(result) + '\n')
+def _run_serial(all_lines: list[str], positions: list[tuple[int, int]]) -> list[str]:
+    """Convert all_lines serially (used in child processes). Returns all CSV lines."""
+    return process_chunk((positions, all_lines))
 
 
-def converter(input_file: str, metadata_file: str, output_dir: str | None = None) -> tuple[str, int]:
+@with_storage
+def converter(storage, input_file: str, metadata_file: str, output_dir: str | None = None) -> tuple[str, int]:
     """
     Converts a fixed-width ASCII file to CSV using metadata for field positions.
 
@@ -125,7 +118,6 @@ def converter(input_file: str, metadata_file: str, output_dir: str | None = None
 
     Edge Cases:
         - Uses multiprocessing in the main process; falls back to serial in child processes.
-        - Creates output directory if missing.
         - Input read as latin-1; output written as utf-8.
         - Skips empty lines.
 
@@ -135,18 +127,20 @@ def converter(input_file: str, metadata_file: str, output_dir: str | None = None
     if output_dir is None:
         output_dir = OUTPUT_DIR
     output_file = _resolve_output_path(input_file, output_dir)
-    os.makedirs(os.path.dirname(output_file) or '.', exist_ok=True)
 
     column_names, positions = _load_metadata(metadata_file)
-    _write_header(output_file, column_names)
-
     all_lines = _read_lines(input_file)
     total_lines = len(all_lines)
 
     if mp.current_process().name == 'MainProcess':
-        _run_parallel(all_lines, positions, output_file)
+        csv_lines = _run_parallel(all_lines, positions)
     else:
-        _run_serial(all_lines, positions, output_file)
+        csv_lines = _run_serial(all_lines, positions)
+
+    # Build full CSV content: header + data lines
+    header = ';'.join(column_names)
+    content = header + '\n' + '\n'.join(csv_lines) + '\n' if csv_lines else header + '\n'
+    storage.write_text(content, output_file)
 
     return output_file, total_lines
 

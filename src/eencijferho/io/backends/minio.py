@@ -87,7 +87,12 @@ class MinIOBackend(StorageBackend):
         return self.write_bytes(raw, key)
 
     def list_files(self, pattern: str) -> list[str]:
-        """List objects matching a glob pattern (prefix + fnmatch filter)."""
+        """List objects matching a glob pattern (prefix + fnmatch/pathlib filter).
+
+        Supports ``**`` for recursive directory matching (zero or more segments),
+        consistent with pathlib.Path.glob() used by the disk backend.
+        """
+        from pathlib import PurePosixPath
         import fnmatch
 
         prefix = pattern.split("*")[0] if "*" in pattern else pattern
@@ -97,6 +102,18 @@ class MinIOBackend(StorageBackend):
         all_keys = [obj.object_name for obj in objects]
 
         normalized_pattern = self._normalize_key(pattern)
+
+        if "**" in normalized_pattern:
+            # fnmatch doesn't handle ** (zero-or-more directories) correctly.
+            # Expand ** to match both "dir/**/file" and "dir/file" cases by
+            # also testing the pattern with ** replaced by a single *.
+            flat_pattern = normalized_pattern.replace("/**/", "/")
+            return [
+                k for k in all_keys
+                if fnmatch.fnmatch(k, normalized_pattern)
+                or fnmatch.fnmatch(k, flat_pattern)
+            ]
+
         return [k for k in all_keys if fnmatch.fnmatch(k, normalized_pattern)]
 
     def exists(self, path: str) -> bool:

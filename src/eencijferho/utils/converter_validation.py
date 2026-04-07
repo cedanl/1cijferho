@@ -8,14 +8,17 @@
 Script that validates if row counts in matching log match with total lines in conversion log.
 """
 
-import json
 import os
 import datetime
 from typing import Any
 from rich import print as rprint
 
-def converter_validation(conversion_log_path: str = "data/00-metadata/logs/(5)_conversion_log_latest.json", 
-                         matching_log_path: str = "data/00-metadata/logs/(4)_file_matching_log_latest.json", 
+from eencijferho.io.decorators import with_storage
+
+
+@with_storage
+def converter_validation(storage, conversion_log_path: str = "data/00-metadata/logs/(5)_conversion_log_latest.json",
+                         matching_log_path: str = "data/00-metadata/logs/(4)_file_matching_log_latest.json",
                          output_log_path: str = "data/00-metadata/logs/(6)_conversion_validation_log_latest.json") -> dict[str, Any]:
     """
     Validates that row counts in the matching log match the total lines in the conversion log for each processed file.
@@ -49,11 +52,8 @@ def converter_validation(conversion_log_path: str = "data/00-metadata/logs/(5)_c
     }
     
     # Load logs
-    with open(conversion_log_path, 'r') as f:
-        conversion_data = json.load(f)
-    
-    with open(matching_log_path, 'r') as f:
-        matching_data = json.load(f)
+    conversion_data = storage.read_json(conversion_log_path)
+    matching_data = storage.read_json(matching_log_path)
     
     # Create lookup dictionaries
     conversion_files = {item["input_file"]: item for item in conversion_data.get("details", [])}
@@ -85,9 +85,7 @@ def converter_validation(conversion_log_path: str = "data/00-metadata/logs/(5)_c
             results["total_files"] += 1
     
     # Save results to output log
-    os.makedirs(os.path.dirname(output_log_path), exist_ok=True)
-    with open(output_log_path, 'w') as f:
-        json.dump(results, f, indent=2)
+    storage.write_json(results, output_log_path)
     
     # Print summary using rich
     if results["failed_conversions"] == 0:
