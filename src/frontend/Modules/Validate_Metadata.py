@@ -6,7 +6,7 @@ import eencijferho.utils.extractor_validation as ex_val
 import eencijferho.utils.converter_match as cm
 import io
 import contextlib
-from typing import Any, Optional
+from typing import Any
 from config import get_input_dir, get_metadata_dir
 
 
@@ -20,7 +20,8 @@ def get_metadata_files() -> list[str]:
     return sorted([os.path.basename(f) for f in glob.glob(os.path.join(metadata_dir, "*.xlsx"))])
 
 
-def load_validation_logs() -> Optional[tuple[list[dict[str, Any]], list[dict[str, Any]]]]:
+def load_validation_logs() -> tuple[list[dict[str, Any]], list[dict[str, Any]]] | None:
+    """Load the latest validation logs and return failure information"""
     logs_dir = os.path.join(get_metadata_dir(), "logs")
     if not os.path.exists(logs_dir):
         return None, None

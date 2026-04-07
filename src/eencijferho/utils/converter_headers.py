@@ -3,9 +3,9 @@ import re
 import unicodedata
 from pathlib import Path
 from rich.console import Console
-from typing import Callable, Optional
+from collections.abc import Callable
 
-def normalize_name(name: str, naming_func: Optional[Callable[[str], str]] = None) -> str:
+def normalize_name(name: str, naming_func: Callable[[str], str] | None = None) -> str:
     """
     Normalize variable names using the provided naming convention function (e.g., snake_case).
     If no function is provided, defaults to snake_case.

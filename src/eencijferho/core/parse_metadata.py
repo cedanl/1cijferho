@@ -7,13 +7,13 @@ Provides `parse_metadata_file(path)` for programmatic use.
 import json
 import os
 import re
-from typing import Any, Dict, List
+from typing import Any
 
 from eencijferho.io.decorators import with_storage
 
 
 @with_storage
-def parse_metadata_file(storage, path: str) -> List[Dict[str, Any]]:
+def parse_metadata_file(storage, path: str) -> list[dict[str, Any]]:
     """Parse metadata text file for variable descriptions and possible values."""
     text = storage.read_text(path, encoding="latin-1")
     lines = text.split("\n")

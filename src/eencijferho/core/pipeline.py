@@ -10,7 +10,8 @@ import eencijferho.utils.converter_validation as cv
 import eencijferho.utils.compressor as co
 import eencijferho.utils.encryptor as en
 import eencijferho.utils.converter_headers as ch
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 from eencijferho.io.decorators import with_storage
 
@@ -22,8 +23,8 @@ def run_turbo_convert_pipeline(
     dec_metadata_json: str | None = None,
     output_dir: str = "data/02-output",
     metadata_dir: str | None = None,
-    progress_callback: Optional[Callable[[int], None]] = None,
-    status_callback: Optional[Callable[[str], None]] = None,
+    progress_callback: Callable[[int], None] | None = None,
+    status_callback: Callable[[str], None] | None = None,
     output_config: OutputConfig | None = None,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Run the full turbo-convert pipeline.

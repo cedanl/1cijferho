@@ -2,7 +2,7 @@ import polars as pl
 from pathlib import Path
 from rich.console import Console
 import hashlib
-from typing import Any, Optional
+from typing import Any
 import os
 from eencijferho.config import get_output_dir
 
@@ -37,7 +37,7 @@ def encryptor(input_dir: str | None = None, output_dir: str | None = None) -> No
             if columns_found:
                 console.print(f"[cyan]⚙[/] Processing {csv_file.name}, found columns: {columns_found}")
                 # Define SHA256 function for Polars
-                def sha256_hash(x: Any) -> Optional[str]:
+                def sha256_hash(x: Any) -> str | None:
                     if x is None:
                         return None
                     return hashlib.sha256(str(x).encode()).hexdigest()

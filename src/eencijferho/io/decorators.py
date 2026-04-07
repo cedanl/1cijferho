@@ -23,7 +23,7 @@ Usage:
 from __future__ import annotations
 
 import functools
-from typing import Callable
+from collections.abc import Callable
 
 
 def reads_from(path: str, format: str | None = None, **read_kwargs) -> Callable:

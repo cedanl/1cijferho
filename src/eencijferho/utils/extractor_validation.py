@@ -18,7 +18,7 @@ from rich.console import Console
 import os
 import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from eencijferho.io.decorators import with_storage
 
@@ -28,7 +28,7 @@ from eencijferho.io.decorators import with_storage
 # Move .csv to 02-output
 
 @with_storage
-def validate_metadata(storage, file_path: str | Path) -> tuple[bool, Dict[str, Any]]:
+def validate_metadata(storage, file_path: str | Path) -> tuple[bool, dict[str, Any]]:
     """
     Validates a single layout specification (Excel) file and returns validation results.
 
