@@ -427,11 +427,9 @@ requires-dist = [
     { name = "eencijferho", extras = ["postgres"], marker = "extra == 'all-backends'" },
     { name = "jupyter", marker = "extra == 'dev'", specifier = ">=1.0" },
     { name = "minio", marker = "extra == 'minio'", specifier = ">=7.2" },
-    { name = "numpy", specifier = ">=2.2.2" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "polars", extras = ["excel"], specifier = ">=1.21.0" },
     { name = "psycopg2-binary", marker = "extra == 'postgres'", specifier = ">=2.9" },
-    { name = "pyjanitor", specifier = ">=0.31.0" },
     { name = "rich", specifier = ">=13.9.4" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.10.0" },
     { name = "sqlalchemy", marker = "extra == 'postgres'", specifier = ">=2.0" },
@@ -1376,30 +1374,12 @@ wheels = [
 ]
 
 [[package]]
-name = "multipledispatch"
-version = "1.0.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/fe/3e/a62c3b824c7dec33c4a1578bcc842e6c30300051033a4e5975ed86cc2536/multipledispatch-1.0.0.tar.gz", hash = "sha256:5c839915465c68206c3e9c473357908216c28383b425361e5d144594bf85a7e0", size = 12385 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/51/c0/00c9809d8b9346eb238a6bbd5f83e846a4ce4503da94a4c08cb7284c325b/multipledispatch-1.0.0-py3-none-any.whl", hash = "sha256:0c53cd8b077546da4e48869f49b13164bebafd0c2a5afceb6bb6a316e7fb46e4", size = 12818 },
-]
-
-[[package]]
 name = "narwhals"
 version = "1.36.0"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/65/92/503f99e2244a271aacd6c2588e0af1b59232292b217708748cdb30214dc3/narwhals-1.36.0.tar.gz", hash = "sha256:7cd860e7e066609bd8a042bb5b8e4193275532114448210a91cbd5c622b6e5eb", size = 270385 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/42/bf/fbcbd9f8676e06ed43d644a4ddbf31478a44056487578ce67f191da430cb/narwhals-1.36.0-py3-none-any.whl", hash = "sha256:e3c50dd1d769bc145f57ae17c1f0f0da6c3d397d62cdd0bb167e9b618e95c9d6", size = 331018 },
-]
-
-[[package]]
-name = "natsort"
-version = "8.4.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e2/a9/a0c57aee75f77794adaf35322f8b6404cbd0f89ad45c87197a937764b7d0/natsort-8.4.0.tar.gz", hash = "sha256:45312c4a0e5507593da193dedd04abb1469253b601ecaf63445ad80f0a1ea581", size = 76575 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ef/82/7a9d0550484a62c6da82858ee9419f3dd1ccc9aa1c26a1e43da3ecd20b0d/natsort-8.4.0-py3-none-any.whl", hash = "sha256:4732914fb471f56b5cce04d7bae6f164a592c7712e1c85f9ef585e197299521c", size = 38268 },
 ]
 
 [[package]]
@@ -1616,19 +1596,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/25/b0/98d6ae2e1abac4f35230aa756005e8654649d305df9a28b16b9ae4353bff/pandas-2.2.3-cp313-cp313t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1db71525a1538b30142094edb9adc10be3f3e176748cd7acc2240c2f2e5aa3a4", size = 11871013 },
     { url = "https://files.pythonhosted.org/packages/cc/57/0f72a10f9db6a4628744c8e8f0df4e6e21de01212c7c981d31e50ffc8328/pandas-2.2.3-cp313-cp313t-musllinux_1_2_aarch64.whl", hash = "sha256:15c0e1e02e93116177d29ff83e8b1619c93ddc9c49083f237d4312337a61165d", size = 15711620 },
     { url = "https://files.pythonhosted.org/packages/ab/5f/b38085618b950b79d2d9164a711c52b10aefc0ae6833b96f626b7021b2ed/pandas-2.2.3-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:ad5b65698ab28ed8d7f18790a0dc58005c7629f227be9ecc1072aa74c0c1d43a", size = 13098436 },
-]
-
-[[package]]
-name = "pandas-flavor"
-version = "0.7.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pandas" },
-    { name = "xarray" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f4/f3/be418c6244854bf66e3ec08c996a4b2b666536f2d09c1b9f2de8dd0eff73/pandas_flavor-0.7.0.tar.gz", hash = "sha256:617bf9f96902017afc9bd284f611592bce91806d3c7ae34ad64f6edab3edaf7e", size = 11057 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/5d/e6/71ed4d95676098159b533c4a4c424cf453fec9614edaff1a0633fe228eef/pandas_flavor-0.7.0-py3-none-any.whl", hash = "sha256:7ee81e834b111e424679776f49c51abcffec88203b3ff0df2c9cb75550e06b1a", size = 8375 },
 ]
 
 [[package]]
@@ -2045,21 +2012,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/7c/2d/c3338d48ea6cc0feb8446d8e6937e1408088a72a39937982cc6111d17f84/pygments-2.19.1.tar.gz", hash = "sha256:61c16d2a8576dc0649d9f39e089b5f02bcd27fba10d8fb4dcc28173f7a45151f", size = 4968581 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8a/0b/9fcc47d19c48b59121088dd6da2488a49d5f72dacf8262e2790a1d2c7d15/pygments-2.19.1-py3-none-any.whl", hash = "sha256:9ea1544ad55cecf4b8242fab6dd35a93bbce657034b0611ee383099054ab6d8c", size = 1225293 },
-]
-
-[[package]]
-name = "pyjanitor"
-version = "0.31.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "multipledispatch" },
-    { name = "natsort" },
-    { name = "pandas-flavor" },
-    { name = "scipy" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/00/f1/37304e2eab81d532ca8931595cd5acb55be5d44b246123acb995d42ba102/pyjanitor-0.31.0.tar.gz", hash = "sha256:50307d1117e6cd812953e2200a72db4bd91ec1fd3d8c5b99a16d5a6db2311a27", size = 215005 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/38/b5/0f79360a302b14a76ec5649403325fbe66580514b7a8f94d34aa6598c04c/pyjanitor-0.31.0-py3-none-any.whl", hash = "sha256:c8c5888e6b4d30854c9d302348ff6816091c749c7d2ee160c96064dfff611850", size = 215419 },
 ]
 
 [[package]]
@@ -3027,20 +2979,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/63/cc/d566ab24da637787a381a1bc9999a166932b53d2b73b12b989c8fb1fa595/wordcloud-1.9.5-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:ecd0400835ee92d9d335aac3d73b3a50cb44f3ba408f03132d5d0bd915b8feef", size = 552904 },
     { url = "https://files.pythonhosted.org/packages/fb/96/47bfce33702be594bad4c1f652e7e16c1d8efd5b8163f9389f38dfa4b3fa/wordcloud-1.9.5-cp313-cp313-win32.whl", hash = "sha256:dc2027675d9c8a72e6565844e442736ff55ce670421ddb02c77d5d9178a9a798", size = 296069 },
     { url = "https://files.pythonhosted.org/packages/c1/b9/440cf09c98680f15ccd83aa31a71d8789ad70ee65a731ead23a6ba8b169c/wordcloud-1.9.5-cp313-cp313-win_amd64.whl", hash = "sha256:b02205ff66f81bc6be1c418c98da08c353847196f2ccf945bd3ea5a52f22aec7", size = 307047 },
-]
-
-[[package]]
-name = "xarray"
-version = "2025.10.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy" },
-    { name = "packaging" },
-    { name = "pandas" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/7b/ce/f5dd613ddd0b3f839c59e6c2fa20c62469bf671bf4c92a12b09dc0972326/xarray-2025.10.1.tar.gz", hash = "sha256:3c2b5ad7389825bd624ada5ff26b01ac54b1aae72e2fe0d724d81d40a2bf5785", size = 3058736 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c3/78/4d6d68555a92cb97b4c192759c4ab585c5cb23490f64d4ddf12c66a3b051/xarray-2025.10.1-py3-none-any.whl", hash = "sha256:a4e699433b87a7fac340951bc36648645eeef72bdd915ff055ac2fd99865a73d", size = 1365202 },
 ]
 
 [[package]]

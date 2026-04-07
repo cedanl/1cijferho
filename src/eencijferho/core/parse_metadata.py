@@ -7,7 +7,7 @@ Provides `parse_metadata_file(path)` for programmatic use.
 import json
 import os
 import re
-from typing import Any
+from typing import Any, Dict, List
 
 from eencijferho.io.decorators import with_storage
 

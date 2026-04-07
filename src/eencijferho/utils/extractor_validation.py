@@ -18,7 +18,7 @@ from rich.console import Console
 import os
 import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 
 from eencijferho.io.decorators import with_storage
 
