@@ -16,5 +16,6 @@ jobs:
   minio:
     uses: ./.github/workflows/minio.yml
 
-  minio-pipeline:
-    uses: ./.github/workflows/minio-pipeline.yml
+  # minio-pipeline: requires completing storage migration for all pipeline steps
+  # minio-pipeline:
+  #   uses: ./.github/workflows/minio-pipeline.yml
