@@ -215,23 +215,21 @@ class TestMinIOConverterWorkflow:
 
     def test_load_metadata_from_minio(self, minio_env, minio_prefix):
         """Upload an Excel metadata file to MinIO and load it."""
-        import pandas as pd
+        import io
+        from openpyxl import Workbook
         from eencijferho.io import get_backend
         from eencijferho.core.converter import _load_metadata
 
         backend = get_backend()
 
-        # Create and upload a metadata Excel file
-        df = pd.DataFrame({
-            "ID": [1, 2],
-            "Naam": ["Veld1", "Veld2"],
-            "Startpositie": [1, 6],
-            "Aantal posities": [5, 3],
-            "Opmerking": ["", ""],
-        })
-        import io
+        # Create and upload a metadata Excel file using openpyxl
+        wb = Workbook()
+        ws = wb.active
+        ws.append(["ID", "Naam", "Startpositie", "Aantal posities", "Opmerking"])
+        ws.append([1, "Veld1", 1, 5, ""])
+        ws.append([2, "Veld2", 6, 3, ""])
         buf = io.BytesIO()
-        df.to_excel(buf, index=False)
+        wb.save(buf)
         backend.write_bytes(buf.getvalue(), f"{minio_prefix}/meta.xlsx")
 
         column_names, positions = _load_metadata(f"{minio_prefix}/meta.xlsx")
