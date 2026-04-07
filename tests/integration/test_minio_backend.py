@@ -8,8 +8,18 @@ Run with:
     uv run pytest tests/integration/ -v
 """
 
+import io
+
 import polars as pl
 import pytest
+from openpyxl import Workbook
+
+from eencijferho.core.converter import _load_metadata, process_chunk
+from eencijferho.core.extractor import extract_tables_from_txt
+from eencijferho.io import get_backend
+from eencijferho.io.backends.minio import MinIOBackend
+from eencijferho.io.decorators import with_storage
+from eencijferho.utils.compressor import convert_csv_to_parquet
 
 
 # ---------------------------------------------------------------------------
@@ -132,8 +142,6 @@ class TestMinIODecorators:
     """Test that @with_storage injects MinIO backend when env is set."""
 
     def test_with_storage_uses_minio(self, minio_env, minio_prefix):
-        from eencijferho.io.decorators import with_storage
-
         @with_storage
         def store_and_retrieve(storage, path, content):
             storage.write_text(content, path)
@@ -143,9 +151,6 @@ class TestMinIODecorators:
         assert result == "decorator works!"
 
     def test_get_backend_returns_minio(self, minio_env):
-        from eencijferho.io import get_backend
-        from eencijferho.io.backends.minio import MinIOBackend
-
         backend = get_backend()
         assert isinstance(backend, MinIOBackend)
 
@@ -172,9 +177,6 @@ class TestMinIOExtractorWorkflow:
         return path
 
     def test_extract_tables_from_txt(self, minio_env, minio_prefix):
-        from eencijferho.io import get_backend
-        from eencijferho.core.extractor import extract_tables_from_txt
-
         backend = get_backend()
         txt_path = self._upload_bestandsbeschrijving(backend, minio_prefix)
         json_dir = f"{minio_prefix}/json"
@@ -188,9 +190,6 @@ class TestMinIOExtractorWorkflow:
         assert len(data["tables"]) == 1
 
     def test_extract_preserves_accented_title(self, minio_env, minio_prefix):
-        from eencijferho.io import get_backend
-        from eencijferho.core.extractor import extract_tables_from_txt
-
         backend = get_backend()
         txt_path = self._upload_bestandsbeschrijving(
             backend, minio_prefix, title="Vóór het HO"
@@ -208,18 +207,11 @@ class TestMinIOConverterWorkflow:
 
     def test_process_chunk_is_pure(self):
         """process_chunk doesn't use storage — just verify it still works."""
-        from eencijferho.core.converter import process_chunk
-
         result = process_chunk(([(0, 5), (5, 10)], [b"abc  def  "]))
         assert result == ["abc;def"]
 
     def test_load_metadata_from_minio(self, minio_env, minio_prefix):
         """Upload an Excel metadata file to MinIO and load it."""
-        import io
-        from openpyxl import Workbook
-        from eencijferho.io import get_backend
-        from eencijferho.core.converter import _load_metadata
-
         backend = get_backend()
 
         # Create and upload a metadata Excel file using openpyxl
@@ -242,9 +234,6 @@ class TestMinIOCompressorWorkflow:
     """Test CSV-to-Parquet compression against MinIO."""
 
     def test_csv_to_parquet(self, minio_env, minio_prefix):
-        from eencijferho.io import get_backend
-        from eencijferho.utils.compressor import convert_csv_to_parquet
-
         backend = get_backend()
 
         # Upload a CSV file (not starting with "dec" so it won't be skipped)
