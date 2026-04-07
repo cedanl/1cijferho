@@ -12,16 +12,16 @@ def categorize_files() -> tuple[bool, dict[str, list[str]], int]:
 
     # Create directory if it doesn't exist
     os.makedirs(input_dir, exist_ok=True)
-    
+
     if not os.path.exists(input_dir):
         return False, {}, 0
-    
+
     # Get all files in the directory (any extension, excluding .zip files)
     all_files_paths = glob.glob(os.path.join(input_dir, "*"))
     # Also include decoder files from root input dir when in DEMO_MODE
     if get_demo_mode():
         all_files_paths += glob.glob(os.path.join(get_decoder_input_dir(), "Dec_*.asc"))
-    
+
     # Filter out directories and .zip files, keep only regular files
     all_files = []
     seen = set()
@@ -31,153 +31,109 @@ def categorize_files() -> tuple[bool, dict[str, list[str]], int]:
             if basename not in seen:
                 seen.add(basename)
                 all_files.append(basename)
-    
+
     # Categorize files
     categorized_files = {
         "bestandsbeschrijvingen": [],
         "decodeer_files": [],
         "main_files": []
     }
-    
+
     for filename in all_files:
         filename_lower = filename.lower()
-        
-        # Bestandsbeschrijvingen: .txt files with "bestandsbeschrijving" in name
+
         if filename_lower.endswith('.txt') and 'bestandsbeschrijving' in filename_lower:
             categorized_files["bestandsbeschrijvingen"].append(filename)
-        
-        # Decodeer Files: start with "Dec_"
         elif filename.startswith('Dec_'):
             categorized_files["decodeer_files"].append(filename)
-        
-        # Main Files: start with EV, VAKHAVW, Croho, or Croho_vest
-        elif (filename.startswith('EV') or 
-              filename.startswith('VAKHAVW') or 
-              filename.startswith('Croho') or 
+        elif (filename.startswith('EV') or
+              filename.startswith('VAKHAVW') or
+              filename.startswith('Croho') or
               filename.startswith('Croho_vest')):
             categorized_files["main_files"].append(filename)
-    
-    # Sort each category
+
     for category in categorized_files:
         categorized_files[category].sort()
-    
+
     total_files = len(all_files)
     files_found = total_files > 0
-    
+
     return files_found, categorized_files, total_files
 
+
 # -----------------------------------------------------------------------------
-# Header Section
+# Page Header
 # -----------------------------------------------------------------------------
-# Main header and subtitle
-st.title("📂 Bestanden uploaden")
+st.title("Bestanden uploaden")
 
 if get_demo_mode():
-    st.info(f"🎯 **Demo modus actief** – demo-bestanden worden geladen uit `{get_input_dir()}`.")
-    st.write("""
-Volg deze stappen om te beginnen:
-
-1. **Demo-bestanden** staan al klaar in de demo-map
-2. **Ververs deze pagina** om de beschikbare bestanden per type te bekijken
-""")
+    col_info, col_switch = st.columns([3, 1])
+    with col_info:
+        st.info(f"**Demo modus** — bestanden worden geladen uit `{get_input_dir()}`.")
+    with col_switch:
+        if st.button("Eigen data gebruiken", type="secondary", use_container_width=True):
+            st.switch_page("frontend/Overview/Home.py")
 else:
-    st.write(f"""
-Volg deze stappen om te beginnen:
+    st.markdown(f"""
+<div class="page-intro">
+    Plaats uw DUO-bestanden in <code>{get_input_dir()}</code> en klik op 'Bestanden controleren'.
+    Zet bestanden direct in de map — niet in submappen.
+</div>
+""", unsafe_allow_html=True)
 
-1. **Kopieer uw 1CHO-bestanden** naar de map `{get_input_dir()}` van deze applicatie
-2. **Plaats bestanden direct** in de map (niet in submappen)
-3. **Ververs deze pagina** om uw geüploade bestanden per type te bekijken
-""")
+# -----------------------------------------------------------------------------
+# Action Buttons
+# -----------------------------------------------------------------------------
+files_found, categorized_files, total_files = categorize_files()
 
-# Side-by-side buttons for refresh and extract
 col1, col2 = st.columns(2)
-
 with col1:
-    if st.button("🔄 Pagina verversen", type="primary", use_container_width=True):
+    if st.button("Bestanden controleren", type="secondary", use_container_width=True):
         st.rerun()
-
 with col2:
-    # Check if files exist to enable/disable the extract button
-    files_found, _, _ = categorize_files()
-    
-    if st.button("➡️ Ga door naar stap 1", type="secondary", disabled=not files_found, use_container_width=True):
+    if st.button("Ga door naar stap 1 →", type="primary", disabled=not files_found, use_container_width=True):
         st.switch_page("frontend/Modules/Extract_Metadata.py")
 
 # -----------------------------------------------------------------------------
-# Example Directory Structure
+# Example Directory Structure (collapsed by default)
 # -----------------------------------------------------------------------------
-with st.expander("📂 Voorbeeld mapstructuur"):
-    st.write(f"""
-    ### Voorbeeld mapstructuur
-    
-    Uw `{get_input_dir()}` map moet eruitzien zoals hieronder. Bestanden worden automatisch ingedeeld in drie types:
+with st.expander("Welke bestanden heb ik nodig?"):
+    st.markdown(f"""
+Uw `{get_input_dir()}` map moet drie soorten bestanden bevatten:
 
-    - **📄 Bestandsbeschrijvingen**: .txt-bestanden met "bestandsbeschrijving" in de naam
-    - **🔓 Decodeerbestanden**: Bestanden die beginnen met "Dec_"
-    - **📊 Hoofdbestanden**: Bestanden die beginnen met "EV", "VAKHAVW", "Croho" of "Croho_vest"
-
-    **Belangrijk:** Plaats bestanden direct in de map `{get_input_dir()}`, niet in submappen.
-    """)
-    
-    # Path to the image (if it exists)
+| Type | Naampatroon | Voorbeeld |
+|---|---|---|
+| Bestandsbeschrijvingen | `Bestandsbeschrijving_*.txt` | `Bestandsbeschrijving_EV_2023.txt` |
+| Decodeerbestanden | `Dec_*.asc` | `Dec_landcode.asc` |
+| Hoofdbestanden | `EV_*.asc`, `VAKHAVW_*.asc` | `EV2023.asc` |
+""")
     if os.path.exists("src/assets/example_files.png"):
         st.image("src/assets/example_files.png")
 
 # -----------------------------------------------------------------------------
-# File Detection and Categorization Section
+# File Detection Results
 # -----------------------------------------------------------------------------
-files_found, categorized_files, total_files = categorize_files()
-
 if not files_found:
-    st.error(f"""
-    🚨 **Geen bestanden gevonden in de map `{get_input_dir()}`**
-
-    Kopieer uw uitgepakte 1CHO-bestanden naar de map `{get_input_dir()}` en ververs deze pagina.
-    """)
+    st.error(f"**Geen bestanden gevonden** in `{get_input_dir()}`. Kopieer uw uitgepakte DUO-bestanden naar deze map en klik op 'Bestanden controleren'.")
 else:
-    st.success(f"""
-    ✅ **{total_files} bestanden gevonden in de map `{get_input_dir()}`**
+    st.success(f"✅ **{total_files} bestanden gevonden** in `{get_input_dir()}`")
 
-    Bestanden zijn automatisch ingedeeld per type. Controleer hieronder of alle verwachte bestanden aanwezig zijn.
-    """)
-
-    st.markdown("---")
-    
-    # Display categorized files in uniform columns
     col1, col2, col3 = st.columns(3)
-    
+
+    def _file_column(label: str, files: list[str]) -> None:
+        count = len(files)
+        status = "✅" if count > 0 else "—"
+        st.markdown(f"**{label}** &nbsp; {status} &nbsp; `{count}`")
+        if count > 0:
+            with st.expander(f"Bekijk {count} bestanden"):
+                for filename in files:
+                    st.write(f"• `{filename}`")
+        else:
+            st.caption("Geen bestanden gevonden")
+
     with col1:
-        st.markdown("#### 📄 Bestandsbeschrijvingen")
-        count = len(categorized_files["bestandsbeschrijvingen"])
-        st.metric("Count", count)
-        
-        if count > 0:
-            with st.expander(f"Bekijk {count} bestanden"):
-                for filename in categorized_files["bestandsbeschrijvingen"]:
-                    st.write(f"• `{filename}`")
-        else:
-            st.info("Geen bestanden gevonden")
-    
+        _file_column("Bestandsbeschrijvingen", categorized_files["bestandsbeschrijvingen"])
     with col2:
-        st.markdown("#### 🔓 Decodeerbestanden")
-        count = len(categorized_files["decodeer_files"])
-        st.metric("Count", count)
-        
-        if count > 0:
-            with st.expander(f"Bekijk {count} bestanden"):
-                for filename in categorized_files["decodeer_files"]:
-                    st.write(f"• `{filename}`")
-        else:
-            st.info("Geen bestanden gevonden")
-    
+        _file_column("Decodeerbestanden", categorized_files["decodeer_files"])
     with col3:
-        st.markdown("#### 📊 Hoofdbestanden")
-        count = len(categorized_files["main_files"])
-        st.metric("Count", count)
-        
-        if count > 0:
-            with st.expander(f"Bekijk {count} bestanden"):
-                for filename in categorized_files["main_files"]:
-                    st.write(f"• `{filename}`")
-        else:
-            st.info("Geen bestanden gevonden")
+        _file_column("Hoofdbestanden", categorized_files["main_files"])

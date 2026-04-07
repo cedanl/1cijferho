@@ -19,7 +19,7 @@ except ImportError:
     _STREAMLIT_AVAILABLE = False
 
 # Default demo mode (used when no persisted setting exists)
-DEFAULT_DEMO_MODE: bool = True
+DEFAULT_DEMO_MODE: bool = False
 
 _USER_SETTINGS_FILE = "data/.user_settings.json"
 

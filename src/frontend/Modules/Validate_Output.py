@@ -6,10 +6,10 @@ import eencijferho.utils.value_validation as vv
 import eencijferho.utils.dec_validation as dv
 from config import get_input_dir, get_output_dir, get_metadata_dir
 
+
 # -----------------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------------
-
 def _load_val_log():
     log_path = os.path.join(get_metadata_dir(), "logs", "(5b)_value_validation_log_latest.json")
     if not os.path.exists(log_path):
@@ -101,36 +101,41 @@ def _run_dec_validation():
 # -----------------------------------------------------------------------------
 # Page
 # -----------------------------------------------------------------------------
-
+st.markdown('<span class="step-badge">Stap 4 · Optioneel</span>', unsafe_allow_html=True)
 st.title("Output valideren")
+st.markdown("""
+<div class="page-intro">
+    Spot-check uw geconverteerde bestanden. Controleer of kolomwaarden overeenkomen met de bestandsbeschrijving en of DEC-codes kloppen.
+</div>
+""", unsafe_allow_html=True)
 
-st.write("""
-**Optionele stap: geconverteerde bestanden valideren**
+output_ready = (
+    os.path.isdir(get_output_dir())
+    and any(f.endswith(".csv") for f in os.listdir(get_output_dir()))
+)
 
-Voer deze stap uit nadat de pipeline klaar is. Er zijn twee validaties beschikbaar:
-
-- **Kolomwaarden** — controleert of waarden overeenkomen met de toegestane waarden uit de bestandsbeschrijving.
-- **DEC codes** — controleert of codes en codeparen voorkomen in de DEC-decodeerbestanden, inclusief samengestelde sleutels.
-""")
-
-if not os.path.isdir(get_output_dir()) or not any(
-    f.endswith(".csv") for f in os.listdir(get_output_dir())
-):
-    st.error("Geen geconverteerde CSV-bestanden gevonden. Voer eerst de Turbo Conversie uit.")
+if not output_ready:
+    st.error("**Geen geconverteerde bestanden gevonden.** Voer eerst stap 3 (Turbo Conversie) uit.")
+    if st.button("← Terug naar stap 3", type="secondary"):
+        st.switch_page("frontend/Modules/Turbo_Convert.py")
 else:
-    # --- Section 1: Value validation ---
-    st.subheader("Kolomwaarden validatie")
-    st.caption("Controleert of kolomwaarden overeenkomen met de toegestane waarden uit de bestandsbeschrijving")
+    # -------------------------------------------------------------------------
+    # Validatie 1: Kolomwaarden
+    # -------------------------------------------------------------------------
+    st.subheader("Kolomwaarden")
+    st.caption("Controleert of kolomwaarden overeenkomen met de toegestane waarden uit de bestandsbeschrijving.")
 
     col1, col2 = st.columns(2)
     with col1:
-        val_clicked = st.button("Start kolomwaarden validatie", type="primary", use_container_width=True)
+        val_clicked = st.button("Kolomwaarden valideren", type="primary", use_container_width=True)
     with col2:
         val_log_exists = os.path.exists(
             os.path.join(get_metadata_dir(), "logs", "(5b)_value_validation_log_latest.json")
         )
-        st.button("Validatie al uitgevoerd", disabled=not val_log_exists,
-                  use_container_width=True, type="secondary")
+        if val_log_exists:
+            st.success("✅ Al uitgevoerd")
+        else:
+            st.caption("Nog niet uitgevoerd")
 
     if val_clicked:
         with st.spinner("Kolomwaarden valideren..."):
@@ -160,7 +165,7 @@ else:
                 if len(f["invalid_values"]) > 10:
                     vals += f" ... (+{len(f['invalid_values']) - 10} meer)"
                 st.warning(f"**{f['file']}** — kolom `{f['column']}`: {vals}")
-        with st.expander("Volledige details"):
+        with st.expander("Volledige details kolomwaarden"):
             for fname, details in val_log.get("details", {}).items():
                 st.markdown(f"**{fname}** — {details.get('columns_checked',0)} gecontroleerd, {details.get('columns_failed',0)} mislukt")
                 for col_result in details.get("column_results", []):
@@ -169,22 +174,26 @@ else:
 
     st.divider()
 
-    # --- Section 2: DEC validation ---
-    st.subheader("DEC codes validatie")
-    st.caption("Controleert of codes en codeparen voorkomen in de DEC-decodeerbestanden")
+    # -------------------------------------------------------------------------
+    # Validatie 2: DEC codes
+    # -------------------------------------------------------------------------
+    st.subheader("DEC codes")
+    st.caption("Controleert of codes en codeparen voorkomen in de DEC-decodeerbestanden, inclusief samengestelde sleutels.")
 
     col3, col4 = st.columns(2)
     with col3:
-        dec_clicked = st.button("Start DEC validatie", type="primary", use_container_width=True)
+        dec_clicked = st.button("DEC codes valideren", type="primary", use_container_width=True)
     with col4:
         dec_log_exists = os.path.exists(
             os.path.join(get_metadata_dir(), "logs", "(5c)_dec_validation_log_latest.json")
         )
-        st.button("Validatie al uitgevoerd ", disabled=not dec_log_exists,
-                  use_container_width=True, type="secondary")
+        if dec_log_exists:
+            st.success("✅ Al uitgevoerd")
+        else:
+            st.caption("Nog niet uitgevoerd")
 
     if dec_clicked:
-        with st.spinner("DEC validatie uitvoeren..."):
+        with st.spinner("DEC codes valideren..."):
             dec_log, error = _run_dec_validation()
         if error:
             st.error(error)
@@ -192,9 +201,9 @@ else:
             total = sum(d.get("columns_checked", 0) for d in dec_log["details"].values())
             failed = dec_log["total_failed_columns"]
             if failed == 0:
-                st.success(f"Alle {total} kolom(men) OK — geen ongeldige waarden gevonden.")
+                st.success(f"Alle {total} kolom(men) OK — geen ongeldige codes gevonden.")
             else:
-                st.warning(f"{failed} kolom(men) bevatten ongeldige waarden (van {total} gecontroleerd).")
+                st.warning(f"{failed} kolom(men) bevatten ongeldige codes (van {total} gecontroleerd).")
             st.rerun()
 
     dec_log = _load_dec_log()
@@ -211,9 +220,14 @@ else:
                 if len(f["invalid_values"]) > 10:
                     vals += f" ... (+{len(f['invalid_values']) - 10} meer)"
                 st.warning(f"**{f['file']}** — kolom `{f['column']}` (via `{f['dec_file']}`): {vals}")
-        with st.expander("Volledige details"):
+        with st.expander("Volledige details DEC validatie"):
             for fname, details in dec_log.get("details", {}).items():
                 st.markdown(f"**{fname}** — {details.get('columns_checked',0)} gecontroleerd, {details.get('columns_failed',0)} mislukt")
                 for col_result in details.get("column_results", []):
                     icon = "✅" if col_result["status"] == "ok" else "❌"
                     st.markdown(f"  {icon} `{col_result['column']}` via `{col_result.get('dec_file','')}`")
+
+    st.divider()
+    st.caption(f"Uitvoerbestanden staan in `{get_output_dir()}/`. Zie de **Tip**-pagina voor voorbeelden om ze in Python of R te laden.")
+    if st.button("Hoe lees ik mijn bestanden? →", type="secondary"):
+        st.switch_page("frontend/Modules/Tip.py")

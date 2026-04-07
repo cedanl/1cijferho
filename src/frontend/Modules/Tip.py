@@ -1,58 +1,81 @@
-import streamlit as st  
+import streamlit as st
 
-st.title("💡 Tip")
-         
-st.write("**📊 CSV- en Parquet-bestanden lezen**")
+st.markdown("""
+<style>
+.done-banner {
+    background: linear-gradient(135deg, #43b89c 0%, #2d8a6e 100%);
+    padding: 1.25rem 1.5rem;
+    border-radius: 10px;
+    color: white;
+    margin-bottom: 1.5rem;
+}
+.done-banner h3 {
+    margin: 0 0 0.2rem 0;
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+.done-banner p {
+    margin: 0;
+    font-size: 0.92rem;
+    opacity: 0.9;
+}
+</style>
+<div class="done-banner">
+    <h3>De pipeline is klaar</h3>
+    <p>Uw bestanden staan klaar in <code>data/02-output/</code>. Hieronder vindt u voorbeelden om ze direct te laden in Python of R.</p>
+</div>
+""", unsafe_allow_html=True)
 
-st.markdown("Eenvoudige voorbeelden om bestanden sneller te lezen met **puntkomma als scheidingsteken** en **latin-1 codering**")
-# Create two columns for Python and R
+st.subheader("CSV- en Parquet-bestanden laden")
+st.caption("Gebruik puntkomma als scheidingsteken en latin-1 codering voor CSV-bestanden.")
+
 col1, col2 = st.columns(2)
 
 with col1:
-    st.header("🐍 Python")
-    
-    st.subheader("CSV met puntkomma als scheidingsteken")
-    st.code("""
+    st.markdown("**Python**")
+
+    st.markdown("CSV")
+    st.code("""\
 import polars as pl
 
-# Read CSV with semicolon delimiter and latin-1 encoding
-df = pl.read_csv('file.csv', 
-                 separator=';', 
-                 encoding='latin1')
-""", language="python")
-    
-    st.subheader("Parquet-bestand")
-    st.code("""
+df = pl.read_csv(
+    "bestand.csv",
+    separator=";",
+    encoding="latin1",
+)""", language="python")
+
+    st.markdown("Parquet")
+    st.code("""\
 import polars as pl
 
-# Read Parquet file
-df = pl.read_parquet('file.parquet')
-""", language="python")
-    
-    st.markdown("**Python Libraries:**")
-    st.markdown("- [polars](https://pola.rs/)")
+df = pl.read_parquet("bestand.parquet")""", language="python")
+
+    st.caption("Bibliotheek: [polars](https://pola.rs/)")
 
 with col2:
-    st.header("📈 R")
-    
-    st.subheader("CSV met puntkomma als scheidingsteken")
-    st.code("""
+    st.markdown("**R**")
+
+    st.markdown("CSV")
+    st.code("""\
 library(data.table)
 
-# Read CSV with semicolon delimiter and latin-1 encoding
-df <- fread('file.csv', 
-            sep = ';', 
-            encoding = 'Latin-1')
-""", language="r")
-    
-    st.subheader("Parquet-bestand")
-    st.code("""
+df <- fread(
+  "bestand.csv",
+  sep = ";",
+  encoding = "Latin-1"
+)""", language="r")
+
+    st.markdown("Parquet")
+    st.code("""\
 library(arrow)
 
-# Read Parquet file
-df <- read_parquet('file.parquet')
-""", language="r")
-    
-    st.markdown("**R-pakketten:**")
-    st.markdown("- [data.table](https://rdatatable.gitlab.io/data.table/)")
-    st.markdown("- [arrow](https://arrow.apache.org/docs/r/) (for parquet)")
+df <- read_parquet("bestand.parquet")""", language="r")
+
+    st.caption("Bibliotheken: [data.table](https://rdatatable.gitlab.io/data.table/) · [arrow](https://arrow.apache.org/docs/r/)")
+
+st.divider()
+
+col_home, col_spacer = st.columns([1, 2])
+with col_home:
+    if st.button("← Terug naar startpagina", type="secondary", use_container_width=True):
+        st.switch_page("frontend/Overview/Home.py")
