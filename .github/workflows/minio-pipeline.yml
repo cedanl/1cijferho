@@ -1,0 +1,71 @@
+name: MinIO pipeline integration test
+
+on:
+  workflow_call:
+
+jobs:
+  test:
+    name: CLI pipeline (MinIO + demo data)
+    runs-on: ubuntu-latest
+    env:
+      STORAGE_BACKEND: minio
+      MINIO_ENDPOINT: localhost:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: 1cijferho-pipeline
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio server /data
+
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            echo "Waiting for MinIO... ($i)"
+            sleep 1
+          done
+
+      - name: Create bucket and upload demo data
+        run: |
+          curl -sSf https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
+          chmod +x /usr/local/bin/mc
+          mc alias set local http://localhost:9000 minioadmin minioadmin
+          mc mb local/1cijferho-pipeline --ignore-existing
+          mc cp --recursive data/01-input/DEMO/ local/1cijferho-pipeline/data/01-input/DEMO/
+
+          echo "=== Uploaded files ==="
+          mc ls --recursive local/1cijferho-pipeline/data/01-input/DEMO/ | head -30
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies (with minio extra)
+        run: uv sync --group dev --extra minio
+
+      - name: Run CLI pipeline on demo data via MinIO
+        run: uv run eencijferho pipeline --input data/01-input/DEMO --output data/test-output
+
+      - name: Verify output files in MinIO
+        run: |
+          echo "=== Output files in MinIO ==="
+          mc ls --recursive local/1cijferho-pipeline/data/test-output/ | head -40
+
+          mc stat local/1cijferho-pipeline/data/test-output/EV299XX24_DEMO.csv || { echo "FAIL: EV CSV missing"; exit 1; }
+          mc stat local/1cijferho-pipeline/data/test-output/VAKHAVW_99XX_DEMO.csv || { echo "FAIL: VAKHAVW CSV missing"; exit 1; }
+          mc stat local/1cijferho-pipeline/data/test-output/EV299XX24_DEMO_decoded.csv || { echo "FAIL: decoded CSV missing"; exit 1; }
+
+          CSV_COUNT=$(mc ls local/1cijferho-pipeline/data/test-output/ | grep '\.csv$' | wc -l)
+          echo "Total CSV files: $CSV_COUNT"
+          test "$CSV_COUNT" -ge 2 || { echo "FAIL: expected at least 2 CSV files"; exit 1; }
+
+          echo "All MinIO pipeline checks passed!"

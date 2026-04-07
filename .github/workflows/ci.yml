@@ -15,3 +15,6 @@ jobs:
 
   minio:
     uses: ./.github/workflows/minio.yml
+
+  minio-pipeline:
+    uses: ./.github/workflows/minio-pipeline.yml
