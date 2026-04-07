@@ -29,8 +29,6 @@ Usage:
 
 import argparse
 import datetime
-import glob as _glob
-import json
 import os
 
 import polars as pl
@@ -53,6 +51,7 @@ from eencijferho.config import OutputConfig
 from eencijferho.utils.converter_headers import clean_header_name, normalize_name
 from eencijferho.utils.converter_match import match_files
 from eencijferho.utils.extractor_validation import validate_metadata_folder
+from eencijferho.io.decorators import with_storage
 import eencijferho.utils.value_validation as vv
 import eencijferho.utils.dec_validation as dv
 
@@ -88,16 +87,16 @@ def cmd_validate(args: argparse.Namespace) -> None:
     print("[eencijferho] Validation complete.")
 
 
-def cmd_validate_output(args: argparse.Namespace) -> None:
+@with_storage
+def cmd_validate_output(storage, args: argparse.Namespace) -> None:
     """Validate converted output files: column values and DEC decoder files."""
     metadata_dir, json_dir, logs_dir = _resolve_dirs(args.output)
-    os.makedirs(logs_dir, exist_ok=True)
 
     print(f"[eencijferho] Validating output files in: {args.output}")
 
     # --- 1. Value validation (variable_metadata.json) ---
     variable_metadata_path = os.path.join(json_dir, "variable_metadata.json")
-    if not os.path.isfile(variable_metadata_path):
+    if not storage.exists(variable_metadata_path):
         print("[eencijferho] variable_metadata.json niet gevonden, kolomwaarden validatie overgeslagen.")
     else:
         val_summary = vv.validate_column_values_folder(args.output, variable_metadata_path)
@@ -119,8 +118,7 @@ def cmd_validate_output(args: argparse.Namespace) -> None:
             },
         }
         val_log_path = os.path.join(logs_dir, "(5b)_value_validation_log_latest.json")
-        with open(val_log_path, "w", encoding="utf-8") as fh:
-            json.dump(val_log, fh, ensure_ascii=False, indent=2)
+        storage.write_json(val_log, val_log_path)
         print(f"[eencijferho] Kolomwaarden validatie log opgeslagen: {val_log_path}")
 
         val_failures = vv.read_value_validation_log(val_log_path)
@@ -139,14 +137,13 @@ def cmd_validate_output(args: argparse.Namespace) -> None:
 
     # --- 2. DEC validation (Bestandsbeschrijving_Dec-bestanden) ---
     dec_txt_candidates = [
-        f for f in os.listdir(args.input)
-        if f.startswith("Bestandsbeschrijving_Dec") and f.endswith(".txt")
-    ] if os.path.isdir(args.input) else []
+        f for f in storage.list_files(f"{args.input}/Bestandsbeschrijving_Dec*.txt")
+    ]
 
     if not dec_txt_candidates:
         print("[eencijferho] Geen Bestandsbeschrijving_Dec*.txt gevonden, DEC validatie overgeslagen.")
     else:
-        dec_txt_path = os.path.join(args.input, dec_txt_candidates[0])
+        dec_txt_path = dec_txt_candidates[0]
         dec_summary = dv.validate_with_dec_files_folder(args.output, dec_txt_path)
         dec_failed = [
             (fname, col["column"], col["dec_file"], col["invalid_values"])
@@ -166,8 +163,7 @@ def cmd_validate_output(args: argparse.Namespace) -> None:
             },
         }
         dec_log_path = os.path.join(logs_dir, "(5c)_dec_validation_log_latest.json")
-        with open(dec_log_path, "w", encoding="utf-8") as fh:
-            json.dump(dec_log, fh, ensure_ascii=False, indent=2)
+        storage.write_json(dec_log, dec_log_path)
         print(f"[eencijferho] DEC validatie log opgeslagen: {dec_log_path}")
 
         dec_failures = dv.read_dec_validation_log(dec_log_path)
@@ -186,11 +182,14 @@ def cmd_validate_output(args: argparse.Namespace) -> None:
             _console.print(Panel("\n".join(lines), title="⚠️  DEC validatie", border_style="yellow"))
 
 
-def cmd_decode(args: argparse.Namespace) -> None:
+@with_storage
+def cmd_decode(storage, args: argparse.Namespace) -> None:
     """Decode CSV files using Dec_* lookup tables (Dec-only, no label substitution)."""
+    from eencijferho.core.decoder import decode_fields_dec_only, load_dec_tables_from_metadata
+
     _, json_dir, _ = _resolve_dirs(args.output)
-    dec_json_matches = _glob.glob(
-        os.path.join(json_dir, "Bestandsbeschrijving_Dec-bestanden*.json")
+    dec_json_matches = storage.list_files(
+        f"{json_dir}/Bestandsbeschrijving_Dec-bestanden*.json"
     )
     if not dec_json_matches:
         print("[eencijferho] Geen Bestandsbeschrijving_Dec-bestanden JSON gevonden. Eerst 'extract' uitvoeren.")
@@ -200,32 +199,36 @@ def cmd_decode(args: argparse.Namespace) -> None:
     dec_tables = load_dec_tables_from_metadata(dec_metadata_json, args.output)
 
     count = 0
-    for fname in os.listdir(args.output):
-        if (
+    for filepath in storage.list_files(f"{args.output}/*.csv"):
+        fname = filepath.rsplit("/", 1)[-1] if "/" in filepath else filepath
+        if not (
             (fname.startswith("EV") or fname.startswith("VAKHAVW"))
             and fname.endswith(".csv")
             and not fname.endswith("_decoded.csv")
         ):
-            in_path = os.path.join(args.output, fname)
-            df = pl.read_csv(in_path, separator=";", encoding="utf-8")
-            decoded_df = decode_fields_dec_only(df, dec_metadata_json, dec_tables)
-            out_path = in_path.replace(".csv", "_decoded.csv")
-            with open(out_path, "w", encoding="utf-8") as f:
-                f.write(decoded_df.write_csv(separator=";"))
-            print(f"[eencijferho] Gedecodeerd: {fname} → {os.path.basename(out_path)}")
-            count += 1
+            continue
+        df = storage.read_dataframe(filepath, format="csv")
+        decoded_df = decode_fields_dec_only(df, dec_metadata_json, dec_tables)
+        out_path = filepath.replace(".csv", "_decoded.csv")
+        storage.write_text(decoded_df.write_csv(separator=";"), out_path)
+        print(f"[eencijferho] Gedecodeerd: {fname} → {os.path.basename(out_path)}")
+        count += 1
     print(f"[eencijferho] {count} bestand(en) gedecodeerd.")
 
 
-def cmd_enrich(args: argparse.Namespace) -> None:
+@with_storage
+def cmd_enrich(storage, args: argparse.Namespace) -> None:
     """Apply variable_metadata label substitution to decoded CSV files.
 
     Skips decode_fields entirely when no variable_metadata mappings apply to
     the columns of a given file (avoids unnecessary computation on large files).
     """
+    from eencijferho.core.decoder import decode_fields, load_dec_tables_from_metadata, load_variable_mappings
+    from eencijferho.utils.converter_headers import normalize_name, clean_header_name
+
     _, json_dir, _ = _resolve_dirs(args.output)
-    dec_json_matches = _glob.glob(
-        os.path.join(json_dir, "Bestandsbeschrijving_Dec-bestanden*.json")
+    dec_json_matches = storage.list_files(
+        f"{json_dir}/Bestandsbeschrijving_Dec-bestanden*.json"
     )
     if not dec_json_matches:
         print("[eencijferho] Geen Bestandsbeschrijving_Dec-bestanden JSON gevonden. Eerst 'extract' uitvoeren.")
@@ -237,20 +240,20 @@ def cmd_enrich(args: argparse.Namespace) -> None:
     var_maps = load_variable_mappings(variable_metadata_json)
 
     written = skipped = 0
-    for fname in os.listdir(args.output):
-        if not (fname.endswith("_decoded.csv") and not fname.endswith("_decoded_encrypted.csv")):
+    for filepath in storage.list_files(f"{args.output}/*_decoded.csv"):
+        fname = filepath.rsplit("/", 1)[-1] if "/" in filepath else filepath
+        if fname.endswith("_decoded_encrypted.csv"):
             continue
-        in_path = os.path.join(args.output, fname)
-        base = in_path.replace("_decoded.csv", ".csv")
-        if not os.path.exists(base):
+        base = filepath.replace("_decoded.csv", ".csv")
+        if not storage.exists(base):
             continue
-        main_df = pl.read_csv(base, separator=";", encoding="utf-8")
+        main_df = storage.read_dataframe(base, format="csv")
         normalized_cols = {normalize_name(clean_header_name(c)) for c in main_df.columns}
         if not (var_maps and normalized_cols & set(var_maps.keys())):
             print(f"[eencijferho] Overgeslagen (geen mappings): {fname}")
             skipped += 1
             continue
-        decoded_df = pl.read_csv(in_path, separator=";", encoding="utf-8")
+        decoded_df = storage.read_dataframe(filepath, format="csv")
         enriched_df = decode_fields(
             main_df, dec_metadata_json, dec_tables,
             variable_metadata_path=variable_metadata_json,
@@ -259,9 +262,8 @@ def cmd_enrich(args: argparse.Namespace) -> None:
             print(f"[eencijferho] Overgeslagen (identiek aan decoded): {fname}")
             skipped += 1
             continue
-        out_path = in_path.replace("_decoded.csv", "_enriched.csv")
-        with open(out_path, "w", encoding="utf-8") as f:
-            f.write(enriched_df.write_csv(separator=";"))
+        out_path = filepath.replace("_decoded.csv", "_enriched.csv")
+        storage.write_text(enriched_df.write_csv(separator=";"), out_path)
         print(f"[eencijferho] Verrijkt: {fname} → {os.path.basename(out_path)}")
         written += 1
     print(f"[eencijferho] {written} verrijkt, {skipped} overgeslagen.")

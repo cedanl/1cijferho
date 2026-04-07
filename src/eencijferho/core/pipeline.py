@@ -2,9 +2,6 @@
 Modular pipeline orchestrator for conversion, decoding, validation, compression, encryption, header normalization.
 """
 
-import glob
-import json
-import datetime
 import os
 from eencijferho.config import OutputConfig
 import polars as pl
@@ -13,16 +10,21 @@ import eencijferho.utils.converter_validation as cv
 import eencijferho.utils.compressor as co
 import eencijferho.utils.encryptor as en
 import eencijferho.utils.converter_headers as ch
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
+
+from eencijferho.io.decorators import with_storage
 
 
+@with_storage
 def run_turbo_convert_pipeline(
+    storage,
     input_dir: str = "data/01-input",
     dec_metadata_json: str | None = None,
     output_dir: str = "data/02-output",
     metadata_dir: str | None = None,
-    progress_callback: Optional[Callable[[int], None]] = None,
-    status_callback: Optional[Callable[[str], None]] = None,
+    progress_callback: Callable[[int], None] | None = None,
+    status_callback: Callable[[str], None] | None = None,
     output_config: OutputConfig | None = None,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Run the full turbo-convert pipeline.
@@ -48,7 +50,7 @@ def run_turbo_convert_pipeline(
         metadata_dir = METADATA_DIR
     if dec_metadata_json is None:
         json_dir = os.path.join(metadata_dir, "json")
-        matches = glob.glob(os.path.join(json_dir, "Bestandsbeschrijving_Dec-bestanden*.json"))
+        matches = storage.list_files(f"{json_dir}/Bestandsbeschrijving_Dec-bestanden*.json")
         dec_metadata_json = matches[0] if matches else None
     logs_dir = os.path.join(metadata_dir, "logs")
 
@@ -86,60 +88,56 @@ def run_turbo_convert_pipeline(
             status_callback("🔤 Gedecodeerde bestanden aanmaken...")
         log += "[pipeline] Gedecodeerde bestanden aanmaken...\n"
     dec_dir = output_dir
-    os.makedirs(dec_dir, exist_ok=True)
     decoded_count = 0
 
     # Load dec_tables and variable_mappings once — shared across all files
     dec_tables = decoder.load_dec_tables_from_metadata(dec_metadata_json, dec_dir)
     var_maps = decoder.load_variable_mappings(variable_metadata_json)
 
-    if (do_decode or do_enrich) and os.path.isdir(dec_dir):
-        for file in os.listdir(dec_dir):
-            if (
-                (file.startswith("EV") or file.startswith("VAKHAVW"))
-                and file.endswith(".csv")
-                and not file.endswith("_decoded.csv")
+    if do_decode or do_enrich:
+        csv_files = storage.list_files(f"{dec_dir}/*.csv")
+        for filepath in csv_files:
+            filename = filepath.rsplit("/", 1)[-1] if "/" in filepath else filepath
+            if not (
+                (filename.startswith("EV") or filename.startswith("VAKHAVW"))
+                and filename.endswith(".csv")
+                and not filename.endswith("_decoded.csv")
             ):
-                file_path = os.path.join(dec_dir, file)
-                main_df = pl.read_csv(file_path, separator=";", encoding="utf-8")
+                continue
 
-                if do_decode:
-                    # DEC-only decode
-                    dec_only_df = decoder.decode_fields_dec_only(
-                        main_df, dec_metadata_json, dec_tables,
-                        decode_columns=output_config.decode_columns,
-                    )
-                    dec_only_file = file_path.replace(".csv", "_decoded.csv")
-                    with open(dec_only_file, "w", encoding="utf-8") as f:
-                        f.write(dec_only_df.write_csv(separator=";"))
+            main_df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
+
+            if do_decode:
+                # DEC-only decode
+                dec_only_df = decoder.decode_fields_dec_only(
+                    main_df, dec_metadata_json, dec_tables,
+                    decode_columns=output_config.decode_columns,
+                )
+                dec_only_file = filepath.replace(".csv", "_decoded.csv")
+                storage.write_text(dec_only_df.write_csv(separator=";"), dec_only_file)
+            else:
+                dec_only_df = None
+
+            if do_enrich:
+                normalized_cols = {
+                    ch.normalize_name(ch.clean_header_name(c)) for c in main_df.columns
+                }
+                if not (var_maps and normalized_cols & set(var_maps.keys())):
+                    log += f"[pipeline] {filename}: geen variable_metadata mappings, _enriched overgeslagen.\n"
                 else:
-                    dec_only_df = None
-
-                if do_enrich:
-                    # Enriched decode:
-                    # 1. Skip entirely when no column names overlap with var_maps (fast path).
-                    # 2. When overlap exists, compute decode_fields and only write when the
-                    #    result actually differs from _decoded (correct, no redundant files).
-                    normalized_cols = {
-                        ch.normalize_name(ch.clean_header_name(c)) for c in main_df.columns
-                    }
-                    if not (var_maps and normalized_cols & set(var_maps.keys())):
-                        log += f"[pipeline] {os.path.basename(file_path)}: geen variable_metadata mappings, _enriched overgeslagen.\n"
+                    enriched_df = decoder.decode_fields(
+                        main_df, dec_metadata_json, dec_tables,
+                        variable_metadata_path=variable_metadata_json,
+                        decode_columns=output_config.decode_columns,
+                        enrich_variables=output_config.enrich_variables,
+                    )
+                    if dec_only_df is None or not enriched_df.equals(dec_only_df):
+                        enriched_file = filepath.replace(".csv", "_enriched.csv")
+                        storage.write_text(enriched_df.write_csv(separator=";"), enriched_file)
                     else:
-                        enriched_df = decoder.decode_fields(
-                            main_df, dec_metadata_json, dec_tables,
-                            variable_metadata_path=variable_metadata_json,
-                            decode_columns=output_config.decode_columns,
-                            enrich_variables=output_config.enrich_variables,
-                        )
-                        if dec_only_df is None or not enriched_df.equals(dec_only_df):
-                            enriched_file = file_path.replace(".csv", "_enriched.csv")
-                            with open(enriched_file, "w", encoding="utf-8") as f:
-                                f.write(enriched_df.write_csv(separator=";"))
-                        else:
-                            log += f"[pipeline] {os.path.basename(file_path)}: _enriched identiek aan _decoded, overgeslagen.\n"
+                        log += f"[pipeline] {filename}: _enriched identiek aan _decoded, overgeslagen.\n"
 
-                decoded_count += 1
+            decoded_count += 1
     if do_decode or do_enrich:
         log += f"[pipeline] {decoded_count} bestand(en) gedecodeerd.\n"
     if progress_callback:
@@ -185,15 +183,18 @@ def run_turbo_convert_pipeline(
         progress_callback(100)
     # Collect output files
     output_files = []
-    if os.path.isdir(output_dir):
-        for file in os.listdir(output_dir):
-            file_path = os.path.join(output_dir, file)
-            if os.path.isfile(file_path):
-                output_files.append(
-                    {
-                        "name": file,
-                        "size": os.path.getsize(file_path),
-                        "size_formatted": f"{os.path.getsize(file_path) / 1024:.1f} KB",
-                    }
-                )
+    all_output = storage.list_files(f"{output_dir}/*")
+    for filepath in all_output:
+        filename = filepath.rsplit("/", 1)[-1] if "/" in filepath else filepath
+        try:
+            size = len(storage.read_bytes(filepath))
+        except Exception:
+            size = 0
+        output_files.append(
+            {
+                "name": filename,
+                "size": size,
+                "size_formatted": f"{size / 1024:.1f} KB",
+            }
+        )
     return log, output_files

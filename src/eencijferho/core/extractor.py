@@ -21,7 +21,6 @@ Public API:
         Writes a consolidated variable_metadata.json from all input text files.
 """
 
-import glob
 import os
 import json
 import re
@@ -33,6 +32,7 @@ from rich.console import Console
 from typing import Any
 
 from .parse_metadata import parse_metadata_file
+from eencijferho.io.decorators import with_storage
 
 _console = Console()
 
@@ -116,11 +116,11 @@ def _extract_decoding_variables(lines: list[str], start_index: int) -> list[str]
 # ---------------------------------------------------------------------------
 
 
-def _read_txt_latin1(path: str) -> str | None:
-    """Read a text file using latin-1 encoding. Returns None on error."""
+@with_storage
+def _read_txt_latin1(storage, path: str) -> str | None:
+    """Read a text file using latin-1 encoding via storage. Returns None on error."""
     try:
-        with open(path, "r", encoding="latin-1") as fh:
-            return fh.read()
+        return storage.read_text(path, encoding="latin-1")
     except Exception as e:
         print(f"Error reading {path}: {e}")
         return None
@@ -181,17 +181,14 @@ def _parse_tables(lines: list[str]) -> list[dict]:
     return all_tables
 
 
+@with_storage
 def _save_tables_json(
-    all_tables: list[dict], txt_file: str, json_output_folder: str
+    storage, all_tables: list[dict], txt_file: str, json_output_folder: str
 ) -> str:
-    """Write all_tables to a JSON file named after txt_file. Returns the path."""
+    """Write all_tables to a JSON file named after txt_file via storage. Returns the path."""
     base_filename = os.path.splitext(os.path.basename(txt_file))[0]
     json_path = os.path.join(json_output_folder, f"{base_filename}.json")
-    with open(json_path, "w", encoding="utf-8") as fh:
-        json.dump(
-            {"filename": base_filename, "tables": all_tables},
-            fh, indent=2, ensure_ascii=False,
-        )
+    storage.write_json({"filename": base_filename, "tables": all_tables}, json_path)
     return json_path
 
 
@@ -213,7 +210,6 @@ def extract_tables_from_txt(txt_file: str, json_output_folder: str) -> str | Non
     Example:
         >>> extract_tables_from_txt('Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.txt', 'data/00-metadata/json')
     """
-    os.makedirs(json_output_folder, exist_ok=True)
     text = _read_txt_latin1(txt_file)
     if text is None:
         return None
@@ -223,7 +219,9 @@ def extract_tables_from_txt(txt_file: str, json_output_folder: str) -> str | Non
     return _save_tables_json(all_tables, txt_file, json_output_folder)
 
 
+@with_storage
 def process_txt_folder(
+    storage,
     input_folder: str, json_output_folder: str = "data/00-metadata/json"
 ) -> list[str]:
     """
@@ -244,16 +242,12 @@ def process_txt_folder(
     Example:
         >>> process_txt_folder('data/01-input')
     """
-    os.makedirs(json_output_folder, exist_ok=True)
-
     # Remove any existing json files
-    for file in os.listdir(json_output_folder):
-        if file.endswith(".json"):
-            os.remove(os.path.join(json_output_folder, file))
+    for f in storage.list_files(f"{json_output_folder}/*.json"):
+        storage.delete(f)
 
     # Setup logging — log folder is a sibling of json_output_folder
     log_folder = os.path.join(os.path.dirname(json_output_folder), "logs")
-    os.makedirs(log_folder, exist_ok=True)
 
     # Create both timestamped and latest logs
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -275,43 +269,30 @@ def process_txt_folder(
     filter_keyword = "Bestandsbeschrijving"
     extracted_files = []
 
-    # Only process files in the root directory, not subdirectories
-    if os.path.exists(input_folder):
-        for file in os.listdir(input_folder):
-            file_path = os.path.join(input_folder, file)
-            # Process Bestandsbeschrijving .txt files
-            if (
-                os.path.isfile(file_path)
-                and file.endswith(".txt")
-                and filter_keyword in file
-            ):
-                file_log = {"file": file, "status": "processing", "output": None}
-                json_path = extract_tables_from_txt(file_path, json_output_folder)
-                file_log["status"] = "success" if json_path else "no_tables_found"
-                if json_path:
-                    extracted_files.append(json_path)
-                    file_log["output"] = os.path.basename(json_path)
-                log_data["processed_files"].append(file_log)
-            # Also process all .asc files (DEC files)
-            elif os.path.isfile(file_path) and file.endswith(".asc"):
-                file_log = {"file": file, "status": "processing", "output": None}
-                json_path = extract_tables_from_txt(file_path, json_output_folder)
-                file_log["status"] = "success" if json_path else "no_tables_found"
-                if json_path:
-                    extracted_files.append(json_path)
-                    file_log["output"] = os.path.basename(json_path)
-                log_data["processed_files"].append(file_log)
+    # Get all files from input folder and filter
+    all_files = storage.list_files(f"{input_folder}/*")
+    for filepath in all_files:
+        filename = filepath.rsplit("/", 1)[-1] if "/" in filepath else filepath
+        file_is_txt = filename.endswith(".txt") and filter_keyword in filename
+        file_is_asc = filename.endswith(".asc")
+
+        if file_is_txt or file_is_asc:
+            file_log = {"file": filename, "status": "processing", "output": None}
+            json_path = extract_tables_from_txt(filepath, json_output_folder)
+            file_log["status"] = "success" if json_path else "no_tables_found"
+            if json_path:
+                extracted_files.append(json_path)
+                file_log["output"] = os.path.basename(json_path)
+            log_data["processed_files"].append(file_log)
 
     # Update final log status
     log_data["status"] = "completed"
     log_data["total_files_processed"] = len(log_data["processed_files"])
     log_data["total_files_extracted"] = len(extracted_files)
 
-    # Save log file to both locations
-    with open(timestamped_log_file, "w", encoding="utf-8") as f:
-        json.dump(log_data, f, indent=2)
-    with open(latest_log_file, "w", encoding="utf-8") as f:
-        json.dump(log_data, f, indent=2)
+    # Save log files via storage
+    storage.write_json(log_data, timestamped_log_file)
+    storage.write_json(log_data, latest_log_file)
 
     # Print summary to console
     _console.print(f"[green]Processed {log_data['total_files_processed']} text files")
@@ -325,12 +306,10 @@ def process_txt_folder(
     # --- PATCH: Merge Dec_vakcode table from Vakkenbestanden JSON into Dec-bestanden JSON ---
     vakken_json = next((f for f in extracted_files if "Vakkenbestanden" in f), None)
     dec_json = next((f for f in extracted_files if "Dec-bestanden" in f), None)
-    if vakken_json and dec_json and os.path.exists(vakken_json) and os.path.exists(dec_json):
+    if vakken_json and dec_json and storage.exists(vakken_json) and storage.exists(dec_json):
         try:
-            with open(vakken_json, "r", encoding="utf-8") as f_vak:
-                vak_data = json.load(f_vak)
-            with open(dec_json, "r", encoding="utf-8") as f_dec:
-                dec_data = json.load(f_dec)
+            vak_data = storage.read_json(vakken_json)
+            dec_data = storage.read_json(dec_json)
             # Find Dec_vakcode table in vak_data
             vakcode_tables = [
                 t
@@ -358,8 +337,7 @@ def process_txt_folder(
                         dec_data["tables"].append(t)
                         existing_titles.append(t["table_title"].lower())
                 # Save back
-                with open(dec_json, "w", encoding="utf-8") as f_dec:
-                    json.dump(dec_data, f_dec, indent=2, ensure_ascii=False)
+                storage.write_json(dec_data, dec_json)
                 _console.print(
                     f"[cyan]Patched: Added Dec_vakcode table(s) from Vakkenbestanden JSON to Dec-bestanden JSON with correct title and table_number."
                 )
@@ -371,7 +349,9 @@ def process_txt_folder(
     return extracted_files
 
 
+@with_storage
 def write_variable_metadata(
+    storage,
     input_dir: str = "data/01-input",
     json_folder: str = "data/00-metadata/json",
     output_filename: str = "variable_metadata.json",
@@ -394,13 +374,16 @@ def write_variable_metadata(
     Example:
         >>> write_variable_metadata()
     """
-    os.makedirs(json_folder, exist_ok=True)
     output_path = os.path.join(json_folder, output_filename)
 
+    try:
+        from .parse_metadata import parse_metadata_file
+    except ImportError:
+        _console.print(f"[red]Error importing canonical parser for variable metadata")
+        return
+
     # Recursively find all Bestandsbeschrijving*.txt files in input_dir
-    # Handles .../DEMO/ as well as any deeper future organization
-    file_glob = os.path.join(input_dir, "**", "Bestandsbeschrijving*.txt")
-    txt_files = glob.glob(file_glob, recursive=True)
+    txt_files = storage.list_files(f"{input_dir}/**/Bestandsbeschrijving*.txt")
     if not txt_files:
         _console.print(
             f"[yellow]No Bestandsbeschrijving*.txt files found in {input_dir}"
@@ -421,8 +404,7 @@ def write_variable_metadata(
             _console.print(f"[red]Parser failed for {txt_file}: {e}")
 
     if all_vars:
-        with open(output_path, "w", encoding="utf-8") as out_f:
-            json.dump(all_vars, out_f, ensure_ascii=False, indent=2)
+        storage.write_json(all_vars, output_path)
         _console.print(
             f"[blue]Consolidated {len(all_vars)} variables from {len(txt_files)} files into {output_path}"
         )
@@ -553,31 +535,50 @@ def _write_table_excel(
     rows: list[list[Any]],
     decoding_variables: list[str],
     output_path: str,
+    storage=None,
 ) -> int:
     """Write rows (and optional decoding variables) to an Excel file.
 
+    When *storage* is provided the file is written via the storage backend
+    (BytesIO buffer), otherwise it falls back to direct disk I/O.
+
     Returns the number of data rows written. Raises on write failure.
     """
+    from io import BytesIO
+
     main_rows = [row for row in rows if isinstance(row[0], int)]
     columns = rows[0]
     df_main = pl.DataFrame(
         {col: [row[i] for row in main_rows] for i, col in enumerate(columns)}
     )
 
-    if decoding_variables:
-        df_dec = pl.DataFrame({"DecodingVariables": decoding_variables})
-        workbook = xlsxwriter.Workbook(output_path)
-        df_main.write_excel(workbook, worksheet="Table")
-        df_dec.write_excel(workbook, worksheet="DecodingVariables")
-        workbook.close()
+    if storage is not None:
+        buf = BytesIO()
+        if decoding_variables:
+            df_dec = pl.DataFrame({"DecodingVariables": decoding_variables})
+            workbook = xlsxwriter.Workbook(buf)
+            df_main.write_excel(workbook, worksheet="Table")
+            df_dec.write_excel(workbook, worksheet="DecodingVariables")
+            workbook.close()
+        else:
+            df_main.write_excel(buf)
+        storage.write_bytes(buf.getvalue(), output_path)
     else:
-        df_main.write_excel(output_path)
+        if decoding_variables:
+            df_dec = pl.DataFrame({"DecodingVariables": decoding_variables})
+            workbook = xlsxwriter.Workbook(output_path)
+            df_main.write_excel(workbook, worksheet="Table")
+            df_dec.write_excel(workbook, worksheet="DecodingVariables")
+            workbook.close()
+        else:
+            df_main.write_excel(output_path)
 
     return len(df_main)
 
 
+@with_storage
 def extract_excel_from_json(
-    json_file: str, excel_output_folder: str
+    storage, json_file: str, excel_output_folder: str
 ) -> tuple[list[dict[str, Any]], int, int]:
     """
     Extracts tables from a JSON file and saves them as Excel files.
@@ -605,8 +606,7 @@ def extract_excel_from_json(
     results: list[dict[str, Any]] = []
 
     try:
-        with open(json_file, "r", encoding="utf-8") as fh:
-            data = json.load(fh)
+        data = storage.read_json(json_file)
     except json.JSONDecodeError as e:
         _console.print(f"[red]Error decoding JSON: {e}")
         return [], 0, 0
@@ -688,7 +688,7 @@ def extract_excel_from_json(
                 )
 
             try:
-                df_row_count = _write_table_excel(rows, decoding_variables, output_path)
+                df_row_count = _write_table_excel(rows, decoding_variables, output_path, storage=storage)
                 if df_row_count != valid_content_lines:
                     _console.print(
                         f"[yellow]Warning: Row count mismatch for table {table_title}."
@@ -828,7 +828,9 @@ def list_fwf_tables(txt_file: str) -> list[str]:
     return [t.get("table_title", f"untitled_table_{i}") for i, t in enumerate(tables)]
 
 
+@with_storage
 def process_json_folder(
+    storage,
     json_input_folder: str = "data/00-metadata/json",
     excel_output_folder: str = "data/00-metadata",
 ) -> None:
@@ -852,13 +854,11 @@ def process_json_folder(
     os.makedirs(excel_output_folder, exist_ok=True)
 
     # Remove any existing Excel files
-    for file in os.listdir(excel_output_folder):
-        if file.endswith(".xlsx"):
-            os.remove(os.path.join(excel_output_folder, file))
+    for f in storage.list_files(f"{excel_output_folder}/*.xlsx"):
+        storage.delete(f)
 
     # Setup logging — log folder is a subdirectory of excel_output_folder (the metadata dir)
     log_folder = os.path.join(excel_output_folder, "logs")
-    os.makedirs(log_folder, exist_ok=True)
 
     # Create both a timestamped log and a latest log
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -875,26 +875,21 @@ def process_json_folder(
         "processed_files": [],
         "total_files_processed": 0,
         "total_files_extracted": 0,
-        "row_count_mismatches": 0,  # Track files with row count mismatches
+        "row_count_mismatches": 0,
     }
 
     # Find all JSON files in the folder, but ignore the generated variable metadata
     json_files = [
-        os.path.join(root, file)
-        for root, _, files in os.walk(json_input_folder)
-        for file in files
-        if file.endswith(".json") and file != "variable_metadata.json"
+        f for f in storage.list_files(f"{json_input_folder}/**/*.json")
+        if not f.endswith("variable_metadata.json")
     ]
 
     total_json_files = len(json_files)
     if total_json_files == 0:
         log_data["status"] = "completed"
         log_data["message"] = "No JSON files found"
-        # Save to both log files
-        with open(timestamped_log_file, "w", encoding="utf-8") as f:
-            json.dump(log_data, f, indent=2)
-        with open(latest_log_file, "w", encoding="utf-8") as f:
-            json.dump(log_data, f, indent=2)
+        storage.write_json(log_data, timestamped_log_file)
+        storage.write_json(log_data, latest_log_file)
         return None
 
     # Process each JSON file
@@ -903,7 +898,7 @@ def process_json_folder(
     total_row_mismatches = 0
 
     for json_file in json_files:
-        file_name = os.path.basename(json_file)
+        file_name = json_file.rsplit("/", 1)[-1] if "/" in json_file else json_file
 
         # Log file processing
         file_log = {"file": file_name, "status": "processing", "tables": []}
@@ -942,11 +937,9 @@ def process_json_folder(
     log_data["total_files_extracted"] = processed_json_files
     log_data["row_count_mismatches"] = total_row_mismatches
 
-    # Save log file to both locations
-    with open(timestamped_log_file, "w", encoding="utf-8") as f:
-        json.dump(log_data, f, indent=2)
-    with open(latest_log_file, "w", encoding="utf-8") as f:
-        json.dump(log_data, f, indent=2)
+    # Save log files via storage
+    storage.write_json(log_data, timestamped_log_file)
+    storage.write_json(log_data, latest_log_file)
 
     # Print summary to console
     _console.print(f"[green]Processed {total_json_files} JSON files")

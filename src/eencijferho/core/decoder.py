@@ -6,7 +6,9 @@ import re as _re
 import polars as pl
 
 from eencijferho.utils.converter_headers import clean_header_name, normalize_name, strip_accents
-from typing import Any, Callable, Optional
+from eencijferho.io.decorators import with_storage
+from collections.abc import Callable
+from typing import Any
 
 
 # ---------------------------------------------------------------------------
@@ -14,9 +16,11 @@ from typing import Any, Callable, Optional
 # ---------------------------------------------------------------------------
 
 
+@with_storage
 def load_variable_mappings(
-    variable_metadata_path: Optional[str] = None,
-    naming_func: Optional[Callable[[str], str]] = None,
+    storage,
+    variable_metadata_path: str | None = None,
+    naming_func: Callable[[str], str] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """
     Loads variable-level value mappings from a variable metadata JSON file.
@@ -36,19 +40,12 @@ def load_variable_mappings(
     candidates.append(
         os.path.join(os.getcwd(), "data", "00-metadata", "json", "variable_metadata.json")
     )
-    path = next((p for p in candidates if os.path.exists(p)), None)
+    path = next((p for p in candidates if storage.exists(p)), None)
     if path is None:
         return {}
 
     try:
-        from eencijferho.utils.sanitize_variable_metadata import sanitize_variable_metadata_json
-        sanitize_variable_metadata_json(path)
-    except Exception as e:
-        print(f"[decoder] Waarschuwing: kon variable metadata niet opschonen {path}: {e}")
-
-    try:
-        with open(path, encoding="utf-8") as f:
-            items = json.load(f)
+        items = storage.read_json(path)
     except Exception as e:
         print(f"[decoder] Waarschuwing: kon variable metadata niet laden {path}: {e}")
         return {}
@@ -87,10 +84,12 @@ def load_variable_mappings(
     return maps
 
 
+@with_storage
 def load_dec_tables_from_metadata(
+    storage,
     metadata_json_path: str,
     dec_output_dir: str,
-    naming_func: Optional[Callable[[str], str]] = None,
+    naming_func: Callable[[str], str] | None = None,
 ) -> dict[str, pl.DataFrame]:
     """
     Loads Dec_* tables as Polars DataFrames based on metadata JSON.
@@ -109,8 +108,7 @@ def load_dec_tables_from_metadata(
         ...     "data/02-output/DEMO",
         ... )
     """
-    with open(metadata_json_path, encoding="utf-8") as f:
-        meta = json.load(f)
+    meta = storage.read_json(metadata_json_path)
 
     dec_tables: dict[str, pl.DataFrame] = {}
     for table in meta["tables"]:
@@ -127,28 +125,13 @@ def load_dec_tables_from_metadata(
                 schema_overrides[code_col2] = pl.String
 
         try:
-            if schema_overrides:
-                df = pl.read_csv(
-                    dec_path,
-                    separator=";",
-                    encoding="utf8",
-                    schema_overrides=schema_overrides,
-                )
-            else:
-                df = pl.read_csv(dec_path, separator=";", encoding="utf8")
+            df = storage.read_dataframe(dec_path, schema_overrides=schema_overrides)
             dec_tables[table["table_title"]] = df
         except Exception:
             try:
-                if schema_overrides:
-                    df = pl.read_csv(
-                        dec_path,
-                        separator=";",
-                        encoding="utf8",
-                        quote_char=None,
-                        schema_overrides=schema_overrides,
-                    )
-                else:
-                    df = pl.read_csv(dec_path, separator=";", encoding="utf8", quote_char=None)
+                df = storage.read_dataframe(
+                    dec_path, schema_overrides=schema_overrides, quote_char=None,
+                )
                 dec_tables[table["table_title"]] = df
             except Exception as e:
                 print(f"[decoder] Kon {dec_file} niet laden: {e}")
@@ -161,14 +144,14 @@ def load_dec_tables_from_metadata(
 # ---------------------------------------------------------------------------
 
 
-def _load_meta(metadata_json_path: str) -> dict:
-    with open(metadata_json_path, encoding="utf-8") as f:
-        return json.load(f)
+@with_storage
+def _load_meta(storage, metadata_json_path: str) -> dict:
+    return storage.read_json(metadata_json_path)
 
 
 def _normalize_df(
     df: pl.DataFrame,
-    naming_func: Optional[Callable] = None,
+    naming_func: Callable | None = None,
 ) -> tuple[pl.DataFrame, dict[str, str], list[str]]:
     """Normalize column names and cast all values to stripped strings.
 
@@ -191,7 +174,7 @@ def _normalize_df(
 def _normalize_dec_table(
     dec_table: pl.DataFrame,
     code_col_norm: str,
-    naming_func: Optional[Callable] = None,
+    naming_func: Callable | None = None,
 ) -> pl.DataFrame:
     """Normalize Dec table column names and strip leading zeros from the code column."""
 
@@ -217,8 +200,8 @@ def _apply_single_dec_join(
     var_norm: str,
     code_col_norm: str,
     is_composite: bool,
-    code_col2_norm: Optional[str],
-    naming_func: Optional[Callable] = None,
+    code_col2_norm: str | None,
+    naming_func: Callable | None = None,
 ) -> pl.DataFrame:
     """Apply one Dec table join (simple or composite key) to result_df."""
 
@@ -270,8 +253,8 @@ def _apply_dec_tables(
     result_df: pl.DataFrame,
     meta: dict,
     dec_tables: dict[str, pl.DataFrame],
-    naming_func: Optional[Callable] = None,
-    decode_columns: Optional[list[str]] = None,
+    naming_func: Callable | None = None,
+    decode_columns: list[str] | None = None,
 ) -> pl.DataFrame:
     """Apply all Dec table joins defined in metadata to result_df.
 
@@ -284,7 +267,7 @@ def _apply_dec_tables(
     """
 
 
-    allowed: Optional[set[str]] = None
+    allowed: set[str] | None = None
     if decode_columns is not None:
         allowed = {normalize_name(strip_accents(c), naming_func) for c in decode_columns}
 
@@ -365,7 +348,7 @@ def _apply_vakken_patch(
     result_df: pl.DataFrame,
     meta: dict,
     dec_tables: dict[str, pl.DataFrame],
-    naming_func: Optional[Callable] = None,
+    naming_func: Callable | None = None,
 ) -> pl.DataFrame:
     """Apply Vakkenbestanden decoding via 'te decoderen met Dec_X' in Opmerking column."""
     for table in meta["tables"]:
@@ -428,7 +411,7 @@ def _apply_vakken_patch(
     return result_df
 
 
-def _parse_vakken_opmerking(opm: str) -> tuple[Optional[str], Optional[str]]:
+def _parse_vakken_opmerking(opm: str) -> tuple[str | None, str | None]:
     """Parse an Opmerking value for decode instructions.
 
     Returns (composite_col, dec_table_title) or (None, None) if no instruction found.
@@ -495,7 +478,7 @@ def _apply_vakken_composite(
     dec_code_col_norm: str,
     dec_content: list,
     dec_table_title: str,
-    naming_func: Optional[Callable] = None,
+    naming_func: Callable | None = None,
 ) -> pl.DataFrame:
     """Apply a composite-key Vakkenbestanden join."""
     composite_norm = normalize_name(composite, naming_func)
@@ -550,11 +533,11 @@ def _apply_vakken_composite(
 
 def _apply_variable_mappings(
     result_df: pl.DataFrame,
-    variable_metadata_path: Optional[str],
-    naming_func: Optional[Callable],
+    variable_metadata_path: str | None,
+    naming_func: Callable | None,
     norm_map: dict[str, str],
     orig_columns: list[str],
-    enrich_variables: Optional[list[str]] = None,
+    enrich_variables: list[str] | None = None,
 ) -> pl.DataFrame:
     """Apply variable-level code→label mappings from variable_metadata.json.
 
@@ -565,7 +548,7 @@ def _apply_variable_mappings(
         enrich_variables: When not None, only apply mappings for variables
             whose name appears in this list (matched after normalization).
     """
-    allowed_enrich: Optional[set[str]] = None
+    allowed_enrich: set[str] | None = None
     if enrich_variables is not None:
         allowed_enrich = {normalize_name(v, naming_func) for v in enrich_variables}
 
@@ -594,12 +577,12 @@ def _apply_variable_mappings(
 
 def _resolve_mapping_column(
     var_norm: str,
-    orig_name: Optional[str],
+    orig_name: str | None,
     result_df: pl.DataFrame,
     norm_map: dict[str, str],
     orig_columns: list[str],
-    naming_func: Optional[Callable],
-) -> Optional[str]:
+    naming_func: Callable | None,
+) -> str | None:
     """Find the best matching column in result_df for a variable mapping."""
     if var_norm in result_df.columns:
         return var_norm
@@ -630,7 +613,7 @@ def _apply_single_mapping(
     chosen_col: str,
     mapping: dict,
     var_norm: str,
-    orig_name: Optional[str],
+    orig_name: str | None,
 ) -> pl.DataFrame:
     """Replace values in chosen_col using code→label mapping."""
     try:
@@ -705,8 +688,8 @@ def decode_fields_dec_only(
     df: pl.DataFrame,
     metadata_json_path: str,
     dec_tables: dict[str, pl.DataFrame],
-    naming_func: Optional[Callable[[str], str]] = None,
-    decode_columns: Optional[list[str]] = None,
+    naming_func: Callable[[str], str] | None = None,
+    decode_columns: list[str] | None = None,
 ) -> pl.DataFrame:
     """
     Decode fields using only Dec_* lookup tables (no variable_metadata enrichment).
@@ -737,10 +720,10 @@ def decode_fields(
     df: pl.DataFrame,
     metadata_json_path: str,
     dec_tables: dict[str, pl.DataFrame],
-    naming_func: Optional[Callable[[str], str]] = None,
-    variable_metadata_path: Optional[str] = None,
-    decode_columns: Optional[list[str]] = None,
-    enrich_variables: Optional[list[str]] = None,
+    naming_func: Callable[[str], str] | None = None,
+    variable_metadata_path: str | None = None,
+    decode_columns: list[str] | None = None,
+    enrich_variables: list[str] | None = None,
 ) -> pl.DataFrame:
     """
     Decode fields using Dec_* tables, then apply variable_metadata label substitution.

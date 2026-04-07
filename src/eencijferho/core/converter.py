@@ -15,13 +15,12 @@ Public API:
 import sys
 import os
 import multiprocessing as mp
-import json
-import polars as pl
 import datetime
 from typing import Any
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 from eencijferho.config import INPUT_DIR, OUTPUT_DIR, DECODER_INPUT_DIR
+from eencijferho.io.decorators import with_storage
 
 _console = Console()
 
@@ -68,49 +67,44 @@ def _resolve_output_path(input_file: str, output_dir: str) -> str:
     return os.path.join(output_dir, f"{base_name}.csv")
 
 
-def _load_metadata(metadata_file: str) -> tuple[list[str], list[tuple[int, int]]]:
+@with_storage
+def _load_metadata(storage, metadata_file: str) -> tuple[list[str], list[tuple[int, int]]]:
     """Load column names and field (start, end) positions from an Excel metadata file."""
-    df = pl.read_excel(metadata_file)
+    df = storage.read_dataframe(metadata_file, format="excel")
     widths = [int(w) for w in df["Aantal posities"].to_list()]
     column_names = df["Naam"].to_list()
     positions = [(sum(widths[:i]), sum(widths[:i + 1])) for i in range(len(widths))]
     return column_names, positions
 
 
-def _read_lines(input_file: str) -> list[str]:
+@with_storage
+def _read_lines(storage, input_file: str) -> list[str]:
     """Read all lines from a latin-1 encoded fixed-width file."""
-    with open(input_file, 'r', encoding='latin1') as f:
-        return f.readlines()
+    text = storage.read_text(input_file, encoding='latin1')
+    return text.splitlines(keepends=True)
 
 
-def _write_header(output_file: str, column_names: list[str]) -> None:
-    """Write the semicolon-delimited header row, creating or overwriting output_file."""
-    with open(output_file, 'w', encoding='utf-8', newline='') as f:
-        f.write(';'.join(column_names) + '\n')
-
-
-def _run_parallel(all_lines: list[str], positions: list[tuple[int, int]], output_file: str) -> None:
-    """Convert all_lines using a multiprocessing pool, appending results to output_file."""
+def _run_parallel(all_lines: list[str], positions: list[tuple[int, int]]) -> list[str]:
+    """Convert all_lines using a multiprocessing pool. Returns all CSV lines."""
     num_processes = max(1, mp.cpu_count() - 1)
     chunk_size = max(1, len(all_lines) // (num_processes * 4))
     chunks = [all_lines[i:i + chunk_size] for i in range(0, len(all_lines), chunk_size)]
     chunk_data = [(positions, chunk) for chunk in chunks]
+    output_lines = []
     with mp.Pool(processes=num_processes) as pool:
-        with open(output_file, 'a', encoding='utf-8', newline='') as f_out:
-            for result in pool.imap_unordered(process_chunk, chunk_data):
-                if result:
-                    f_out.write('\n'.join(result) + '\n')
+        for result in pool.imap_unordered(process_chunk, chunk_data):
+            if result:
+                output_lines.extend(result)
+    return output_lines
 
 
-def _run_serial(all_lines: list[str], positions: list[tuple[int, int]], output_file: str) -> None:
-    """Convert all_lines serially (used in child processes), appending results to output_file."""
-    result = process_chunk((positions, all_lines))
-    with open(output_file, 'a', encoding='utf-8', newline='') as f_out:
-        if result:
-            f_out.write('\n'.join(result) + '\n')
+def _run_serial(all_lines: list[str], positions: list[tuple[int, int]]) -> list[str]:
+    """Convert all_lines serially (used in child processes). Returns all CSV lines."""
+    return process_chunk((positions, all_lines))
 
 
-def converter(input_file: str, metadata_file: str, output_dir: str | None = None) -> tuple[str, int]:
+@with_storage
+def converter(storage, input_file: str, metadata_file: str, output_dir: str | None = None) -> tuple[str, int]:
     """
     Converts a fixed-width ASCII file to CSV using metadata for field positions.
 
@@ -124,7 +118,6 @@ def converter(input_file: str, metadata_file: str, output_dir: str | None = None
 
     Edge Cases:
         - Uses multiprocessing in the main process; falls back to serial in child processes.
-        - Creates output directory if missing.
         - Input read as latin-1; output written as utf-8.
         - Skips empty lines.
 
@@ -134,18 +127,20 @@ def converter(input_file: str, metadata_file: str, output_dir: str | None = None
     if output_dir is None:
         output_dir = OUTPUT_DIR
     output_file = _resolve_output_path(input_file, output_dir)
-    os.makedirs(os.path.dirname(output_file) or '.', exist_ok=True)
 
     column_names, positions = _load_metadata(metadata_file)
-    _write_header(output_file, column_names)
-
     all_lines = _read_lines(input_file)
     total_lines = len(all_lines)
 
     if mp.current_process().name == 'MainProcess':
-        _run_parallel(all_lines, positions, output_file)
+        csv_lines = _run_parallel(all_lines, positions)
     else:
-        _run_serial(all_lines, positions, output_file)
+        csv_lines = _run_serial(all_lines, positions)
+
+    # Build full CSV content: header + data lines
+    header = ';'.join(column_names)
+    content = header + '\n' + '\n'.join(csv_lines) + '\n' if csv_lines else header + '\n'
+    storage.write_text(content, output_file)
 
     return output_file, total_lines
 
@@ -155,20 +150,23 @@ def converter(input_file: str, metadata_file: str, output_dir: str | None = None
 # ---------------------------------------------------------------------------
 
 
-def _load_match_log(match_log_file: str) -> list[dict] | None:
+@with_storage
+def _load_match_log(storage, match_log_file: str) -> list[dict] | None:
     """Load processed_files from a match log JSON. Returns None on failure."""
-    if not os.path.exists(match_log_file):
+    if not storage.exists(match_log_file):
         _console.print(f"[red]Match log niet gevonden: {match_log_file}")
         return None
     try:
-        with open(match_log_file, 'r') as f:
-            return json.load(f)["processed_files"]
+        data = storage.read_json(match_log_file)
+        return data["processed_files"]
     except Exception as e:
         _console.print(f"[red]Fout bij laden match log: {e}")
         return None
 
 
+@with_storage
 def _convert_one(
+    storage,
     file_info: dict,
     input_folder: str,
     metadata_folder: str,
@@ -190,13 +188,13 @@ def _convert_one(
     input_path = os.path.join(input_folder, input_file_name)
     metadata_path = os.path.join(metadata_folder, valid_matches[0]["validation_file"])
 
-    if not os.path.exists(input_path):
+    if not storage.exists(input_path):
         _console.print(f"[red]Invoerbestand niet gevonden: {input_path}")
         result["status"] = "failed"
         result["reason"] = "Invoerbestand niet gevonden"
         return result
 
-    if not os.path.exists(metadata_path):
+    if not storage.exists(metadata_path):
         _console.print(f"[red]Metadatabestand niet gevonden: {metadata_path}")
         result["status"] = "failed"
         result["reason"] = "Metadatabestand niet gevonden"
@@ -214,7 +212,9 @@ def _convert_one(
     return result
 
 
+@with_storage
 def run_conversions_from_matches(
+    storage,
     input_folder: str,
     metadata_folder: str = "data/00-metadata",
     match_log_file: str = "data/00-metadata/logs/(4)_file_matching_log_latest.json",
@@ -247,7 +247,6 @@ def run_conversions_from_matches(
     _console.print(f"[cyan]Starting conversion based on match log: {match_log_file}")
 
     log_folder = os.path.dirname(match_log_file)
-    os.makedirs(log_folder, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     timestamped_log_file = os.path.join(log_folder, f"conversion_log_{timestamp}.json")
     latest_log_file = os.path.join(log_folder, "(5)_conversion_log_latest.json")
@@ -321,10 +320,8 @@ def run_conversions_from_matches(
 
     results["status"] = "completed"
 
-    with open(timestamped_log_file, "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=2, ensure_ascii=False)
-    with open(latest_log_file, "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=2, ensure_ascii=False)
+    storage.write_json(results, timestamped_log_file)
+    storage.write_json(results, latest_log_file)
 
     _console.print(f"[green]Omzetting voltooid")
     _console.print(f"[green]Totaal bestanden: {results['total_files']}")
@@ -340,7 +337,9 @@ def run_conversions_from_matches(
     return results
 
 
+@with_storage
 def convert_dec_files(
+    storage,
     input_folder: str,
     metadata_folder: str = "data/00-metadata",
     output_folder: str | None = None,
@@ -360,21 +359,26 @@ def convert_dec_files(
     Example:
         >>> convert_dec_files('data/01-input')
     """
-    dec_files = [f for f in os.listdir(input_folder) if f.startswith("Dec_") and f.endswith(".asc")]
-    for dec_file in dec_files:
+    all_input = storage.list_files(f"{input_folder}/*")
+    dec_files = [
+        f for f in all_input
+        if os.path.basename(f).startswith("Dec_") and f.endswith(".asc")
+    ]
+    all_meta = storage.list_files(f"{metadata_folder}/*")
+    for dec_filepath in dec_files:
+        dec_file = os.path.basename(dec_filepath)
         base = os.path.splitext(dec_file)[0]
         meta_candidates = [
-            m for m in os.listdir(metadata_folder)
-            if m.lower().startswith(f"bestandsbeschrijving_{base.lower()}")
+            m for m in all_meta
+            if os.path.basename(m).lower().startswith(f"bestandsbeschrijving_{base.lower()}")
             and (m.endswith(".xlsx") or m.endswith(".txt"))
         ]
         if not meta_candidates:
             print(f"[converter] Waarschuwing: geen metadata gevonden voor {dec_file}, overgeslagen.")
             continue
-        meta_file = os.path.join(metadata_folder, meta_candidates[0])
-        input_path = os.path.join(input_folder, dec_file)
+        meta_file = meta_candidates[0]
         try:
-            converter(input_path, meta_file, output_folder)
+            converter(dec_filepath, meta_file, output_folder)
             print(f"[converter] Omgezet: {dec_file}")
         except Exception as e:
             print(f"[converter] Waarschuwing: kon {dec_file} niet omzetten: {e}")
