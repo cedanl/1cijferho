@@ -127,6 +127,100 @@ def write_run_config(output_dir: str, output_cfg: OutputConfig, opt_decode_colum
         json.dump(run_config, f, indent=2, ensure_ascii=False)
     return config_path
 
+# -----------------------------------------------------------------------------
+# Kolomselectie dialog
+# -----------------------------------------------------------------------------
+@st.dialog("Kolomselectie", width="large")
+def configure_columns_dialog(available_decode, available_enrich, decode_info, enrich_info, show_decode, show_enrich):
+    if not show_decode and not show_enrich:
+        st.info("Kolomselectie is niet actief. Schakel 'Gedecodeerde variant' in om kolommen te selecteren.")
+        return
+
+    # Restore widget keys from stable dicts if Streamlit cleared them on dialog close
+    _d = st.session_state.get("_selected_decode", {})
+    for col in available_decode:
+        if f"decode_col_{col}" not in st.session_state and col in _d:
+            st.session_state[f"decode_col_{col}"] = _d[col]
+    _e = st.session_state.get("_selected_enrich", {})
+    for var in available_enrich:
+        if f"enrich_var_{var}" not in st.session_state and var in _e:
+            st.session_state[f"enrich_var_{var}"] = _e[var]
+
+    if show_decode:
+        n_selected = sum(1 for col in available_decode if st.session_state.get(f"decode_col_{col}", True))
+        st.subheader(f"Decoderen — {n_selected} van {len(available_decode)} geselecteerd")
+        st.caption(
+            "Per geselecteerde kolom wordt een extra omschrijvingskolom toegevoegd vanuit de Dec_\\*-bestanden. "
+            "Bijv. `landcode` → `landcode_oms`."
+        )
+        if not available_decode:
+            st.warning("Dec-metadata niet beschikbaar. Voer eerst de extractiestap uit.")
+        else:
+            has_corrupt = any("\ufffd" in col or "ï¿½" in col for col in available_decode)
+            if has_corrupt:
+                st.warning("⚠️ Kolomnamen bevatten onleesbare tekens. Voer de extractiestap opnieuw uit.")
+            btn1, btn2, _ = st.columns([1, 1, 5])
+            with btn1:
+                if st.button("Alles aan", key="decode_select_all"):
+                    for col in available_decode:
+                        st.session_state[f"decode_col_{col}"] = True
+            with btn2:
+                if st.button("Alles uit", key="decode_deselect_all"):
+                    for col in available_decode:
+                        st.session_state[f"decode_col_{col}"] = False
+            st.write("")
+            mid = (len(available_decode) + 1) // 2
+            col_a, col_b = st.columns(2)
+            for i, col in enumerate(available_decode):
+                labels = decode_info.get(col, [])
+                col_help = "Toegevoegde kolommen:\n" + "\n".join(labels) if labels else None
+                target_col = col_a if i < mid else col_b
+                with target_col:
+                    st.checkbox(col, value=True, key=f"decode_col_{col}", help=col_help)
+
+    if show_enrich:
+        st.divider()
+        n_selected_e = sum(1 for var in available_enrich if st.session_state.get(f"enrich_var_{var}", True))
+        st.subheader(f"Verrijken — {n_selected_e} van {len(available_enrich)} geselecteerd")
+        st.caption(
+            "Per geselecteerde variabele worden codes vervangen door leesbare labels. "
+            "Bijv. `M` → `man`."
+        )
+        if not available_enrich:
+            st.warning("Variabele-metadata niet beschikbaar. Voer eerst de extractiestap uit.")
+        else:
+            btn3, btn4, _ = st.columns([1, 1, 5])
+            with btn3:
+                if st.button("Alles aan", key="enrich_select_all"):
+                    for var in available_enrich:
+                        st.session_state[f"enrich_var_{var}"] = True
+            with btn4:
+                if st.button("Alles uit", key="enrich_deselect_all"):
+                    for var in available_enrich:
+                        st.session_state[f"enrich_var_{var}"] = False
+            st.write("")
+            mid_e = (len(available_enrich) + 1) // 2
+            col_c, col_d = st.columns(2)
+            for i, var in enumerate(available_enrich):
+                sample = enrich_info.get(var, {})
+                var_help = "\n".join(f"{k} → {v}" for k, v in sample.items()) if sample else None
+                target_col = col_c if i < mid_e else col_d
+                with target_col:
+                    st.checkbox(var, value=True, key=f"enrich_var_{var}", help=var_help)
+
+    # Sync widget state to stable dicts on every render so they survive dialog close
+    st.session_state["_selected_decode"] = {
+        col: st.session_state.get(f"decode_col_{col}", True) for col in available_decode
+    }
+    st.session_state["_selected_enrich"] = {
+        var: st.session_state.get(f"enrich_var_{var}", True) for var in available_enrich
+    }
+
+    st.divider()
+    if st.button("Klaar", type="primary", use_container_width=True, key="dialog_done"):
+        st.rerun()
+
+
 # Initialize conversion trigger
 if 'start_turbo_convert' not in st.session_state:
     st.session_state.start_turbo_convert = False
@@ -253,17 +347,20 @@ else:
         show_decode = not no_main_files and st.session_state.get("opt_decoded", True)
         show_enrich = show_decode and st.session_state.get("opt_enriched", True)
 
+        _decode_sel = st.session_state.get("_selected_decode", {})
+        _enrich_sel = st.session_state.get("_selected_enrich", {})
+
         if show_decode:
             if available_decode:
                 n_decode_selected = sum(
-                    1 for col in available_decode if st.session_state.get(f"decode_col_{col}", True)
+                    1 for col in available_decode if _decode_sel.get(col, True)
                 )
                 non_default_parts = []
                 if n_decode_selected < len(available_decode):
                     non_default_parts.append(f"{n_decode_selected}/{len(available_decode)} decode")
                 if show_enrich and available_enrich:
                     n_enrich_selected = sum(
-                        1 for var in available_enrich if st.session_state.get(f"enrich_var_{var}", True)
+                        1 for var in available_enrich if _enrich_sel.get(var, True)
                     )
                     if n_enrich_selected < len(available_enrich):
                         non_default_parts.append(f"{n_enrich_selected}/{len(available_enrich)} verrijken")
@@ -275,7 +372,7 @@ else:
                     key="configure_columns_btn",
                     help="Kies welke kolommen worden gedecodeerd en verrijkt.",
                 ):
-                    st.switch_page("frontend/Modules/Configure_Columns.py")
+                    configure_columns_dialog(available_decode, available_enrich, decode_info, enrich_info, show_decode, show_enrich)
             else:
                 st.caption("Kolomselectie beschikbaar nadat metadata is geëxtraheerd.")
 
@@ -297,18 +394,18 @@ else:
                 "snake_case", value=True, key="opt_snake_case",
                 help="Converteert kolomnamen naar snake_case (bijv. `Naam Student` → `naam_student`).")
 
-        # Compute opt_decode_columns / opt_enrich_variables from session state
+        # Compute opt_decode_columns / opt_enrich_variables from stable dicts
         if show_decode and available_decode:
-            selected_decode = [col for col in available_decode if st.session_state.get(f"decode_col_{col}", True)]
+            selected_decode = [col for col in available_decode if _decode_sel.get(col, True)]
             if len(selected_decode) < len(available_decode):
                 opt_decode_columns = selected_decode
         if show_enrich and available_enrich:
-            selected_enrich = [var for var in available_enrich if st.session_state.get(f"enrich_var_{var}", True)]
+            selected_enrich = [var for var in available_enrich if _enrich_sel.get(var, True)]
             if len(selected_enrich) < len(available_enrich):
                 opt_enrich_variables = selected_enrich
 
     # Warning about existing converted files — shown before the action button
-    if os.path.exists(get_output_dir()) and os.listdir(get_output_dir()):
+    if os.path.exists(get_output_dir()) and any(f for f in os.listdir(get_output_dir()) if not f.startswith(".")):
         st.warning("⚠️ Er zijn al eerder geconverteerde bestanden aanwezig. Een nieuwe conversie overschrijft deze.")
 
     # Side-by-side buttons with equal width
@@ -437,8 +534,8 @@ else:
                     config_path = write_run_config(
                         output_dir=output_dir,
                         output_cfg=output_cfg,
-                        opt_decode_columns=opt_decode_columns,
-                        opt_enrich_variables=opt_enrich_variables,
+                        opt_decode_columns=opt_decode_columns if opt_decode_columns is not None else available_decode,
+                        opt_enrich_variables=opt_enrich_variables if opt_enrich_variables is not None else available_enrich,
                     )
                     st.session_state.convert_console_log += f"run_config.json opgeslagen: {config_path}\n"
                     update_console()

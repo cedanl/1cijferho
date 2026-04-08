@@ -135,10 +135,6 @@ validate_output_page = st.Page(
     "frontend/Modules/Validate_Output.py", icon="🔎", title="Stap 4 · Output valideren"
 )
 tip_page = st.Page("frontend/Modules/Tip.py", icon="💡", title="Tip")
-configure_columns_page = st.Page(
-    "frontend/Modules/Configure_Columns.py", icon="⚙️", title="Kolomselectie"
-)
-
 # -----------------------------------------------------------------------------
 # Sidebar Configuration
 # -----------------------------------------------------------------------------
@@ -155,7 +151,7 @@ pg = st.navigation(
     {
         "Overview": [home_page, documentation_page],
         "Files": [data_upload_page],
-        "Modules": [extract_page, validate_page, turbo_convert_page, configure_columns_page, validate_output_page, tip_page],
+        "Modules": [extract_page, validate_page, turbo_convert_page, validate_output_page, tip_page],
     }
 )
 
