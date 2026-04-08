@@ -128,4 +128,6 @@ Dank aan alle mensen die hebben bijgedragen aan de ontwikkeling van de 1CijferHO
 [![](https://github.com/asewnandan.png?size=50)](https://github.com/asewnandan)
 [![](https://github.com/tin900.png?size=50)](https://github.com/tin900)
 [![](https://github.com/Tomeriko96.png?size=50)](https://github.com/Tomeriko96)
+[![](https://github.com/CorneeldH.png?size=50)](https://github.com/CorneeldH)
+[![](https://github.com/oinkspook.png?size=50)](https://github.com/oinkspook)
 
