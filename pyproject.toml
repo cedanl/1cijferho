@@ -7,7 +7,7 @@ cache-dir = "./.uv_cache"
 
 [project]
 name = "eencijferho"
-version = "0.1.2"
+version = "0.1.3"
 description = "Standalone backend processing toolkit for 1CijferHO"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
