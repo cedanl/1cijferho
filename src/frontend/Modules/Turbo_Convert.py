@@ -173,7 +173,7 @@ def configure_columns_dialog(available_decode, available_enrich, decode_info, en
             col_a, col_b = st.columns(2)
             for i, col in enumerate(available_decode):
                 labels = decode_info.get(col, [])
-                col_help = "Toegevoegde kolommen:\n" + "\n".join(labels) if labels else None
+                col_help = "Toegevoegde kolommen:\n\n" + "\n\n".join(labels) if labels else None
                 target_col = col_a if i < mid else col_b
                 with target_col:
                     st.checkbox(col, value=True, key=f"decode_col_{col}", help=col_help)
@@ -203,7 +203,7 @@ def configure_columns_dialog(available_decode, available_enrich, decode_info, en
             col_c, col_d = st.columns(2)
             for i, var in enumerate(available_enrich):
                 sample = enrich_info.get(var, {})
-                var_help = "\n".join(f"{k} → {v}" for k, v in sample.items()) if sample else None
+                var_help = "\n\n".join(f"{k} → {v}" for k, v in sample.items()) if sample else None
                 target_col = col_c if i < mid_e else col_d
                 with target_col:
                     st.checkbox(var, value=True, key=f"enrich_var_{var}", help=var_help)
