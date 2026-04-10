@@ -61,7 +61,7 @@ Write-Ok "uv installed: $(uv --version)"
 # ── 3. Sync project dependencies ──────────────────────────────────────────────
 Write-Step "Syncing project dependencies (uv sync)"
 
-uv sync
+uv sync --extra frontend
 if ($LASTEXITCODE -ne 0) { Write-Fail "uv sync failed" }
 Write-Ok "Dependencies synced"
 
