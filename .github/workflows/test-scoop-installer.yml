@@ -1,276 +1,86 @@
 name: Test Scoop Installer
 
-# Triggers on push to refactor-io branch
 on:
   push:
-    branches:
-      - main
-      - vm_actions
-  workflow_dispatch:  # Allow manual triggering
+    branches: [main, vm_actions]
+  workflow_dispatch:
 
 jobs:
-  test-scoop-installation:
-    name: Test Scoop + uv Installation
+  test-scoop-install:
+    name: Test Scoop Installation
     runs-on: windows-latest
     env:
       UV_PYTHON: "3.13"
+      UV_LINK_MODE: copy
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Full history for better context
 
-      - name: Display System Information
+      - name: Run installer (non-interactive)
         shell: pwsh
         run: |
-          Write-Host "=== System Information ===" -ForegroundColor Cyan
-          Write-Host "OS: $($PSVersionTable.OS)" -ForegroundColor Yellow
-          Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)" -ForegroundColor Yellow
-          Write-Host "Current Directory: $(Get-Location)" -ForegroundColor Yellow
-          Write-Host "User: $env:USERNAME" -ForegroundColor Yellow
-          Write-Host "`n=== Disk Space ===" -ForegroundColor Cyan
-          Get-PSDrive -PSProvider FileSystem | Select-Object Name, @{N="Used(GB)";E={[math]::Round($_.Used/1GB,2)}}, @{N="Free(GB)";E={[math]::Round($_.Free/1GB,2)}}
-          Write-Host ""
+          & "${{ github.workspace }}\ps\scoop-install.ps1" -NonInteractive
 
-      - name: Install Scoop
+      - name: Verify installation
         shell: pwsh
         run: |
-          Write-Host "=== Installing Scoop ===" -ForegroundColor Cyan
+          $failed = 0
 
-          # Set execution policy
-          Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
-          Write-Host "✓ Execution policy set" -ForegroundColor Green
-
-          # Install Scoop
-          try {
-            Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
-            Write-Host "✓ Scoop installed successfully" -ForegroundColor Green
-          } catch {
-            Write-Host "✗ Failed to install Scoop: $_" -ForegroundColor Red
-            exit 1
-          }
-
-          # Persist Scoop shims directory to PATH for subsequent steps
-          $scoopShims = "$env:USERPROFILE\scoop\shims"
-          Write-Host "Adding $scoopShims to GITHUB_PATH" -ForegroundColor Yellow
-          Add-Content -Path $env:GITHUB_PATH -Value $scoopShims
-
-          # Verify Scoop installation
-          $scoopVersion = scoop --version
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "✓ Scoop version: $scoopVersion" -ForegroundColor Green
-          } else {
-            Write-Host "✗ Scoop installation verification failed" -ForegroundColor Red
-            exit 1
-          }
-
-          # Display Scoop status
-          Write-Host "`n=== Scoop Configuration ===" -ForegroundColor Cyan
-          scoop config
-          Write-Host ""
-
-      - name: Configure Scoop and Add Buckets
-        shell: pwsh
-        run: |
-          Write-Host "=== Configuring Scoop ===" -ForegroundColor Cyan
-
-          # Update Scoop
-          Write-Host "Updating Scoop..." -ForegroundColor Yellow
-          scoop update
-
-          # Add main bucket (may already exist from install, so ignore errors)
-          Write-Host "`nAdding main bucket..." -ForegroundColor Yellow
-          scoop bucket add main 2>&1 | Write-Host
-
-          # List available buckets
-          Write-Host "`n=== Available Buckets ===" -ForegroundColor Cyan
-          scoop bucket list
-          Write-Host ""
-
-      - name: Install uv via Scoop
-        shell: pwsh
-        run: |
-          Write-Host "=== Installing uv via Scoop ===" -ForegroundColor Cyan
-
-          # Search for uv in Scoop
-          Write-Host "Searching for uv package..." -ForegroundColor Yellow
-          scoop search uv
-
-          # Install uv
-          Write-Host "`nInstalling uv..." -ForegroundColor Yellow
-          try {
-            scoop install uv
-            Write-Host "✓ uv installed successfully via Scoop" -ForegroundColor Green
-          } catch {
-            Write-Host "✗ Failed to install uv via Scoop: $_" -ForegroundColor Red
-            exit 1
-          }
-
-          # Verify uv installation
-          Write-Host "`n=== Verifying uv Installation ===" -ForegroundColor Cyan
-          $uvVersion = uv --version
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "✓ uv version: $uvVersion" -ForegroundColor Green
-          } else {
-            Write-Host "✗ uv installation verification failed" -ForegroundColor Red
-            exit 1
-          }
-
-          # Display uv info
-          Write-Host "`nDisplaying uv info from Scoop..." -ForegroundColor Yellow
-          scoop info uv
-          Write-Host ""
-
-      - name: Test Application Dependencies
-        shell: pwsh
-        run: |
-          Write-Host "=== Testing Application Dependencies ===" -ForegroundColor Cyan
-
-          # Sync dependencies (this creates the virtual environment)
-          Write-Host "Syncing dependencies with uv..." -ForegroundColor Yellow
-          try {
-            uv sync --extra frontend
-            Write-Host "✓ Dependencies synced successfully" -ForegroundColor Green
-          } catch {
-            Write-Host "✗ Failed to sync dependencies: $_" -ForegroundColor Red
-            exit 1
-          }
-
-          # Check if virtual environment was created
-          if (Test-Path ".venv") {
-            Write-Host "✓ Virtual environment created at .venv" -ForegroundColor Green
-          } else {
-            Write-Host "✗ Virtual environment not found" -ForegroundColor Red
-            exit 1
-          }
-
-          # Display Python version in the virtual environment
-          Write-Host "`n=== Python Environment ===" -ForegroundColor Cyan
-          $pythonVersion = uv run python --version
-          Write-Host "Python version: $pythonVersion" -ForegroundColor Yellow
-
-          # List installed packages
-          Write-Host "`n=== Installed Packages ===" -ForegroundColor Cyan
-          uv pip list
-          Write-Host ""
-
-      - name: Verify Application Structure
-        shell: pwsh
-        run: |
-          Write-Host "=== Verifying Application Structure ===" -ForegroundColor Cyan
-
-          # Check for main application file
-          if (Test-Path "src/main.py") {
-            Write-Host "✓ Main application file found: src/main.py" -ForegroundColor Green
-          } else {
-            Write-Host "✗ Main application file not found: src/main.py" -ForegroundColor Red
-            exit 1
-          }
-
-          # Check for pyproject.toml
-          if (Test-Path "pyproject.toml") {
-            Write-Host "✓ Project configuration found: pyproject.toml" -ForegroundColor Green
-            Write-Host "`nProject configuration:" -ForegroundColor Yellow
-            Get-Content pyproject.toml | Select-Object -First 20
-          } else {
-            Write-Host "✗ pyproject.toml not found" -ForegroundColor Red
-            exit 1
-          }
-
-          # Check src directory structure
-          Write-Host "`n=== Source Directory Structure ===" -ForegroundColor Cyan
-          if (Test-Path "src") {
-            Get-ChildItem -Path "src" -Recurse -File | Select-Object -First 20 | ForEach-Object {
-              Write-Host "  $($_.FullName.Replace((Get-Location).Path, ''))" -ForegroundColor Gray
+          function Test-Check {
+            param([string]$Name, [scriptblock]$Block)
+            Write-Host "[CHECK] $Name" -ForegroundColor Cyan
+            try {
+              $result = & $Block
+              if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "exit code $LASTEXITCODE" }
+              Write-Host "[OK]    $result" -ForegroundColor Green
+            } catch {
+              Write-Host "[FAIL]  $Name - $_" -ForegroundColor Red
+              $script:failed++
             }
           }
+
+          Test-Check "Scoop is available" {
+            $v = scoop --version 2>&1; "scoop $v"
+          }
+
+          Test-Check "uv is available" {
+            $v = uv --version 2>&1; "$v"
+          }
+
+          Test-Check ".venv exists" {
+            if (-not (Test-Path ".venv")) { throw ".venv not found" }
+            ".venv present"
+          }
+
+          Test-Check "Python 3.13.x in venv" {
+            $v = uv run python --version 2>&1
+            if ($v -notmatch "3\.13") { throw "expected 3.13.x, got $v" }
+            "$v"
+          }
+
+          Test-Check "Streamlit imports" {
+            $v = uv run python -c "import streamlit; print(streamlit.__version__)" 2>&1
+            if ($LASTEXITCODE -ne 0) { throw $v }
+            "streamlit $v"
+          }
+
+          Test-Check "Polars imports" {
+            $v = uv run python -c "import polars; print(polars.__version__)" 2>&1
+            if ($LASTEXITCODE -ne 0) { throw $v }
+            "polars $v"
+          }
+
+          Test-Check "src/main.py compiles" {
+            uv run python -m py_compile src/main.py 2>&1
+            if ($LASTEXITCODE -ne 0) { throw "syntax error" }
+            "syntax valid"
+          }
+
           Write-Host ""
-
-      - name: Test Application Import
-        shell: pwsh
-        run: |
-          Write-Host "=== Testing Application Import ===" -ForegroundColor Cyan
-          Write-Host "Testing Python imports..." -ForegroundColor Yellow
-
-          uv run python -c "import sys; print('Python path:', sys.executable)"
-          if ($LASTEXITCODE -ne 0) { Write-Host "Failed to run Python" -ForegroundColor Red; exit 1 }
-
-          uv run python -c "import streamlit; print('streamlit', streamlit.__version__, 'imported successfully')"
-          if ($LASTEXITCODE -ne 0) { Write-Host "Failed to import streamlit" -ForegroundColor Red; exit 1 }
-          Write-Host "streamlit imported successfully" -ForegroundColor Green
-
-          uv run python -c "import os, sys; sys.exit(0 if os.path.exists('src/main.py') else 1)"
-          if ($LASTEXITCODE -ne 0) { Write-Host "src/main.py not found" -ForegroundColor Red; exit 1 }
-          Write-Host "src/main.py verified" -ForegroundColor Green
-
-          Write-Host "All imports successful" -ForegroundColor Green
-
-      - name: Test Streamlit Installation
-        shell: pwsh
-        run: |
-          Write-Host "=== Testing Streamlit Installation ===" -ForegroundColor Cyan
-
-          # Check Streamlit version
-          $streamlitVersion = uv run streamlit --version
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "✓ Streamlit version: $streamlitVersion" -ForegroundColor Green
+          if ($failed -gt 0) {
+            Write-Host "$failed check(s) FAILED" -ForegroundColor Red
+            exit 1
           } else {
-            Write-Host "✗ Streamlit not properly installed" -ForegroundColor Red
-            exit 1
+            Write-Host "All checks passed" -ForegroundColor Green
           }
-
-          # Validate the main.py file syntax
-          Write-Host "`nValidating main.py syntax..." -ForegroundColor Yellow
-          try {
-            uv run python -m py_compile src/main.py
-            Write-Host "✓ main.py syntax is valid" -ForegroundColor Green
-          } catch {
-            Write-Host "✗ main.py has syntax errors: $_" -ForegroundColor Red
-            exit 1
-          }
-          Write-Host ""
-
-      - name: Generate Installation Summary
-        shell: pwsh
-        run: |
-          Write-Host "`n╔════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-          Write-Host "║         INSTALLATION VERIFICATION SUMMARY              ║" -ForegroundColor Cyan
-          Write-Host "╚════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
-          Write-Host ""
-
-          # Scoop info
-          $scoopVersion = scoop --version
-          Write-Host "✓ Scoop Version:     $scoopVersion" -ForegroundColor Green
-
-          # uv info
-          $uvVersion = uv --version
-          Write-Host "✓ uv Version:        $uvVersion" -ForegroundColor Green
-
-          # Python info
-          $pythonVersion = uv run python --version
-          Write-Host "✓ Python Version:    $pythonVersion" -ForegroundColor Green
-
-          # Streamlit info
-          $streamlitVersion = uv run streamlit --version
-          Write-Host "✓ Streamlit Version: $streamlitVersion" -ForegroundColor Green
-
-          Write-Host ""
-          Write-Host "╔════════════════════════════════════════════════════════╗" -ForegroundColor Green
-          Write-Host "║  ALL TESTS PASSED - Installation Verified ✓           ║" -ForegroundColor Green
-          Write-Host "╚════════════════════════════════════════════════════════╝" -ForegroundColor Green
-          Write-Host ""
-          Write-Host "The application is ready to run with:" -ForegroundColor Yellow
-          Write-Host "  uv run streamlit run src/main.py" -ForegroundColor Cyan
-          Write-Host ""
-
-      - name: Upload Installation Logs
-        if: always()  # Run even if previous steps fail
-        uses: actions/upload-artifact@v4
-        with:
-          name: installation-logs
-          path: |
-            ${{ runner.temp }}/scoop-install.log
-            ${{ runner.temp }}/uv-install.log
-          retention-days: 7
-          if-no-files-found: ignore
