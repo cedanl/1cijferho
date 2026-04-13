@@ -54,6 +54,7 @@ from eencijferho.utils.extractor_validation import validate_metadata_folder
 from eencijferho.io.decorators import with_storage
 import eencijferho.utils.value_validation as vv
 import eencijferho.utils.dec_validation as dv
+import eencijferho.utils.snapshot_validator as sv
 
 _console = Console()
 
@@ -305,6 +306,20 @@ def cmd_convert(args: argparse.Namespace) -> None:
         print(f"  - {f['name']} ({f['size_formatted']})")
 
 
+def cmd_snapshot(args: argparse.Namespace) -> None:
+    """Generate or validate a snapshot of pipeline output files."""
+    if args.generate:
+        _console.print(f"[bold]Snapshot genereren van:[/bold] {args.output}")
+        sv.generate_snapshot(args.output, args.snapshot)
+    else:
+        _console.print(f"[bold]Snapshot valideren:[/bold] {args.output}")
+        _console.print(f"[dim]Snapshot:  {args.snapshot}[/dim]")
+        passed, errors, warnings = sv.validate_snapshot(args.output, args.snapshot)
+        sv.print_validation_result(passed, errors, warnings, args.snapshot)
+        if not passed:
+            raise SystemExit(1)
+
+
 def cmd_pipeline(args: argparse.Namespace) -> None:
     """Run the complete end-to-end pipeline (extract → validate → convert)."""
     metadata_dir, json_dir, logs_dir = _resolve_dirs(args.output)
@@ -424,6 +439,25 @@ def main() -> None:
         help="Validate converted output: column values + DEC decoder files (run after pipeline)",
     )
 
+    _snapshot_parser = subparsers.add_parser(
+        "snapshot",
+        parents=[_common],
+        help="Generate or validate a regression snapshot of pipeline output",
+    )
+    _snapshot_parser.add_argument(
+        "--snapshot", required=True, metavar="FILE",
+        help="Path to the snapshot JSON file (read or written depending on mode)",
+    )
+    _snapshot_mode = _snapshot_parser.add_mutually_exclusive_group(required=True)
+    _snapshot_mode.add_argument(
+        "--generate", action="store_true",
+        help="Scan output dir and write a new snapshot",
+    )
+    _snapshot_mode.add_argument(
+        "--validate", action="store_true",
+        help="Compare output dir against an existing snapshot",
+    )
+
     args = parser.parse_args()
 
     dispatch = {
@@ -434,6 +468,7 @@ def main() -> None:
         "convert": cmd_convert,
         "pipeline": cmd_pipeline,
         "validate-output": cmd_validate_output,
+        "snapshot": cmd_snapshot,
     }
     dispatch[args.command](args)
 

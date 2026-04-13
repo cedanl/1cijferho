@@ -1,0 +1,302 @@
+{
+  "generated_at": "2026-04-13T11:05:59.597148",
+  "output_dir": "data/snap_c1",
+  "file_count": 15,
+  "files": {
+    "Dec_actuele_instelling.csv": {
+      "file_hash": "d77c8297dcb5f885eff0f0a8f147a9abf9c07245f961be0112d76110949de44d",
+      "row_count": 59,
+      "column_count": 2,
+      "columns": [
+        "Actuele instelling",
+        "Naam actuele instelling"
+      ]
+    },
+    "Dec_ho-inst.csv": {
+      "file_hash": "c08d44c58a30dfab7da7b776a506ddc6862f028a992bc4e592027ccf2234a242",
+      "row_count": 316,
+      "column_count": 2,
+      "columns": [
+        "Instellingscode",
+        "Naam instelling"
+      ]
+    },
+    "Dec_ho_ISCED.csv": {
+      "file_hash": "5e79efa6c73b83efdeef2a30198812fd663f56122158b3ba2d9b01632f891435",
+      "row_count": 3968,
+      "column_count": 5,
+      "columns": [
+        "ISCEDF2013-detailgroep",
+        "ISCEDF2013-detailgroep omschrijving",
+        "ISCEDF2013-rubriek",
+        "ISCEDF2013-rubriek omschrijving",
+        "Opleidingscode"
+      ]
+    },
+    "Dec_instellingscode.csv": {
+      "file_hash": "99651d9560020049a5af19b60a644e15eec75053bd6129f60debf180b519b712",
+      "row_count": 19273,
+      "column_count": 8,
+      "columns": [
+        "Code denominatie (= richting)",
+        "Datum opheffing",
+        "Datum oprichting",
+        "Instellingscode",
+        "Naam",
+        "Naam denominatie (= richting)",
+        "Plaats",
+        "Postcodecijfers"
+      ]
+    },
+    "Dec_landcode.csv": {
+      "file_hash": "93651998a413eb4c5cf2798f14cb9aa294bfd1529c4e8b6b6befaad01112dfe8",
+      "row_count": 391,
+      "column_count": 6,
+      "columns": [
+        "Code land",
+        "Migratieachtergrond kort",
+        "Migratieachtergrond lang",
+        "Naam land",
+        "Naam migratieachtergrond kort",
+        "Naam migratieachtergrond lang"
+      ]
+    },
+    "Dec_nationaliteitscode.csv": {
+      "file_hash": "7fbb108c360ef6e34892eefd8397d7847a6d3a139c1c2459fc9c64308b6a9936",
+      "row_count": 219,
+      "column_count": 6,
+      "columns": [
+        "Code nationaliteit",
+        "Migratieachtergrond kort",
+        "Migratieachtergrond lang",
+        "Naam migratieachtergrond kort",
+        "Naam migratieachtergrond lang",
+        "Omschrijving nationaliteit"
+      ]
+    },
+    "Dec_opleidingscode.csv": {
+      "file_hash": "ad383bfa8ad8e7e2b96c90628ebc07c645be02ba6b1809af5edc320f605d3f2c",
+      "row_count": 4114,
+      "column_count": 2,
+      "columns": [
+        "Naam opleiding",
+        "Opleidingscode"
+      ]
+    },
+    "Dec_postcodecijfers_2024.csv": {
+      "file_hash": "ae9f8180fb9b23dd577707d7ba41258692de967a4600ab148b1b865a6b3c7b05",
+      "row_count": 4878,
+      "column_count": 4,
+      "columns": [
+        "Gemeentecode per 1 januari 2024",
+        "Gemeentenaam per 1 januari 2024",
+        "Postbus J/N",
+        "Postcodecijfers"
+      ]
+    },
+    "Dec_vakcode.csv": {
+      "file_hash": "cccc01c6df276eeabd66134ba653651bd01fda8482fd0485d6b484340692b53a",
+      "row_count": 635,
+      "column_count": 4,
+      "columns": [
+        "Afkorting vak",
+        "Omschrijving vak",
+        "Roepnaam vak",
+        "Vakcode"
+      ]
+    },
+    "Dec_vest_ho.csv": {
+      "file_hash": "da96f1e2b23689d012197535e55d835e56d12c1c33874b86173ce597574e2e89",
+      "row_count": 482,
+      "column_count": 5,
+      "columns": [
+        "Gemeentecode per 1 januari 2025",
+        "Gemeentenaam per 1 januari 2025",
+        "Gemeentenaam volgens RIO",
+        "Instellingscode",
+        "Vestigingsnummer"
+      ]
+    },
+    "Dec_vestnr_ho_compleet.csv": {
+      "file_hash": "5c0a759132075eb92a1712ec0ad9ba453f3e7d5f5ab08356cde2951208ec586e",
+      "row_count": 1027,
+      "column_count": 5,
+      "columns": [
+        "Gemeentecode per 1 januari 2025",
+        "Gemeentenaam per 1 januari 2025",
+        "Gemeentenaam volgens RIO",
+        "Instellingscode",
+        "Vestigingsnummer"
+      ]
+    },
+    "Dec_vooropl.csv": {
+      "file_hash": "639b868cc785ab40c0924072e43540ce22625842802fc9fe0f94bd7ddaaee996",
+      "row_count": 9471,
+      "column_count": 3,
+      "columns": [
+        "Code vooropleiding oorspr. code",
+        "Omschrijving vooropleiding oorspr. code",
+        "Onderwijssector"
+      ]
+    },
+    "Dec_vopl.csv": {
+      "file_hash": "a8bc73bce9c50316c8a3efad8c649418d2338dc9d27e00b2e01ec5df7a6dc81f",
+      "row_count": 192,
+      "column_count": 2,
+      "columns": [
+        "Code vooropleiding",
+        "Omschrijving vooropleiding"
+      ]
+    },
+    "EV299XX24_DEMO.csv": {
+      "file_hash": "181b3fb1e9f1af5a9e0c3f4ef502569e6c4a69cfa0cb098db2e6d1909a94171d",
+      "row_count": 43663,
+      "column_count": 115,
+      "columns": [
+        "Actuele instelling",
+        "Actuele instelling vóór besturenfusies",
+        "Burgerservicenummer",
+        "Code bekostiging",
+        "Code beëindiging",
+        "Code examenresultaat",
+        "Croho-onderdeel actuele opleiding",
+        "Croho-subonderdeel actuele opleiding",
+        "Datum inschrijving",
+        "Datum tekening diploma",
+        "Datum uitschrijving",
+        "Diplomajaar",
+        "Diplomajaar hoogste vooropleiding",
+        "Diplomajaar van de hoogste vooropl. binnen het HO",
+        "Diplomajaar van de hoogste vooropl. vóór het HO",
+        "Eerste jaar aan deze actuele instelling",
+        "Eerste jaar aan deze instelling",
+        "Eerste jaar aan deze opleiding-instelling",
+        "Eerste jaar aan deze soort hoger onderwijs",
+        "Eerste jaar in het hoger onderwijs",
+        "Etniciteit",
+        "Geboorteland",
+        "Geboorteland ouder 1",
+        "Geboorteland ouder 2",
+        "Gecorrigeerd eerste jaar aan deze instelling",
+        "Gem. eindcijfer VO van de hoogste vooropl. vóór het HO",
+        "Generatie",
+        "Geslacht",
+        "Herkomst-indikking volgens CBS-definitie",
+        "Herkomstland volgens CBS-definitie",
+        "Hoogste vooropleiding",
+        "Hoogste vooropleiding binnen het HO",
+        "Hoogste vooropleiding binnen het HO oorspronkelijke code",
+        "Hoogste vooropleiding vóór het HO",
+        "Hoogste vooropleiding vóór het HO oorspronkelijke code",
+        "ISCEDF2013-rubriek",
+        "Indicatie EER actueel",
+        "Indicatie EER op peildatum 1 oktober",
+        "Indicatie University College",
+        "Indicatie actief op peildatum",
+        "Indicatie eerstejaars actuele instelling",
+        "Indicatie eerstejaars actuele opl.-instelling",
+        "Indicatie eerstejaars continu actuele instelling",
+        "Indicatie eerstejaars continu hoger onderwijs",
+        "Indicatie eerstejaars continu soort ho",
+        "Indicatie eerstejaars continu type ho binnen ho",
+        "Indicatie eerstejaars opl. actueel equivalent",
+        "Indicatie eerstejrs act. inst - type ho binnen soort ho",
+        "Indicatie geboren",
+        "Indicatie internationale student",
+        "Indicatie soort programma",
+        "Inschrijvingsjaar",
+        "Inschrijvingsvorm",
+        "Instelling van de hoogste vooropl. binnen het HO",
+        "Instelling van de hoogste vooropl. vóór het HO",
+        "Instelling van de hoogste vooropleiding",
+        "Instellingscode",
+        "Leeftijd per 1 januari",
+        "Leeftijd per peildatum 1 oktober",
+        "Maand examenresultaat",
+        "Maand tot",
+        "Maand vanaf",
+        "Nationaliteit 1",
+        "Nationaliteit 2",
+        "Nationaliteit 3",
+        "Nationaliteit gebruikt voor bepaling ind. EER actueel",
+        "Nationaliteit gebruikt voor bepaling ind. EER peildatum",
+        "Onderwijsnummer",
+        "Opleiding actueel equivalent",
+        "Opleiding historisch equivalent",
+        "Opleidingscode",
+        "Opleidingsfase",
+        "Opleidingsfase actueel",
+        "Opleidingsfase actueel van het diploma",
+        "Opleidingsvorm",
+        "Persoonsgebonden nummer",
+        "Postcodecijfers student op 1 oktober",
+        "Postcodecijfers van de hoogste vooropl. vóór het HO",
+        "Soort diploma hoger onderwijs",
+        "Soort diploma hoger onderwijs internat.statistiek",
+        "Soort diploma instelling",
+        "Soort diploma soort hoger onderwijs",
+        "Soort hoger onderwijs",
+        "Soort inschrijving act. inst - type ho binnen soort ho",
+        "Soort inschrijving actuele instelling",
+        "Soort inschrijving actuele opleiding-instelling",
+        "Soort inschrijving continu actuele instelling",
+        "Soort inschrijving continu hoger onderwijs",
+        "Soort inschrijving continu soort ho",
+        "Soort inschrijving continu type ho binnen ho",
+        "Soort inschrijving hoger onderwijs",
+        "Soort inschrijving opleiding actueel equivalent",
+        "Soort inschrijving soort ho",
+        "Soort inschrijving type ho binnen ho",
+        "Soort inschrijving type ho binnen soort ho",
+        "Type hoger onderwijs binnen soort hoger onderwijs",
+        "Verblijfsjaar act. inst - type ho binnen soort ho",
+        "Verblijfsjaar actuele instelling",
+        "Verblijfsjaar actuele opleiding",
+        "Verblijfsjaar actuele opleiding-instelling",
+        "Verblijfsjaar continu actuele instelling",
+        "Verblijfsjaar continu ho",
+        "Verblijfsjaar continu soort ho",
+        "Verblijfsjaar continu type ho binnen ho",
+        "Verblijfsjaar hoger onderwijs",
+        "Verblijfsjaar soort ho",
+        "Verblijfsjaar type ho binnen ho",
+        "Verblijfsjaar type ho binnen soort ho",
+        "Vestigingsnummer",
+        "Vestigingsnummer actueel",
+        "Vestigingsnummer actueel diploma",
+        "Vestigingsnummer diploma",
+        "Vestigingsnummer van de hoogste vooropl. binnen het HO",
+        "Vestigingsnummer van de hoogste vooropl. vóór het HO",
+        "Vestigingsnummer van de hoogste vooropleiding"
+      ]
+    },
+    "VAKHAVW_99XX_DEMO.csv": {
+      "file_hash": "f1fc3036a18e808956bfe71594591667a89e36fd40bec8b374daf11ce2240ec5",
+      "row_count": 222637,
+      "column_count": 21,
+      "columns": [
+        "Afkorting vak",
+        "Ander niveau",
+        "Beoordeling schoolexamen",
+        "Brinnummer VO-instelling",
+        "Burgerservicenummer",
+        "Cijfer cijferlijst",
+        "Cijfer derde centraal examen",
+        "Cijfer eerste centraal examen",
+        "Cijfer schoolexamen",
+        "Cijfer tweede centraal examen",
+        "Derde eindcijfer",
+        "Diplomajaar",
+        "Eerste eindcijfer",
+        "Gemiddeld cijfer cijferlijst",
+        "Indicatie diplomavak",
+        "Onderwijsnummer",
+        "Persoonsgebonden nummer",
+        "Tweede eindcijfer",
+        "Vakcode",
+        "Vestigingsnummer VO-vestiging",
+        "Vooropleiding oorspronkelijke code"
+      ]
+    }
+  }
+}
