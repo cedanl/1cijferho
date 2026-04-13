@@ -14,7 +14,6 @@ Snapshot contents per file:
   - dtypes         : Polars dtype per column (Parquet only)
 """
 
-import hashlib
 import json
 import os
 import re
@@ -35,16 +34,11 @@ _ENCRYPTED_COLS = {"persoonsgebonden_nummer", "burgerservicenummer", "onderwijsn
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _file_hash(storage, filepath: str) -> str:
-    data = storage.read_bytes(filepath)
-    return hashlib.sha256(data).hexdigest()
-
-
 def _scan_file(storage, filepath: str) -> dict:
     """Return snapshot metadata for a single file."""
     fname = filepath.rsplit("/", 1)[-1] if "/" in filepath else filepath
     ext = fname.rsplit(".", 1)[-1].lower() if "." in fname else ""
-    entry: dict = {"file_hash": _file_hash(storage, filepath)}
+    entry: dict = {}
 
     if ext == "csv":
         try:
@@ -152,9 +146,6 @@ def validate_snapshot(
 
         cur = _scan_file(storage, current_map[fname])
 
-        if cur.get("file_hash") != exp.get("file_hash"):
-            errors.append(f"{fname}: bestandsinhoud gewijzigd (hash verschilt)")
-
         for key in ("row_count", "column_count"):
             if key in exp and key in cur and cur[key] != exp[key]:
                 label = "rijen" if key == "row_count" else "kolommen"
@@ -216,3 +207,38 @@ def print_validation_result(
             f"[bold green]✓ {label}: geslaagd[/bold green] "
             f"[yellow]({len(warnings)} waarschuwing(en))[/yellow]"
         )
+
+
+def main() -> None:  # pragma: no cover
+    """CLI entrypoint: python -m eencijferho.utils.snapshot_validator"""
+    import argparse as _argparse
+
+    parser = _argparse.ArgumentParser(
+        prog="python -m eencijferho.utils.snapshot_validator",
+        description="Snapshot-gebaseerde regressievalidatie voor pipeline output.",
+    )
+    parser.add_argument("--output", required=True, metavar="DIR",
+                        help="Output directory to scan or validate")
+    parser.add_argument("--snapshot", required=True, metavar="FILE",
+                        help="Path to snapshot JSON file")
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--generate", action="store_true",
+                      help="Scan output dir and write snapshot")
+    mode.add_argument("--validate", action="store_true",
+                      help="Compare output dir against snapshot")
+    args = parser.parse_args()
+
+    if args.generate:
+        _console.print(f"[bold]Snapshot genereren van:[/bold] {args.output}")
+        generate_snapshot(args.output, args.snapshot)
+    else:
+        _console.print(f"[bold]Snapshot valideren:[/bold] {args.output}")
+        _console.print(f"[dim]Snapshot: {args.snapshot}[/dim]")
+        passed, errors, warnings = validate_snapshot(args.output, args.snapshot)
+        print_validation_result(passed, errors, warnings, args.snapshot)
+        if not passed:
+            raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()

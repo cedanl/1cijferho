@@ -41,8 +41,7 @@ jobs:
 
       - name: Validate snapshot (${{ matrix.config.name }})
         run: |
-          uv run eencijferho snapshot \
-            --input data/01-input/DEMO \
+          uv run python -m eencijferho.utils.snapshot_validator \
             --output data/test-output/${{ matrix.config.name }} \
             --snapshot snapshots/${{ matrix.config.name }}/snapshot.json \
             --validate
