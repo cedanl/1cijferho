@@ -4,9 +4,20 @@ on:
   workflow_call:
 
 jobs:
-  test:
-    name: CLI pipeline (demo data)
+  snapshot:
+    name: "Pipeline config ${{ matrix.config.name }}"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: c1
+            flags: "--skip-decode --skip-enrich --skip-parquet --skip-encrypt --skip-snake-case"
+          - name: c2
+            flags: "--skip-parquet --skip-encrypt --skip-snake-case"
+          - name: c3
+            flags: ""
+
     steps:
       - uses: actions/checkout@v4
 
@@ -21,29 +32,17 @@ jobs:
       - name: Install dependencies
         run: uv sync --group dev
 
-      - name: Run CLI pipeline on demo data
-        run: uv run eencijferho pipeline --input data/01-input/DEMO --output data/test-output
-
-      - name: Verify output files exist
+      - name: Run pipeline (${{ matrix.config.name }})
         run: |
-          echo "=== Output files ==="
-          ls -la data/test-output/
+          uv run eencijferho pipeline \
+            --input data/01-input/DEMO \
+            --output data/test-output/${{ matrix.config.name }} \
+            ${{ matrix.config.flags }}
 
-          echo "=== Metadata files ==="
-          ls -la data/test-output/metadata/
-
-          echo "=== Checking expected outputs ==="
-          test -f data/test-output/EV299XX24_DEMO.csv || { echo "FAIL: EV CSV missing"; exit 1; }
-          test -f data/test-output/VAKHAVW_99XX_DEMO.csv || { echo "FAIL: VAKHAVW CSV missing"; exit 1; }
-          test -f data/test-output/EV299XX24_DEMO_decoded.csv || { echo "FAIL: decoded CSV missing"; exit 1; }
-          test -f data/test-output/EV299XX24_DEMO.parquet || { echo "FAIL: EV parquet missing"; exit 1; }
-
-          # Verify metadata extraction worked
-          test -d data/test-output/metadata/json || { echo "FAIL: metadata/json missing"; exit 1; }
-          test -d data/test-output/metadata/logs || { echo "FAIL: metadata/logs missing"; exit 1; }
-
-          CSV_COUNT=$(ls data/test-output/*.csv 2>/dev/null | wc -l)
-          echo "Total CSV files: $CSV_COUNT"
-          test "$CSV_COUNT" -ge 2 || { echo "FAIL: expected at least 2 CSV files"; exit 1; }
-
-          echo "All checks passed!"
+      - name: Validate snapshot (${{ matrix.config.name }})
+        run: |
+          uv run eencijferho snapshot \
+            --input data/01-input/DEMO \
+            --output data/test-output/${{ matrix.config.name }} \
+            --snapshot snapshots/${{ matrix.config.name }}/snapshot.json \
+            --validate
