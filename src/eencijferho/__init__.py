@@ -12,7 +12,11 @@ Public API:
     from eencijferho import process_txt_folder, write_variable_metadata
 """
 
-__version__ = "0.1.0"
+from importlib.metadata import version as _version, PackageNotFoundError as _PackageNotFoundError
+try:
+    __version__ = _version("eencijferho")
+except _PackageNotFoundError:
+    __version__ = "unknown"
 
 from eencijferho.core.pipeline import run_turbo_convert_pipeline
 from eencijferho.core.extractor import process_txt_folder, write_variable_metadata, process_json_folder, get_fwf_params, list_fwf_tables
