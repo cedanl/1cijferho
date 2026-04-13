@@ -31,7 +31,7 @@ def encryptor(storage, input_dir: str | None = None, output_dir: str | None = No
         fname = filepath.rsplit("/", 1)[-1] if "/" in filepath else filepath
         try:
             # Always read as UTF-8 (mirroring decoded output)
-            df = storage.read_dataframe(filepath, format="csv")
+            df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
             # Check if any columns to encrypt exist in this file
             columns_found = [col for col in columns_to_encrypt if col in df.columns]
             if columns_found:

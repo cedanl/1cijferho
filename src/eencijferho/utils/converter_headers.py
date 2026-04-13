@@ -64,8 +64,8 @@ def convert_csv_headers_to_snake_case(
     input_dir: str | None = None,
     delimiter: str = ";",
     encoding: str = "utf-8",
-    quote_char: str = "",
-    infer_schema_length: int | None = None
+    quote_char: str = '"',
+    infer_schema_length: int | None = 0
 ) -> None:
     """
     Convert all CSV file headers in the input directory to snake_case.
@@ -98,14 +98,24 @@ def convert_csv_headers_to_snake_case(
         try:
             console.print(f"Processing: [bold]{fname}[/bold]")
 
-            # Read the CSV via storage
-            df = storage.read_dataframe(
-                filepath, format="csv",
-                encoding=encoding,
-                quote_char=quote_char if quote_char else None,
-                infer_schema_length=infer_schema_length,
-                truncate_ragged_lines=True,
-            )
+            # Read the CSV via storage — try with quoting first, fall back to
+            # disabled quoting for files that have literal " in values (e.g. Dec tables)
+            try:
+                df = storage.read_dataframe(
+                    filepath, format="csv",
+                    encoding=encoding,
+                    quote_char=quote_char if quote_char else None,
+                    infer_schema_length=infer_schema_length,
+                    truncate_ragged_lines=True,
+                )
+            except Exception:
+                df = storage.read_dataframe(
+                    filepath, format="csv",
+                    encoding=encoding,
+                    quote_char=None,
+                    infer_schema_length=infer_schema_length,
+                    truncate_ragged_lines=True,
+                )
 
             # Get original column names
             original_columns = df.columns

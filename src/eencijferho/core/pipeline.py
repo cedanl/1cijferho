@@ -102,6 +102,7 @@ def run_turbo_convert_pipeline(
                 (filename.startswith("EV") or filename.startswith("VAKHAVW"))
                 and filename.endswith(".csv")
                 and not filename.endswith("_decoded.csv")
+                and not filename.endswith("_enriched.csv")
             ):
                 continue
 
@@ -154,22 +155,29 @@ def run_turbo_convert_pipeline(
     log += "[pipeline] Controle voltooid.\n"
     if progress_callback:
         progress_callback(50)
-    # Step 4: Compress to Parquet
+    # Step 4: Encrypt final files
+    if output_config.encrypt:
+        if status_callback:
+            status_callback("🔒 Gevoelige gegevens versleutelen...")
+        log += "[pipeline] Gevoelige gegevens versleutelen...\n"
+        en.encryptor(output_dir, output_dir)
+        encrypted_files = storage.list_files(f"{output_dir}/*_encrypted.csv")
+        for enc_path in encrypted_files:
+            fname = enc_path.rsplit("/", 1)[-1] if "/" in enc_path else enc_path
+            original_name = fname.replace("_encrypted.csv", ".csv")
+            original_path = f"{output_dir}/{original_name}"
+            if storage.exists(original_path):
+                storage.delete(original_path)
+        log += "[pipeline] Versleuteling voltooid.\n"
+    if progress_callback:
+        progress_callback(75)
+    # Step 5: Compress to Parquet
     if "parquet" in output_config.formats:
         if status_callback:
             status_callback("🗜️ Bestanden comprimeren...")
         log += "[pipeline] Bestanden comprimeren...\n"
         co.convert_csv_to_parquet(output_dir)
         log += "[pipeline] Compressie voltooid.\n"
-    if progress_callback:
-        progress_callback(75)
-    # Step 5: Encrypt final files
-    if output_config.encrypt:
-        if status_callback:
-            status_callback("🔒 Gevoelige gegevens versleutelen...")
-        log += "[pipeline] Gevoelige gegevens versleutelen...\n"
-        en.encryptor(output_dir, output_dir)
-        log += "[pipeline] Versleuteling voltooid.\n"
     if progress_callback:
         progress_callback(90)
     # Step 6: Header normalization
