@@ -424,7 +424,6 @@ def main() -> None:
         help="Validate converted output: column values + DEC decoder files (run after pipeline)",
     )
 
-
     args = parser.parse_args()
 
     dispatch = {
