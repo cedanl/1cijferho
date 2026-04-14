@@ -4,9 +4,19 @@ on:
   workflow_call:
 
 jobs:
-  test:
-    name: CLI pipeline (MinIO + demo data)
+  snapshot:
+    name: "MinIO pipeline ${{ matrix.config.name }}"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: csv-raw
+            flags: "--skip-decode --skip-enrich --skip-parquet --skip-encrypt --skip-snake-case"
+          - name: csv-decoded-enriched
+            flags: "--skip-parquet --skip-encrypt --skip-snake-case"
+          - name: full-pipeline
+            flags: ""
     env:
       STORAGE_BACKEND: minio
       MINIO_ENDPOINT: localhost:9000
@@ -52,20 +62,16 @@ jobs:
       - name: Install dependencies (with minio extra)
         run: uv sync --group dev --extra minio
 
-      - name: Run CLI pipeline on demo data via MinIO
-        run: uv run eencijferho pipeline --input data/01-input/DEMO --output data/test-output
-
-      - name: Verify output files in MinIO
+      - name: Run pipeline (${{ matrix.config.name }})
         run: |
-          echo "=== Output files in MinIO ==="
-          mc ls --recursive local/1cijferho-pipeline/data/test-output/ | head -40
+          uv run eencijferho pipeline \
+            --input data/01-input/DEMO \
+            --output data/test-output/${{ matrix.config.name }} \
+            ${{ matrix.config.flags }}
 
-          mc stat local/1cijferho-pipeline/data/test-output/EV299XX24_DEMO.csv || { echo "FAIL: EV CSV missing"; exit 1; }
-          mc stat local/1cijferho-pipeline/data/test-output/VAKHAVW_99XX_DEMO.csv || { echo "FAIL: VAKHAVW CSV missing"; exit 1; }
-          mc stat local/1cijferho-pipeline/data/test-output/EV299XX24_DEMO_decoded.csv || { echo "FAIL: decoded CSV missing"; exit 1; }
-
-          CSV_COUNT=$(mc ls local/1cijferho-pipeline/data/test-output/ | grep '\.csv$' | wc -l)
-          echo "Total CSV files: $CSV_COUNT"
-          test "$CSV_COUNT" -ge 2 || { echo "FAIL: expected at least 2 CSV files"; exit 1; }
-
-          echo "All MinIO pipeline checks passed!"
+      - name: Validate snapshot (${{ matrix.config.name }})
+        run: |
+          uv run python -m eencijferho.utils.snapshot_validator \
+            --output data/test-output/${{ matrix.config.name }} \
+            --snapshot snapshots/${{ matrix.config.name }}/snapshot.json \
+            --validate
