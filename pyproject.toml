@@ -37,6 +37,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/cedanl/1cijferho"
+Documentation = "https://cedanl.github.io/1cijferho/"
 Repository = "https://github.com/cedanl/1cijferho"
 Issues = "https://github.com/cedanl/1cijferho/issues"
 
