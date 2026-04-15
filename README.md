@@ -12,6 +12,7 @@
     <img src="https://badgen.net/github/last-commit/cedanl/1cijferho" alt="GitHub Last Commit">
     <img src="https://badgen.net/github/contributors/cedanl/1cijferho" alt="Contributors">
     <img src="https://img.shields.io/github/license/cedanl/1cijferho" alt="GitHub License">
+    <a href="https://cedanl.github.io/1cijferho/"><img src="https://img.shields.io/badge/docs-mkdocs-teal" alt="Documentatie"></a>
   </p>
 
 </div>
