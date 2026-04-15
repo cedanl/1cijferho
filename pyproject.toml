@@ -51,6 +51,10 @@ dev = [
     "sweetviz>=2.3",
     "jupyter>=1.0",
 ]
+docs = [
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.26",
+]
 minio = [
     "minio>=7.2",
 ]
