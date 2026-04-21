@@ -1,3 +1,4 @@
+import os
 from rich.console import Console
 from rich.progress import track
 
@@ -16,7 +17,7 @@ def convert_csv_to_parquet(storage, input_dir: str | None = None) -> None:
 
     for csv_file in track(csv_files, description="Converting files"):
         # Skip Dec lookup table files (Dec_*.csv) — not output data files
-        filename = csv_file.rsplit("/", 1)[-1] if "/" in csv_file else csv_file
+        filename = os.path.basename(csv_file)
         if filename.lower().startswith("dec_"):
             console.print(f"[yellow]↷[/] Skipping {filename}")
             continue

@@ -36,7 +36,7 @@ _ENCRYPTED_COLS = {"persoonsgebonden_nummer", "burgerservicenummer", "onderwijsn
 
 def _scan_file(storage, filepath: str) -> dict:
     """Return snapshot metadata for a single file."""
-    fname = filepath.rsplit("/", 1)[-1] if "/" in filepath else filepath
+    fname = os.path.basename(filepath)
     ext = fname.rsplit(".", 1)[-1].lower() if "." in fname else ""
     entry: dict = {}
 
@@ -96,7 +96,7 @@ def generate_snapshot(storage, output_dir: str, snapshot_path: str) -> None:
     }
 
     for filepath in sorted(files):
-        fname = filepath.rsplit("/", 1)[-1] if "/" in filepath else filepath
+        fname = os.path.basename(filepath)
         _console.print(f"  [dim]Scanning {fname}[/dim]")
         snapshot["files"][fname] = _scan_file(storage, filepath)
 
@@ -130,7 +130,7 @@ def validate_snapshot(
         if "/metadata/" not in f and "\\metadata\\" not in f
     ]
     current_map = {
-        (f.rsplit("/", 1)[-1] if "/" in f else f): f for f in current_files
+        os.path.basename(f): f for f in current_files
     }
     expected_names = set(expected["files"].keys())
     current_names = set(current_map.keys())

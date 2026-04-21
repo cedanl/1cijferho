@@ -28,7 +28,7 @@ def encryptor(storage, input_dir: str | None = None, output_dir: str | None = No
 
     from eencijferho.utils.converter_headers import clean_header_name
     for filepath in target_files:
-        fname = filepath.rsplit("/", 1)[-1] if "/" in filepath else filepath
+        fname = os.path.basename(filepath)
         try:
             # Always read as UTF-8 (mirroring decoded output)
             df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)

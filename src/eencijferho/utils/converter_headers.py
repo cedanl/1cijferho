@@ -1,3 +1,4 @@
+import os
 import polars as pl
 import re
 import unicodedata
@@ -94,7 +95,7 @@ def convert_csv_headers_to_snake_case(
     failed_files = []
 
     for filepath in csv_files:
-        fname = filepath.rsplit("/", 1)[-1] if "/" in filepath else filepath
+        fname = os.path.basename(filepath)
         try:
             console.print(f"Processing: [bold]{fname}[/bold]")
 

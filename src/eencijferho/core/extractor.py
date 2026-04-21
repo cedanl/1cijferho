@@ -272,7 +272,7 @@ def process_txt_folder(
     # Get all files from input folder and filter
     all_files = storage.list_files(f"{input_folder}/*")
     for filepath in all_files:
-        filename = filepath.rsplit("/", 1)[-1] if "/" in filepath else filepath
+        filename = os.path.basename(filepath)
         file_is_txt = filename.endswith(".txt") and filter_keyword in filename
         file_is_asc = filename.endswith(".asc")
 
@@ -898,7 +898,7 @@ def process_json_folder(
     total_row_mismatches = 0
 
     for json_file in json_files:
-        file_name = json_file.rsplit("/", 1)[-1] if "/" in json_file else json_file
+        file_name = os.path.basename(json_file)
 
         # Log file processing
         file_log = {"file": file_name, "status": "processing", "tables": []}

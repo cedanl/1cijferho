@@ -97,7 +97,7 @@ def run_turbo_convert_pipeline(
     if do_decode or do_enrich:
         csv_files = storage.list_files(f"{dec_dir}/*.csv")
         for filepath in csv_files:
-            filename = filepath.rsplit("/", 1)[-1] if "/" in filepath else filepath
+            filename = os.path.basename(filepath)
             if not (
                 (filename.startswith("EV") or filename.startswith("VAKHAVW"))
                 and filename.endswith(".csv")
@@ -163,7 +163,7 @@ def run_turbo_convert_pipeline(
         en.encryptor(output_dir, output_dir)
         encrypted_files = storage.list_files(f"{output_dir}/*_encrypted.csv")
         for enc_path in encrypted_files:
-            fname = enc_path.rsplit("/", 1)[-1] if "/" in enc_path else enc_path
+            fname = os.path.basename(enc_path)
             original_name = fname.replace("_encrypted.csv", ".csv")
             original_path = f"{output_dir}/{original_name}"
             if storage.exists(original_path):
@@ -193,7 +193,7 @@ def run_turbo_convert_pipeline(
     output_files = []
     all_output = storage.list_files(f"{output_dir}/*")
     for filepath in all_output:
-        filename = filepath.rsplit("/", 1)[-1] if "/" in filepath else filepath
+        filename = os.path.basename(filepath)
         try:
             size = len(storage.read_bytes(filepath))
         except Exception:
