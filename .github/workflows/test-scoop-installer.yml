@@ -1,0 +1,86 @@
+name: Test Scoop Installer
+
+on:
+  push:
+    branches: [main, vm_actions]
+  workflow_dispatch:
+
+jobs:
+  test-scoop-install:
+    name: Test Scoop Installation
+    runs-on: windows-latest
+    env:
+      UV_PYTHON: "3.13"
+      UV_LINK_MODE: copy
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run installer (non-interactive)
+        shell: pwsh
+        run: |
+          & "${{ github.workspace }}\ps\scoop-install.ps1" -NonInteractive
+
+      - name: Verify installation
+        shell: pwsh
+        run: |
+          $failed = 0
+
+          function Test-Check {
+            param([string]$Name, [scriptblock]$Block)
+            Write-Host "[CHECK] $Name" -ForegroundColor Cyan
+            try {
+              $result = & $Block
+              if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "exit code $LASTEXITCODE" }
+              Write-Host "[OK]    $result" -ForegroundColor Green
+            } catch {
+              Write-Host "[FAIL]  $Name - $_" -ForegroundColor Red
+              $script:failed++
+            }
+          }
+
+          Test-Check "Scoop is available" {
+            $v = scoop --version 2>&1; "scoop $v"
+          }
+
+          Test-Check "uv is available" {
+            $v = uv --version 2>&1; "$v"
+          }
+
+          Test-Check ".venv exists" {
+            if (-not (Test-Path ".venv")) { throw ".venv not found" }
+            ".venv present"
+          }
+
+          Test-Check "Python 3.13.x in venv" {
+            $v = uv run python --version 2>&1
+            if ($v -notmatch "3\.13") { throw "expected 3.13.x, got $v" }
+            "$v"
+          }
+
+          Test-Check "Streamlit imports" {
+            $v = uv run python -c "import streamlit; print(streamlit.__version__)" 2>&1
+            if ($LASTEXITCODE -ne 0) { throw $v }
+            "streamlit $v"
+          }
+
+          Test-Check "Polars imports" {
+            $v = uv run python -c "import polars; print(polars.__version__)" 2>&1
+            if ($LASTEXITCODE -ne 0) { throw $v }
+            "polars $v"
+          }
+
+          Test-Check "src/main.py compiles" {
+            uv run python -m py_compile src/main.py 2>&1
+            if ($LASTEXITCODE -ne 0) { throw "syntax error" }
+            "syntax valid"
+          }
+
+          Write-Host ""
+          if ($failed -gt 0) {
+            Write-Host "$failed check(s) FAILED" -ForegroundColor Red
+            exit 1
+          } else {
+            Write-Host "All checks passed" -ForegroundColor Green
+          }
