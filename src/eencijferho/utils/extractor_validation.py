@@ -220,7 +220,7 @@ def validate_metadata_folder(storage, metadata_folder: str = "data/00-metadata",
     # Validate each file
     results = {}
     for file_path in excel_files:
-        file_name = file_path.rsplit("/", 1)[-1] if "/" in file_path else file_path
+        file_name = os.path.basename(file_path)
 
         # Log file processing
         file_log = {

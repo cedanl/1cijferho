@@ -200,7 +200,7 @@ def cmd_decode(storage, args: argparse.Namespace) -> None:
 
     count = 0
     for filepath in storage.list_files(f"{args.output}/*.csv"):
-        fname = filepath.rsplit("/", 1)[-1] if "/" in filepath else filepath
+        fname = os.path.basename(filepath)
         if not (
             (fname.startswith("EV") or fname.startswith("VAKHAVW"))
             and fname.endswith(".csv")
@@ -241,7 +241,7 @@ def cmd_enrich(storage, args: argparse.Namespace) -> None:
 
     written = skipped = 0
     for filepath in storage.list_files(f"{args.output}/*_decoded.csv"):
-        fname = filepath.rsplit("/", 1)[-1] if "/" in filepath else filepath
+        fname = os.path.basename(filepath)
         if fname.endswith("_decoded_encrypted.csv"):
             continue
         base = filepath.replace("_decoded.csv", ".csv")

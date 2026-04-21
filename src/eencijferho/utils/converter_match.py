@@ -33,7 +33,7 @@ def load_input_files(storage, input_folder: str) -> pl.DataFrame:
 
     all_files = storage.list_files(f"{input_folder}/*")
     for filepath in all_files:
-        filename = filepath.rsplit("/", 1)[-1] if "/" in filepath else filepath
+        filename = os.path.basename(filepath)
         if filename.lower().endswith(('.txt', '.zip', '.xlsx', '.docx', '.csv')):
             continue
         files.append(filename)
@@ -120,14 +120,11 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
 
         # Apply special matching rules based on input filename
         if input_file.startswith("EV"):
-            # For files starting with "EV", match with files containing "1cyferho"
-            matches = validation_df.filter(pl.col("file").str.contains("1cyferho"))
+            matches = validation_df.filter(pl.col("file").str.contains("1cyferho", literal=True))
         elif "VAKHAVW" in input_file:
-            # For files containing "VAKHAVW", match with files containing "Vakgegevens"
-            matches = validation_df.filter(pl.col("file").str.contains("Vakgegevens"))
+            matches = validation_df.filter(pl.col("file").str.contains("Vakgegevens", literal=True))
         else:
-            # Default matching: find where input_file is contained in the 'file' column
-            matches = validation_df.filter(pl.col("file").str.contains(input_file))
+            matches = validation_df.filter(pl.col("file").str.contains(input_file, literal=True))
 
         file_log = {
             "input_file": input_file,
