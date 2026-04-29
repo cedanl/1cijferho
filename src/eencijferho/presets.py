@@ -9,7 +9,7 @@ PRESET_CONFIGS: dict[str, dict] = {
         "label": "No Fairness Without Awareness",
         "description": (
             "Configuratie voor het NFWA-project (CEDA/Npuls). "
-            "Alleen EV-bestanden; geslacht, vooropleiding en aansluiting gedecodeerd en verrijkt."
+            "Alleen EV-bestanden; geslacht en hoogste vooropleiding vóór het HO gedecodeerd en verrijkt."
         ),
         "available": True,
         "settings": {
