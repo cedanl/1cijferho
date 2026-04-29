@@ -1,0 +1,190 @@
+name: Test Install Matrix
+
+on:
+  push:
+    branches: [main, vm_actions]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test-install:
+    name: "${{ matrix.account }} / onedrive=${{ matrix.onedrive }}"
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        account: [admin, standard]
+        onedrive: [false, true]
+
+    env:
+      UV_PYTHON: "3.13"
+      # Prevent hardlink failures across filesystem boundaries (VHD / OneDrive)
+      UV_LINK_MODE: copy
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── OneDrive simulation ──────────────────────────────────────────
+      - name: Simulate OneDrive known-folder redirection
+        if: matrix.onedrive == true
+        shell: pwsh
+        run: |
+          & "${{ github.workspace }}\scripts\setup-onedrive-sim.ps1"
+
+      # ── Create standard (non-admin) user ─────────────────────────────
+      - name: Create non-admin test user
+        if: matrix.account == 'standard'
+        shell: pwsh
+        run: |
+          $password = ConvertTo-SecureString "T3stP@ss!" -AsPlainText -Force
+          New-LocalUser -Name "testuser" -Password $password -FullName "Test User" -Description "CI non-admin account"
+          Add-LocalGroupMember -Group "Users" -Member "testuser"
+
+          # Grant "Log on as batch job" right (required for scheduled tasks)
+          secedit /export /cfg "$env:TEMP\secpol.cfg"
+          $cfg = Get-Content "$env:TEMP\secpol.cfg"
+          $cfg = $cfg -replace '(SeBatchLogonRight\s*=\s*)', '$1testuser,'
+          Set-Content "$env:TEMP\secpol.cfg" $cfg
+          secedit /configure /db "$env:TEMP\secedit.sdb" /cfg "$env:TEMP\secpol.cfg" /areas USER_RIGHTS
+
+          # Create user profile by doing a brief interactive-token logon
+          $cred = New-Object System.Management.Automation.PSCredential("testuser", $password)
+          Start-Process cmd.exe -ArgumentList "/c whoami" -Credential $cred -Wait -NoNewWindow -ErrorAction SilentlyContinue
+
+          # Grant testuser access to the workspace and runner temp
+          icacls "${{ github.workspace }}" /grant "testuser:(OI)(CI)F" /T /Q
+          icacls "${{ runner.temp }}" /grant "testuser:(OI)(CI)F" /T /Q
+
+          Write-Host "Created non-admin local user: testuser"
+
+      # ── Run installation ─────────────────────────────────────────────
+      - name: Install (admin)
+        if: matrix.account == 'admin'
+        shell: pwsh
+        run: |
+          & "${{ github.workspace }}\scripts\test-install.ps1"
+
+      - name: Install (standard user via scheduled task)
+        if: matrix.account == 'standard'
+        shell: pwsh
+        run: |
+          $password    = "T3stP@ss!"
+          $logFile     = "${{ runner.temp }}\testuser-install.log"
+          $wrapperPath = "${{ runner.temp }}\run-install.ps1"
+
+          # Write a wrapper script to disk (avoids quoting issues in task args)
+          @"
+          `$env:USERPROFILE   = 'C:\Users\testuser'
+          `$env:HOMEDRIVE     = 'C:'
+          `$env:HOMEPATH      = '\Users\testuser'
+          `$env:UV_LINK_MODE  = 'copy'
+          `$env:UV_PYTHON     = '3.13'
+          `$env:SCOOP         = 'C:\Users\testuser\scoop'
+          `$env:PATH          = 'C:\Users\testuser\scoop\shims;' + `$env:PATH
+          Set-Location '${{ github.workspace }}'
+          try {
+              & '${{ github.workspace }}\scripts\test-install.ps1' 2>&1 | Tee-Object -FilePath '$logFile'
+              if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
+          } catch {
+              `$_ | Out-File -Append '$logFile'
+              exit 1
+          }
+          "@ | Set-Content -Path $wrapperPath -Encoding UTF8
+
+          $action  = New-ScheduledTaskAction -Execute "pwsh.exe" `
+            -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$wrapperPath`""
+          $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(5)
+
+          Register-ScheduledTask -TaskName "RunInstall" `
+            -Action $action -Trigger $trigger `
+            -User "testuser" -Password $password `
+            -RunLevel Limited -Force
+
+          Start-ScheduledTask -TaskName "RunInstall"
+
+          # Wait for the task to finish (timeout 10 min)
+          $timeout = (Get-Date).AddMinutes(10)
+          do {
+            Start-Sleep -Seconds 5
+            $running = (Get-ScheduledTask -TaskName "RunInstall").State
+          } while ($running -eq "Running" -and (Get-Date) -lt $timeout)
+
+          # Show log output
+          if (Test-Path $logFile) { Get-Content $logFile }
+
+          # Check result
+          $info = Get-ScheduledTaskInfo -TaskName "RunInstall"
+          if ($info.LastTaskResult -ne 0) {
+            Write-Host "Scheduled task exited with code $($info.LastTaskResult)" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "Scheduled task completed successfully" -ForegroundColor Green
+
+      # ── Verify ───────────────────────────────────────────────────────
+      - name: Verify installation (admin)
+        if: matrix.account == 'admin'
+        shell: pwsh
+        run: |
+          & "${{ github.workspace }}\scripts\verify-install.ps1"
+
+      - name: Verify installation (standard user via scheduled task)
+        if: matrix.account == 'standard'
+        shell: pwsh
+        run: |
+          $password    = "T3stP@ss!"
+          $logFile     = "${{ runner.temp }}\testuser-verify.log"
+          $wrapperPath = "${{ runner.temp }}\run-verify.ps1"
+
+          @"
+          `$env:USERPROFILE = 'C:\Users\testuser'
+          `$env:HOMEDRIVE   = 'C:'
+          `$env:HOMEPATH    = '\Users\testuser'
+          `$env:SCOOP       = 'C:\Users\testuser\scoop'
+          `$env:PATH        = 'C:\Users\testuser\scoop\shims;' + `$env:PATH
+          Set-Location '${{ github.workspace }}'
+          try {
+              & '${{ github.workspace }}\scripts\verify-install.ps1' 2>&1 | Tee-Object -FilePath '$logFile'
+              if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
+          } catch {
+              `$_ | Out-File -Append '$logFile'
+              exit 1
+          }
+          "@ | Set-Content -Path $wrapperPath -Encoding UTF8
+
+          $action  = New-ScheduledTaskAction -Execute "pwsh.exe" `
+            -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$wrapperPath`""
+          $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(5)
+
+          Register-ScheduledTask -TaskName "RunVerify" `
+            -Action $action -Trigger $trigger `
+            -User "testuser" -Password $password `
+            -RunLevel Limited -Force
+
+          Start-ScheduledTask -TaskName "RunVerify"
+
+          $timeout = (Get-Date).AddMinutes(5)
+          do {
+            Start-Sleep -Seconds 5
+            $running = (Get-ScheduledTask -TaskName "RunVerify").State
+          } while ($running -eq "Running" -and (Get-Date) -lt $timeout)
+
+          if (Test-Path $logFile) { Get-Content $logFile }
+
+          $info = Get-ScheduledTaskInfo -TaskName "RunVerify"
+          if ($info.LastTaskResult -ne 0) {
+            Write-Host "Verification failed with code $($info.LastTaskResult)" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "Verification passed" -ForegroundColor Green
+
+      # ── Artifacts ────────────────────────────────────────────────────
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.account }}-onedrive-${{ matrix.onedrive }}
+          path: ${{ runner.temp }}/*.log
+          retention-days: 7
+          if-no-files-found: ignore
