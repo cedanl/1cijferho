@@ -14,7 +14,7 @@ PRESET_CONFIGS: dict[str, dict] = {
         "available": True,
         "settings": {
             "opt_convert_ev": True,
-            "opt_convert_vakhavw": False,
+            "opt_convert_vakhavw": True,
             "opt_decoded": True,
             "opt_enriched": True,
             "opt_parquet": True,
