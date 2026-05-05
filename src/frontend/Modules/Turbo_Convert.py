@@ -14,6 +14,7 @@ from eencijferho.core.decoder_info import (
 )
 from typing import Any
 from config import get_input_dir, get_output_dir, get_metadata_dir
+from eencijferho.presets import PRESET_CONFIGS
 
 # -----------------------------------------------------------------------------
 # Page Configuration
@@ -301,6 +302,33 @@ else:
     if successful_pairs:
         st.divider()
         st.markdown("#### Uitvoeropties")
+
+        # --- Preset selector ---
+        st.radio(
+            "Instelmodus",
+            options=list(PRESET_CONFIGS.keys()),
+            format_func=lambda k: PRESET_CONFIGS[k]["label"]
+            if PRESET_CONFIGS[k]["available"]
+            else f"{PRESET_CONFIGS[k]['label']} (binnenkort beschikbaar)",
+            key="opt_preset",
+            horizontal=True,
+        )
+        active_preset = st.session_state.get("opt_preset", "custom")
+        preset_cfg = PRESET_CONFIGS[active_preset]
+        is_preset = active_preset != "custom" and preset_cfg["available"]
+
+        if is_preset:
+            st.info(preset_cfg["description"])
+            s = preset_cfg["settings"]
+            for _key in (
+                "opt_convert_ev", "opt_convert_vakhavw", "opt_decoded",
+                "opt_enriched", "opt_parquet", "opt_encrypt", "opt_snake_case",
+            ):
+                st.session_state[_key] = s[_key]
+
+        if active_preset == "svo":
+            st.warning("Deze preset is nog niet beschikbaar. Kies 'Eigen instellingen' om handmatig te configureren.")
+
         st.caption("Standaardinstellingen zijn geschikt voor de meeste gebruikers.")
 
         # --- Groep 1: Welke bestanden ---
@@ -309,10 +337,12 @@ else:
         with col_ev:
             st.checkbox(
                 "EV-bestanden", value=True, key="opt_convert_ev",
+                disabled=is_preset,
                 help="Zet de EV-hoofdbestanden om van vaste-breedte naar CSV.")
         with col_vak:
             st.checkbox(
                 "VAKHAVW-bestanden", value=True, key="opt_convert_vakhavw",
+                disabled=is_preset,
                 help="Zet de VAKHAVW-hoofdbestanden om van vaste-breedte naar CSV.")
         no_main_files = (
             not st.session_state.get("opt_convert_ev", True)
@@ -328,7 +358,7 @@ else:
             st.checkbox(
                 "Gedecodeerde variant",
                 value=True, key="opt_decoded",
-                disabled=no_main_files,
+                disabled=is_preset or no_main_files,
                 help="Voegt omschrijvingen toe vanuit Dec_*-bestanden (bijv. `landcode` → `landcode_oms`).")
             st.caption("`_decoded`")
         with col_enr:
@@ -336,7 +366,7 @@ else:
             st.checkbox(
                 "Verrijkte variant",
                 value=True, key="opt_enriched",
-                disabled=no_main_files or not _decoded_on,
+                disabled=is_preset or no_main_files or not _decoded_on,
                 help="Vervangt codes door leesbare labels (bijv. `M` → `man`). Vereist gedecodeerde variant.")
             if not _decoded_on or no_main_files:
                 st.caption("`_enriched` — vereist decoded")
@@ -352,27 +382,36 @@ else:
 
         if show_decode:
             if available_decode:
-                n_decode_selected = sum(
-                    1 for col in available_decode if _decode_sel.get(col, True)
-                )
-                non_default_parts = []
-                if n_decode_selected < len(available_decode):
-                    non_default_parts.append(f"{n_decode_selected}/{len(available_decode)} decode")
-                if show_enrich and available_enrich:
-                    n_enrich_selected = sum(
-                        1 for var in available_enrich if _enrich_sel.get(var, True)
+                if is_preset:
+                    cols_label = ", ".join(preset_cfg["settings"]["decode_columns"])
+                    st.button(
+                        "Kolomselectie instellen →",
+                        key="configure_columns_btn",
+                        disabled=True,
+                        help=f"Preset selecteert: {cols_label}",
                     )
-                    if n_enrich_selected < len(available_enrich):
-                        non_default_parts.append(f"{n_enrich_selected}/{len(available_enrich)} verrijken")
-                btn_label = "Kolomselectie instellen →"
-                if non_default_parts:
-                    btn_label += f" ({' · '.join(non_default_parts)})"
-                if st.button(
-                    btn_label,
-                    key="configure_columns_btn",
-                    help="Kies welke kolommen worden gedecodeerd en verrijkt.",
-                ):
-                    configure_columns_dialog(available_decode, available_enrich, decode_info, enrich_info, show_decode, show_enrich)
+                else:
+                    n_decode_selected = sum(
+                        1 for col in available_decode if _decode_sel.get(col, True)
+                    )
+                    non_default_parts = []
+                    if n_decode_selected < len(available_decode):
+                        non_default_parts.append(f"{n_decode_selected}/{len(available_decode)} decode")
+                    if show_enrich and available_enrich:
+                        n_enrich_selected = sum(
+                            1 for var in available_enrich if _enrich_sel.get(var, True)
+                        )
+                        if n_enrich_selected < len(available_enrich):
+                            non_default_parts.append(f"{n_enrich_selected}/{len(available_enrich)} verrijken")
+                    btn_label = "Kolomselectie instellen →"
+                    if non_default_parts:
+                        btn_label += f" ({' · '.join(non_default_parts)})"
+                    if st.button(
+                        btn_label,
+                        key="configure_columns_btn",
+                        help="Kies welke kolommen worden gedecodeerd en verrijkt.",
+                    ):
+                        configure_columns_dialog(available_decode, available_enrich, decode_info, enrich_info, show_decode, show_enrich)
             else:
                 st.caption("Kolomselectie beschikbaar nadat metadata is geëxtraheerd.")
 
@@ -384,25 +423,32 @@ else:
         with col_p:
             st.checkbox(
                 "Parquet", value=True, key="opt_parquet",
+                disabled=is_preset,
                 help="Slaat elk CSV-bestand ook op als Parquet (60–80% kleiner, sneller te laden).")
         with col_e:
             st.checkbox(
                 "Versleutelen", value=True, key="opt_encrypt",
+                disabled=is_preset,
                 help="Maakt een aparte versleutelde kopie voor bestanden met gevoelige kolommen (BSN).")
         with col_s:
             st.checkbox(
                 "snake_case", value=True, key="opt_snake_case",
+                disabled=is_preset,
                 help="Converteert kolomnamen naar snake_case (bijv. `Naam Student` → `naam_student`).")
 
         # Compute opt_decode_columns / opt_enrich_variables from stable dicts
-        if show_decode and available_decode:
-            selected_decode = [col for col in available_decode if _decode_sel.get(col, True)]
-            if len(selected_decode) < len(available_decode):
-                opt_decode_columns = selected_decode
-        if show_enrich and available_enrich:
-            selected_enrich = [var for var in available_enrich if _enrich_sel.get(var, True)]
-            if len(selected_enrich) < len(available_enrich):
-                opt_enrich_variables = selected_enrich
+        if is_preset:
+            opt_decode_columns = preset_cfg["settings"]["decode_columns"]
+            opt_enrich_variables = preset_cfg["settings"]["enrich_variables"]
+        else:
+            if show_decode and available_decode:
+                selected_decode = [col for col in available_decode if _decode_sel.get(col, True)]
+                if len(selected_decode) < len(available_decode):
+                    opt_decode_columns = selected_decode
+            if show_enrich and available_enrich:
+                selected_enrich = [var for var in available_enrich if _enrich_sel.get(var, True)]
+                if len(selected_enrich) < len(available_enrich):
+                    opt_enrich_variables = selected_enrich
 
     # Warning about existing converted files — shown before the action button
     if os.path.exists(get_output_dir()) and any(f for f in os.listdir(get_output_dir()) if not f.startswith(".")):
