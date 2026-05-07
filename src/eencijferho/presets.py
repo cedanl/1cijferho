@@ -20,7 +20,7 @@ PRESET_CONFIGS: dict[str, dict] = {
             "opt_parquet": True,
             "opt_encrypt": True,
             "opt_snake_case": True,
-            "decode_columns": ["Hoogste vooropleiding vï¿½ï¿½r het HO"],
+            "decode_columns": ["Hoogste vooropleiding vï¿½ï¿½r het HO", "Hoogste vooropleiding", "Opleidingscode"],
             "enrich_variables": ["Geslacht", "Hoogste vooropleiding vóór het HO"],
         },
     },
