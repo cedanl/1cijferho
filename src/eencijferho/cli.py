@@ -48,6 +48,7 @@ from eencijferho.core.extractor import (
 )
 from eencijferho.core.pipeline import run_turbo_convert_pipeline
 from eencijferho.config import OutputConfig
+from eencijferho.presets import PRESET_CONFIGS
 from eencijferho.utils.converter_headers import clean_header_name, normalize_name
 from eencijferho.utils.converter_match import match_files
 from eencijferho.utils.extractor_validation import validate_metadata_folder
@@ -270,7 +271,32 @@ def cmd_enrich(storage, args: argparse.Namespace) -> None:
 
 
 def _build_output_config(args: argparse.Namespace) -> OutputConfig:
-    """Build an OutputConfig from CLI flags."""
+    """Build an OutputConfig from CLI flags, with optional preset override."""
+    preset_name = getattr(args, "preset", None)
+    if preset_name:
+        cfg = PRESET_CONFIGS.get(preset_name)
+        if cfg is None:
+            available = [k for k, v in PRESET_CONFIGS.items() if v["available"] and k != "custom"]
+            raise SystemExit(f"Onbekende preset '{preset_name}'. Beschikbaar: {', '.join(available)}")
+        if not cfg["available"]:
+            raise SystemExit(f"Preset '{preset_name}' is nog niet beschikbaar.")
+        s = cfg["settings"]
+        variants = []
+        if s["opt_decoded"]:
+            variants.append("decoded")
+            if s["opt_enriched"]:
+                variants.append("enriched")
+        return OutputConfig(
+            variants=variants,
+            formats=["parquet"] if s["opt_parquet"] else [],
+            encrypt=s["opt_encrypt"],
+            column_casing="snake_case" if s["opt_snake_case"] else "none",
+            convert_ev=s["opt_convert_ev"],
+            convert_vakhavw=s["opt_convert_vakhavw"],
+            decode_columns=s["decode_columns"],
+            enrich_variables=s["enrich_variables"],
+        )
+
     variants = []
     if not args.skip_decode:
         variants.append("decoded")
@@ -386,6 +412,13 @@ def main() -> None:
         "--enrich-variables", nargs="*", metavar="VARIABELE", default=None,
         help="Alleen deze variabelen verrijken via variable_metadata (standaard: alle). "
              "Gebruik get_available_enrich_variables() om geldige namen te achterhalen.",
+    )
+    available_presets = [k for k, v in PRESET_CONFIGS.items() if v["available"] and k != "custom"]
+    _output_opts.add_argument(
+        "--preset", metavar="NAAM", default=None,
+        choices=available_presets,
+        help=f"Laad een vooraf gedefinieerde configuratie. Overschrijft alle andere uitvoeropties. "
+             f"Beschikbaar: {', '.join(available_presets)}.",
     )
 
     subparsers.add_parser(
