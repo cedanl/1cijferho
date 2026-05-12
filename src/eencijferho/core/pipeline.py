@@ -10,6 +10,7 @@ import eencijferho.utils.converter_validation as cv
 import eencijferho.utils.compressor as co
 import eencijferho.utils.encryptor as en
 import eencijferho.utils.converter_headers as ch
+import eencijferho.utils.translator as tr
 from collections.abc import Callable
 from typing import Any
 
@@ -160,7 +161,6 @@ def run_turbo_convert_pipeline(
         if status_callback:
             status_callback("🔗 Studentnummers koppelen...")
         log += "[pipeline] Studentnummers koppelen...\n"
-        import eencijferho.utils.translator as tr
         log += tr.translate_pgn_to_local_id(
             output_dir=output_dir,
             mapping_file=output_config.pgn_mapping_file,
@@ -168,8 +168,8 @@ def run_turbo_convert_pipeline(
             mapping_id_col=output_config.pgn_mapping_id_col,
         )
         log += "[pipeline] Koppeling voltooid.\n"
-    if progress_callback:
-        progress_callback(55)
+        if progress_callback:
+            progress_callback(55)
     # Step 4: Encrypt final files
     if output_config.encrypt:
         if status_callback:

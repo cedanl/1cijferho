@@ -18,9 +18,17 @@ def translate_pgn_to_local_id(
 ) -> str:
     """Voeg een lokaal studentnummer toe aan elk EV/VAKHAVW-bestand via een koppelbestand.
 
-    Het koppelbestand (CSV of Parquet) moet minstens twee kolommen bevatten:
-    één voor het persoonsgebonden nummer en één voor het lokale ID.
-    De join is een left-join; het aantal rijen mag niet wijzigen (cardinaliteitscheck).
+    Het koppelbestand moet minstens twee kolommen bevatten: één voor het
+    persoonsgebonden nummer en één voor het lokale ID. Ondersteunde formaten:
+    ``.parquet`` en ``.csv`` (puntkomma- of kommagescheiden, automatisch gedetecteerd).
+
+    Het koppelbestand moet altijd een **lokaal pad** zijn — het wordt direct
+    ingelezen met Polars, niet via de actieve storage-backend. De output-bestanden
+    in ``output_dir`` worden wél via de storage-backend gelezen en geschreven.
+
+    De join is een left-join; als het aantal rijen na de join verschilt van het
+    origineel (bijv. door dubbele PGNs in het koppelbestand), wordt een
+    ``ValueError`` gegenereerd.
     """
     console = Console()
     log = ""
@@ -29,11 +37,12 @@ def translate_pgn_to_local_id(
     if ext == ".parquet":
         mapping_df = pl.read_parquet(mapping_file)
     elif ext in (".csv", ".tsv", ".txt"):
-        # Try semicolon first (project convention), fall back to comma
-        raw = pl.read_csv(mapping_file, separator=";", infer_schema_length=0)
-        if len(raw.columns) == 1:
-            raw = pl.read_csv(mapping_file, separator=",", infer_schema_length=0)
-        mapping_df = raw
+        # Semicolon is the project convention; fall back to comma for files from
+        # other tools. A single-column result is the signal that the separator
+        # was wrong (the mapping file must have at least two columns).
+        mapping_df = pl.read_csv(mapping_file, separator=";", infer_schema_length=0)
+        if len(mapping_df.columns) == 1:
+            mapping_df = pl.read_csv(mapping_file, separator=",", infer_schema_length=0)
     else:
         raise ValueError(
             f"Onbekend koppelbestand-formaat '{ext}'. Gebruik .csv of .parquet."

@@ -34,6 +34,15 @@ class OutputConfig:
             ``None`` decodes all available columns.
         enrich_variables: Variable names to enrich via variable_metadata labels.
             ``None`` enriches all available variables.
+        pgn_mapping_file: Local path to a CSV or Parquet file provided by the
+            institution, containing a persoonsgebonden nummer → local student ID
+            mapping.  When ``None`` (default) the translation step is skipped.
+            The file must be a local path regardless of the active storage backend.
+        pgn_mapping_right_on: Column name in the mapping file for the
+            persoonsgebonden nummer (default: ``"persoonsgebonden_nummer"``).
+        pgn_mapping_id_col: Column name in the mapping file for the local student
+            ID, which is also used as the output column name
+            (default: ``"studentnummer"``).
 
     Example — CSV-only, no encryption, no header rename::
 

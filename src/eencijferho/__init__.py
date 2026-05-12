@@ -26,6 +26,7 @@ from eencijferho.utils.encryptor import encryptor
 from eencijferho.utils.converter_headers import convert_csv_headers_to_snake_case
 from eencijferho.utils.extractor_validation import validate_metadata_folder
 from eencijferho.utils.converter_match import match_files
+from eencijferho.utils.translator import translate_pgn_to_local_id
 
 __all__ = [
     "__version__",
@@ -41,4 +42,5 @@ __all__ = [
     "match_files",
     "get_fwf_params",
     "list_fwf_tables",
+    "translate_pgn_to_local_id",
 ]
