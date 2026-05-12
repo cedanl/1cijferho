@@ -450,7 +450,6 @@ else:
             "Pad naar koppelbestand (CSV of Parquet)",
             key="opt_pgn_mapping_file",
             placeholder="bijv. data/koppeling_pgn_studentnummer.csv",
-            disabled=is_preset,
             help=(
                 "Optioneel. Verwacht standaard kolommen 'persoonsgebonden_nummer' en 'studentnummer'. "
                 "Gebruik de geavanceerde instellingen hieronder voor andere kolomnamen."
