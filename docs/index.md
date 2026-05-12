@@ -86,7 +86,7 @@ Zie [Aan de slag](getting-started.md) voor de volledige installatiestappen.
         input_dir="data/01-input",
         output_dir="data/02-output",
         output_config=OutputConfig(
-            pgn_mapping_file="data/koppeling_pgn_studentnummer.csv",
+            bsn_mapping_file="data/koppeling_bsn_studentnummer.csv",
         ),
     )
     ```

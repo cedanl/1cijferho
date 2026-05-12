@@ -122,9 +122,9 @@ def write_run_config(output_dir: str, output_cfg: OutputConfig, opt_decode_colum
             "opt_snake_case": output_cfg.column_casing == "snake_case",
             "opt_decode_columns": opt_decode_columns,
             "opt_enrich_variables": opt_enrich_variables,
-            "opt_pgn_mapping_file": output_cfg.pgn_mapping_file,
-            "opt_pgn_mapping_right_on": output_cfg.pgn_mapping_right_on,
-            "opt_pgn_mapping_id_col": output_cfg.pgn_mapping_id_col,
+            "opt_bsn_mapping_file": output_cfg.bsn_mapping_file,
+            "opt_bsn_mapping_right_on": output_cfg.bsn_mapping_right_on,
+            "opt_bsn_mapping_id_col": output_cfg.bsn_mapping_id_col,
         },
     }
     with open(config_path, "w", encoding="utf-8") as f:
@@ -444,60 +444,60 @@ else:
         st.markdown("**Studentnummer koppeling** *(optioneel)*")
         st.caption(
             "Lever een koppelbestand aan (CSV of Parquet) om een lokaal studentnummer toe te voegen "
-            "aan elk EV/VAKHAVW-bestand. Het persoonsgebonden nummer blijft daarna nog steeds versleuteld."
+            "aan elk EV/VAKHAVW-bestand. Het burgerservicenummer wordt daarna nog steeds versleuteld."
         )
-        pgn_mapping_file_raw = st.text_input(
+        bsn_mapping_file_raw = st.text_input(
             "Pad naar koppelbestand (CSV of Parquet)",
-            key="opt_pgn_mapping_file",
-            placeholder="bijv. data/koppeling_pgn_studentnummer_VOORBEELD.csv",
+            key="opt_bsn_mapping_file",
+            placeholder="bijv. data/koppeling_bsn_studentnummer_VOORBEELD.csv",
             disabled=no_main_files,
             help=(
                 "Optioneel. Geef een pad op de server op, relatief aan de projectmap "
                 "(bijv. `data/koppeling.csv`) of een absoluut pad. "
-                "Verwacht standaard kolommen 'persoonsgebonden_nummer' en 'studentnummer'. "
-                "Zie data/koppeling_pgn_studentnummer_VOORBEELD.csv voor het verwachte formaat."
+                "Verwacht standaard kolommen 'burgerservicenummer' en 'studentnummer'. "
+                "Zie data/koppeling_bsn_studentnummer_VOORBEELD.csv voor het verwachte formaat."
             ),
         )
         # Ignore any entered path when there are no main files to translate.
-        pgn_mapping_file = None if no_main_files else (pgn_mapping_file_raw or None)
+        bsn_mapping_file = None if no_main_files else (bsn_mapping_file_raw or None)
 
         # Detect columns from the mapping file while it's being configured,
         # so the user can see what column names are available before running.
         _mapping_columns: list[str] | None = None
-        if pgn_mapping_file and os.path.exists(pgn_mapping_file):
+        if bsn_mapping_file and os.path.exists(bsn_mapping_file):
             try:
                 import polars as _pl
-                _ext = os.path.splitext(pgn_mapping_file)[1].lower()
+                _ext = os.path.splitext(bsn_mapping_file)[1].lower()
                 if _ext == ".parquet":
-                    _mapping_columns = _pl.read_parquet(pgn_mapping_file, n_rows=0).columns
+                    _mapping_columns = _pl.read_parquet(bsn_mapping_file, n_rows=0).columns
                 else:
-                    _raw = _pl.read_csv(pgn_mapping_file, separator=";", n_rows=0, infer_schema_length=0)
+                    _raw = _pl.read_csv(bsn_mapping_file, separator=";", n_rows=0, infer_schema_length=0)
                     if len(_raw.columns) == 1:
-                        _raw = _pl.read_csv(pgn_mapping_file, separator=",", n_rows=0, infer_schema_length=0)
+                        _raw = _pl.read_csv(bsn_mapping_file, separator=",", n_rows=0, infer_schema_length=0)
                     _mapping_columns = _raw.columns
                 st.caption(f"Gevonden kolommen: {', '.join(f'`{c}`' for c in _mapping_columns)}")
             except Exception:
                 pass
-        elif pgn_mapping_file and not os.path.exists(pgn_mapping_file):
-            st.warning(f"⚠️ Koppelbestand niet gevonden: `{pgn_mapping_file}`")
+        elif bsn_mapping_file and not os.path.exists(bsn_mapping_file):
+            st.warning(f"⚠️ Koppelbestand niet gevonden: `{bsn_mapping_file}`")
 
         # Read advanced settings from session state so they survive preset switches
         # and cases where the expander is not rendered.
-        pgn_mapping_right_on = st.session_state.get("opt_pgn_mapping_right_on", "persoonsgebonden_nummer")
-        pgn_mapping_id_col = st.session_state.get("opt_pgn_mapping_id_col", "studentnummer")
-        if pgn_mapping_file:
+        bsn_mapping_right_on = st.session_state.get("opt_bsn_mapping_right_on", "burgerservicenummer")
+        bsn_mapping_id_col = st.session_state.get("opt_bsn_mapping_id_col", "studentnummer")
+        if bsn_mapping_file:
             with st.expander("Geavanceerde kolominstellingen koppelbestand"):
                 if _mapping_columns:
                     st.caption(f"Beschikbare kolommen: {', '.join(f'`{c}`' for c in _mapping_columns)}")
-                pgn_mapping_right_on = st.text_input(
-                    "Kolomnaam PGN in koppelbestand",
-                    value=pgn_mapping_right_on,
-                    key="opt_pgn_mapping_right_on",
+                bsn_mapping_right_on = st.text_input(
+                    "Kolomnaam BSN in koppelbestand",
+                    value=bsn_mapping_right_on,
+                    key="opt_bsn_mapping_right_on",
                 )
-                pgn_mapping_id_col = st.text_input(
+                bsn_mapping_id_col = st.text_input(
                     "Kolomnaam lokaal ID in koppelbestand",
-                    value=pgn_mapping_id_col,
-                    key="opt_pgn_mapping_id_col",
+                    value=bsn_mapping_id_col,
+                    key="opt_bsn_mapping_id_col",
                 )
 
         # Compute opt_decode_columns / opt_enrich_variables from stable dicts
@@ -549,9 +549,9 @@ else:
             st.session_state.start_turbo_convert = False
 
             # Pre-flight: koppelbestand moet bestaan als het is opgegeven
-            if pgn_mapping_file and not os.path.exists(pgn_mapping_file):
+            if bsn_mapping_file and not os.path.exists(bsn_mapping_file):
                 st.error(
-                    f"❌ **Koppelbestand niet gevonden:** `{pgn_mapping_file}`  \n"
+                    f"❌ **Koppelbestand niet gevonden:** `{bsn_mapping_file}`  \n"
                     "Controleer het pad en probeer opnieuw."
                 )
                 st.stop()
@@ -594,9 +594,9 @@ else:
                     convert_vakhavw=do_convert_vakhavw,
                     decode_columns=opt_decode_columns if opt_decode_columns and available_decode and len(opt_decode_columns) < len(available_decode) else None,
                     enrich_variables=opt_enrich_variables if opt_enrich_variables and available_enrich and len(opt_enrich_variables) < len(available_enrich) else None,
-                    pgn_mapping_file=pgn_mapping_file or None,
-                    pgn_mapping_right_on=pgn_mapping_right_on,
-                    pgn_mapping_id_col=pgn_mapping_id_col,
+                    bsn_mapping_file=bsn_mapping_file or None,
+                    bsn_mapping_right_on=bsn_mapping_right_on,
+                    bsn_mapping_id_col=bsn_mapping_id_col,
                 )
 
                 log, output_files = pipeline.run_turbo_convert_pipeline(

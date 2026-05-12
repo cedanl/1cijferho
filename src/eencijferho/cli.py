@@ -295,7 +295,7 @@ def _build_output_config(args: argparse.Namespace) -> OutputConfig:
             convert_vakhavw=s["opt_convert_vakhavw"],
             decode_columns=s["decode_columns"],
             enrich_variables=s["enrich_variables"],
-            pgn_mapping_file=args.pgn_mapping_file,
+            bsn_mapping_file=args.bsn_mapping_file,
         )
 
     variants = []
@@ -313,7 +313,7 @@ def _build_output_config(args: argparse.Namespace) -> OutputConfig:
         convert_vakhavw=not args.skip_vakhavw,
         decode_columns=args.decode_columns or None,
         enrich_variables=args.enrich_variables or None,
-        pgn_mapping_file=getattr(args, "pgn_mapping_file", None),
+        bsn_mapping_file=getattr(args, "bsn_mapping_file", None),
     )
 
 
@@ -416,10 +416,10 @@ def main() -> None:
              "Gebruik get_available_enrich_variables() om geldige namen te achterhalen.",
     )
     _output_opts.add_argument(
-        "--pgn-mapping-file", metavar="PAD", default=None,
+        "--bsn-mapping-file", metavar="PAD", default=None,
         help=(
-            "Koppelbestand (CSV of Parquet) met persoonsgebonden nummer → studentnummer. "
-            "Verwacht kolommen 'persoonsgebonden_nummer' en 'studentnummer' (standaard). "
+            "Koppelbestand (CSV of Parquet) met burgerservicenummer → studentnummer. "
+            "Verwacht kolommen 'burgerservicenummer' en 'studentnummer' (standaard). "
             "Voor afwijkende kolomnamen: gebruik de Python API (OutputConfig)."
         ),
     )

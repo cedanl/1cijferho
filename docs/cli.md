@@ -81,7 +81,7 @@ eencijferho convert --input data/01-input --output data/02-output [opties]
 | `--skip-vakhavw` | VAKHAVW-bestanden overslaan |
 | `--decode-columns KOLOM ...` | Alleen opgegeven kolommen decoderen |
 | `--enrich-variables VAR ...` | Alleen opgegeven variabelen verrijken |
-| `--pgn-mapping-file PAD` | Koppelbestand (CSV/Parquet) om een lokaal studentnummer toe te voegen aan EV/VAKHAVW-bestanden vóór de encryptie. Verwacht kolommen `persoonsgebonden_nummer` en `studentnummer`. Voor afwijkende kolomnamen: gebruik de [Python API](api/index.md) (`OutputConfig`). |
+| `--bsn-mapping-file PAD` | Koppelbestand (CSV/Parquet) om een lokaal studentnummer toe te voegen aan EV/VAKHAVW-bestanden vóór de encryptie. Verwacht kolommen `burgerservicenummer` en `studentnummer`. Voor afwijkende kolomnamen: gebruik de [Python API](api/index.md) (`OutputConfig`). |
 
 ---
 
