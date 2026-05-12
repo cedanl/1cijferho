@@ -80,6 +80,12 @@ class OutputConfig:
         if self.column_casing not in valid_casing:
             raise ValueError(f"Ongeldige column_casing: '{self.column_casing}'. Toegestaan: {valid_casing}")
 
+        if self.pgn_mapping_file is not None:
+            if not self.pgn_mapping_right_on:
+                raise ValueError("pgn_mapping_right_on mag niet leeg zijn.")
+            if not self.pgn_mapping_id_col:
+                raise ValueError("pgn_mapping_id_col mag niet leeg zijn.")
+
 
 # Default demo mode
 DEFAULT_DEMO_MODE: bool = True

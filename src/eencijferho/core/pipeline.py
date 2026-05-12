@@ -1,5 +1,5 @@
 """
-Modular pipeline orchestrator for conversion, decoding, validation, compression, encryption, header normalization.
+Modular pipeline orchestrator: conversion → decoding → validation → translation (opt.) → encryption → compression → header normalization.
 """
 
 import os

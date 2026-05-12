@@ -295,7 +295,7 @@ def _build_output_config(args: argparse.Namespace) -> OutputConfig:
             convert_vakhavw=s["opt_convert_vakhavw"],
             decode_columns=s["decode_columns"],
             enrich_variables=s["enrich_variables"],
-            pgn_mapping_file=getattr(args, "pgn_mapping_file", None),
+            pgn_mapping_file=args.pgn_mapping_file,
         )
 
     variants = []

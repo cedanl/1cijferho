@@ -446,27 +446,33 @@ else:
             "Lever een koppelbestand aan (CSV of Parquet) om een lokaal studentnummer toe te voegen "
             "aan elk EV/VAKHAVW-bestand. Het persoonsgebonden nummer blijft daarna nog steeds versleuteld."
         )
-        pgn_mapping_file = st.text_input(
+        pgn_mapping_file_raw = st.text_input(
             "Pad naar koppelbestand (CSV of Parquet)",
             key="opt_pgn_mapping_file",
             placeholder="bijv. data/koppeling_pgn_studentnummer.csv",
+            disabled=no_main_files,
             help=(
                 "Optioneel. Verwacht standaard kolommen 'persoonsgebonden_nummer' en 'studentnummer'. "
                 "Gebruik de geavanceerde instellingen hieronder voor andere kolomnamen."
             ),
         )
-        pgn_mapping_right_on = "persoonsgebonden_nummer"
-        pgn_mapping_id_col = "studentnummer"
-        if pgn_mapping_file and not is_preset:
+        # Ignore any entered path when there are no main files to translate.
+        pgn_mapping_file = None if no_main_files else (pgn_mapping_file_raw or None)
+
+        # Read advanced settings from session state so they survive preset switches
+        # and cases where the expander is not rendered.
+        pgn_mapping_right_on = st.session_state.get("opt_pgn_mapping_right_on", "persoonsgebonden_nummer")
+        pgn_mapping_id_col = st.session_state.get("opt_pgn_mapping_id_col", "studentnummer")
+        if pgn_mapping_file:
             with st.expander("Geavanceerde kolominstellingen koppelbestand"):
                 pgn_mapping_right_on = st.text_input(
                     "Kolomnaam PGN in koppelbestand",
-                    value="persoonsgebonden_nummer",
+                    value=pgn_mapping_right_on,
                     key="opt_pgn_mapping_right_on",
                 )
                 pgn_mapping_id_col = st.text_input(
                     "Kolomnaam lokaal ID in koppelbestand",
-                    value="studentnummer",
+                    value=pgn_mapping_id_col,
                     key="opt_pgn_mapping_id_col",
                 )
 
