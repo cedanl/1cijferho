@@ -3,7 +3,7 @@ from rich.console import Console
 import hashlib
 import os
 from typing import Any
-from eencijferho.config import get_output_dir
+from eencijferho.config import get_output_dir, DUO_PGN_COLUMN, DUO_BSN_COLUMN, DUO_ONDERWIJSNUMMER_COLUMN
 from eencijferho.io.decorators import with_storage
 
 
@@ -16,8 +16,7 @@ def encryptor(storage, input_dir: str | None = None, output_dir: str | None = No
         output_dir = get_output_dir()
     console = Console()
 
-    # Columns to encrypt
-    columns_to_encrypt = ["Persoonsgebonden nummer", "Burgerservicenummer", "Onderwijsnummer"]
+    columns_to_encrypt = [DUO_PGN_COLUMN, DUO_BSN_COLUMN, DUO_ONDERWIJSNUMMER_COLUMN]
 
     # Specifically target only files starting with EV or VAKHAVW
     target_files = []

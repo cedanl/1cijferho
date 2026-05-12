@@ -87,6 +87,12 @@ class OutputConfig:
                 raise ValueError("pgn_mapping_id_col mag niet leeg zijn.")
 
 
+# DUO column names as they appear in raw output files (before snake_case conversion).
+# Centralised here so encryptor, translator, and any future code share one source of truth.
+DUO_PGN_COLUMN: str = "Persoonsgebonden nummer"
+DUO_BSN_COLUMN: str = "Burgerservicenummer"
+DUO_ONDERWIJSNUMMER_COLUMN: str = "Onderwijsnummer"
+
 # Default demo mode
 DEFAULT_DEMO_MODE: bool = True
 

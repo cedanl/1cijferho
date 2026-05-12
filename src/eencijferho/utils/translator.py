@@ -3,10 +3,38 @@ import os
 import polars as pl
 from rich.console import Console
 
+from eencijferho.config import DUO_PGN_COLUMN
 from eencijferho.io.decorators import with_storage
 
-# The exact column name as it appears in DUO output files, before snake_case conversion.
-_PGN_COL_IN_DATA = "Persoonsgebonden nummer"
+
+def _load_mapping_df(
+    mapping_file: str,
+    mapping_pgn_col: str,
+    mapping_id_col: str,
+) -> pl.DataFrame:
+    """Read and validate the local mapping file. Returns a two-column lookup DataFrame."""
+    ext = os.path.splitext(mapping_file)[1].lower()
+    if ext == ".parquet":
+        raw = pl.read_parquet(mapping_file)
+    elif ext in (".csv", ".tsv", ".txt"):
+        # Semicolon is the project convention; fall back to comma for files from
+        # other tools. A single-column result signals the wrong separator.
+        raw = pl.read_csv(mapping_file, separator=";", infer_schema_length=0)
+        if len(raw.columns) == 1:
+            raw = pl.read_csv(mapping_file, separator=",", infer_schema_length=0)
+    else:
+        raise ValueError(
+            f"Onbekend koppelbestand-formaat '{ext}'. Gebruik .csv of .parquet."
+        )
+
+    missing = [c for c in (mapping_pgn_col, mapping_id_col) if c not in raw.columns]
+    if missing:
+        raise ValueError(
+            f"Kolom(men) {missing} niet gevonden in koppelbestand '{mapping_file}'. "
+            f"Beschikbare kolommen: {raw.columns}"
+        )
+
+    return raw.select([mapping_pgn_col, mapping_id_col])
 
 
 @with_storage
@@ -34,29 +62,7 @@ def translate_pgn_to_local_id(
     console = Console()
     log = ""
 
-    ext = os.path.splitext(mapping_file)[1].lower()
-    if ext == ".parquet":
-        mapping_df = pl.read_parquet(mapping_file)
-    elif ext in (".csv", ".tsv", ".txt"):
-        # Semicolon is the project convention; fall back to comma for files from
-        # other tools. A single-column result is the signal that the separator
-        # was wrong (the mapping file must have at least two columns).
-        mapping_df = pl.read_csv(mapping_file, separator=";", infer_schema_length=0)
-        if len(mapping_df.columns) == 1:
-            mapping_df = pl.read_csv(mapping_file, separator=",", infer_schema_length=0)
-    else:
-        raise ValueError(
-            f"Onbekend koppelbestand-formaat '{ext}'. Gebruik .csv of .parquet."
-        )
-
-    missing = [c for c in (mapping_pgn_col, mapping_id_col) if c not in mapping_df.columns]
-    if missing:
-        raise ValueError(
-            f"Kolom(men) {missing} niet gevonden in koppelbestand '{mapping_file}'. "
-            f"Beschikbare kolommen: {mapping_df.columns}"
-        )
-
-    lookup = mapping_df.select([mapping_pgn_col, mapping_id_col])
+    lookup = _load_mapping_df(mapping_file, mapping_pgn_col, mapping_id_col)
 
     target_files: list[str] = []
     for pattern in ["EV*.csv", "VAKHAVW*.csv"]:
@@ -70,14 +76,14 @@ def translate_pgn_to_local_id(
     for filepath in target_files:
         fname = os.path.basename(filepath)
         df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
-        if _PGN_COL_IN_DATA not in df.columns:
-            log += f"[translator] {fname}: geen '{_PGN_COL_IN_DATA}' kolom, overgeslagen.\n"
+        if DUO_PGN_COLUMN not in df.columns:
+            log += f"[translator] {fname}: geen '{DUO_PGN_COLUMN}' kolom, overgeslagen.\n"
             continue
 
         n_before = len(df)
         joined = df.join(
             lookup,
-            left_on=_PGN_COL_IN_DATA,
+            left_on=DUO_PGN_COLUMN,
             right_on=mapping_pgn_col,
             how="left",
         )
