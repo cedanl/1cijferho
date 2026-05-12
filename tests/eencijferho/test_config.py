@@ -87,3 +87,29 @@ def test_invalid_format_raises():
 def test_invalid_column_casing_raises():
     with pytest.raises(ValueError, match="column_casing"):
         OutputConfig(column_casing="camelCase")
+
+
+# ---------------------------------------------------------------------------
+# pgn_mapping_* velden
+# ---------------------------------------------------------------------------
+
+def test_pgn_mapping_defaults_to_none():
+    cfg = OutputConfig()
+    assert cfg.pgn_mapping_file is None
+    assert cfg.pgn_mapping_right_on == "persoonsgebonden_nummer"
+    assert cfg.pgn_mapping_id_col == "studentnummer"
+
+
+def test_pgn_mapping_file_accepted():
+    cfg = OutputConfig(pgn_mapping_file="data/mapping.csv")
+    assert cfg.pgn_mapping_file == "data/mapping.csv"
+
+
+def test_pgn_mapping_empty_right_on_raises():
+    with pytest.raises(ValueError, match="pgn_mapping_right_on"):
+        OutputConfig(pgn_mapping_file="data/mapping.csv", pgn_mapping_right_on="")
+
+
+def test_pgn_mapping_empty_id_col_raises():
+    with pytest.raises(ValueError, match="pgn_mapping_id_col"):
+        OutputConfig(pgn_mapping_file="data/mapping.csv", pgn_mapping_id_col="")
