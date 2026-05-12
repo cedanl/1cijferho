@@ -461,7 +461,24 @@ else:
         # Ignore any entered path when there are no main files to translate.
         pgn_mapping_file = None if no_main_files else (pgn_mapping_file_raw or None)
 
-        if pgn_mapping_file and not os.path.exists(pgn_mapping_file):
+        # Detect columns from the mapping file while it's being configured,
+        # so the user can see what column names are available before running.
+        _mapping_columns: list[str] | None = None
+        if pgn_mapping_file and os.path.exists(pgn_mapping_file):
+            try:
+                import polars as _pl
+                _ext = os.path.splitext(pgn_mapping_file)[1].lower()
+                if _ext == ".parquet":
+                    _mapping_columns = _pl.read_parquet(pgn_mapping_file, n_rows=0).columns
+                else:
+                    _raw = _pl.read_csv(pgn_mapping_file, separator=";", n_rows=0, infer_schema_length=0)
+                    if len(_raw.columns) == 1:
+                        _raw = _pl.read_csv(pgn_mapping_file, separator=",", n_rows=0, infer_schema_length=0)
+                    _mapping_columns = _raw.columns
+                st.caption(f"Gevonden kolommen: {', '.join(f'`{c}`' for c in _mapping_columns)}")
+            except Exception:
+                pass
+        elif pgn_mapping_file and not os.path.exists(pgn_mapping_file):
             st.warning(f"⚠️ Koppelbestand niet gevonden: `{pgn_mapping_file}`")
 
         # Read advanced settings from session state so they survive preset switches
@@ -470,6 +487,8 @@ else:
         pgn_mapping_id_col = st.session_state.get("opt_pgn_mapping_id_col", "studentnummer")
         if pgn_mapping_file:
             with st.expander("Geavanceerde kolominstellingen koppelbestand"):
+                if _mapping_columns:
+                    st.caption(f"Beschikbare kolommen: {', '.join(f'`{c}`' for c in _mapping_columns)}")
                 pgn_mapping_right_on = st.text_input(
                     "Kolomnaam PGN in koppelbestand",
                     value=pgn_mapping_right_on,
