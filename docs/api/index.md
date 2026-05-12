@@ -51,6 +51,12 @@ Alle publieke functies staan in [`__all__`](https://github.com/cedanl/1cijferho/
 
 ---
 
+## Vertaling
+
+::: eencijferho.utils.translator.translate_bsn_to_local_id
+
+---
+
 ## Configuratie
 
 ::: eencijferho.config.OutputConfig

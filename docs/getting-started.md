@@ -101,3 +101,50 @@ eencijferho pipeline --input data/01-input --output data/02-output
 ```
 
 Of stap voor stap — zie de [CLI-referentie](cli.md).
+
+---
+
+## Studentnummer koppeling (optioneel)
+
+Instellingen kunnen een eigen koppelbestand aanleveren om een lokaal studentnummer toe te voegen aan de uitvoerbestanden. De koppeling vindt plaats vóór de encryptiestap, zodat het burgerservicenummer daarna versleuteld kan worden terwijl het studentnummer leesbaar blijft.
+
+**Bestandsformaat:** CSV (puntkomma-gescheiden) of Parquet, met minimaal twee kolommen:
+
+```csv
+burgerservicenummer;studentnummer
+123456789;S0001
+234567890;S0002
+```
+
+Een voorbeeldbestand staat in `data/koppeling_bsn_studentnummer_VOORBEELD.csv`.
+
+=== "Streamlit UI"
+    Vul het pad in bij **Studentnummer koppeling** op de Turbo Convert-pagina.
+    Gebruik een pad relatief aan de projectmap (bijv. `data/koppeling.csv`) of een absoluut pad.
+
+=== "CLI"
+    ```bash
+    eencijferho pipeline \
+      --input data/01-input \
+      --output data/02-output \
+      --bsn-mapping-file data/koppeling_bsn_studentnummer.csv
+    ```
+
+=== "Python API"
+    ```python
+    from eencijferho import run_turbo_convert_pipeline
+    from eencijferho.config import OutputConfig
+
+    run_turbo_convert_pipeline(
+        input_dir="data/01-input",
+        output_dir="data/02-output",
+        output_config=OutputConfig(
+            bsn_mapping_file="data/koppeling_bsn_studentnummer.csv",
+        ),
+    )
+    ```
+
+!!! info "Kolomnamen aanpassen"
+    Standaard worden de kolommen `burgerservicenummer` en `studentnummer` verwacht.
+    Afwijkende kolomnamen zijn configureerbaar via de geavanceerde instellingen in de UI
+    of via `OutputConfig(bsn_mapping_right_on=..., bsn_mapping_id_col=...)` in de Python API.

@@ -73,10 +73,21 @@ Zie [Aan de slag](getting-started.md) voor de volledige installatiestappen.
 
     ```python
     from eencijferho import run_turbo_convert_pipeline
+    from eencijferho.config import OutputConfig
 
+    # Standaard: alles aan
     run_turbo_convert_pipeline(
         input_dir="data/01-input",
         output_dir="data/02-output",
+    )
+
+    # Met koppelbestand voor lokaal studentnummer (optioneel, aangeleverd door instelling)
+    run_turbo_convert_pipeline(
+        input_dir="data/01-input",
+        output_dir="data/02-output",
+        output_config=OutputConfig(
+            bsn_mapping_file="data/koppeling_bsn_studentnummer.csv",
+        ),
     )
     ```
 

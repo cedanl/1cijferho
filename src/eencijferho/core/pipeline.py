@@ -1,5 +1,5 @@
 """
-Modular pipeline orchestrator for conversion, decoding, validation, compression, encryption, header normalization.
+Modular pipeline orchestrator: conversion → decoding → validation → BSN translation (opt.) → encryption → compression → header normalization.
 """
 
 import os
@@ -10,6 +10,7 @@ import eencijferho.utils.converter_validation as cv
 import eencijferho.utils.compressor as co
 import eencijferho.utils.encryptor as en
 import eencijferho.utils.converter_headers as ch
+import eencijferho.utils.translator as tr
 from collections.abc import Callable
 from typing import Any
 
@@ -155,6 +156,20 @@ def run_turbo_convert_pipeline(
     log += "[pipeline] Controle voltooid.\n"
     if progress_callback:
         progress_callback(50)
+    # Step 3.5: BSN → lokaal ID koppelen (optioneel)
+    if output_config.bsn_mapping_file:
+        if status_callback:
+            status_callback("🔗 Studentnummers koppelen...")
+        log += "[pipeline] Studentnummers koppelen...\n"
+        log += tr.translate_bsn_to_local_id(
+            output_dir=output_dir,
+            mapping_file=output_config.bsn_mapping_file,
+            mapping_bsn_col=output_config.bsn_mapping_right_on,
+            mapping_id_col=output_config.bsn_mapping_id_col,
+        )
+        log += "[pipeline] Koppeling voltooid.\n"
+        if progress_callback:
+            progress_callback(55)
     # Step 4: Encrypt final files
     if output_config.encrypt:
         if status_callback:

@@ -87,3 +87,29 @@ def test_invalid_format_raises():
 def test_invalid_column_casing_raises():
     with pytest.raises(ValueError, match="column_casing"):
         OutputConfig(column_casing="camelCase")
+
+
+# ---------------------------------------------------------------------------
+# bsn_mapping_* velden
+# ---------------------------------------------------------------------------
+
+def test_bsn_mapping_defaults_to_none():
+    cfg = OutputConfig()
+    assert cfg.bsn_mapping_file is None
+    assert cfg.bsn_mapping_right_on == "burgerservicenummer"
+    assert cfg.bsn_mapping_id_col == "studentnummer"
+
+
+def test_bsn_mapping_file_accepted():
+    cfg = OutputConfig(bsn_mapping_file="data/mapping.csv")
+    assert cfg.bsn_mapping_file == "data/mapping.csv"
+
+
+def test_bsn_mapping_empty_right_on_raises():
+    with pytest.raises(ValueError, match="bsn_mapping_right_on"):
+        OutputConfig(bsn_mapping_file="data/mapping.csv", bsn_mapping_right_on="")
+
+
+def test_bsn_mapping_empty_id_col_raises():
+    with pytest.raises(ValueError, match="bsn_mapping_id_col"):
+        OutputConfig(bsn_mapping_file="data/mapping.csv", bsn_mapping_id_col="")

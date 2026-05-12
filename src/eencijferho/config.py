@@ -34,6 +34,15 @@ class OutputConfig:
             ``None`` decodes all available columns.
         enrich_variables: Variable names to enrich via variable_metadata labels.
             ``None`` enriches all available variables.
+        bsn_mapping_file: Local path to a CSV or Parquet file provided by the
+            institution, containing a burgerservicenummer → local student ID
+            mapping.  When ``None`` (default) the translation step is skipped.
+            The file must be a local path regardless of the active storage backend.
+        bsn_mapping_right_on: Column name in the mapping file for the
+            burgerservicenummer (default: ``"burgerservicenummer"``).
+        bsn_mapping_id_col: Column name in the mapping file for the local student
+            ID, which is also used as the output column name
+            (default: ``"studentnummer"``).
 
     Example — CSV-only, no encryption, no header rename::
 
@@ -48,6 +57,9 @@ class OutputConfig:
     convert_vakhavw: bool = True
     decode_columns: list[str] | None = None
     enrich_variables: list[str] | None = None
+    bsn_mapping_file: str | None = None
+    bsn_mapping_right_on: str = "burgerservicenummer"
+    bsn_mapping_id_col: str = "studentnummer"
 
     def __post_init__(self) -> None:
         valid_variants = frozenset({"decoded", "enriched"})
@@ -68,6 +80,18 @@ class OutputConfig:
         if self.column_casing not in valid_casing:
             raise ValueError(f"Ongeldige column_casing: '{self.column_casing}'. Toegestaan: {valid_casing}")
 
+        if self.bsn_mapping_file is not None:
+            if not self.bsn_mapping_right_on:
+                raise ValueError("bsn_mapping_right_on mag niet leeg zijn.")
+            if not self.bsn_mapping_id_col:
+                raise ValueError("bsn_mapping_id_col mag niet leeg zijn.")
+
+
+# DUO column names as they appear in raw output files (before snake_case conversion).
+# Centralised here so encryptor, translator, and any future code share one source of truth.
+DUO_PGN_COLUMN: str = "Persoonsgebonden nummer"
+DUO_BSN_COLUMN: str = "Burgerservicenummer"
+DUO_ONDERWIJSNUMMER_COLUMN: str = "Onderwijsnummer"
 
 # Default demo mode
 DEFAULT_DEMO_MODE: bool = True

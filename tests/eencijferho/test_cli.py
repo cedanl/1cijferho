@@ -17,6 +17,7 @@ def _args(**kwargs) -> argparse.Namespace:
         skip_vakhavw=False,
         decode_columns=None,
         enrich_variables=None,
+        bsn_mapping_file=None,
     )
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
@@ -117,3 +118,17 @@ def test_enrich_variables_passed_through():
 def test_enrich_variables_empty_list_becomes_none():
     cfg = _build_output_config(_args(enrich_variables=[]))
     assert cfg.enrich_variables is None
+
+
+# ---------------------------------------------------------------------------
+# bsn_mapping_file
+# ---------------------------------------------------------------------------
+
+def test_bsn_mapping_file_default_is_none():
+    cfg = _build_output_config(_args())
+    assert cfg.bsn_mapping_file is None
+
+
+def test_bsn_mapping_file_passed_through():
+    cfg = _build_output_config(_args(bsn_mapping_file="data/mapping.csv"))
+    assert cfg.bsn_mapping_file == "data/mapping.csv"
