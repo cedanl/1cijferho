@@ -122,6 +122,9 @@ def write_run_config(output_dir: str, output_cfg: OutputConfig, opt_decode_colum
             "opt_snake_case": output_cfg.column_casing == "snake_case",
             "opt_decode_columns": opt_decode_columns,
             "opt_enrich_variables": opt_enrich_variables,
+            "opt_pgn_mapping_file": output_cfg.pgn_mapping_file,
+            "opt_pgn_mapping_right_on": output_cfg.pgn_mapping_right_on,
+            "opt_pgn_mapping_id_col": output_cfg.pgn_mapping_id_col,
         },
     }
     with open(config_path, "w", encoding="utf-8") as f:
@@ -436,6 +439,38 @@ else:
                 disabled=is_preset,
                 help="Converteert kolomnamen naar snake_case (bijv. `Naam Student` → `naam_student`).")
 
+        # --- Groep 4: Studentnummer koppeling (optioneel) ---
+        st.divider()
+        st.markdown("**Studentnummer koppeling** *(optioneel)*")
+        st.caption(
+            "Lever een koppelbestand aan (CSV of Parquet) om een lokaal studentnummer toe te voegen "
+            "aan elk EV/VAKHAVW-bestand. Het persoonsgebonden nummer blijft daarna nog steeds versleuteld."
+        )
+        pgn_mapping_file = st.text_input(
+            "Pad naar koppelbestand (CSV of Parquet)",
+            key="opt_pgn_mapping_file",
+            placeholder="bijv. data/koppeling_pgn_studentnummer.csv",
+            disabled=is_preset,
+            help=(
+                "Optioneel. Verwacht standaard kolommen 'persoonsgebonden_nummer' en 'studentnummer'. "
+                "Gebruik de geavanceerde instellingen hieronder voor andere kolomnamen."
+            ),
+        )
+        pgn_mapping_right_on = "persoonsgebonden_nummer"
+        pgn_mapping_id_col = "studentnummer"
+        if pgn_mapping_file and not is_preset:
+            with st.expander("Geavanceerde kolominstellingen koppelbestand"):
+                pgn_mapping_right_on = st.text_input(
+                    "Kolomnaam PGN in koppelbestand",
+                    value="persoonsgebonden_nummer",
+                    key="opt_pgn_mapping_right_on",
+                )
+                pgn_mapping_id_col = st.text_input(
+                    "Kolomnaam lokaal ID in koppelbestand",
+                    value="studentnummer",
+                    key="opt_pgn_mapping_id_col",
+                )
+
         # Compute opt_decode_columns / opt_enrich_variables from stable dicts
         if is_preset:
             opt_decode_columns = preset_cfg["settings"]["decode_columns"]
@@ -522,6 +557,9 @@ else:
                     convert_vakhavw=do_convert_vakhavw,
                     decode_columns=opt_decode_columns if opt_decode_columns and available_decode and len(opt_decode_columns) < len(available_decode) else None,
                     enrich_variables=opt_enrich_variables if opt_enrich_variables and available_enrich and len(opt_enrich_variables) < len(available_enrich) else None,
+                    pgn_mapping_file=pgn_mapping_file or None,
+                    pgn_mapping_right_on=pgn_mapping_right_on,
+                    pgn_mapping_id_col=pgn_mapping_id_col,
                 )
 
                 log, output_files = pipeline.run_turbo_convert_pipeline(

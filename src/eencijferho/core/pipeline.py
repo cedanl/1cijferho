@@ -155,6 +155,21 @@ def run_turbo_convert_pipeline(
     log += "[pipeline] Controle voltooid.\n"
     if progress_callback:
         progress_callback(50)
+    # Step 3.5: PGN → lokaal ID koppelen (optioneel)
+    if output_config.pgn_mapping_file:
+        if status_callback:
+            status_callback("🔗 Studentnummers koppelen...")
+        log += "[pipeline] Studentnummers koppelen...\n"
+        import eencijferho.utils.translator as tr
+        log += tr.translate_pgn_to_local_id(
+            output_dir=output_dir,
+            mapping_file=output_config.pgn_mapping_file,
+            mapping_pgn_col=output_config.pgn_mapping_right_on,
+            mapping_id_col=output_config.pgn_mapping_id_col,
+        )
+        log += "[pipeline] Koppeling voltooid.\n"
+    if progress_callback:
+        progress_callback(55)
     # Step 4: Encrypt final files
     if output_config.encrypt:
         if status_callback:

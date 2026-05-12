@@ -48,6 +48,9 @@ class OutputConfig:
     convert_vakhavw: bool = True
     decode_columns: list[str] | None = None
     enrich_variables: list[str] | None = None
+    pgn_mapping_file: str | None = None
+    pgn_mapping_right_on: str = "persoonsgebonden_nummer"
+    pgn_mapping_id_col: str = "studentnummer"
 
     def __post_init__(self) -> None:
         valid_variants = frozenset({"decoded", "enriched"})
