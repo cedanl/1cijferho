@@ -449,15 +449,20 @@ else:
         pgn_mapping_file_raw = st.text_input(
             "Pad naar koppelbestand (CSV of Parquet)",
             key="opt_pgn_mapping_file",
-            placeholder="bijv. data/koppeling_pgn_studentnummer.csv",
+            placeholder="bijv. data/koppeling_pgn_studentnummer_VOORBEELD.csv",
             disabled=no_main_files,
             help=(
-                "Optioneel. Verwacht standaard kolommen 'persoonsgebonden_nummer' en 'studentnummer'. "
-                "Gebruik de geavanceerde instellingen hieronder voor andere kolomnamen."
+                "Optioneel. Geef een pad op de server op, relatief aan de projectmap "
+                "(bijv. `data/koppeling.csv`) of een absoluut pad. "
+                "Verwacht standaard kolommen 'persoonsgebonden_nummer' en 'studentnummer'. "
+                "Zie data/koppeling_pgn_studentnummer_VOORBEELD.csv voor het verwachte formaat."
             ),
         )
         # Ignore any entered path when there are no main files to translate.
         pgn_mapping_file = None if no_main_files else (pgn_mapping_file_raw or None)
+
+        if pgn_mapping_file and not os.path.exists(pgn_mapping_file):
+            st.warning(f"⚠️ Koppelbestand niet gevonden: `{pgn_mapping_file}`")
 
         # Read advanced settings from session state so they survive preset switches
         # and cases where the expander is not rendered.
@@ -523,7 +528,15 @@ else:
         if st.session_state.start_turbo_convert:
             # Reset the flag immediately
             st.session_state.start_turbo_convert = False
-            
+
+            # Pre-flight: koppelbestand moet bestaan als het is opgegeven
+            if pgn_mapping_file and not os.path.exists(pgn_mapping_file):
+                st.error(
+                    f"❌ **Koppelbestand niet gevonden:** `{pgn_mapping_file}`  \n"
+                    "Controleer het pad en probeer opnieuw."
+                )
+                st.stop()
+
             # Reset console log at the start of each conversion
             st.session_state.convert_console_log = ""
             
