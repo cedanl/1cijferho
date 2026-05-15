@@ -30,6 +30,7 @@ Usage:
 import argparse
 import datetime
 import os
+import sys
 
 import polars as pl
 from rich.console import Console
@@ -366,6 +367,8 @@ def cmd_pipeline(args: argparse.Namespace) -> None:
 
 def main() -> None:
     """Main CLI entrypoint."""
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(
         prog="eencijferho",
         description="eencijferho - 1CijferHO backend processing toolkit",

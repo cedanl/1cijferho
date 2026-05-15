@@ -108,7 +108,7 @@ def test_converter_creates_missing_output_dir(
 
 def test_resolve_output_path_csv_extension():
     result = _resolve_output_path("/input/data/MyFile.asc", "/output")
-    assert result == "/output/MyFile.csv"
+    assert Path(result) == Path("/output/MyFile.csv")
 
 
 def test_resolve_output_path_strips_directory():
