@@ -5,11 +5,12 @@ on:
 
 jobs:
   snapshot:
-    name: "Pipeline config ${{ matrix.config.name }}"
-    runs-on: ubuntu-latest
+    name: "Pipeline config ${{ matrix.config.name }} (${{ matrix.os }})"
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest]
         config:
           - name: csv-raw
             flags: "--skip-decode --skip-enrich --skip-parquet --skip-encrypt --skip-snake-case"
@@ -33,6 +34,7 @@ jobs:
         run: uv sync --group dev
 
       - name: Run pipeline (${{ matrix.config.name }})
+        shell: bash
         run: |
           uv run eencijferho pipeline \
             --input data/01-input/DEMO \
@@ -40,6 +42,7 @@ jobs:
             ${{ matrix.config.flags }}
 
       - name: Validate snapshot (${{ matrix.config.name }})
+        shell: bash
         run: |
           uv run python -m eencijferho.utils.snapshot_validator \
             --output data/test-output/${{ matrix.config.name }} \
