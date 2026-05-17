@@ -105,15 +105,16 @@ Write-Host "[1] Scoop en buckets installeren..." -ForegroundColor Yellow
 try { Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force } catch {}
 
 if (-not (Get-Command scoop -ErrorAction SilentlyContinue)) {
-    Invoke-RestMethod -Uri 'https://get.scoop.sh' | Invoke-Expression
+    $installerScript = Invoke-RestMethod -Uri 'https://get.scoop.sh'
+    & { param($code) Invoke-Expression $code } $installerScript
 } else {
     Write-Host "    Scoop is al geinstalleerd, stap overgeslagen..." -ForegroundColor Gray
 }
 
 # Ensure shims are on PATH for this session
-$scoopDir = $env:SCOOP
-if (-not $scoopDir) { $scoopDir = Join-Path $env:USERPROFILE "scoop" }
-$scoopShims = Join-Path $scoopDir "shims"
+$scoopHome = $env:SCOOP
+if (-not $scoopHome) { $scoopHome = Join-Path $env:USERPROFILE "scoop" }
+$scoopShims = Join-Path $scoopHome "shims"
 if ($env:PATH -notlike "*$scoopShims*") {
     $env:PATH = "$scoopShims;$env:PATH"
 }
