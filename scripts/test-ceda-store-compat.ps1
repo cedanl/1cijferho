@@ -28,7 +28,12 @@ $modules = @(
     "detect-project.ps1",
     "uv-install.ps1",
     "uv-config.ps1",
-    "uv-sync.ps1"
+    "uv-sync.ps1",
+    "uv-run.ps1",
+    "r-install.ps1",
+    "r-config.ps1",
+    "r-sync.ps1",
+    "r-run.ps1"
 )
 
 New-Item -ItemType Directory -Path $modulesDir -Force | Out-Null
