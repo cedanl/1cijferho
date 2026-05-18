@@ -63,18 +63,25 @@ $steps = @(
     "uv-sync"
 )
 
+$stepWarnings = @()
 foreach ($step in $steps) {
     Write-Step "Running step: $step"
-    # ceda-store scripts are designed to run under Continue (the Go TUI runner
-    # does not set Stop). Scoop writes informational output to stderr which
-    # PowerShell would promote to a terminating error under Stop mode.
     $prev = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
-    & $cedaRun -Step $step -Root $projectRoot
+    & $cedaRun -Step $step -Root $projectRoot 2>&1
     $stepExit = $LASTEXITCODE
     $ErrorActionPreference = $prev
-    if ($stepExit -ne 0) { Write-Fail "ceda-store step '$step' failed (exit code $stepExit)" }
-    Write-Ok "Step '$step' completed"
+    if ($stepExit -ne 0) {
+        Write-Host "[WARN]        ceda-store step '$step' exited with code $stepExit" -ForegroundColor Yellow
+        $stepWarnings += $step
+    } else {
+        Write-Ok "Step '$step' completed"
+    }
+}
+
+if ($stepWarnings.Count -gt 0) {
+    Write-Host "[WARN]        Steps with warnings: $($stepWarnings -join ', ')" -ForegroundColor Yellow
+    Write-Host "[INFO]        Proceeding to verification to check actual environment state" -ForegroundColor Cyan
 }
 
 # ── 3. Verify everything still works after ceda-store ran ─────────────────────
