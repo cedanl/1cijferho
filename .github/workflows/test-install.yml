@@ -122,6 +122,65 @@ jobs:
           }
           Write-Host "Scheduled task completed successfully" -ForegroundColor Green
 
+      # ── ceda-store compatibility ─────────────────────────────────────
+      - name: ceda-store compatibility (admin)
+        if: matrix.account == 'admin'
+        shell: pwsh
+        run: |
+          & "${{ github.workspace }}\scripts\test-ceda-store-compat.ps1"
+
+      - name: ceda-store compatibility (standard user via scheduled task)
+        if: matrix.account == 'standard'
+        shell: pwsh
+        run: |
+          $password    = "T3stP@ss!"
+          $logFile     = "${{ runner.temp }}\testuser-ceda-store.log"
+          $wrapperPath = "${{ runner.temp }}\run-ceda-store.ps1"
+
+          @"
+          `$env:USERPROFILE   = 'C:\Users\testuser'
+          `$env:HOMEDRIVE     = 'C:'
+          `$env:HOMEPATH      = '\Users\testuser'
+          `$env:UV_LINK_MODE  = 'copy'
+          `$env:UV_PYTHON     = '3.13'
+          `$env:SCOOP         = 'C:\Users\testuser\scoop'
+          `$env:PATH          = 'C:\Users\testuser\scoop\shims;' + `$env:PATH
+          Set-Location '${{ github.workspace }}'
+          try {
+              & '${{ github.workspace }}\scripts\test-ceda-store-compat.ps1' 2>&1 | Tee-Object -FilePath '$logFile'
+              if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
+          } catch {
+              `$_ | Out-File -Append '$logFile'
+              exit 1
+          }
+          "@ | Set-Content -Path $wrapperPath -Encoding UTF8
+
+          $action  = New-ScheduledTaskAction -Execute "pwsh.exe" `
+            -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$wrapperPath`""
+          $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(5)
+
+          Register-ScheduledTask -TaskName "RunCedaStore" `
+            -Action $action -Trigger $trigger `
+            -User "testuser" -Password $password `
+            -RunLevel Limited -Force
+
+          Start-ScheduledTask -TaskName "RunCedaStore"
+
+          $timeout = (Get-Date).AddMinutes(10)
+          do {
+            Start-Sleep -Seconds 5
+            $running = (Get-ScheduledTask -TaskName "RunCedaStore").State
+          } while ($running -eq "Running" -and (Get-Date) -lt $timeout)
+
+          if (Test-Path $logFile) { Get-Content $logFile }
+
+          $info = Get-ScheduledTaskInfo -TaskName "RunCedaStore"
+          if ($info.LastTaskResult -ne 0) {
+            Write-Host "ceda-store compatibility failed with code $($info.LastTaskResult)" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "ceda-store compatibility passed" -ForegroundColor Green
+
       # ── Verify ───────────────────────────────────────────────────────
       - name: Verify installation (admin)
         if: matrix.account == 'admin'
