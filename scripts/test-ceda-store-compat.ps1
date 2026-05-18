@@ -65,8 +65,15 @@ $steps = @(
 
 foreach ($step in $steps) {
     Write-Step "Running step: $step"
+    # ceda-store scripts are designed to run under Continue (the Go TUI runner
+    # does not set Stop). Scoop writes informational output to stderr which
+    # PowerShell would promote to a terminating error under Stop mode.
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     & $cedaRun -Step $step -Root $projectRoot
-    if ($LASTEXITCODE -ne 0) { Write-Fail "ceda-store step '$step' failed (exit code $LASTEXITCODE)" }
+    $stepExit = $LASTEXITCODE
+    $ErrorActionPreference = $prev
+    if ($stepExit -ne 0) { Write-Fail "ceda-store step '$step' failed (exit code $stepExit)" }
     Write-Ok "Step '$step' completed"
 }
 
