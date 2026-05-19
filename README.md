@@ -25,6 +25,12 @@ De 1CijferHO Tool automatiseert het verwerken van 1cijferHO-data, zoals:
 
 Met deze tool kun je in enkele minuten grote hoeveelheden data verwerken, zonder risico op fouten of verlies van gegevens.
 
+### 🎬 Demo Video
+
+Bekijk hieronder een korte demonstratie van hoe de 1CijferHO Tool werkt:
+
+![Demo](src/assets/demo.gif)
+
 ### 📑 Congrespresentatie(s)
 
 Tijdens de DAIR-conferentie in 2025 hebben we de 1CijferHO Tool gepresenteerd. Bekijk de slides van de presentatie hieronder:
@@ -112,13 +118,6 @@ eencijferho validate-output  --input data/01-input --output data/02-output
 ```
 
 ---
-
-## 🎬 Demo Video
-
-Bekijk hieronder een korte demonstratie van hoe de 1CijferHO Tool werkt:
-
-![Demo](src/assets/demo.gif)
-
 
 ## 🫂 Bijdragers
 
