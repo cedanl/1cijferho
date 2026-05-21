@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+from pathlib import Path
 
 from eencijferho.io.backends.disk import DiskBackend
 from eencijferho.io.config import StorageConfig
@@ -18,12 +19,12 @@ class TestDiskBackendPathResolution:
         """data/01-input must NOT become data/data/01-input."""
         backend = DiskBackend()
         resolved = backend._resolve("data/01-input/file.csv")
-        assert str(resolved) == "data/01-input/file.csv"
+        assert resolved == Path("data/01-input/file.csv")
 
     def test_absolute_path_passes_through(self):
         backend = DiskBackend()
         resolved = backend._resolve("/abs/path/file.csv")
-        assert str(resolved) == "/abs/path/file.csv"
+        assert resolved == Path("/abs/path/file.csv")
 
     def test_list_files_with_data_prefix(self, tmp_path):
         """list_files should find files when paths include data/ prefix."""
