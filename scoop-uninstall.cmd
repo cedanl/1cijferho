@@ -1,9 +1,9 @@
 @echo off
 :: 1CijferHO Scoop Uninstaller
 :: Double-click this file to remove Scoop and all installed dependencies.
-set "psScript=%~dp0ps\scoop-uninstall.ps1"
+set "psScript=%~dp0scripts\scoop-uninstall.ps1"
 if not exist "%psScript%" (
-    echo Error: scoop-uninstall.ps1 not found in ps folder!
+    echo Error: scoop-uninstall.ps1 not found in scripts folder!
     pause
     exit /b 1
 )

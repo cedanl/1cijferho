@@ -22,7 +22,7 @@ if (-not $env:UV_LINK_MODE) {
 # ── Run the main installer ────────────────────────────────────────────────────
 Write-Step "Running scoop-install.ps1 -NonInteractive"
 
-$installer = Join-Path $PSScriptRoot "..\ps\scoop-install.ps1"
+$installer = Join-Path $PSScriptRoot "scoop-install.ps1"
 & $installer -NonInteractive
 if ($LASTEXITCODE -ne 0) { Write-Fail "scoop-install.ps1 failed" }
 

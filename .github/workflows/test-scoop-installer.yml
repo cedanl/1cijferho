@@ -18,7 +18,7 @@ jobs:
       - name: Run installer (non-interactive)
         shell: pwsh
         run: |
-          & "${{ github.workspace }}\ps\scoop-install.ps1" -NonInteractive
+          & "${{ github.workspace }}\scripts\scoop-install.ps1" -NonInteractive
 
       - name: Verify installation
         shell: pwsh
