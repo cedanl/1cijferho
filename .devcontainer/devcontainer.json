@@ -7,7 +7,7 @@
     }
   },
   "remoteUser": "ceda",
-  "postCreateCommand": "uv sync",
+  "postCreateCommand": "uv sync --extra frontend",
   "forwardPorts": [8501]
 }
 
