@@ -106,7 +106,7 @@ Of stap voor stap — zie de [CLI-referentie](cli.md).
 
 ## Studentnummer koppeling (optioneel)
 
-Instellingen kunnen een eigen koppelbestand aanleveren om een lokaal studentnummer toe te voegen aan de uitvoerbestanden. De koppeling vindt plaats vóór de encryptiestap, zodat het burgerservicenummer daarna versleuteld kan worden terwijl het studentnummer leesbaar blijft.
+Instellingen kunnen een eigen koppelbestand aanleveren om een lokaal studentnummer toe te voegen aan de uitvoerbestanden.
 
 **Bestandsformaat:** CSV (puntkomma-gescheiden) of Parquet, met minimaal twee kolommen:
 

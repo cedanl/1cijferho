@@ -10,7 +10,6 @@ Snapshot contents per file:
   - row_count      : number of data rows (CSV/Parquet)
   - column_count   : number of columns
   - columns        : sorted list of column names
-  - encrypted_cols : SHA256-hex format check for BSN/PGN columns (CSV only)
   - dtypes         : Polars dtype per column (Parquet only)
 """
 
@@ -25,9 +24,6 @@ from rich.table import Table
 from eencijferho.io.decorators import with_storage
 
 _console = Console()
-
-_SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
-_ENCRYPTED_COLS = {"persoonsgebonden_nummer", "burgerservicenummer", "onderwijsnummer"}
 
 
 # ---------------------------------------------------------------------------
@@ -51,15 +47,6 @@ def _scan_file(storage, filepath: str) -> dict:
             entry["row_count"] = len(df)
             entry["column_count"] = len(df.columns)
             entry["columns"] = sorted(df.columns)
-
-            encrypted_check = {}
-            for col in df.columns:
-                if col in _ENCRYPTED_COLS:
-                    sample = df[col].drop_nulls().head(20).to_list()
-                    valid = bool(sample) and all(_SHA256_RE.match(str(v)) for v in sample)
-                    encrypted_check[col] = {"format": "sha256_hex", "sample_valid": valid}
-            if encrypted_check:
-                entry["encrypted_columns"] = encrypted_check
         except Exception as exc:
             entry["read_error"] = str(exc)
 
@@ -160,16 +147,6 @@ def validate_snapshot(
                 errors.append(f"{fname}: kolomnamen verwijderd: {removed}")
             if added:
                 errors.append(f"{fname}: kolomnamen toegevoegd: {added}")
-
-        if "encrypted_columns" in exp:
-            cur_enc = cur.get("encrypted_columns", {})
-            for col, exp_col in exp["encrypted_columns"].items():
-                if col not in cur_enc:
-                    errors.append(f"{fname}: versleutelde kolom '{col}' niet aanwezig")
-                elif not cur_enc[col].get("sample_valid"):
-                    errors.append(
-                        f"{fname}: kolom '{col}' bevat geen geldige SHA256-hashes"
-                    )
 
         if "dtypes" in exp and "dtypes" in cur:
             for col, exp_dtype in exp["dtypes"].items():

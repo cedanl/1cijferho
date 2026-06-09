@@ -18,7 +18,6 @@ PRESET_CONFIGS: dict[str, dict] = {
             "opt_decoded": True,
             "opt_enriched": True,
             "opt_parquet": True,
-            "opt_encrypt": True,
             "opt_snake_case": True,
             # Twee spellingen van dezelfde kolom: de schone Latin-1-naam (correct
             # gecodeerde DUO-data) en de variant met replacement-tekens die in sommige

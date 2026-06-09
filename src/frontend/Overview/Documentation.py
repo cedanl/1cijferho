@@ -62,7 +62,6 @@ Na:    persoonsgebonden_nummer  type  landcode  ...
 **Optioneel**
 - `_decoded` — codes vertaald naar omschrijvingen
 - `_enriched` — waarden vervangen door leesbare labels
-- Versleutelde kopie (BSN-anonimisering)
 """)
 
 with tab2:
@@ -113,7 +112,6 @@ with tab3:
 | `converter_match.py` | Databestanden koppelen aan metadata |
 | `converter_validation.py` | Rijtellingen en data-integriteit controleren |
 | `compressor.py` | CSV naar Parquet |
-| `encryptor.py` | SHA-256 hashing voor BSN-anonimisering |
 """)
 
     st.markdown("### Datastroom")
@@ -126,9 +124,7 @@ Bestandskoppelingen vastgelegd in logs
     ↓ converter.py (parallel, n-1 CPU-kernen)
 CSV-bestanden (data/02-output/)
     ↓ compressor.py
-Parquet-bestanden
-    ↓ encryptor.py
-Geanonimiseerde kopie (BSN gehashed)\
+Parquet-bestanden\
 """, language=None)
 
     st.markdown("### Prestaties")
@@ -136,7 +132,6 @@ Geanonimiseerde kopie (BSN gehashed)\
 - Parallelle verwerking met n−1 CPU-kernen
 - Streaming voor grote bestanden (geheugenefficiënt)
 - Parquet-compressie: 60–80% kleiner dan CSV
-- Cryptografische hashing voor privacy (SHA-256)
 """)
 
 st.divider()

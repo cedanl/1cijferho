@@ -320,7 +320,6 @@ def validate_with_dec_files_folder(
         if not f.name.startswith("Dec_")
         and not f.name.endswith("_decoded.csv")
         and not f.name.endswith("_enriched.csv")
-        and not f.name.endswith("_encrypted.csv")
     ]
 
     for csv_file in main_csvs:

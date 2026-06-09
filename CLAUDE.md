@@ -16,7 +16,7 @@ src/
 ├── pipeline.py          # Processing pipeline
 ├── backend/
 │   ├── core/            # Core processing (converter, decoder, extractor)
-│   └── utils/           # Utilities (compression, validation, encryption)
+│   └── utils/           # Utilities (compression, validation, header normalization)
 ├── frontend/
 │   ├── Overview/        # Home, Documentation pages
 │   ├── Files/           # Upload functionality
@@ -62,7 +62,7 @@ Use the built-in skills for data validation:
 - Multiprocessing for file conversion (see `converter.py`)
 - Latin1 encoding for DUO files
 - Semicolon (`;`) as CSV delimiter
-- Privacy: BSN and sensitive data are auto-anonymized
+- Privacy: BSN data is NOT anonymized by this tool — handle according to your institution's data governance policy
 
 ## Key Dependencies
 - `polars` - Fast DataFrame operations

@@ -22,7 +22,7 @@ class OutputConfig:
             (Dec + variable_metadata label substitution).
         formats: Extra output formats. ``"parquet"`` compresses each CSV
             to a Parquet file.
-        encrypt: When True, sensitive columns (e.g. BSN) are encrypted.
+        encrypt: Reserved for future use. Currently ignored by the pipeline.
         column_casing: Header style applied to all output CSV/Parquet files.
             ``"snake_case"`` converts headers to snake_case; ``"none"``
             leaves headers unchanged.
@@ -44,14 +44,14 @@ class OutputConfig:
             ID, which is also used as the output column name
             (default: ``"studentnummer"``).
 
-    Example — CSV-only, no encryption, no header rename::
+    Example — CSV-only, no header rename::
 
-        OutputConfig(variants=["decoded"], formats=[], encrypt=False, column_casing="none")
+        OutputConfig(variants=["decoded"], formats=[], column_casing="none")
     """
 
     variants: list[str] = field(default_factory=lambda: ["decoded", "enriched"])
     formats: list[str] = field(default_factory=lambda: ["parquet"])
-    encrypt: bool = True
+    encrypt: bool = False
     column_casing: str = "snake_case"
     convert_ev: bool = True
     convert_vakhavw: bool = True
@@ -88,7 +88,7 @@ class OutputConfig:
 
 
 # DUO column names as they appear in raw output files (before snake_case conversion).
-# Centralised here so encryptor, translator, and any future code share one source of truth.
+# Centralised here so translator and any future code share one source of truth.
 DUO_PGN_COLUMN: str = "Persoonsgebonden nummer"
 DUO_BSN_COLUMN: str = "Burgerservicenummer"
 DUO_ONDERWIJSNUMMER_COLUMN: str = "Onderwijsnummer"
