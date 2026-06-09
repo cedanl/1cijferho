@@ -11,7 +11,6 @@ def _args(**kwargs) -> argparse.Namespace:
         skip_decode=False,
         skip_enrich=False,
         skip_parquet=False,
-        skip_encrypt=False,
         skip_snake_case=False,
         skip_ev=False,
         skip_vakhavw=False,
@@ -31,7 +30,6 @@ def test_defaults_produce_full_config():
     cfg = _build_output_config(_args())
     assert cfg.variants == ["decoded", "enriched"]
     assert cfg.formats == ["parquet"]
-    assert cfg.encrypt is True
     assert cfg.column_casing == "snake_case"
     assert cfg.convert_ev is True
     assert cfg.convert_vakhavw is True
@@ -66,11 +64,6 @@ def test_skip_decode_ignores_skip_enrich():
 def test_skip_parquet_produces_empty_formats():
     cfg = _build_output_config(_args(skip_parquet=True))
     assert cfg.formats == []
-
-
-def test_skip_encrypt():
-    cfg = _build_output_config(_args(skip_encrypt=True))
-    assert cfg.encrypt is False
 
 
 def test_skip_snake_case():

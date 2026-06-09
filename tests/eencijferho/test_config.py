@@ -12,7 +12,7 @@ def test_default_config_is_valid():
     cfg = OutputConfig()
     assert cfg.variants == ["decoded", "enriched"]
     assert cfg.formats == ["parquet"]
-    assert cfg.encrypt is True
+    assert cfg.encrypt is False
     assert cfg.column_casing == "snake_case"
     assert cfg.convert_ev is True
     assert cfg.convert_vakhavw is True
