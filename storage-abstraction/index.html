@@ -1,0 +1,1384 @@
+
+<!doctype html>
+<html lang="nl" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Verwerk DUO-onderwijsdata naar analyse-klare CSV/Parquet bestanden">
+      
+      
+      
+        <link rel="canonical" href="https://cedanl.github.io/1cijferho/storage-abstraction/">
+      
+      
+        <link rel="prev" href="../api/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/npuls_logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Opslag backends - 1CijferHO</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#storage-abstraction-layer" class="md-skip">
+          Ga naar inhoud
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="1CijferHO" class="md-header__button md-logo" aria-label="1CijferHO" data-md-component="logo">
+      
+  <img src="../assets/npuls_logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            1CijferHO
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Opslag backends
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Donker thema"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Donker thema" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Licht thema"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Licht thema" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Zoeken" placeholder="Zoeken" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Zoeken">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Leegmaken" aria-label="Leegmaken" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Zoeken initialiseren
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/cedanl/1cijferho" title="Ga naar repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cedanl/1cijferho
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Aan de slag
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../cli/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  CLI-referentie
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../api/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  API-referentie
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Opslag backends
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigatie" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="1CijferHO" class="md-nav__button md-logo" aria-label="1CijferHO" data-md-component="logo">
+      
+  <img src="../assets/npuls_logo.png" alt="logo">
+
+    </a>
+    1CijferHO
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/cedanl/1cijferho" title="Ga naar repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cedanl/1cijferho
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aan de slag
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI-referentie
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API-referentie
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Opslag backends
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Opslag backends
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhoudsopgave">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhoudsopgave
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backends
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Backends">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#disk-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Disk (default)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#minio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MinIO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#postgresql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgreSQL
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backend-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend Interface
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decorators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decorators
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decorators">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#with_storage-the-main-decorator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        @with_storage — the main decorator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reads_frompath-static-reads" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        @reads_from(path) — static reads
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#writes_topath-static-writes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        @writes_to(path) — static writes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#local-development-with-docker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local Development with Docker
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Local Development with Docker">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#start-minio-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Start MinIO only
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#start-everything" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Start everything
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-the-app-with-minio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run the app with MinIO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#upload-existing-data-to-minio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upload existing data to MinIO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tear-down" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tear down
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#remote-minio-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remote MinIO Setup
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Remote MinIO Setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-provision-the-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Provision the server
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-create-the-bucket" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Create the bucket
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-configure-the-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Configure the application
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-upload-initial-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Upload initial data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-run-the-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Run the application
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-aws-s3-instead-of-minio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using AWS S3 instead of MinIO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security notes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration Testing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration Testing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#run-integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run integration tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#whats-tested" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's tested
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auto-skip-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto-skip behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migrated-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrated Modules
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="storage-abstraction-layer">Storage Abstraction Layer<a class="headerlink" href="#storage-abstraction-layer" title="Permanent link">&para;</a></h1>
+<p>The <code>eencijferho.io</code> module provides a pluggable storage layer that lets you swap between local disk, MinIO (S3-compatible), and PostgreSQL — without changing any processing code. All core modules use the <code>@with_storage</code> decorator, so switching backends is a single environment variable change.</p>
+<h2 id="table-of-contents">Table of Contents<a class="headerlink" href="#table-of-contents" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="#quick-start">Quick Start</a></li>
+<li><a href="#backends">Backends</a></li>
+<li><a href="#backend-interface">Backend Interface</a></li>
+<li><a href="#decorators">Decorators</a></li>
+<li><a href="#local-development-with-docker">Local Development with Docker</a></li>
+<li><a href="#remote-minio-setup">Remote MinIO Setup</a></li>
+<li><a href="#integration-testing">Integration Testing</a></li>
+<li><a href="#architecture">Architecture</a></li>
+<li><a href="#migrated-modules">Migrated Modules</a></li>
+</ul>
+<h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
+<p>By default, everything runs on the local filesystem — no setup needed:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">eencijferho.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_backend</span><span class="p">,</span> <span class="n">storage_context</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Context manager (recommended — auto-cleans up connections)</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="k">with</span> <span class="n">storage_context</span><span class="p">()</span> <span class="k">as</span> <span class="n">storage</span><span class="p">:</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">df</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">read_dataframe</span><span class="p">(</span><span class="s2">&quot;01-input/data.csv&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">storage</span><span class="o">.</span><span class="n">write_dataframe</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="s2">&quot;02-output/result.parquet&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="c1"># Or get a backend directly</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">storage</span> <span class="o">=</span> <span class="n">get_backend</span><span class="p">()</span>
+</code></pre></div>
+<p>To switch to MinIO, set one environment variable:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STORAGE_BACKEND</span><span class="o">=</span>minio
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1"># That&#39;s it — all @with_storage-decorated functions now use MinIO</span>
+</code></pre></div>
+<h2 id="backends">Backends<a class="headerlink" href="#backends" title="Permanent link">&para;</a></h2>
+<h3 id="disk-default">Disk (default)<a class="headerlink" href="#disk-default" title="Permanent link">&para;</a></h3>
+<p>Local filesystem. Relative paths are resolved against a configurable base path.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STORAGE_BACKEND</span><span class="o">=</span>disk
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STORAGE_DISK_BASE_PATH</span><span class="o">=</span>data<span class="w">   </span><span class="c1"># default</span>
+</code></pre></div>
+<h3 id="minio">MinIO<a class="headerlink" href="#minio" title="Permanent link">&para;</a></h3>
+<p>S3-compatible object storage. Requires the <code>minio</code> optional dependency.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>minio
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="c1"># or: pip install eencijferho[minio]</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STORAGE_BACKEND</span><span class="o">=</span>minio
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MINIO_ENDPOINT</span><span class="o">=</span>localhost:9000
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MINIO_ACCESS_KEY</span><span class="o">=</span>minioadmin
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MINIO_SECRET_KEY</span><span class="o">=</span>minioadmin
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MINIO_BUCKET</span><span class="o">=</span>1cijferho
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MINIO_SECURE</span><span class="o">=</span><span class="nb">false</span>
+</code></pre></div>
+<h3 id="postgresql">PostgreSQL<a class="headerlink" href="#postgresql" title="Permanent link">&para;</a></h3>
+<p>Stores DataFrames as database tables, JSON in a native JSONB column, and binary files in a <code>_binary_storage</code> table. Requires the <code>postgres</code> optional dependency.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>postgres
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="c1"># or: pip install eencijferho[postgres]</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STORAGE_BACKEND</span><span class="o">=</span>postgres
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">POSTGRES_HOST</span><span class="o">=</span>localhost
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="nb">export</span><span class="w"> </span><span class="nv">POSTGRES_PORT</span><span class="o">=</span><span class="m">5432</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="nb">export</span><span class="w"> </span><span class="nv">POSTGRES_DATABASE</span><span class="o">=</span>cijferho
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="nb">export</span><span class="w"> </span><span class="nv">POSTGRES_USER</span><span class="o">=</span>postgres
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="nb">export</span><span class="w"> </span><span class="nv">POSTGRES_PASSWORD</span><span class="o">=</span>postgres
+</code></pre></div>
+<p>File paths are converted to table names automatically:
+- <code>01-input/student_data.csv</code> → <code>input_student_data</code>
+- <code>02-output/results.parquet</code> → <code>output_results</code></p>
+<h2 id="backend-interface">Backend Interface<a class="headerlink" href="#backend-interface" title="Permanent link">&para;</a></h2>
+<p>All backends implement <code>StorageBackend</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>read_bytes(path)</code></td>
+<td>Read raw bytes</td>
+</tr>
+<tr>
+<td><code>write_bytes(data, path)</code></td>
+<td>Write raw bytes, returns path/URI</td>
+</tr>
+<tr>
+<td><code>read_dataframe(path, format?, **kwargs)</code></td>
+<td>Read a Polars DataFrame</td>
+</tr>
+<tr>
+<td><code>write_dataframe(df, path, format?, **kwargs)</code></td>
+<td>Write a Polars DataFrame</td>
+</tr>
+<tr>
+<td><code>list_files(pattern)</code></td>
+<td>List files matching a glob pattern</td>
+</tr>
+<tr>
+<td><code>exists(path)</code></td>
+<td>Check if a path exists</td>
+</tr>
+<tr>
+<td><code>delete(path)</code></td>
+<td>Delete a file</td>
+</tr>
+<tr>
+<td><code>read_json(path)</code></td>
+<td>Read and parse a JSON file</td>
+</tr>
+<tr>
+<td><code>write_json(data, path)</code></td>
+<td>Write a dict/list as JSON</td>
+</tr>
+<tr>
+<td><code>read_text(path, encoding?)</code></td>
+<td>Read a text file (default UTF-8)</td>
+</tr>
+<tr>
+<td><code>write_text(text, path, encoding?)</code></td>
+<td>Write a text file (default UTF-8)</td>
+</tr>
+</tbody>
+</table>
+<p>Format is auto-detected from the file extension (<code>.csv</code>, <code>.parquet</code>, <code>.xlsx</code>, <code>.json</code>). CSV defaults to semicolon separator (<code>;</code>) and UTF-8 encoding, matching the DUO convention.</p>
+<h2 id="decorators">Decorators<a class="headerlink" href="#decorators" title="Permanent link">&para;</a></h2>
+<p>Three decorators in <code>eencijferho.io.decorators</code>:</p>
+<h3 id="with_storage-the-main-decorator"><code>@with_storage</code> — the main decorator<a class="headerlink" href="#with_storage-the-main-decorator" title="Permanent link">&para;</a></h3>
+<p>Injects a storage backend as the first argument. Used by all migrated modules for dynamic or multi-file I/O.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">eencijferho.io.decorators</span><span class="w"> </span><span class="kn">import</span> <span class="n">with_storage</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nd">@with_storage</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">process_files</span><span class="p">(</span><span class="n">storage</span><span class="p">,</span> <span class="n">input_dir</span><span class="p">):</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">storage</span><span class="o">.</span><span class="n">list_files</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">input_dir</span><span class="si">}</span><span class="s2">/*.csv&quot;</span><span class="p">):</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>        <span class="n">df</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">read_dataframe</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>        <span class="n">storage</span><span class="o">.</span><span class="n">write_dataframe</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.csv&quot;</span><span class="p">,</span> <span class="s2">&quot;.parquet&quot;</span><span class="p">))</span>
+</code></pre></div>
+<p>Callers don't pass <code>storage</code> — the decorator handles it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">process_files</span><span class="p">(</span><span class="s2">&quot;data/01-input&quot;</span><span class="p">)</span>  <span class="c1"># storage is injected automatically</span>
+</code></pre></div>
+<h3 id="reads_frompath-static-reads"><code>@reads_from(path)</code> — static reads<a class="headerlink" href="#reads_frompath-static-reads" title="Permanent link">&para;</a></h3>
+<p>Reads data from a fixed path and passes it as the first argument.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">eencijferho.io.decorators</span><span class="w"> </span><span class="kn">import</span> <span class="n">reads_from</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="nd">@reads_from</span><span class="p">(</span><span class="s2">&quot;01-input/config.json&quot;</span><span class="p">)</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_setting</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;setting_name&quot;</span><span class="p">]</span>
+</code></pre></div>
+<h3 id="writes_topath-static-writes"><code>@writes_to(path)</code> — static writes<a class="headerlink" href="#writes_topath-static-writes" title="Permanent link">&para;</a></h3>
+<p>Writes the function's return value to a fixed path.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">eencijferho.io.decorators</span><span class="w"> </span><span class="kn">import</span> <span class="n">writes_to</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nd">@writes_to</span><span class="p">(</span><span class="s2">&quot;02-output/summary.parquet&quot;</span><span class="p">)</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">summarize</span><span class="p">():</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="k">return</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;mean&quot;</span><span class="p">],</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">42.0</span><span class="p">]})</span>
+</code></pre></div>
+<h2 id="local-development-with-docker">Local Development with Docker<a class="headerlink" href="#local-development-with-docker" title="Permanent link">&para;</a></h2>
+<p>The included <code>docker-compose.yml</code> provides MinIO and PostgreSQL for local development.</p>
+<h3 id="start-minio-only">Start MinIO only<a class="headerlink" href="#start-minio-only" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>minio<span class="w"> </span>minio-init
+</code></pre></div>
+<p>This starts:
+- <strong>MinIO</strong> — S3-compatible storage (API: <code>localhost:9000</code>, web console: <code>localhost:9001</code>)
+- <strong>minio-init</strong> — creates the default <code>1cijferho</code> bucket automatically</p>
+<p>Open the MinIO console at http://localhost:9001 (login: <code>minioadmin</code> / <code>minioadmin</code>) to browse uploaded objects.</p>
+<h3 id="start-everything">Start everything<a class="headerlink" href="#start-everything" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
+</code></pre></div>
+<p>Starts MinIO, PostgreSQL, and the Streamlit app.</p>
+<h3 id="run-the-app-with-minio">Run the app with MinIO<a class="headerlink" href="#run-the-app-with-minio" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Option 1: via docker-compose environment</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="nv">STORAGE_BACKEND</span><span class="o">=</span>minio<span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span>up
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># Option 2: locally against the dockerized MinIO</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STORAGE_BACKEND</span><span class="o">=</span>minio
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MINIO_ENDPOINT</span><span class="o">=</span>localhost:9000
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>uv<span class="w"> </span>run<span class="w"> </span>streamlit<span class="w"> </span>run<span class="w"> </span>src/main.py
+</code></pre></div>
+<h3 id="upload-existing-data-to-minio">Upload existing data to MinIO<a class="headerlink" href="#upload-existing-data-to-minio" title="Permanent link">&para;</a></h3>
+<p>To copy your local <code>data/</code> folder into MinIO, use the MinIO client (<code>mc</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Install mc (macOS)</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>brew<span class="w"> </span>install<span class="w"> </span>minio/stable/mc
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># Configure alias</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>mc<span class="w"> </span><span class="nb">alias</span><span class="w"> </span><span class="nb">set</span><span class="w"> </span><span class="nb">local</span><span class="w"> </span>http://localhost:9000<span class="w"> </span>minioadmin<span class="w"> </span>minioadmin
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="c1"># Upload data</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>mc<span class="w"> </span>cp<span class="w"> </span>--recursive<span class="w"> </span>data/<span class="w"> </span>local/1cijferho/
+</code></pre></div>
+<p>Or use Python:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">eencijferho.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_backend</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="n">disk</span> <span class="o">=</span> <span class="n">get_backend</span><span class="p">(</span><span class="s2">&quot;disk&quot;</span><span class="p">)</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="n">minio</span> <span class="o">=</span> <span class="n">get_backend</span><span class="p">(</span><span class="s2">&quot;minio&quot;</span><span class="p">)</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">disk</span><span class="o">.</span><span class="n">list_files</span><span class="p">(</span><span class="s2">&quot;**/*&quot;</span><span class="p">):</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>    <span class="n">data</span> <span class="o">=</span> <span class="n">disk</span><span class="o">.</span><span class="n">read_bytes</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>    <span class="n">minio</span><span class="o">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Uploaded: </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="tear-down">Tear down<a class="headerlink" href="#tear-down" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>down<span class="w">           </span><span class="c1"># stop containers, keep data</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>down<span class="w"> </span>-v<span class="w">        </span><span class="c1"># stop containers AND delete volumes (fresh start)</span>
+</code></pre></div>
+<h2 id="remote-minio-setup">Remote MinIO Setup<a class="headerlink" href="#remote-minio-setup" title="Permanent link">&para;</a></h2>
+<p>To connect to a remote MinIO (or any S3-compatible) server in production:</p>
+<h3 id="1-provision-the-server">1. Provision the server<a class="headerlink" href="#1-provision-the-server" title="Permanent link">&para;</a></h3>
+<p>MinIO can be deployed as a single binary, a Docker container, or a Kubernetes operator. See <a href="https://min.io/docs/minio/linux/index.html">min.io/docs</a>.</p>
+<p>Example with Docker on a remote server:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span>--name<span class="w"> </span>minio<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">  </span>-p<span class="w"> </span><span class="m">9000</span>:9000<span class="w"> </span>-p<span class="w"> </span><span class="m">9001</span>:9001<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">  </span>-v<span class="w"> </span>/mnt/data:/data<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">MINIO_ROOT_USER</span><span class="o">=</span>your-access-key<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">MINIO_ROOT_PASSWORD</span><span class="o">=</span>your-secret-key<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="w">  </span>minio/minio<span class="w"> </span>server<span class="w"> </span>/data<span class="w"> </span>--console-address<span class="w"> </span><span class="s2">&quot;:9001&quot;</span>
+</code></pre></div>
+<h3 id="2-create-the-bucket">2. Create the bucket<a class="headerlink" href="#2-create-the-bucket" title="Permanent link">&para;</a></h3>
+<p>Using the MinIO client:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>mc<span class="w"> </span><span class="nb">alias</span><span class="w"> </span><span class="nb">set</span><span class="w"> </span>remote<span class="w"> </span>https://minio.example.com<span class="w"> </span>your-access-key<span class="w"> </span>your-secret-key
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>mc<span class="w"> </span>mb<span class="w"> </span>remote/1cijferho
+</code></pre></div>
+<p>Or the bucket is auto-created when the <code>MinIOBackend</code> connects (via <code>_ensure_bucket()</code>).</p>
+<h3 id="3-configure-the-application">3. Configure the application<a class="headerlink" href="#3-configure-the-application" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STORAGE_BACKEND</span><span class="o">=</span>minio
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MINIO_ENDPOINT</span><span class="o">=</span>minio.example.com:9000<span class="w">   </span><span class="c1"># or :443 for HTTPS</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MINIO_ACCESS_KEY</span><span class="o">=</span>your-access-key
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MINIO_SECRET_KEY</span><span class="o">=</span>your-secret-key
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MINIO_BUCKET</span><span class="o">=</span>1cijferho
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MINIO_SECURE</span><span class="o">=</span><span class="nb">true</span><span class="w">                        </span><span class="c1"># true for HTTPS</span>
+</code></pre></div>
+<h3 id="4-upload-initial-data">4. Upload initial data<a class="headerlink" href="#4-upload-initial-data" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>mc<span class="w"> </span>cp<span class="w"> </span>--recursive<span class="w"> </span>data/<span class="w"> </span>remote/1cijferho/
+</code></pre></div>
+<h3 id="5-run-the-application">5. Run the application<a class="headerlink" href="#5-run-the-application" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>uv<span class="w"> </span>run<span class="w"> </span>streamlit<span class="w"> </span>run<span class="w"> </span>src/main.py
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="c1"># or</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>uv<span class="w"> </span>run<span class="w"> </span>eencijferho<span class="w"> </span>pipeline<span class="w"> </span>--input<span class="w"> </span><span class="m">01</span>-input<span class="w"> </span>--output<span class="w"> </span><span class="m">02</span>-output
+</code></pre></div>
+<p>All paths in the code are relative (e.g., <code>01-input/file.asc</code>) and the MinIO backend uses them as S3 object keys within the configured bucket.</p>
+<h3 id="using-aws-s3-instead-of-minio">Using AWS S3 instead of MinIO<a class="headerlink" href="#using-aws-s3-instead-of-minio" title="Permanent link">&para;</a></h3>
+<p>MinIO is S3-compatible, so the same backend works with AWS S3. Just point to the AWS endpoint:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STORAGE_BACKEND</span><span class="o">=</span>minio
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MINIO_ENDPOINT</span><span class="o">=</span>s3.eu-west-1.amazonaws.com
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MINIO_ACCESS_KEY</span><span class="o">=</span>AKIA...
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MINIO_SECRET_KEY</span><span class="o">=</span>...
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MINIO_BUCKET</span><span class="o">=</span>your-bucket-name
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MINIO_SECURE</span><span class="o">=</span><span class="nb">true</span>
+</code></pre></div>
+<h3 id="security-notes">Security notes<a class="headerlink" href="#security-notes" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Never commit access keys to version control. Use <code>.env</code> files (gitignored) or a secrets manager.</li>
+<li>For production, use <code>MINIO_SECURE=true</code> (TLS/HTTPS).</li>
+<li>Consider using IAM roles or MinIO's built-in policy system for fine-grained access control.</li>
+</ul>
+<h2 id="integration-testing">Integration Testing<a class="headerlink" href="#integration-testing" title="Permanent link">&para;</a></h2>
+<p>The project includes integration tests that run against a real MinIO instance.</p>
+<h3 id="run-integration-tests">Run integration tests<a class="headerlink" href="#run-integration-tests" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># Start MinIO</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>minio<span class="w"> </span>minio-init
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="c1"># Run the integration suite (20 tests)</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests/integration/<span class="w"> </span>-v
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="c1"># Run ALL tests (unit + integration)</span>
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests/<span class="w"> </span>-v
+</code></pre></div>
+<h3 id="whats-tested">What's tested<a class="headerlink" href="#whats-tested" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Tests</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Basic CRUD</td>
+<td>7</td>
+<td>bytes, text, latin-1, JSON, exists, delete</td>
+</tr>
+<tr>
+<td>DataFrame I/O</td>
+<td>3</td>
+<td>CSV roundtrip, Parquet roundtrip, separator check</td>
+</tr>
+<tr>
+<td>File listing</td>
+<td>3</td>
+<td>wildcards, nested patterns, empty results</td>
+</tr>
+<tr>
+<td>Decorators</td>
+<td>2</td>
+<td><code>@with_storage</code> injection, <code>get_backend()</code> returns MinIO</td>
+</tr>
+<tr>
+<td>Extractor workflow</td>
+<td>2</td>
+<td>extract tables, preserve accented characters</td>
+</tr>
+<tr>
+<td>Converter workflow</td>
+<td>2</td>
+<td>pure chunk processing, metadata loading from MinIO</td>
+</tr>
+<tr>
+<td>Compressor workflow</td>
+<td>1</td>
+<td>CSV → Parquet conversion in MinIO</td>
+</tr>
+</tbody>
+</table>
+<h3 id="auto-skip-behavior">Auto-skip behavior<a class="headerlink" href="#auto-skip-behavior" title="Permanent link">&para;</a></h3>
+<p>Integration tests automatically skip when:
+- Docker is not installed or not running
+- MinIO container is not healthy</p>
+<p>This means <code>uv run pytest tests/</code> always works — integration tests are silently skipped if MinIO isn't available.</p>
+<h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>eencijferho/io/
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>├── __init__.py          # get_backend() factory + storage_context()
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>├── config.py            # StorageConfig dataclass (all from env vars)
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>├── decorators.py        # @reads_from, @writes_to, @with_storage
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>└── backends/
+<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>    ├── base.py          # StorageBackend ABC + convenience methods
+<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a>    ├── disk.py          # Local filesystem
+<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a>    ├── minio.py         # S3-compatible (lazy import)
+<a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a>    └── postgres.py      # PostgreSQL tables + JSONB (lazy import)
+</code></pre></div>
+<p>MinIO and PostgreSQL backends use lazy imports — their dependencies are only loaded when the backend is actually selected. The disk backend has no extra dependencies.</p>
+<h2 id="migrated-modules">Migrated Modules<a class="headerlink" href="#migrated-modules" title="Permanent link">&para;</a></h2>
+<p>All core processing modules use <code>@with_storage</code> for I/O:</p>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>What uses storage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>core/converter.py</code></td>
+<td>Reading metadata (Excel), reading input files, writing logs</td>
+</tr>
+<tr>
+<td><code>core/decoder.py</code></td>
+<td>Loading variable mappings (JSON), loading Dec tables (CSV)</td>
+</tr>
+<tr>
+<td><code>core/decoder_info.py</code></td>
+<td>Reading decode metadata (JSON)</td>
+</tr>
+<tr>
+<td><code>core/extractor.py</code></td>
+<td>Reading .txt files, writing JSON, file listing, log writing</td>
+</tr>
+<tr>
+<td><code>core/parse_metadata.py</code></td>
+<td>Reading metadata text files</td>
+</tr>
+<tr>
+<td><code>core/pipeline.py</code></td>
+<td>File discovery, CSV read/write for decode/enrich steps</td>
+</tr>
+<tr>
+<td><code>utils/compressor.py</code></td>
+<td>CSV → Parquet conversion</td>
+</tr>
+<tr>
+<td><code>utils/converter_match.py</code></td>
+<td>File listing, row counting, log writing</td>
+</tr>
+<tr>
+<td><code>utils/extractor_validation.py</code></td>
+<td>Reading Excel metadata, log writing</td>
+</tr>
+<tr>
+<td><code>cli.py</code></td>
+<td>Decode, enrich, and validate-output commands</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Intentionally disk-only</strong> (not migrated):
+- <code>_write_table_excel</code> — pandas ExcelWriter needs a file path or buffer; used only during metadata extraction
+- <code>_run_parallel</code> / <code>_run_serial</code> — multiprocessing workers need direct disk access for writing CSV chunks
+- <code>converter_validation.py</code>, <code>encryptor.py</code>, <code>converter_headers.py</code> — leaf utilities that could be migrated later if needed</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Terug naar boven
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "toc.integrate", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Gekopieerd naar klembord", "clipboard.copy": "Kopi\u00ebren naar klembord", "search.result.more.one": "1 extra overeenkomst op deze pagina", "search.result.more.other": "# extra overeenkomsten op deze pagina", "search.result.none": "Geen overeenkomende documenten", "search.result.one": "1 overeenkomende document", "search.result.other": "# overeenkomende documenten", "search.result.placeholder": "Typ om te beginnen met zoeken", "search.result.term.missing": "Ontbreekt", "select.version": "Selecteer versie"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
