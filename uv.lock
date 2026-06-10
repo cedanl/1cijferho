@@ -397,7 +397,7 @@ wheels = [
 
 [[package]]
 name = "eencijferho"
-version = "0.1.6.1"
+version = "0.1.7"
 source = { editable = "." }
 dependencies = [
     { name = "openpyxl" },
@@ -412,6 +412,15 @@ all-backends = [
     { name = "psycopg2-binary" },
     { name = "sqlalchemy" },
 ]
+demo = [
+    { name = "minio" },
+    { name = "pandas" },
+    { name = "psycopg2-binary" },
+    { name = "sqlalchemy" },
+    { name = "streamlit" },
+    { name = "streamlit-extras" },
+    { name = "streamlit-js" },
+]
 dev = [
     { name = "jupyter" },
     { name = "ruff" },
@@ -423,8 +432,10 @@ docs = [
     { name = "mkdocstrings", extra = ["python"] },
 ]
 frontend = [
+    { name = "pandas" },
     { name = "streamlit" },
     { name = "streamlit-extras" },
+    { name = "streamlit-js" },
 ]
 minio = [
     { name = "minio" },
@@ -441,13 +452,17 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "eencijferho", extras = ["frontend"], marker = "extra == 'demo'" },
     { name = "eencijferho", extras = ["minio"], marker = "extra == 'all-backends'" },
+    { name = "eencijferho", extras = ["minio"], marker = "extra == 'demo'" },
     { name = "eencijferho", extras = ["postgres"], marker = "extra == 'all-backends'" },
+    { name = "eencijferho", extras = ["postgres"], marker = "extra == 'demo'" },
     { name = "jupyter", marker = "extra == 'dev'", specifier = ">=1.0" },
     { name = "minio", marker = "extra == 'minio'", specifier = ">=7.2" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = ">=0.26" },
     { name = "openpyxl", specifier = ">=3.1.5" },
+    { name = "pandas", marker = "extra == 'frontend'", specifier = ">=2.0" },
     { name = "polars", extras = ["excel"], specifier = ">=1.21.0" },
     { name = "psycopg2-binary", marker = "extra == 'postgres'", specifier = ">=2.9" },
     { name = "rich", specifier = ">=13.9.4" },
@@ -455,11 +470,12 @@ requires-dist = [
     { name = "sqlalchemy", marker = "extra == 'postgres'", specifier = ">=2.0" },
     { name = "streamlit", marker = "extra == 'frontend'", specifier = ">=1.41.1" },
     { name = "streamlit-extras", marker = "extra == 'frontend'", specifier = ">=0.6.0" },
+    { name = "streamlit-js", marker = "extra == 'frontend'", specifier = ">=1.0.8" },
     { name = "sweetviz", marker = "extra == 'dev'", specifier = ">=2.3" },
     { name = "xlsxwriter", specifier = ">=3.2.2" },
     { name = "ydata-profiling", marker = "extra == 'dev'", specifier = ">=4.10" },
 ]
-provides-extras = ["frontend", "dev", "docs", "minio", "postgres", "all-backends"]
+provides-extras = ["frontend", "dev", "docs", "minio", "postgres", "all-backends", "demo"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=9.0.2" }]
@@ -2858,6 +2874,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/36/4f/270c310ec1b200914200bc8387ce166e50c247ae8e4f9e5072a8b674ba37/streamlit_image_coordinates-0.1.9.tar.gz", hash = "sha256:825e1f49053f1363913014a4e9130a03b9ca01fb5f7bd269b17afe8162d2ba37", size = 6494, upload-time = "2024-06-04T16:40:56.258Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5e/cf/1dba1380eb3b632f1f86c80533a3fca1376a938517044048122adf816a90/streamlit_image_coordinates-0.1.9-py3-none-any.whl", hash = "sha256:e577d475707ce8a3f7be1825027af6b4d7b609a456f4b25b794756ed2436ab06", size = 7049, upload-time = "2024-06-04T16:40:54.698Z" },
+]
+
+[[package]]
+name = "streamlit-js"
+version = "1.0.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "streamlit" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/08/77/e84aa98cf29572ebc49873b3d6646e4572b9f9f392cbf8b10812ee0c7264/streamlit-js-1.0.8.tar.gz", hash = "sha256:f23c1c9ff1a1ca44222a2b24cd6edf84daf6e78f5bbe07dfc87b35f7e7a16526", size = 507382, upload-time = "2024-06-07T08:57:20.787Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/5c/65614b858d39c28a1b0ed1690b73da4f6f061fca1d25e757bf56f3226f5b/streamlit_js-1.0.8-py3-none-any.whl", hash = "sha256:05d8447caa87abb123137f62e7e5aeed8ca83015ee170aa829280c7034a23117", size = 1631827, upload-time = "2024-06-07T08:56:57.964Z" },
 ]
 
 [[package]]

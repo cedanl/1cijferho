@@ -121,6 +121,15 @@ documentation_page = st.Page(
 data_upload_page = st.Page(
     "frontend/Files/Upload_Data.py", icon="📁", title="Bestanden uploaden"
 )
+encrypt_upload_page = st.Page(
+    "frontend/Files/Encrypt_Upload.py", icon="🔐", title="Versleutelen & uploaden"
+)
+personal_data_page = st.Page(
+    "frontend/Files/Upload_Personal_Data.py", icon="👤", title="Persoonsgegevens uploaden"
+)
+browse_personal_page = st.Page(
+    "frontend/Files/Browse_Personal_Data.py", icon="📂", title="Persoonsgegevens bekijken"
+)
 
 extract_page = st.Page(
     "frontend/Modules/Extract_Metadata.py", icon="🔍", title="Stap 1 · Metadata extraheren"
@@ -150,7 +159,7 @@ show_version_notification()
 pg = st.navigation(
     {
         "Overview": [home_page, documentation_page],
-        "Files": [data_upload_page],
+        "Files": [data_upload_page, encrypt_upload_page, personal_data_page, browse_personal_page],
         "Modules": [extract_page, validate_page, turbo_convert_page, validate_output_page, tip_page],
     }
 )
