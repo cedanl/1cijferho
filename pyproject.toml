@@ -45,6 +45,8 @@ Issues = "https://github.com/cedanl/1cijferho/issues"
 frontend = [
     "streamlit>=1.41.1",
     "streamlit-extras>=0.6.0",
+    "streamlit-js>=1.0.8",
+    "pandas>=2.0",
 ]
 dev = [
     "ruff>=0.10.0",
@@ -64,6 +66,11 @@ postgres = [
     "sqlalchemy>=2.0",
 ]
 all-backends = [
+    "eencijferho[minio]",
+    "eencijferho[postgres]",
+]
+demo = [
+    "eencijferho[frontend]",
     "eencijferho[minio]",
     "eencijferho[postgres]",
 ]
