@@ -45,8 +45,6 @@ Alle publieke functies staan in [`__all__`](https://github.com/cedanl/1cijferho/
 
 ::: eencijferho.utils.compressor.convert_csv_to_parquet
 
-::: eencijferho.utils.encryptor.encryptor
-
 ::: eencijferho.utils.converter_headers.convert_csv_headers_to_snake_case
 
 ---

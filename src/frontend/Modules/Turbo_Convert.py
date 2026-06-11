@@ -118,7 +118,6 @@ def write_run_config(output_dir: str, output_cfg: OutputConfig, opt_decode_colum
             "opt_decoded": "decoded" in output_cfg.variants,
             "opt_enriched": "enriched" in output_cfg.variants,
             "opt_parquet": "parquet" in output_cfg.formats,
-            "opt_encrypt": output_cfg.encrypt,
             "opt_snake_case": output_cfg.column_casing == "snake_case",
             "opt_decode_columns": opt_decode_columns,
             "opt_enrich_variables": opt_enrich_variables,
@@ -245,7 +244,6 @@ with st.expander("Wat doet deze stap precies?"):
 - Vaste-breedte data splitsen naar kolommen op basis van de gevalideerde metadata
 - Resultaten controleren op fouten
 - Parquet-bestanden aanmaken (60–80% kleiner)
-- Gevoelige kolommen versleutelen in een aparte kopie
 - Kolomnamen omzetten naar snake_case
 """)
 
@@ -325,7 +323,7 @@ else:
             s = preset_cfg["settings"]
             for _key in (
                 "opt_convert_ev", "opt_convert_vakhavw", "opt_decoded",
-                "opt_enriched", "opt_parquet", "opt_encrypt", "opt_snake_case",
+                "opt_enriched", "opt_parquet", "opt_snake_case",
             ):
                 st.session_state[_key] = s[_key]
 
@@ -422,17 +420,12 @@ else:
 
         # --- Groep 3: Bestandsopties ---
         st.markdown("**Bestandsopties**")
-        col_p, col_e, col_s = st.columns(3)
+        col_p, col_s = st.columns(2)
         with col_p:
             st.checkbox(
                 "Parquet", value=True, key="opt_parquet",
                 disabled=is_preset,
                 help="Slaat elk CSV-bestand ook op als Parquet (60–80% kleiner, sneller te laden).")
-        with col_e:
-            st.checkbox(
-                "Versleutelen", value=True, key="opt_encrypt",
-                disabled=is_preset,
-                help="Maakt een aparte versleutelde kopie voor bestanden met gevoelige kolommen (BSN).")
         with col_s:
             st.checkbox(
                 "snake_case", value=True, key="opt_snake_case",
@@ -444,7 +437,7 @@ else:
         st.markdown("**Studentnummer koppeling** *(optioneel)*")
         st.caption(
             "Lever een koppelbestand aan (CSV of Parquet) om een lokaal studentnummer toe te voegen "
-            "aan elk EV/VAKHAVW-bestand. Het burgerservicenummer wordt daarna nog steeds versleuteld."
+            "aan elk EV/VAKHAVW-bestand."
         )
         bsn_mapping_file_raw = st.text_input(
             "Pad naar koppelbestand (CSV of Parquet)",
@@ -588,7 +581,6 @@ else:
                 output_cfg = OutputConfig(
                     variants=variants,
                     formats=["parquet"] if st.session_state.get("opt_parquet", True) else [],
-                    encrypt=st.session_state.get("opt_encrypt", True),
                     column_casing="snake_case" if st.session_state.get("opt_snake_case", True) else "none",
                     convert_ev=do_convert_ev,
                     convert_vakhavw=do_convert_vakhavw,
@@ -616,7 +608,7 @@ else:
                 status_text.text("✅ Verwerking succesvol voltooid!")
 
                 output_dir = get_output_dir()
-                st.success(f"✅ **Verwerking voltooid!** Bestanden geconverteerd, gevalideerd, gecomprimeerd en versleuteld. Resultaten staan in `{get_output_dir()}/`.")
+                st.success(f"✅ **Verwerking voltooid!** Bestanden geconverteerd, gevalideerd en gecomprimeerd. Resultaten staan in `{get_output_dir()}/`.")
 
                 # Show converted files
                 output_files = get_output_files()
@@ -625,10 +617,9 @@ else:
                         st.write("**Aangemaakte bestanden:**")
 
                         # Group files by type for better organization
-                        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv') and not f['name'].endswith('_decoded.csv') and not f['name'].endswith('_enriched.csv')]
+                        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_decoded.csv') and not f['name'].endswith('_enriched.csv')]
                         decoded_files = [f for f in output_files if f['name'].endswith('_decoded.csv') or f['name'].endswith('_enriched.csv')]
                         parquet_files = [f for f in output_files if f['name'].endswith('.parquet')]
-                        encrypted_files = [f for f in output_files if f['name'].endswith('_encrypted.csv')]
 
                         if csv_files:
                             st.write("**CSV-bestanden:**")
@@ -643,11 +634,6 @@ else:
                         if parquet_files:
                             st.write("**Parquet-bestanden (gecomprimeerd):**")
                             for file in parquet_files:
-                                st.write(f"• `{file['name']}` ({file['size_formatted']})")
-
-                        if encrypted_files:
-                            st.write("**Versleutelde bestanden:**")
-                            for file in encrypted_files:
                                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
                 
                 # Write run_config.json for reproducibility and future presets
@@ -705,10 +691,9 @@ if output_files:
         st.write("**Bestanden in de uitvoermap:**")
 
         # Group files by type for better organization
-        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_encrypted.csv') and not f['name'].endswith('_decoded.csv') and not f['name'].endswith('_enriched.csv')]
+        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_decoded.csv') and not f['name'].endswith('_enriched.csv')]
         decoded_files = [f for f in output_files if f['name'].endswith('_decoded.csv') or f['name'].endswith('_enriched.csv')]
         parquet_files = [f for f in output_files if f['name'].endswith('.parquet')]
-        encrypted_files = [f for f in output_files if f['name'].endswith('_encrypted.csv')]
 
         if csv_files:
             st.write("**CSV-bestanden:**")
@@ -723,11 +708,6 @@ if output_files:
         if parquet_files:
             st.write("**Parquet-bestanden (gecomprimeerd):**")
             for file in parquet_files:
-                st.write(f"• `{file['name']}` ({file['size_formatted']})")
-
-        if encrypted_files:
-            st.write("**Versleutelde bestanden:**")
-            for file in encrypted_files:
                 st.write(f"• `{file['name']}` ({file['size_formatted']})")
         
 

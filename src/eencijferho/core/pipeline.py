@@ -1,5 +1,5 @@
 """
-Modular pipeline orchestrator: conversion → decoding → validation → BSN translation (opt.) → encryption → compression → header normalization.
+Modular pipeline orchestrator: conversion → decoding → validation → BSN translation (opt.) → compression → header normalization.
 """
 
 import os
@@ -8,7 +8,6 @@ import polars as pl
 from eencijferho.core import converter, decoder
 import eencijferho.utils.converter_validation as cv
 import eencijferho.utils.compressor as co
-import eencijferho.utils.encryptor as en
 import eencijferho.utils.converter_headers as ch
 import eencijferho.utils.translator as tr
 from collections.abc import Callable
@@ -41,7 +40,7 @@ def run_turbo_convert_pipeline(
         status_callback: Optional callable(str) for status messages.
         output_config: Controls which output variants are produced.  When
             *None* the defaults from :class:`OutputConfig` are used
-            (decoded + enriched + parquet + encrypt + snake_case).
+            (decoded + enriched + parquet + snake_case).
     """
     if output_config is None:
         output_config = OutputConfig()
@@ -170,20 +169,6 @@ def run_turbo_convert_pipeline(
         log += "[pipeline] Koppeling voltooid.\n"
         if progress_callback:
             progress_callback(55)
-    # Step 4: Encrypt final files
-    if output_config.encrypt:
-        if status_callback:
-            status_callback("🔒 Gevoelige gegevens versleutelen...")
-        log += "[pipeline] Gevoelige gegevens versleutelen...\n"
-        en.encryptor(output_dir, output_dir)
-        encrypted_files = storage.list_files(f"{output_dir}/*_encrypted.csv")
-        for enc_path in encrypted_files:
-            fname = os.path.basename(enc_path)
-            original_name = fname.replace("_encrypted.csv", ".csv")
-            original_path = f"{output_dir}/{original_name}"
-            if storage.exists(original_path):
-                storage.delete(original_path)
-        log += "[pipeline] Versleuteling voltooid.\n"
     if progress_callback:
         progress_callback(75)
     # Step 5: Compress to Parquet

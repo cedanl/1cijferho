@@ -21,8 +21,6 @@
 | **Convert** | Fixed-width ASCII → CSV / Parquet via multiprocessing |
 | **Output** | Schone, gestructureerde bestanden klaar voor analyse |
 
-Gevoelige gegevens (BSN) worden automatisch geanonimiseerd.
-
 ---
 
 ## Demo

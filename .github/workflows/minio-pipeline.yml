@@ -12,9 +12,9 @@ jobs:
       matrix:
         config:
           - name: csv-raw
-            flags: "--skip-decode --skip-enrich --skip-parquet --skip-encrypt --skip-snake-case"
+            flags: "--skip-decode --skip-enrich --skip-parquet --skip-snake-case"
           - name: csv-decoded-enriched
-            flags: "--skip-parquet --skip-encrypt --skip-snake-case"
+            flags: "--skip-parquet --skip-snake-case"
           - name: full-pipeline
             flags: ""
     env:

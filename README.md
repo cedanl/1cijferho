@@ -43,7 +43,6 @@ Tijdens de DAIR-conferentie in 2025 hebben we de 1CijferHO Tool gepresenteerd. B
 1cijferHO-data is essentieel voor beleidsvorming en onderzoek, maar het handmatig verwerken ervan kost veel tijd en brengt risico’s met zich mee. De 1CijferHO Tool biedt een oplossing die:
 - **Tijd bespaart**: Verwerk gigabytes aan data in enkele minuten.
 - **Betrouwbaar is**: Voorkomt fouten door automatische validatie.
-- **Veilig werkt**: Anonimiseert gevoelige gegevens, zoals BSN’s.
 - **Gebruiksklaar**: Levert schone CSV- of Parquet-bestanden voor directe analyse.
 
 

@@ -244,8 +244,6 @@ def cmd_enrich(storage, args: argparse.Namespace) -> None:
     written = skipped = 0
     for filepath in storage.list_files(f"{args.output}/*_decoded.csv"):
         fname = os.path.basename(filepath)
-        if fname.endswith("_decoded_encrypted.csv"):
-            continue
         base = filepath.replace("_decoded.csv", ".csv")
         if not storage.exists(base):
             continue
@@ -290,7 +288,6 @@ def _build_output_config(args: argparse.Namespace) -> OutputConfig:
         return OutputConfig(
             variants=variants,
             formats=["parquet"] if s["opt_parquet"] else [],
-            encrypt=s["opt_encrypt"],
             column_casing="snake_case" if s["opt_snake_case"] else "none",
             convert_ev=s["opt_convert_ev"],
             convert_vakhavw=s["opt_convert_vakhavw"],
@@ -308,7 +305,6 @@ def _build_output_config(args: argparse.Namespace) -> OutputConfig:
     return OutputConfig(
         variants=variants,
         formats=formats,
-        encrypt=not args.skip_encrypt,
         column_casing="none" if args.skip_snake_case else "snake_case",
         convert_ev=not args.skip_ev,
         convert_vakhavw=not args.skip_vakhavw,
@@ -391,10 +387,6 @@ def main() -> None:
     _output_opts.add_argument(
         "--skip-parquet", action="store_true",
         help="Do not compress output to Parquet",
-    )
-    _output_opts.add_argument(
-        "--skip-encrypt", action="store_true",
-        help="Do not encrypt sensitive columns",
     )
     _output_opts.add_argument(
         "--skip-snake-case", action="store_true",
