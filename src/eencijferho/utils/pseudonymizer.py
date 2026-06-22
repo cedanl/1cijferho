@@ -32,6 +32,12 @@ from eencijferho.io.decorators import with_storage
 
 ENCRYPT_KEY_ENV = "EENCIJFERHO_ENCRYPT_KEY"
 
+# HMAC-SHA256 verwerkt sleutels langer dan zijn blokgrootte (64 bytes) door ze
+# eerst te hashen; een zwakke, korte sleutel is zelf brute-force-baar en
+# ondermijnt de pseudonimisering. We eisen daarom minstens de volledige
+# blokgrootte aan sleutelmateriaal.
+MIN_KEY_BYTES = 64
+
 
 def load_key(key: str | None = None, key_file: str | None = None) -> bytes:
     """Bepaal de geheime sleutel voor pseudonimisering.
@@ -39,8 +45,11 @@ def load_key(key: str | None = None, key_file: str | None = None) -> bytes:
     Voorrang: expliciete ``key`` → ``key_file`` → omgevingsvariabele
     ``EENCIJFERHO_ENCRYPT_KEY``. De sleutel wordt nooit weggeschreven of gelogd.
 
+    De sleutel moet na UTF-8-codering minstens :data:`MIN_KEY_BYTES` bytes
+    bevatten; een te korte sleutel is zelf brute-force-baar.
+
     Raises:
-        ValueError: als geen sleutel beschikbaar is, of de sleutel leeg is.
+        ValueError: als geen sleutel beschikbaar is, of de sleutel te kort is.
     """
     if key is None and key_file is not None:
         with open(key_file, encoding="utf-8") as fh:
@@ -52,7 +61,13 @@ def load_key(key: str | None = None, key_file: str | None = None) -> bytes:
             "Geen pseudonimiseringssleutel gevonden. Geef een sleutel mee, "
             f"een sleutelbestand, of zet de omgevingsvariabele {ENCRYPT_KEY_ENV}."
         )
-    return key.encode("utf-8")
+    encoded = key.encode("utf-8")
+    if len(encoded) < MIN_KEY_BYTES:
+        raise ValueError(
+            f"Pseudonimiseringssleutel is te kort: {len(encoded)} bytes, "
+            f"minimaal {MIN_KEY_BYTES} bytes vereist."
+        )
+    return encoded
 
 
 def pseudonymize_value(key: bytes, value: Any) -> str | None:
