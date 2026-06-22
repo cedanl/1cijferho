@@ -73,6 +73,7 @@ eencijferho = "eencijferho.cli:main"
 
 [dependency-groups]
 dev = [
+    "playwright>=1.60.0",
     "pytest>=9.0.2",
 ]
 
