@@ -39,9 +39,16 @@ class ScreenRecorder:
         self._interval = 1.0 / fps
         self._frame    = 0
         self._task     = None
+        self._paused   = False
 
     def start(self):
         self._task = asyncio.create_task(self._loop())
+
+    def pause(self):
+        self._paused = True
+
+    def resume(self):
+        self._paused = False
 
     async def stop(self):
         if self._task:
@@ -53,12 +60,13 @@ class ScreenRecorder:
 
     async def _loop(self):
         while True:
-            path = self._out_dir / f"frame_{self._frame:05d}.png"
-            try:
-                await self._page.screenshot(path=str(path))
-                self._frame += 1
-            except Exception:
-                pass
+            if not self._paused:
+                path = self._out_dir / f"frame_{self._frame:05d}.png"
+                try:
+                    await self._page.screenshot(path=str(path))
+                    self._frame += 1
+                except Exception:
+                    pass
             await asyncio.sleep(self._interval)
 
 
@@ -123,7 +131,7 @@ async def cursor_to(page, locator):
 
 
 # ---------------------------------------------------------------------------
-# Annotations — enkel voor niet-vanzelfsprekende UI-elementen
+# Annotations
 # ---------------------------------------------------------------------------
 
 ANN_CSS = (
@@ -204,18 +212,44 @@ async def smooth_scroll(page, distance: int):
 
 
 # ---------------------------------------------------------------------------
-# Demo scenes — langzaam, natuurlijk, max 4 annotaties totaal
+# Global style injection — persists via MutationObserver across Streamlit rerenders
+# ---------------------------------------------------------------------------
+
+async def inject_global_styles(page):
+    """Hide distracting Streamlit chrome (Deploy button, overflow menu)."""
+    await page.evaluate("""() => {
+        const style = document.createElement('style');
+        style.id = '__demo-global';
+        style.textContent = `
+            /* Hide Streamlit deploy / overflow toolbar buttons */
+            [data-testid="stToolbarActionButtonContainer"],
+            [data-testid="stDecoration"],
+            .stDeployButton { display: none !important; }
+        `;
+        document.head.appendChild(style);
+
+        /* Re-apply after every Streamlit DOM update */
+        const hideBtn = () => {
+            document.querySelectorAll('button').forEach(b => {
+                if (b.textContent.trim() === 'Deploy') {
+                    b.style.setProperty('display', 'none', 'important');
+                }
+            });
+        };
+        hideBtn();
+        new MutationObserver(hideBtn).observe(document.body, { childList: true, subtree: true });
+    }""")
+
+
+# ---------------------------------------------------------------------------
+# Demo scenes
 # ---------------------------------------------------------------------------
 
 async def scene_home(page):
-    await page.goto(APP_URL)
-    await wait_streamlit(page)
-    await pause(page, 800)
+    # Page already loaded — brief pause so first frames aren't mid-render
+    await pause(page, 1200)
+    await inject_global_styles(page)
 
-    # Laat de pagina even ademen voordat we iets doen
-    await pause(page, 1500)
-
-    # Cursor traag naar "Probeer met demo" — annoteer de knop zelf
     demo_btn = page.get_by_role("button", name="Probeer met demo")
     await cursor_to(page, demo_btn)
     await pause(page, 600)
@@ -232,13 +266,12 @@ async def scene_upload(page):
     await wait_streamlit(page)
     await pause(page, 800)
 
-    # Cursor naar de groene status-balk — dat is de interessante info
     status = page.locator("text=26 bestanden gevonden").first
     try:
         await status.wait_for(state="visible", timeout=4000)
         await cursor_to(page, status)
         await pause(page, 600)
-        # ANNOTATIE 2: wat er gevonden is
+        # ANNOTATIE 2: wat die 26 bestanden zijn
         await ann(page, status, "3 types herkend: beschrijvingen · Dec-tabellen · data", side="above", color=GREEN)
         await pause(page, 3000)
         await clear_ann(page)
@@ -246,24 +279,11 @@ async def scene_upload(page):
     except Exception:
         pass
 
-    # Klap "Bekijk 3 bestanden" open zodat de bestandsnamen zichtbaar zijn
-    first_dropdown = page.locator('[data-testid="stSelectbox"], details, summary').first
-    bekijk = page.locator("text=Bekijk 3 bestanden").first
-    try:
-        await bekijk.wait_for(state="visible", timeout=3000)
-        await cursor_to(page, bekijk)
-        await pause(page, 500)
-        await bekijk.click()
-        await pause(page, 1200)
-    except Exception:
-        pass
-
-    # Cursor naar "Ga door naar stap 1 →"
     fwd = page.get_by_role("button", name="Ga door naar stap 1 →")
     try:
         await fwd.wait_for(state="visible", timeout=3000)
         await cursor_to(page, fwd)
-        await pause(page, 600)
+        await pause(page, 500)
         await fwd.click()
     except Exception:
         await page.get_by_text("Stap 1 · Metadata extraheren").click()
@@ -274,19 +294,17 @@ async def scene_extract(page):
     await wait_streamlit(page)
     await pause(page, 800)
 
-    # Cursor naar knop en klik — geen annotatie, de actie spreekt voor zich
     run_btn = page.get_by_role("button", name="Extraheren starten")
     try:
         await run_btn.wait_for(state="visible", timeout=3000)
         await cursor_to(page, run_btn)
         await pause(page, 800)
         await run_btn.click()
-        # Console log opent vanzelf — wacht tot die zichtbaar is en laat hem lezen
         await pause(page, 2000)
         console_text = page.locator("text=Extractie gestart").first
         try:
             await console_text.wait_for(state="visible", timeout=6000)
-            await pause(page, 4000)   # laat de log uitrollen en leesbaar zijn
+            await pause(page, 4000)
         except Exception:
             await pause(page, 6000)
     except Exception:
@@ -314,12 +332,11 @@ async def scene_validate(page):
         await pause(page, 700)
         await validate_btn.click()
         await pause(page, 2000)
-        # Wacht op console log — laat resultaat zichtbaar zijn
         passed = page.locator("text=18 passed").first
         try:
             await passed.wait_for(state="visible", timeout=8000)
             await pause(page, 1000)
-            # ANNOTATIE 3: het resultaat is niet vanzelfsprekend voor nieuwe gebruikers
+            # ANNOTATIE 3: wat "18 passed" betekent voor een nieuwe gebruiker
             await ann(page, passed, "Alle veldposities correct — klaar voor conversie", side="right", color=GREEN)
             await pause(page, 3000)
             await clear_ann(page)
@@ -339,70 +356,117 @@ async def scene_validate(page):
     await pause(page, 1500)
 
 
-async def scene_convert(page):
+async def scene_convert(page, recorder=None):
     await wait_streamlit(page)
     await pause(page, 800)
 
-    # Scroll traag naar uitvoervarianten — toon de opties
+    # Scroll naar uitvoervarianten om _decoded / _enriched te tonen
     await smooth_scroll(page, 320)
     await pause(page, 800)
 
-    # _decoded label: annoteert wat het betekent
-    decoded = page.locator("text=_decoded").first
+    # ANNOTATIE 4a: Gedecodeerde variant — uitleggen wat _decoded doet
+    decoded_cb = page.locator("label", has_text="Gedecodeerde variant").first
     try:
-        await decoded.wait_for(state="visible", timeout=3000)
-        await cursor_to(page, decoded)
+        await decoded_cb.wait_for(state="visible", timeout=3000)
+        await cursor_to(page, decoded_cb)
         await pause(page, 400)
-        await ann(page, decoded, "Codes vertaald naar leesbare omschrijvingen via Dec_* tabellen", side="right", color=AMBER)
-        await pause(page, 3000)
+        await ann(page, decoded_cb, "Omschrijvingen toegevoegd via Dec-tabellen (bijv. landcode → landcode_oms)", side="right", color=AMBER)
+        await pause(page, 3200)
         await clear_ann(page)
         await pause(page, 400)
     except Exception:
         pass
 
-    # Kolomselectie openen — ANNOTATIE 4
-    kol_btn = page.get_by_role("button", name="Kolomselectie instellen →")
+    # ANNOTATIE 4b: Verrijkte variant — uitleggen wat _enriched doet
+    enriched_cb = page.locator("label", has_text="Verrijkte variant").first
     try:
-        await kol_btn.wait_for(state="visible", timeout=3000)
-        await cursor_to(page, kol_btn)
-        await pause(page, 600)
-        await ann(page, kol_btn, "Kies zelf welke kolommen te decoderen", side="left", color=ACCENT)
-        await pause(page, 2500)
-        await clear_ann(page)
-        await kol_btn.click()
-        await pause(page, 1200)
-
-        # Toon modal — laat het even zien
-        modal = page.locator("text=Kolomselectie").first
-        try:
-            await modal.wait_for(state="visible", timeout=4000)
-            await pause(page, 2500)
-        except Exception:
-            pass
-
-        close = page.get_by_role("button", name="Klaar")
-        await cursor_to(page, close)
+        await enriched_cb.wait_for(state="visible", timeout=3000)
+        await cursor_to(page, enriched_cb)
         await pause(page, 400)
-        await close.click()
-        await pause(page, 800)
+        await ann(page, enriched_cb, "Codes vervangen door labels (bijv. M → man)", side="right", color=ACCENT)
+        await pause(page, 3200)
+        await clear_ann(page)
+        await pause(page, 500)
     except Exception:
         pass
 
-    # Scroll naar Start-knop
-    await smooth_scroll(page, 350)
-    await pause(page, 600)
+    # Scroll verder naar de Start-knop
+    await smooth_scroll(page, 450)
+    await pause(page, 700)
 
     start = page.get_by_role("button", name="⚡ Start Turbo Convert ⚡")
     try:
-        await start.wait_for(state="visible", timeout=3000)
+        await start.wait_for(state="visible", timeout=4000)
         await cursor_to(page, start)
-        await pause(page, 800)
-        # Hover effect — even wachten voor je klikt zodat het reëel lijkt
         await pause(page, 1200)
+        await start.click()
+
+        # Wacht tot Streamlit de RUNNING-state toont (max 5s)
+        try:
+            await page.wait_for_function(
+                "() => document.body.innerText.includes('RUNNING')", timeout=5000
+            )
+        except Exception:
+            pass
+
+        # Laat de voortgangsbalk 8s zien in de GIF
+        await pause(page, 8000)
+
+        # Pauzeer opname — de conversie duurt 60+ sec (156MB enriched.csv)
+        if recorder:
+            recorder.pause()
+
+        # Wacht tot RUNNING verdwijnt = conversie klaar
+        # Betrouwbaarder dan "Verwerking voltooid" dat ook van een vorige run kan zijn
+        try:
+            await page.wait_for_function(
+                "() => !document.body.innerText.includes('RUNNING')",
+                timeout=180_000,
+                polling=1000,
+            )
+        except Exception:
+            await page.wait_for_timeout(120_000)
+
+        # Extra buffer voor Streamlit DOM-update
+        await page.wait_for_timeout(2000)
+
+        # Hervat opname
+        if recorder:
+            recorder.resume()
+        await pause(page, 800)
+
+        # Scroll naar de absolute bodem — file-lijst staat onder de Console Log
+        await page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
+        await pause(page, 1500)
+
+        # ANNOTATIE 5: het eindresultaat — _decoded.csv met bestandsgrootte
+        decoded_file = page.locator("text=_decoded.csv").first
+        try:
+            await decoded_file.wait_for(state="visible", timeout=8000)
+            await cursor_to(page, decoded_file)
+            await pause(page, 600)
+            await ann(page, decoded_file, "Klaar — CSV met leesbare kolomnamen, analyse-ready", side="right", color=GREEN)
+            await pause(page, 4000)
+            await clear_ann(page)
+            await pause(page, 1200)
+        except Exception:
+            # Fallback: scroll naar top om succes-banner te vinden
+            await page.evaluate("() => window.scrollTo(0, 0)")
+            await pause(page, 800)
+            success_banner = page.locator("text=Verwerking voltooid").first
+            try:
+                await success_banner.wait_for(state="visible", timeout=5000)
+                await cursor_to(page, success_banner)
+                await ann(page, success_banner, "Klaar — CSV en Parquet bestanden aangemaakt", side="right", color=GREEN)
+                await pause(page, 4000)
+                await clear_ann(page)
+            except Exception:
+                await pause(page, 3000)
+
     except Exception:
         pass
 
-    await pause(page, 500)
+    await pause(page, 1500)
 
 
 # ---------------------------------------------------------------------------
@@ -438,6 +502,11 @@ async def run(frames_dir: Path):
         browser = await pw.chromium.launch(headless=True)
         page    = await browser.new_page(viewport=SIZE)
 
+        # Pre-load so recorder starts on a rendered page, not a blank tab
+        print("Loading app…")
+        await page.goto(APP_URL, timeout=60_000)
+        await wait_streamlit(page)
+
         recorder = ScreenRecorder(page, frames_dir, fps=FPS)
         recorder.start()
 
@@ -446,13 +515,43 @@ async def run(frames_dir: Path):
         await scene_upload(page)
         await scene_extract(page)
         await scene_validate(page)
-        await scene_convert(page)
+        await scene_convert(page, recorder=recorder)
 
         await recorder.stop()
         await browser.close()
 
 
 def main():
+    import time
+
+    # Herstart Streamlit voor een schone sessie (geen stale session state)
+    print("Restarting Streamlit…")
+    import signal as _signal, os as _os
+    for pid_dir in _os.listdir("/proc"):
+        if not pid_dir.isdigit():
+            continue
+        try:
+            cmdline = open(f"/proc/{pid_dir}/cmdline").read().replace("\0", " ")
+            if "streamlit run src/main" in cmdline:
+                _os.kill(int(pid_dir), _signal.SIGKILL)
+        except Exception:
+            pass
+    time.sleep(3)
+    app_proc = subprocess.Popen(
+        ["uv", "run", "streamlit", "run", "src/main.py",
+         "--server.port", "8502", "--server.headless", "true"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    # Wacht tot app bereikbaar is (max 90s)
+    import urllib.request as _urlreq
+    for _ in range(90):
+        try:
+            _urlreq.urlopen(f"{APP_URL}/healthz", timeout=2)
+            break
+        except Exception:
+            time.sleep(1)
+    time.sleep(5)  # extra buffer voor Streamlit sessie-init
+
     frames_dir = Path(tempfile.mkdtemp(prefix="1cijferho-frames-"))
     try:
         asyncio.run(run(frames_dir))
@@ -464,6 +563,7 @@ def main():
         print(f"Done — {OUT_GIF_SRC.stat().st_size // 1024} KB")
     finally:
         shutil.rmtree(frames_dir, ignore_errors=True)
+        app_proc.terminate()
 
 
 if __name__ == "__main__":
