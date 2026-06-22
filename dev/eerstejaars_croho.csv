@@ -1,0 +1,1104 @@
+collegejaar;isatcode;groepeernaam_croho;examentype_code;eer_nl_niet_eer;aantal_eerstejaars_croho;aantal_hoofdinschrijvingen
+2002;56553;B Gezondheidswetenschappen;B;NL;23;23
+2002;56606;B Politicologie;B;NL;2;2
+2002;56615;B Communicatiewetenschap;B;NL;7;7
+2002;56945;B Artificial Intelligence;B;NL;5;5
+2003;56553;B Gezondheidswetenschappen;B;NL;24;49
+2003;56606;B Politicologie;B;NL;5;5
+2003;56615;B Communicatiewetenschap;B;EER;0;1
+2003;56615;B Communicatiewetenschap;B;NL;4;14
+2003;56615;B Communicatiewetenschap;B;niet-EER;1;1
+2003;56945;B Artificial Intelligence;B;EER;1;2
+2003;56945;B Artificial Intelligence;B;NL;7;9
+2003;60048;M Marketing;M;EER;3;3
+2003;60048;M Marketing;M;NL;18;18
+2003;60052;M Beleid, Communicatie en Organisatie;M;NL;3;3
+2003;60644;M Business Administration;M;EER;5;5
+2003;60644;M Business Administration;M;NL;8;8
+2003;66615;M Communicatiewetenschap;M;EER;1;1
+2003;66615;M Communicatiewetenschap;M;NL;17;17
+2003;66615;M Communicatiewetenschap;M;niet-EER;1;1
+2003;66627;M Bestuurskunde;M;EER;1;1
+2003;66627;M Bestuurskunde;M;NL;10;10
+2003;66833;M Econometrics and Operations Research;M;NL;1;1
+2003;66833;M Econometrics and Operations Research;M;niet-EER;1;1
+2003;66950;M Human Movement Sciences: Sport, Exercise and Health;M;EER;1;1
+2004;56553;B Gezondheidswetenschappen;B;EER;1;2
+2004;56553;B Gezondheidswetenschappen;B;NL;31;67
+2004;56606;B Politicologie;B;NL;8;13
+2004;56606;B Politicologie;B;niet-EER;1;1
+2004;56615;B Communicatiewetenschap;B;EER;0;1
+2004;56615;B Communicatiewetenschap;B;NL;6;20
+2004;56615;B Communicatiewetenschap;B;niet-EER;0;1
+2004;56945;B Artificial Intelligence;B;EER;0;1
+2004;56945;B Artificial Intelligence;B;NL;8;15
+2004;60046;M Finance;M;NL;1;1
+2004;60048;M Marketing;M;EER;2;2
+2004;60048;M Marketing;M;NL;39;59
+2004;60048;M Marketing;M;niet-EER;1;1
+2004;60052;M Beleid, Communicatie en Organisatie;M;EER;1;1
+2004;60052;M Beleid, Communicatie en Organisatie;M;NL;4;5
+2004;60084;M Rechtsgeleerdheid;M;NL;6;6
+2004;60084;M Rechtsgeleerdheid;M;niet-EER;1;1
+2004;60644;M Business Administration;M;EER;0;2
+2004;60644;M Business Administration;M;NL;24;32
+2004;60644;M Business Administration;M;niet-EER;1;1
+2004;66615;M Communicatiewetenschap;M;EER;2;4
+2004;66615;M Communicatiewetenschap;M;NL;22;41
+2004;66615;M Communicatiewetenschap;M;niet-EER;4;5
+2004;66627;M Bestuurskunde;M;EER;1;1
+2004;66627;M Bestuurskunde;M;NL;9;15
+2004;66627;M Bestuurskunde;M;niet-EER;1;1
+2004;66833;M Econometrics and Operations Research;M;NL;5;5
+2004;66833;M Econometrics and Operations Research;M;niet-EER;0;1
+2004;66851;M Health Sciences;M;NL;2;2
+2004;66851;M Health Sciences;M;niet-EER;1;1
+2004;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;11;13
+2004;66950;M Human Movement Sciences: Sport, Exercise and Health;M;niet-EER;1;1
+2005;50950;B Economie en Bedrijfseconomie;B;NL;8;8
+2005;50950;B Economie en Bedrijfseconomie;B;niet-EER;1;1
+2005;56553;B Gezondheidswetenschappen;B;EER;0;2
+2005;56553;B Gezondheidswetenschappen;B;NL;41;91
+2005;56553;B Gezondheidswetenschappen;B;niet-EER;0;1
+2005;56560;B Tandheelkunde;B;NL;63;70
+2005;56606;B Politicologie;B;NL;5;16
+2005;56615;B Communicatiewetenschap;B;EER;2;2
+2005;56615;B Communicatiewetenschap;B;NL;13;29
+2005;56615;B Communicatiewetenschap;B;niet-EER;1;1
+2005;56945;B Artificial Intelligence;B;EER;0;1
+2005;56945;B Artificial Intelligence;B;NL;8;25
+2005;60048;M Marketing;M;EER;5;7
+2005;60048;M Marketing;M;NL;46;65
+2005;60052;M Beleid, Communicatie en Organisatie;M;EER;0;1
+2005;60052;M Beleid, Communicatie en Organisatie;M;NL;3;7
+2005;60084;M Rechtsgeleerdheid;M;EER;1;3
+2005;60084;M Rechtsgeleerdheid;M;NL;7;9
+2005;60644;M Business Administration;M;EER;1;1
+2005;60644;M Business Administration;M;NL;33;50
+2005;60644;M Business Administration;M;niet-EER;0;1
+2005;66615;M Communicatiewetenschap;M;EER;1;3
+2005;66615;M Communicatiewetenschap;M;NL;28;56
+2005;66615;M Communicatiewetenschap;M;niet-EER;0;4
+2005;66627;M Bestuurskunde;M;EER;1;3
+2005;66627;M Bestuurskunde;M;NL;5;13
+2005;66833;M Econometrics and Operations Research;M;NL;11;14
+2005;66851;M Health Sciences;M;NL;11;17
+2005;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;13;26
+2005;66950;M Human Movement Sciences: Sport, Exercise and Health;M;niet-EER;1;1
+2006;50645;B Bedrijfskunde;B;EER;0;4
+2006;50645;B Bedrijfskunde;B;NL;29;92
+2006;50645;B Bedrijfskunde;B;niet-EER;1;2
+2006;50950;B Economie en Bedrijfseconomie;B;NL;11;16
+2006;56553;B Gezondheidswetenschappen;B;NL;22;90
+2006;56560;B Tandheelkunde;B;EER;3;4
+2006;56560;B Tandheelkunde;B;NL;66;145
+2006;56606;B Politicologie;B;NL;18;28
+2006;56615;B Communicatiewetenschap;B;EER;1;2
+2006;56615;B Communicatiewetenschap;B;NL;12;28
+2006;56945;B Artificial Intelligence;B;EER;1;2
+2006;56945;B Artificial Intelligence;B;NL;3;17
+2006;56945;B Artificial Intelligence;B;niet-EER;0;1
+2006;60046;M Finance;M;NL;2;2
+2006;60048;M Marketing;M;EER;2;3
+2006;60048;M Marketing;M;NL;43;72
+2006;60052;M Beleid, Communicatie en Organisatie;M;NL;4;11
+2006;60084;M Rechtsgeleerdheid;M;NL;7;14
+2006;60644;M Business Administration;M;EER;0;1
+2006;60644;M Business Administration;M;NL;25;45
+2006;60644;M Business Administration;M;niet-EER;0;1
+2006;66469;M Criminologie;M;EER;1;2
+2006;66469;M Criminologie;M;NL;33;58
+2006;66469;M Criminologie;M;niet-EER;1;1
+2006;66615;M Communicatiewetenschap;M;EER;1;3
+2006;66615;M Communicatiewetenschap;M;NL;39;78
+2006;66627;M Bestuurskunde;M;NL;12;20
+2006;66833;M Econometrics and Operations Research;M;NL;7;12
+2006;66851;M Health Sciences;M;EER;2;2
+2006;66851;M Health Sciences;M;NL;16;31
+2006;66851;M Health Sciences;M;niet-EER;1;1
+2006;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;20;29
+2006;66950;M Human Movement Sciences: Sport, Exercise and Health;M;niet-EER;1;1
+2007;50645;B Bedrijfskunde;B;EER;0;3
+2007;50645;B Bedrijfskunde;B;NL;37;103
+2007;50645;B Bedrijfskunde;B;niet-EER;0;2
+2007;50950;B Economie en Bedrijfseconomie;B;EER;1;2
+2007;50950;B Economie en Bedrijfseconomie;B;NL;31;48
+2007;56553;B Gezondheidswetenschappen;B;NL;36;107
+2007;56553;B Gezondheidswetenschappen;B;niet-EER;0;1
+2007;56560;B Tandheelkunde;B;EER;2;7
+2007;56560;B Tandheelkunde;B;NL;74;203
+2007;56560;B Tandheelkunde;B;niet-EER;0;4
+2007;56606;B Politicologie;B;EER;0;1
+2007;56606;B Politicologie;B;NL;14;32
+2007;56615;B Communicatiewetenschap;B;EER;1;3
+2007;56615;B Communicatiewetenschap;B;NL;14;35
+2007;56615;B Communicatiewetenschap;B;niet-EER;1;1
+2007;56945;B Artificial Intelligence;B;EER;0;1
+2007;56945;B Artificial Intelligence;B;NL;8;25
+2007;59324;B Biomedical Sciences;B;NL;20;20
+2007;60046;M Finance;M;NL;3;6
+2007;60048;M Marketing;M;EER;5;6
+2007;60048;M Marketing;M;NL;68;114
+2007;60048;M Marketing;M;niet-EER;1;1
+2007;60052;M Beleid, Communicatie en Organisatie;M;EER;0;1
+2007;60052;M Beleid, Communicatie en Organisatie;M;NL;11;15
+2007;60052;M Beleid, Communicatie en Organisatie;M;niet-EER;0;1
+2007;60084;M Rechtsgeleerdheid;M;EER;1;1
+2007;60084;M Rechtsgeleerdheid;M;NL;12;21
+2007;60084;M Rechtsgeleerdheid;M;niet-EER;1;1
+2007;60644;M Business Administration;M;EER;1;1
+2007;60644;M Business Administration;M;NL;30;51
+2007;60644;M Business Administration;M;niet-EER;1;1
+2007;66469;M Criminologie;M;EER;1;1
+2007;66469;M Criminologie;M;NL;30;57
+2007;66469;M Criminologie;M;niet-EER;2;2
+2007;66615;M Communicatiewetenschap;M;EER;0;2
+2007;66615;M Communicatiewetenschap;M;NL;37;88
+2007;66615;M Communicatiewetenschap;M;niet-EER;0;1
+2007;66627;M Bestuurskunde;M;EER;0;1
+2007;66627;M Bestuurskunde;M;NL;7;15
+2007;66627;M Bestuurskunde;M;niet-EER;0;1
+2007;66833;M Econometrics and Operations Research;M;EER;0;1
+2007;66833;M Econometrics and Operations Research;M;NL;10;19
+2007;66833;M Econometrics and Operations Research;M;niet-EER;1;1
+2007;66851;M Health Sciences;M;NL;22;39
+2007;66851;M Health Sciences;M;niet-EER;0;1
+2007;66950;M Human Movement Sciences: Sport, Exercise and Health;M;EER;3;3
+2007;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;33;48
+2007;66950;M Human Movement Sciences: Sport, Exercise and Health;M;niet-EER;0;1
+2008;50509;B Gezondheid en Leven;B;EER;0;3
+2008;50509;B Gezondheid en Leven;B;NL;32;90
+2008;50509;B Gezondheid en Leven;B;niet-EER;1;2
+2008;50645;B Bedrijfskunde;B;EER;2;4
+2008;50645;B Bedrijfskunde;B;NL;59;125
+2008;50950;B Economie en Bedrijfseconomie;B;EER;2;2
+2008;50950;B Economie en Bedrijfseconomie;B;NL;31;58
+2008;50950;B Economie en Bedrijfseconomie;B;niet-EER;0;2
+2008;56553;B Gezondheidswetenschappen;B;EER;1;2
+2008;56553;B Gezondheidswetenschappen;B;NL;48;130
+2008;56553;B Gezondheidswetenschappen;B;niet-EER;1;1
+2008;56560;B Tandheelkunde;B;EER;2;5
+2008;56560;B Tandheelkunde;B;NL;58;214
+2008;56560;B Tandheelkunde;B;niet-EER;1;3
+2008;56606;B Politicologie;B;EER;2;2
+2008;56606;B Politicologie;B;NL;35;57
+2008;56606;B Politicologie;B;niet-EER;0;1
+2008;56615;B Communicatiewetenschap;B;EER;1;2
+2008;56615;B Communicatiewetenschap;B;NL;9;37
+2008;56615;B Communicatiewetenschap;B;niet-EER;0;3
+2008;56945;B Artificial Intelligence;B;EER;2;2
+2008;56945;B Artificial Intelligence;B;NL;6;28
+2008;59324;B Biomedical Sciences;B;EER;2;4
+2008;59324;B Biomedical Sciences;B;NL;10;26
+2008;60046;M Finance;M;NL;2;2
+2008;60048;M Marketing;M;EER;3;8
+2008;60048;M Marketing;M;NL;77;137
+2008;60048;M Marketing;M;niet-EER;1;2
+2008;60052;M Beleid, Communicatie en Organisatie;M;EER;1;1
+2008;60052;M Beleid, Communicatie en Organisatie;M;NL;21;31
+2008;60052;M Beleid, Communicatie en Organisatie;M;niet-EER;0;2
+2008;60084;M Rechtsgeleerdheid;M;EER;1;1
+2008;60084;M Rechtsgeleerdheid;M;NL;15;34
+2008;60644;M Business Administration;M;EER;2;2
+2008;60644;M Business Administration;M;NL;21;40
+2008;66469;M Criminologie;M;EER;1;3
+2008;66469;M Criminologie;M;NL;50;81
+2008;66469;M Criminologie;M;niet-EER;1;3
+2008;66588;M Tandheelkunde;M;NL;33;33
+2008;66588;M Tandheelkunde;M;niet-EER;1;1
+2008;66615;M Communicatiewetenschap;M;EER;3;4
+2008;66615;M Communicatiewetenschap;M;NL;20;83
+2008;66615;M Communicatiewetenschap;M;niet-EER;0;2
+2008;66627;M Bestuurskunde;M;EER;1;1
+2008;66627;M Bestuurskunde;M;NL;20;38
+2008;66627;M Bestuurskunde;M;niet-EER;0;1
+2008;66833;M Econometrics and Operations Research;M;EER;1;1
+2008;66833;M Econometrics and Operations Research;M;NL;11;18
+2008;66833;M Econometrics and Operations Research;M;niet-EER;3;3
+2008;66851;M Health Sciences;M;EER;1;2
+2008;66851;M Health Sciences;M;NL;23;48
+2008;66851;M Health Sciences;M;niet-EER;1;1
+2008;66950;M Human Movement Sciences: Sport, Exercise and Health;M;EER;1;1
+2008;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;31;51
+2009;50509;B Gezondheid en Leven;B;EER;1;1
+2009;50509;B Gezondheid en Leven;B;NL;25;88
+2009;50645;B Bedrijfskunde;B;EER;0;2
+2009;50645;B Bedrijfskunde;B;NL;46;139
+2009;50645;B Bedrijfskunde;B;niet-EER;0;2
+2009;50950;B Economie en Bedrijfseconomie;B;EER;2;5
+2009;50950;B Economie en Bedrijfseconomie;B;NL;16;65
+2009;50950;B Economie en Bedrijfseconomie;B;niet-EER;1;3
+2009;50952;B International Business Administration;B;EER;3;3
+2009;50952;B International Business Administration;B;NL;86;209
+2009;50952;B International Business Administration;B;niet-EER;2;2
+2009;56553;B Gezondheidswetenschappen;B;EER;0;2
+2009;56553;B Gezondheidswetenschappen;B;NL;44;114
+2009;56553;B Gezondheidswetenschappen;B;niet-EER;2;2
+2009;56560;B Tandheelkunde;B;EER;1;4
+2009;56560;B Tandheelkunde;B;NL;78;248
+2009;56560;B Tandheelkunde;B;niet-EER;0;1
+2009;56606;B Politicologie;B;EER;0;2
+2009;56606;B Politicologie;B;NL;33;83
+2009;56606;B Politicologie;B;niet-EER;2;2
+2009;56615;B Communicatiewetenschap;B;EER;3;4
+2009;56615;B Communicatiewetenschap;B;NL;5;31
+2009;56945;B Artificial Intelligence;B;NL;7;28
+2009;59324;B Biomedical Sciences;B;EER;1;1
+2009;59324;B Biomedical Sciences;B;NL;25;42
+2009;59324;B Biomedical Sciences;B;niet-EER;0;1
+2009;60046;M Finance;M;NL;3;7
+2009;60048;M Marketing;M;EER;5;9
+2009;60048;M Marketing;M;NL;97;154
+2009;60048;M Marketing;M;niet-EER;1;2
+2009;60052;M Beleid, Communicatie en Organisatie;M;EER;1;2
+2009;60052;M Beleid, Communicatie en Organisatie;M;NL;35;62
+2009;60052;M Beleid, Communicatie en Organisatie;M;niet-EER;2;2
+2009;60084;M Rechtsgeleerdheid;M;EER;0;1
+2009;60084;M Rechtsgeleerdheid;M;NL;12;20
+2009;60644;M Business Administration;M;NL;37;58
+2009;60644;M Business Administration;M;niet-EER;1;2
+2009;66469;M Criminologie;M;EER;2;3
+2009;66469;M Criminologie;M;NL;45;92
+2009;66469;M Criminologie;M;niet-EER;2;4
+2009;66588;M Tandheelkunde;M;NL;53;86
+2009;66588;M Tandheelkunde;M;niet-EER;0;2
+2009;66615;M Communicatiewetenschap;M;EER;1;3
+2009;66615;M Communicatiewetenschap;M;NL;21;66
+2009;66615;M Communicatiewetenschap;M;niet-EER;0;2
+2009;66627;M Bestuurskunde;M;NL;24;46
+2009;66833;M Econometrics and Operations Research;M;EER;1;1
+2009;66833;M Econometrics and Operations Research;M;NL;11;19
+2009;66833;M Econometrics and Operations Research;M;niet-EER;0;1
+2009;66851;M Health Sciences;M;EER;0;2
+2009;66851;M Health Sciences;M;NL;24;46
+2009;66950;M Human Movement Sciences: Sport, Exercise and Health;M;EER;4;4
+2009;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;28;55
+2009;66950;M Human Movement Sciences: Sport, Exercise and Health;M;niet-EER;1;1
+2010;50509;B Gezondheid en Leven;B;EER;2;3
+2010;50509;B Gezondheid en Leven;B;NL;46;97
+2010;50509;B Gezondheid en Leven;B;niet-EER;1;1
+2010;50645;B Bedrijfskunde;B;EER;2;2
+2010;50645;B Bedrijfskunde;B;NL;39;163
+2010;50645;B Bedrijfskunde;B;niet-EER;2;2
+2010;50950;B Economie en Bedrijfseconomie;B;EER;3;8
+2010;50950;B Economie en Bedrijfseconomie;B;NL;22;69
+2010;50950;B Economie en Bedrijfseconomie;B;niet-EER;1;2
+2010;50952;B International Business Administration;B;EER;0;2
+2010;50952;B International Business Administration;B;NL;91;254
+2010;50952;B International Business Administration;B;niet-EER;1;2
+2010;56553;B Gezondheidswetenschappen;B;EER;1;1
+2010;56553;B Gezondheidswetenschappen;B;NL;40;141
+2010;56560;B Tandheelkunde;B;EER;2;3
+2010;56560;B Tandheelkunde;B;NL;60;241
+2010;56560;B Tandheelkunde;B;niet-EER;1;1
+2010;56606;B Politicologie;B;EER;1;4
+2010;56606;B Politicologie;B;NL;21;83
+2010;56606;B Politicologie;B;niet-EER;0;1
+2010;56615;B Communicatiewetenschap;B;EER;1;2
+2010;56615;B Communicatiewetenschap;B;NL;5;18
+2010;56945;B Artificial Intelligence;B;EER;1;1
+2010;56945;B Artificial Intelligence;B;NL;15;40
+2010;59324;B Biomedical Sciences;B;EER;1;2
+2010;59324;B Biomedical Sciences;B;NL;30;63
+2010;59324;B Biomedical Sciences;B;niet-EER;1;1
+2010;60046;M Finance;M;NL;2;5
+2010;60046;M Finance;M;niet-EER;1;1
+2010;60048;M Marketing;M;EER;5;11
+2010;60048;M Marketing;M;NL;97;174
+2010;60048;M Marketing;M;niet-EER;2;3
+2010;60052;M Beleid, Communicatie en Organisatie;M;EER;0;1
+2010;60052;M Beleid, Communicatie en Organisatie;M;NL;31;73
+2010;60052;M Beleid, Communicatie en Organisatie;M;niet-EER;3;4
+2010;60084;M Rechtsgeleerdheid;M;EER;1;2
+2010;60084;M Rechtsgeleerdheid;M;NL;3;16
+2010;60644;M Business Administration;M;EER;1;1
+2010;60644;M Business Administration;M;NL;32;54
+2010;66469;M Criminologie;M;EER;5;6
+2010;66469;M Criminologie;M;NL;49;92
+2010;66469;M Criminologie;M;niet-EER;3;5
+2010;66588;M Tandheelkunde;M;EER;0;3
+2010;66588;M Tandheelkunde;M;NL;54;128
+2010;66588;M Tandheelkunde;M;niet-EER;1;2
+2010;66615;M Communicatiewetenschap;M;EER;4;5
+2010;66615;M Communicatiewetenschap;M;NL;25;69
+2010;66627;M Bestuurskunde;M;EER;1;1
+2010;66627;M Bestuurskunde;M;NL;25;43
+2010;66833;M Econometrics and Operations Research;M;EER;1;2
+2010;66833;M Econometrics and Operations Research;M;NL;16;26
+2010;66851;M Health Sciences;M;EER;1;3
+2010;66851;M Health Sciences;M;NL;27;53
+2010;66950;M Human Movement Sciences: Sport, Exercise and Health;M;EER;2;2
+2010;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;27;62
+2010;66950;M Human Movement Sciences: Sport, Exercise and Health;M;niet-EER;1;1
+2011;50509;B Gezondheid en Leven;B;EER;3;4
+2011;50509;B Gezondheid en Leven;B;NL;68;131
+2011;50509;B Gezondheid en Leven;B;niet-EER;1;1
+2011;50645;B Bedrijfskunde;B;EER;4;9
+2011;50645;B Bedrijfskunde;B;NL;77;179
+2011;50645;B Bedrijfskunde;B;niet-EER;5;6
+2011;50950;B Economie en Bedrijfseconomie;B;EER;1;5
+2011;50950;B Economie en Bedrijfseconomie;B;NL;38;93
+2011;50950;B Economie en Bedrijfseconomie;B;niet-EER;1;1
+2011;50952;B International Business Administration;B;EER;6;9
+2011;50952;B International Business Administration;B;NL;142;338
+2011;56553;B Gezondheidswetenschappen;B;EER;0;2
+2011;56553;B Gezondheidswetenschappen;B;NL;54;135
+2011;56553;B Gezondheidswetenschappen;B;niet-EER;1;2
+2011;56560;B Tandheelkunde;B;EER;1;7
+2011;56560;B Tandheelkunde;B;NL;67;246
+2011;56606;B Politicologie;B;EER;5;5
+2011;56606;B Politicologie;B;NL;121;193
+2011;56606;B Politicologie;B;niet-EER;1;1
+2011;56615;B Communicatiewetenschap;B;EER;1;4
+2011;56615;B Communicatiewetenschap;B;NL;9;30
+2011;56945;B Artificial Intelligence;B;NL;15;43
+2011;56945;B Artificial Intelligence;B;niet-EER;0;1
+2011;59324;B Biomedical Sciences;B;EER;0;1
+2011;59324;B Biomedical Sciences;B;NL;48;88
+2011;60046;M Finance;M;NL;1;3
+2011;60048;M Marketing;M;EER;4;7
+2011;60048;M Marketing;M;NL;71;161
+2011;60048;M Marketing;M;niet-EER;1;4
+2011;60052;M Beleid, Communicatie en Organisatie;M;EER;0;2
+2011;60052;M Beleid, Communicatie en Organisatie;M;NL;6;46
+2011;60052;M Beleid, Communicatie en Organisatie;M;niet-EER;0;1
+2011;60084;M Rechtsgeleerdheid;M;EER;0;1
+2011;60084;M Rechtsgeleerdheid;M;NL;11;24
+2011;60084;M Rechtsgeleerdheid;M;niet-EER;1;1
+2011;60644;M Business Administration;M;EER;1;1
+2011;60644;M Business Administration;M;NL;8;28
+2011;66469;M Criminologie;M;EER;4;5
+2011;66469;M Criminologie;M;NL;55;88
+2011;66469;M Criminologie;M;niet-EER;0;5
+2011;66588;M Tandheelkunde;M;EER;1;2
+2011;66588;M Tandheelkunde;M;NL;62;201
+2011;66588;M Tandheelkunde;M;niet-EER;1;3
+2011;66615;M Communicatiewetenschap;M;NL;17;49
+2011;66627;M Bestuurskunde;M;EER;0;1
+2011;66627;M Bestuurskunde;M;NL;13;35
+2011;66833;M Econometrics and Operations Research;M;EER;1;2
+2011;66833;M Econometrics and Operations Research;M;NL;9;16
+2011;66851;M Health Sciences;M;NL;13;28
+2011;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;12;38
+2011;66950;M Human Movement Sciences: Sport, Exercise and Health;M;niet-EER;0;1
+2012;50509;B Gezondheid en Leven;B;EER;1;2
+2012;50509;B Gezondheid en Leven;B;NL;55;103
+2012;50509;B Gezondheid en Leven;B;niet-EER;0;1
+2012;50645;B Bedrijfskunde;B;EER;4;6
+2012;50645;B Bedrijfskunde;B;NL;57;156
+2012;50645;B Bedrijfskunde;B;niet-EER;3;4
+2012;50950;B Economie en Bedrijfseconomie;B;EER;1;11
+2012;50950;B Economie en Bedrijfseconomie;B;NL;35;97
+2012;50952;B International Business Administration;B;EER;5;6
+2012;50952;B International Business Administration;B;NL;127;299
+2012;50952;B International Business Administration;B;niet-EER;3;6
+2012;56553;B Gezondheidswetenschappen;B;EER;0;2
+2012;56553;B Gezondheidswetenschappen;B;NL;42;123
+2012;56553;B Gezondheidswetenschappen;B;niet-EER;0;2
+2012;56560;B Tandheelkunde;B;EER;1;2
+2012;56560;B Tandheelkunde;B;NL;69;246
+2012;56606;B Politicologie;B;EER;0;3
+2012;56606;B Politicologie;B;NL;54;110
+2012;56606;B Politicologie;B;niet-EER;0;2
+2012;56615;B Communicatiewetenschap;B;EER;0;1
+2012;56615;B Communicatiewetenschap;B;NL;15;40
+2012;56945;B Artificial Intelligence;B;NL;16;44
+2012;59324;B Biomedical Sciences;B;EER;3;3
+2012;59324;B Biomedical Sciences;B;NL;46;106
+2012;60046;M Finance;M;NL;8;13
+2012;60046;M Finance;M;niet-EER;1;2
+2012;60048;M Marketing;M;EER;4;8
+2012;60048;M Marketing;M;NL;137;206
+2012;60048;M Marketing;M;niet-EER;3;4
+2012;60052;M Beleid, Communicatie en Organisatie;M;EER;0;1
+2012;60052;M Beleid, Communicatie en Organisatie;M;NL;13;40
+2012;60052;M Beleid, Communicatie en Organisatie;M;niet-EER;0;1
+2012;60084;M Rechtsgeleerdheid;M;EER;1;1
+2012;60084;M Rechtsgeleerdheid;M;NL;7;17
+2012;60084;M Rechtsgeleerdheid;M;niet-EER;0;1
+2012;60644;M Business Administration;M;EER;2;3
+2012;60644;M Business Administration;M;NL;20;32
+2012;60644;M Business Administration;M;niet-EER;1;1
+2012;66469;M Criminologie;M;EER;2;4
+2012;66469;M Criminologie;M;NL;54;98
+2012;66469;M Criminologie;M;niet-EER;2;2
+2012;66588;M Tandheelkunde;M;EER;1;4
+2012;66588;M Tandheelkunde;M;NL;56;200
+2012;66588;M Tandheelkunde;M;niet-EER;0;2
+2012;66615;M Communicatiewetenschap;M;NL;26;39
+2012;66627;M Bestuurskunde;M;NL;32;43
+2012;66627;M Bestuurskunde;M;niet-EER;1;1
+2012;66833;M Econometrics and Operations Research;M;NL;21;26
+2012;66851;M Health Sciences;M;NL;24;33
+2012;66851;M Health Sciences;M;niet-EER;0;1
+2012;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;23;36
+2012;66950;M Human Movement Sciences: Sport, Exercise and Health;M;niet-EER;1;1
+2013;50509;B Gezondheid en Leven;B;EER;1;2
+2013;50509;B Gezondheid en Leven;B;NL;49;111
+2013;50509;B Gezondheid en Leven;B;niet-EER;0;1
+2013;50645;B Bedrijfskunde;B;EER;3;7
+2013;50645;B Bedrijfskunde;B;NL;31;119
+2013;50645;B Bedrijfskunde;B;niet-EER;2;3
+2013;50950;B Economie en Bedrijfseconomie;B;EER;0;7
+2013;50950;B Economie en Bedrijfseconomie;B;NL;28;72
+2013;50950;B Economie en Bedrijfseconomie;B;niet-EER;0;1
+2013;50952;B International Business Administration;B;EER;1;3
+2013;50952;B International Business Administration;B;NL;50;229
+2013;50952;B International Business Administration;B;niet-EER;1;3
+2013;56553;B Gezondheidswetenschappen;B;EER;3;4
+2013;56553;B Gezondheidswetenschappen;B;NL;51;131
+2013;56553;B Gezondheidswetenschappen;B;niet-EER;0;2
+2013;56560;B Tandheelkunde;B;EER;0;6
+2013;56560;B Tandheelkunde;B;NL;67;253
+2013;56606;B Politicologie;B;EER;1;3
+2013;56606;B Politicologie;B;NL;40;103
+2013;56606;B Politicologie;B;niet-EER;1;1
+2013;56615;B Communicatiewetenschap;B;EER;0;2
+2013;56615;B Communicatiewetenschap;B;NL;15;39
+2013;56615;B Communicatiewetenschap;B;niet-EER;1;1
+2013;56945;B Artificial Intelligence;B;NL;16;41
+2013;56945;B Artificial Intelligence;B;niet-EER;0;1
+2013;59324;B Biomedical Sciences;B;EER;1;5
+2013;59324;B Biomedical Sciences;B;NL;70;139
+2013;60046;M Finance;M;NL;12;16
+2013;60048;M Marketing;M;EER;7;12
+2013;60048;M Marketing;M;NL;100;167
+2013;60048;M Marketing;M;niet-EER;4;6
+2013;60052;M Beleid, Communicatie en Organisatie;M;EER;0;1
+2013;60052;M Beleid, Communicatie en Organisatie;M;NL;10;25
+2013;60052;M Beleid, Communicatie en Organisatie;M;niet-EER;1;3
+2013;60084;M Rechtsgeleerdheid;M;EER;0;1
+2013;60084;M Rechtsgeleerdheid;M;NL;6;13
+2013;60084;M Rechtsgeleerdheid;M;niet-EER;1;1
+2013;60644;M Business Administration;M;NL;24;30
+2013;66469;M Criminologie;M;EER;4;7
+2013;66469;M Criminologie;M;NL;48;122
+2013;66469;M Criminologie;M;niet-EER;0;1
+2013;66588;M Tandheelkunde;M;EER;0;1
+2013;66588;M Tandheelkunde;M;NL;50;206
+2013;66588;M Tandheelkunde;M;niet-EER;1;3
+2013;66615;M Communicatiewetenschap;M;EER;0;3
+2013;66615;M Communicatiewetenschap;M;NL;27;45
+2013;66615;M Communicatiewetenschap;M;niet-EER;0;2
+2013;66627;M Bestuurskunde;M;NL;17;27
+2013;66627;M Bestuurskunde;M;niet-EER;0;1
+2013;66833;M Econometrics and Operations Research;M;EER;1;1
+2013;66833;M Econometrics and Operations Research;M;NL;32;39
+2013;66851;M Health Sciences;M;NL;26;46
+2013;66851;M Health Sciences;M;niet-EER;1;1
+2013;66950;M Human Movement Sciences: Sport, Exercise and Health;M;EER;1;1
+2013;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;28;37
+2013;66950;M Human Movement Sciences: Sport, Exercise and Health;M;niet-EER;2;3
+2014;50509;B Gezondheid en Leven;B;EER;1;2
+2014;50509;B Gezondheid en Leven;B;NL;52;128
+2014;50509;B Gezondheid en Leven;B;niet-EER;0;1
+2014;50645;B Bedrijfskunde;B;EER;1;7
+2014;50645;B Bedrijfskunde;B;NL;29;107
+2014;50950;B Economie en Bedrijfseconomie;B;EER;2;6
+2014;50950;B Economie en Bedrijfseconomie;B;NL;25;75
+2014;50950;B Economie en Bedrijfseconomie;B;niet-EER;0;3
+2014;50952;B International Business Administration;B;EER;2;4
+2014;50952;B International Business Administration;B;NL;43;201
+2014;50952;B International Business Administration;B;niet-EER;0;1
+2014;56553;B Gezondheidswetenschappen;B;EER;1;5
+2014;56553;B Gezondheidswetenschappen;B;NL;33;95
+2014;56553;B Gezondheidswetenschappen;B;niet-EER;2;3
+2014;56560;B Tandheelkunde;B;EER;1;6
+2014;56560;B Tandheelkunde;B;NL;56;245
+2014;56560;B Tandheelkunde;B;niet-EER;1;1
+2014;56606;B Politicologie;B;EER;0;4
+2014;56606;B Politicologie;B;NL;49;94
+2014;56606;B Politicologie;B;niet-EER;1;1
+2014;56615;B Communicatiewetenschap;B;EER;3;3
+2014;56615;B Communicatiewetenschap;B;NL;17;40
+2014;56945;B Artificial Intelligence;B;NL;18;44
+2014;59324;B Biomedical Sciences;B;EER;2;3
+2014;59324;B Biomedical Sciences;B;NL;83;165
+2014;59324;B Biomedical Sciences;B;niet-EER;1;1
+2014;60046;M Finance;M;EER;0;2
+2014;60046;M Finance;M;NL;13;20
+2014;60048;M Marketing;M;EER;3;6
+2014;60048;M Marketing;M;NL;75;138
+2014;60048;M Marketing;M;niet-EER;2;2
+2014;60052;M Beleid, Communicatie en Organisatie;M;EER;0;2
+2014;60052;M Beleid, Communicatie en Organisatie;M;NL;10;32
+2014;60052;M Beleid, Communicatie en Organisatie;M;niet-EER;0;1
+2014;60084;M Rechtsgeleerdheid;M;EER;1;2
+2014;60084;M Rechtsgeleerdheid;M;NL;12;25
+2014;60084;M Rechtsgeleerdheid;M;niet-EER;0;1
+2014;60644;M Business Administration;M;EER;3;3
+2014;60644;M Business Administration;M;NL;21;29
+2014;60644;M Business Administration;M;niet-EER;1;1
+2014;66469;M Criminologie;M;EER;4;10
+2014;66469;M Criminologie;M;NL;48;137
+2014;66469;M Criminologie;M;niet-EER;1;3
+2014;66588;M Tandheelkunde;M;EER;3;6
+2014;66588;M Tandheelkunde;M;NL;74;220
+2014;66588;M Tandheelkunde;M;niet-EER;1;5
+2014;66615;M Communicatiewetenschap;M;EER;1;2
+2014;66615;M Communicatiewetenschap;M;NL;26;39
+2014;66627;M Bestuurskunde;M;EER;2;2
+2014;66627;M Bestuurskunde;M;NL;25;30
+2014;66627;M Bestuurskunde;M;niet-EER;2;2
+2014;66833;M Econometrics and Operations Research;M;NL;7;20
+2014;66833;M Econometrics and Operations Research;M;niet-EER;0;1
+2014;66851;M Health Sciences;M;EER;1;1
+2014;66851;M Health Sciences;M;NL;36;58
+2014;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;29;46
+2014;66950;M Human Movement Sciences: Sport, Exercise and Health;M;niet-EER;1;1
+2015;50509;B Gezondheid en Leven;B;EER;0;5
+2015;50509;B Gezondheid en Leven;B;NL;14;72
+2015;50509;B Gezondheid en Leven;B;niet-EER;0;2
+2015;50645;B Bedrijfskunde;B;EER;2;6
+2015;50645;B Bedrijfskunde;B;NL;24;92
+2015;50645;B Bedrijfskunde;B;niet-EER;1;4
+2015;50950;B Economie en Bedrijfseconomie;B;EER;1;2
+2015;50950;B Economie en Bedrijfseconomie;B;NL;17;96
+2015;50950;B Economie en Bedrijfseconomie;B;niet-EER;1;2
+2015;50952;B International Business Administration;B;EER;1;3
+2015;50952;B International Business Administration;B;NL;42;171
+2015;56553;B Gezondheidswetenschappen;B;EER;1;4
+2015;56553;B Gezondheidswetenschappen;B;NL;39;113
+2015;56560;B Tandheelkunde;B;EER;1;2
+2015;56560;B Tandheelkunde;B;NL;73;239
+2015;56560;B Tandheelkunde;B;niet-EER;0;1
+2015;56606;B Politicologie;B;EER;1;2
+2015;56606;B Politicologie;B;NL;34;76
+2015;56606;B Politicologie;B;niet-EER;0;2
+2015;56615;B Communicatiewetenschap;B;EER;1;1
+2015;56615;B Communicatiewetenschap;B;NL;8;34
+2015;56615;B Communicatiewetenschap;B;niet-EER;0;2
+2015;56945;B Artificial Intelligence;B;NL;13;41
+2015;59324;B Biomedical Sciences;B;EER;2;4
+2015;59324;B Biomedical Sciences;B;NL;26;115
+2015;60046;M Finance;M;NL;4;8
+2015;60046;M Finance;M;niet-EER;0;1
+2015;60048;M Marketing;M;EER;6;10
+2015;60048;M Marketing;M;NL;80;111
+2015;60048;M Marketing;M;niet-EER;3;3
+2015;60052;M Beleid, Communicatie en Organisatie;M;NL;15;32
+2015;60084;M Rechtsgeleerdheid;M;EER;2;4
+2015;60084;M Rechtsgeleerdheid;M;NL;33;57
+2015;60644;M Business Administration;M;EER;3;4
+2015;60644;M Business Administration;M;NL;28;37
+2015;60644;M Business Administration;M;niet-EER;3;3
+2015;66469;M Criminologie;M;EER;6;11
+2015;66469;M Criminologie;M;NL;71;155
+2015;66469;M Criminologie;M;niet-EER;2;3
+2015;66588;M Tandheelkunde;M;EER;2;4
+2015;66588;M Tandheelkunde;M;NL;77;199
+2015;66588;M Tandheelkunde;M;niet-EER;0;1
+2015;66615;M Communicatiewetenschap;M;EER;0;1
+2015;66615;M Communicatiewetenschap;M;NL;53;72
+2015;66615;M Communicatiewetenschap;M;niet-EER;1;1
+2015;66627;M Bestuurskunde;M;EER;0;1
+2015;66627;M Bestuurskunde;M;NL;37;49
+2015;66627;M Bestuurskunde;M;niet-EER;3;3
+2015;66833;M Econometrics and Operations Research;M;EER;4;4
+2015;66833;M Econometrics and Operations Research;M;NL;13;22
+2015;66833;M Econometrics and Operations Research;M;niet-EER;3;3
+2015;66851;M Health Sciences;M;EER;0;2
+2015;66851;M Health Sciences;M;NL;15;35
+2015;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;27;43
+2016;50509;B Gezondheid en Leven;B;EER;1;6
+2016;50509;B Gezondheid en Leven;B;NL;39;85
+2016;50509;B Gezondheid en Leven;B;niet-EER;1;1
+2016;50645;B Bedrijfskunde;B;EER;3;7
+2016;50645;B Bedrijfskunde;B;NL;24;106
+2016;50645;B Bedrijfskunde;B;niet-EER;0;1
+2016;50950;B Economie en Bedrijfseconomie;B;EER;3;9
+2016;50950;B Economie en Bedrijfseconomie;B;NL;39;85
+2016;50950;B Economie en Bedrijfseconomie;B;niet-EER;1;2
+2016;50952;B International Business Administration;B;EER;3;5
+2016;50952;B International Business Administration;B;NL;36;146
+2016;50952;B International Business Administration;B;niet-EER;0;1
+2016;56553;B Gezondheidswetenschappen;B;EER;0;1
+2016;56553;B Gezondheidswetenschappen;B;NL;35;115
+2016;56560;B Tandheelkunde;B;EER;0;5
+2016;56560;B Tandheelkunde;B;NL;79;257
+2016;56560;B Tandheelkunde;B;niet-EER;1;3
+2016;56606;B Politicologie;B;EER;2;6
+2016;56606;B Politicologie;B;NL;26;76
+2016;56606;B Politicologie;B;niet-EER;1;1
+2016;56615;B Communicatiewetenschap;B;EER;0;1
+2016;56615;B Communicatiewetenschap;B;NL;10;26
+2016;56615;B Communicatiewetenschap;B;niet-EER;0;2
+2016;56945;B Artificial Intelligence;B;EER;0;1
+2016;56945;B Artificial Intelligence;B;NL;16;50
+2016;56945;B Artificial Intelligence;B;niet-EER;1;2
+2016;59324;B Biomedical Sciences;B;EER;2;6
+2016;59324;B Biomedical Sciences;B;NL;43;131
+2016;59324;B Biomedical Sciences;B;niet-EER;1;3
+2016;60046;M Finance;M;NL;8;17
+2016;60048;M Marketing;M;EER;7;9
+2016;60048;M Marketing;M;NL;103;138
+2016;60048;M Marketing;M;niet-EER;3;3
+2016;60052;M Beleid, Communicatie en Organisatie;M;EER;1;2
+2016;60052;M Beleid, Communicatie en Organisatie;M;NL;20;41
+2016;60084;M Rechtsgeleerdheid;M;EER;1;2
+2016;60084;M Rechtsgeleerdheid;M;NL;23;44
+2016;60644;M Business Administration;M;EER;1;1
+2016;60644;M Business Administration;M;NL;19;24
+2016;60644;M Business Administration;M;niet-EER;1;2
+2016;66469;M Criminologie;M;EER;1;6
+2016;66469;M Criminologie;M;NL;56;145
+2016;66469;M Criminologie;M;niet-EER;0;2
+2016;66588;M Tandheelkunde;M;EER;2;7
+2016;66588;M Tandheelkunde;M;NL;33;197
+2016;66588;M Tandheelkunde;M;niet-EER;0;1
+2016;66615;M Communicatiewetenschap;M;EER;0;2
+2016;66615;M Communicatiewetenschap;M;NL;36;51
+2016;66615;M Communicatiewetenschap;M;niet-EER;1;1
+2016;66627;M Bestuurskunde;M;EER;0;1
+2016;66627;M Bestuurskunde;M;NL;33;40
+2016;66627;M Bestuurskunde;M;niet-EER;0;1
+2016;66833;M Econometrics and Operations Research;M;EER;0;2
+2016;66833;M Econometrics and Operations Research;M;NL;16;30
+2016;66833;M Econometrics and Operations Research;M;niet-EER;1;1
+2016;66851;M Health Sciences;M;EER;1;2
+2016;66851;M Health Sciences;M;NL;31;51
+2016;66851;M Health Sciences;M;niet-EER;1;1
+2016;66950;M Human Movement Sciences: Sport, Exercise and Health;M;EER;0;1
+2016;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;38;45
+2017;50509;B Gezondheid en Leven;B;EER;2;3
+2017;50509;B Gezondheid en Leven;B;NL;55;104
+2017;50509;B Gezondheid en Leven;B;niet-EER;0;1
+2017;50645;B Bedrijfskunde;B;EER;1;2
+2017;50645;B Bedrijfskunde;B;NL;28;82
+2017;50645;B Bedrijfskunde;B;niet-EER;1;4
+2017;50950;B Economie en Bedrijfseconomie;B;EER;2;7
+2017;50950;B Economie en Bedrijfseconomie;B;NL;30;88
+2017;50950;B Economie en Bedrijfseconomie;B;niet-EER;1;3
+2017;50952;B International Business Administration;B;EER;2;8
+2017;50952;B International Business Administration;B;NL;38;133
+2017;50952;B International Business Administration;B;niet-EER;2;2
+2017;56553;B Gezondheidswetenschappen;B;EER;1;4
+2017;56553;B Gezondheidswetenschappen;B;NL;52;104
+2017;56560;B Tandheelkunde;B;EER;1;5
+2017;56560;B Tandheelkunde;B;NL;67;223
+2017;56560;B Tandheelkunde;B;niet-EER;1;3
+2017;56606;B Politicologie;B;EER;2;3
+2017;56606;B Politicologie;B;NL;31;62
+2017;56606;B Politicologie;B;niet-EER;2;2
+2017;56615;B Communicatiewetenschap;B;EER;1;1
+2017;56615;B Communicatiewetenschap;B;NL;11;42
+2017;56945;B Artificial Intelligence;B;NL;19;52
+2017;56945;B Artificial Intelligence;B;niet-EER;1;1
+2017;59324;B Biomedical Sciences;B;EER;1;4
+2017;59324;B Biomedical Sciences;B;NL;49;128
+2017;59324;B Biomedical Sciences;B;niet-EER;1;4
+2017;60046;M Finance;M;NL;12;16
+2017;60048;M Marketing;M;EER;10;10
+2017;60048;M Marketing;M;NL;87;116
+2017;60048;M Marketing;M;niet-EER;4;7
+2017;60052;M Beleid, Communicatie en Organisatie;M;EER;1;2
+2017;60052;M Beleid, Communicatie en Organisatie;M;NL;21;43
+2017;60052;M Beleid, Communicatie en Organisatie;M;niet-EER;1;2
+2017;60084;M Rechtsgeleerdheid;M;EER;0;2
+2017;60084;M Rechtsgeleerdheid;M;NL;20;42
+2017;60084;M Rechtsgeleerdheid;M;niet-EER;0;1
+2017;60644;M Business Administration;M;EER;6;7
+2017;60644;M Business Administration;M;NL;29;31
+2017;66469;M Criminologie;M;EER;3;8
+2017;66469;M Criminologie;M;NL;54;149
+2017;66469;M Criminologie;M;niet-EER;1;3
+2017;66588;M Tandheelkunde;M;EER;2;6
+2017;66588;M Tandheelkunde;M;NL;68;206
+2017;66588;M Tandheelkunde;M;niet-EER;2;3
+2017;66615;M Communicatiewetenschap;M;EER;2;2
+2017;66615;M Communicatiewetenschap;M;NL;43;57
+2017;66615;M Communicatiewetenschap;M;niet-EER;0;1
+2017;66627;M Bestuurskunde;M;EER;1;1
+2017;66627;M Bestuurskunde;M;NL;25;32
+2017;66833;M Econometrics and Operations Research;M;EER;1;2
+2017;66833;M Econometrics and Operations Research;M;NL;32;42
+2017;66833;M Econometrics and Operations Research;M;niet-EER;2;3
+2017;66851;M Health Sciences;M;EER;0;1
+2017;66851;M Health Sciences;M;NL;35;51
+2017;66950;M Human Movement Sciences: Sport, Exercise and Health;M;EER;1;3
+2017;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;31;46
+2018;50509;B Gezondheid en Leven;B;EER;2;3
+2018;50509;B Gezondheid en Leven;B;NL;49;101
+2018;50645;B Bedrijfskunde;B;EER;1;3
+2018;50645;B Bedrijfskunde;B;NL;25;94
+2018;50645;B Bedrijfskunde;B;niet-EER;0;5
+2018;50950;B Economie en Bedrijfseconomie;B;EER;3;8
+2018;50950;B Economie en Bedrijfseconomie;B;NL;59;132
+2018;50950;B Economie en Bedrijfseconomie;B;niet-EER;1;2
+2018;50952;B International Business Administration;B;EER;3;6
+2018;50952;B International Business Administration;B;NL;76;179
+2018;50952;B International Business Administration;B;niet-EER;2;4
+2018;56553;B Gezondheidswetenschappen;B;EER;0;1
+2018;56553;B Gezondheidswetenschappen;B;NL;49;108
+2018;56560;B Tandheelkunde;B;EER;3;5
+2018;56560;B Tandheelkunde;B;NL;82;241
+2018;56560;B Tandheelkunde;B;niet-EER;1;1
+2018;56606;B Politicologie;B;NL;24;54
+2018;56606;B Politicologie;B;niet-EER;0;2
+2018;56615;B Communicatiewetenschap;B;EER;2;3
+2018;56615;B Communicatiewetenschap;B;NL;10;35
+2018;56615;B Communicatiewetenschap;B;niet-EER;0;1
+2018;56945;B Artificial Intelligence;B;EER;2;3
+2018;56945;B Artificial Intelligence;B;NL;20;62
+2018;56945;B Artificial Intelligence;B;niet-EER;0;1
+2018;56950;B Bewegingswetenschappen;B;EER;7;8
+2018;56950;B Bewegingswetenschappen;B;NL;35;67
+2018;59324;B Biomedical Sciences;B;EER;3;6
+2018;59324;B Biomedical Sciences;B;NL;55;126
+2018;60046;M Finance;M;NL;21;32
+2018;60048;M Marketing;M;EER;5;7
+2018;60048;M Marketing;M;NL;132;161
+2018;60048;M Marketing;M;niet-EER;5;5
+2018;60052;M Beleid, Communicatie en Organisatie;M;EER;0;3
+2018;60052;M Beleid, Communicatie en Organisatie;M;NL;22;50
+2018;60052;M Beleid, Communicatie en Organisatie;M;niet-EER;1;2
+2018;60084;M Rechtsgeleerdheid;M;NL;15;56
+2018;60644;M Business Administration;M;EER;3;4
+2018;60644;M Business Administration;M;NL;34;44
+2018;60644;M Business Administration;M;niet-EER;1;1
+2018;66469;M Criminologie;M;EER;6;14
+2018;66469;M Criminologie;M;NL;71;158
+2018;66469;M Criminologie;M;niet-EER;3;6
+2018;66588;M Tandheelkunde;M;EER;0;7
+2018;66588;M Tandheelkunde;M;NL;66;209
+2018;66588;M Tandheelkunde;M;niet-EER;0;2
+2018;66615;M Communicatiewetenschap;M;EER;2;3
+2018;66615;M Communicatiewetenschap;M;NL;27;36
+2018;66615;M Communicatiewetenschap;M;niet-EER;1;1
+2018;66627;M Bestuurskunde;M;NL;30;37
+2018;66833;M Econometrics and Operations Research;M;EER;5;6
+2018;66833;M Econometrics and Operations Research;M;NL;22;40
+2018;66833;M Econometrics and Operations Research;M;niet-EER;1;2
+2018;66851;M Health Sciences;M;EER;1;2
+2018;66851;M Health Sciences;M;NL;25;52
+2018;66851;M Health Sciences;M;niet-EER;1;1
+2018;66950;M Human Movement Sciences: Sport, Exercise and Health;M;EER;2;2
+2018;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;46;61
+2018;66950;M Human Movement Sciences: Sport, Exercise and Health;M;niet-EER;2;3
+2019;50509;B Gezondheid en Leven;B;EER;1;1
+2019;50509;B Gezondheid en Leven;B;NL;45;93
+2019;50645;B Bedrijfskunde;B;EER;2;3
+2019;50645;B Bedrijfskunde;B;NL;31;98
+2019;50645;B Bedrijfskunde;B;niet-EER;0;1
+2019;50950;B Economie en Bedrijfseconomie;B;EER;7;14
+2019;50950;B Economie en Bedrijfseconomie;B;NL;73;164
+2019;50950;B Economie en Bedrijfseconomie;B;niet-EER;1;4
+2019;50952;B International Business Administration;B;EER;4;6
+2019;50952;B International Business Administration;B;NL;95;222
+2019;50952;B International Business Administration;B;niet-EER;0;2
+2019;56553;B Gezondheidswetenschappen;B;EER;1;2
+2019;56553;B Gezondheidswetenschappen;B;NL;52;132
+2019;56560;B Tandheelkunde;B;EER;3;6
+2019;56560;B Tandheelkunde;B;NL;79;246
+2019;56560;B Tandheelkunde;B;niet-EER;2;3
+2019;56606;B Politicologie;B;EER;3;3
+2019;56606;B Politicologie;B;NL;28;51
+2019;56606;B Politicologie;B;niet-EER;1;2
+2019;56615;B Communicatiewetenschap;B;EER;4;6
+2019;56615;B Communicatiewetenschap;B;NL;17;35
+2019;56615;B Communicatiewetenschap;B;niet-EER;1;1
+2019;56833;B Econometrie en Operationele Research;B;EER;5;6
+2019;56833;B Econometrie en Operationele Research;B;NL;44;68
+2019;56833;B Econometrie en Operationele Research;B;niet-EER;3;3
+2019;56945;B Artificial Intelligence;B;EER;0;1
+2019;56945;B Artificial Intelligence;B;NL;19;58
+2019;56945;B Artificial Intelligence;B;niet-EER;0;1
+2019;56950;B Bewegingswetenschappen;B;EER;4;9
+2019;56950;B Bewegingswetenschappen;B;NL;49;107
+2019;56950;B Bewegingswetenschappen;B;niet-EER;1;2
+2019;59324;B Biomedical Sciences;B;EER;1;6
+2019;59324;B Biomedical Sciences;B;NL;48;135
+2019;59324;B Biomedical Sciences;B;niet-EER;1;1
+2019;60046;M Finance;M;NL;24;42
+2019;60048;M Marketing;M;EER;16;19
+2019;60048;M Marketing;M;NL;117;151
+2019;60048;M Marketing;M;niet-EER;9;10
+2019;60052;M Beleid, Communicatie en Organisatie;M;EER;2;3
+2019;60052;M Beleid, Communicatie en Organisatie;M;NL;28;54
+2019;60052;M Beleid, Communicatie en Organisatie;M;niet-EER;0;1
+2019;60084;M Rechtsgeleerdheid;M;NL;22;46
+2019;60084;M Rechtsgeleerdheid;M;niet-EER;0;1
+2019;60644;M Business Administration;M;EER;2;3
+2019;60644;M Business Administration;M;NL;32;38
+2019;60644;M Business Administration;M;niet-EER;2;2
+2019;66469;M Criminologie;M;EER;5;12
+2019;66469;M Criminologie;M;NL;57;160
+2019;66469;M Criminologie;M;niet-EER;3;4
+2019;66588;M Tandheelkunde;M;EER;1;1
+2019;66588;M Tandheelkunde;M;NL;57;192
+2019;66588;M Tandheelkunde;M;niet-EER;1;2
+2019;66615;M Communicatiewetenschap;M;EER;2;5
+2019;66615;M Communicatiewetenschap;M;NL;33;43
+2019;66615;M Communicatiewetenschap;M;niet-EER;0;1
+2019;66627;M Bestuurskunde;M;NL;22;30
+2019;66833;M Econometrics and Operations Research;M;EER;4;4
+2019;66833;M Econometrics and Operations Research;M;NL;29;49
+2019;66833;M Econometrics and Operations Research;M;niet-EER;0;1
+2019;66851;M Health Sciences;M;EER;0;1
+2019;66851;M Health Sciences;M;NL;23;49
+2019;66950;M Human Movement Sciences: Sport, Exercise and Health;M;EER;0;1
+2019;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;18;26
+2020;50509;B Gezondheid en Leven;B;EER;1;3
+2020;50509;B Gezondheid en Leven;B;NL;25;78
+2020;50509;B Gezondheid en Leven;B;niet-EER;1;1
+2020;50645;B Bedrijfskunde;B;EER;2;7
+2020;50645;B Bedrijfskunde;B;NL;29;100
+2020;50645;B Bedrijfskunde;B;niet-EER;0;4
+2020;50950;B Economie en Bedrijfseconomie;B;EER;7;14
+2020;50950;B Economie en Bedrijfseconomie;B;NL;87;198
+2020;50950;B Economie en Bedrijfseconomie;B;niet-EER;1;3
+2020;50952;B International Business Administration;B;EER;1;4
+2020;50952;B International Business Administration;B;NL;85;252
+2020;50952;B International Business Administration;B;niet-EER;2;3
+2020;56553;B Gezondheidswetenschappen;B;EER;0;1
+2020;56553;B Gezondheidswetenschappen;B;NL;48;121
+2020;56553;B Gezondheidswetenschappen;B;niet-EER;1;1
+2020;56560;B Tandheelkunde;B;EER;5;7
+2020;56560;B Tandheelkunde;B;NL;73;218
+2020;56560;B Tandheelkunde;B;niet-EER;1;2
+2020;56606;B Politicologie;B;EER;1;2
+2020;56606;B Politicologie;B;NL;15;37
+2020;56606;B Politicologie;B;niet-EER;1;3
+2020;56615;B Communicatiewetenschap;B;EER;0;2
+2020;56615;B Communicatiewetenschap;B;NL;27;47
+2020;56615;B Communicatiewetenschap;B;niet-EER;0;1
+2020;56833;B Econometrie en Operationele Research;B;EER;4;8
+2020;56833;B Econometrie en Operationele Research;B;NL;49;90
+2020;56833;B Econometrie en Operationele Research;B;niet-EER;4;7
+2020;56945;B Artificial Intelligence;B;EER;1;2
+2020;56945;B Artificial Intelligence;B;NL;35;84
+2020;56945;B Artificial Intelligence;B;niet-EER;0;1
+2020;56950;B Bewegingswetenschappen;B;EER;4;8
+2020;56950;B Bewegingswetenschappen;B;NL;63;124
+2020;56950;B Bewegingswetenschappen;B;niet-EER;4;4
+2020;59324;B Biomedical Sciences;B;EER;2;8
+2020;59324;B Biomedical Sciences;B;NL;79;167
+2020;59324;B Biomedical Sciences;B;niet-EER;1;1
+2020;60046;M Finance;M;EER;0;4
+2020;60046;M Finance;M;NL;35;58
+2020;60046;M Finance;M;niet-EER;1;1
+2020;60048;M Marketing;M;EER;6;11
+2020;60048;M Marketing;M;NL;96;122
+2020;60048;M Marketing;M;niet-EER;1;2
+2020;60052;M Beleid, Communicatie en Organisatie;M;EER;2;4
+2020;60052;M Beleid, Communicatie en Organisatie;M;NL;24;47
+2020;60052;M Beleid, Communicatie en Organisatie;M;niet-EER;1;1
+2020;60084;M Rechtsgeleerdheid;M;EER;1;1
+2020;60084;M Rechtsgeleerdheid;M;NL;20;43
+2020;60644;M Business Administration;M;EER;2;2
+2020;60644;M Business Administration;M;NL;24;32
+2020;60644;M Business Administration;M;niet-EER;3;4
+2020;66469;M Criminologie;M;EER;6;11
+2020;66469;M Criminologie;M;NL;79;184
+2020;66469;M Criminologie;M;niet-EER;3;7
+2020;66588;M Tandheelkunde;M;EER;0;3
+2020;66588;M Tandheelkunde;M;NL;63;197
+2020;66588;M Tandheelkunde;M;niet-EER;0;1
+2020;66615;M Communicatiewetenschap;M;EER;0;1
+2020;66615;M Communicatiewetenschap;M;NL;30;43
+2020;66627;M Bestuurskunde;M;NL;22;28
+2020;66833;M Econometrics and Operations Research;M;EER;2;2
+2020;66833;M Econometrics and Operations Research;M;NL;28;41
+2020;66833;M Econometrics and Operations Research;M;niet-EER;3;3
+2020;66851;M Health Sciences;M;EER;0;3
+2020;66851;M Health Sciences;M;NL;25;51
+2020;66950;M Human Movement Sciences: Sport, Exercise and Health;M;EER;5;5
+2020;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;33;39
+2021;50509;B Gezondheid en Leven;B;EER;0;3
+2021;50509;B Gezondheid en Leven;B;NL;39;83
+2021;50645;B Bedrijfskunde;B;EER;5;9
+2021;50645;B Bedrijfskunde;B;NL;37;120
+2021;50645;B Bedrijfskunde;B;niet-EER;2;2
+2021;50950;B Economie en Bedrijfseconomie;B;EER;7;18
+2021;50950;B Economie en Bedrijfseconomie;B;NL;94;243
+2021;50950;B Economie en Bedrijfseconomie;B;niet-EER;5;9
+2021;50952;B International Business Administration;B;EER;1;4
+2021;50952;B International Business Administration;B;NL;88;258
+2021;50952;B International Business Administration;B;niet-EER;0;1
+2021;56553;B Gezondheidswetenschappen;B;EER;2;5
+2021;56553;B Gezondheidswetenschappen;B;NL;56;138
+2021;56560;B Tandheelkunde;B;EER;2;5
+2021;56560;B Tandheelkunde;B;NL;70;245
+2021;56560;B Tandheelkunde;B;niet-EER;1;2
+2021;56606;B Politicologie;B;EER;0;5
+2021;56606;B Politicologie;B;NL;16;46
+2021;56606;B Politicologie;B;niet-EER;1;2
+2021;56615;B Communicatiewetenschap;B;EER;1;4
+2021;56615;B Communicatiewetenschap;B;NL;20;63
+2021;56615;B Communicatiewetenschap;B;niet-EER;1;1
+2021;56833;B Econometrie en Operationele Research;B;EER;5;13
+2021;56833;B Econometrie en Operationele Research;B;NL;50;134
+2021;56833;B Econometrie en Operationele Research;B;niet-EER;3;6
+2021;56945;B Artificial Intelligence;B;EER;2;4
+2021;56945;B Artificial Intelligence;B;NL;22;83
+2021;56950;B Bewegingswetenschappen;B;EER;7;17
+2021;56950;B Bewegingswetenschappen;B;NL;97;180
+2021;56950;B Bewegingswetenschappen;B;niet-EER;1;3
+2021;59324;B Biomedical Sciences;B;EER;1;4
+2021;59324;B Biomedical Sciences;B;NL;61;161
+2021;59324;B Biomedical Sciences;B;niet-EER;0;1
+2021;60046;M Finance;M;EER;1;1
+2021;60046;M Finance;M;NL;32;70
+2021;60046;M Finance;M;niet-EER;2;2
+2021;60048;M Marketing;M;EER;10;11
+2021;60048;M Marketing;M;NL;114;138
+2021;60048;M Marketing;M;niet-EER;1;3
+2021;60052;M Beleid, Communicatie en Organisatie;M;EER;1;2
+2021;60052;M Beleid, Communicatie en Organisatie;M;NL;27;61
+2021;60052;M Beleid, Communicatie en Organisatie;M;niet-EER;1;2
+2021;60084;M Rechtsgeleerdheid;M;EER;2;2
+2021;60084;M Rechtsgeleerdheid;M;NL;27;58
+2021;60644;M Business Administration;M;EER;3;3
+2021;60644;M Business Administration;M;NL;34;40
+2021;60644;M Business Administration;M;niet-EER;5;5
+2021;66469;M Criminologie;M;EER;2;7
+2021;66469;M Criminologie;M;NL;66;190
+2021;66469;M Criminologie;M;niet-EER;2;4
+2021;66588;M Tandheelkunde;M;EER;2;4
+2021;66588;M Tandheelkunde;M;NL;79;241
+2021;66588;M Tandheelkunde;M;niet-EER;1;3
+2021;66615;M Communicatiewetenschap;M;EER;3;3
+2021;66615;M Communicatiewetenschap;M;NL;39;50
+2021;66627;M Bestuurskunde;M;EER;1;2
+2021;66627;M Bestuurskunde;M;NL;32;41
+2021;66627;M Bestuurskunde;M;niet-EER;1;1
+2021;66833;M Econometrics and Operations Research;M;EER;7;10
+2021;66833;M Econometrics and Operations Research;M;NL;41;62
+2021;66833;M Econometrics and Operations Research;M;niet-EER;2;5
+2021;66851;M Health Sciences;M;EER;0;1
+2021;66851;M Health Sciences;M;NL;34;64
+2021;66851;M Health Sciences;M;niet-EER;2;2
+2021;66950;M Human Movement Sciences: Sport, Exercise and Health;M;EER;2;2
+2021;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;45;59
+2021;66950;M Human Movement Sciences: Sport, Exercise and Health;M;niet-EER;2;2
+2022;50509;B Gezondheid en Leven;B;EER;2;4
+2022;50509;B Gezondheid en Leven;B;NL;33;97
+2022;50509;B Gezondheid en Leven;B;niet-EER;0;2
+2022;50645;B Bedrijfskunde;B;EER;1;7
+2022;50645;B Bedrijfskunde;B;NL;29;129
+2022;50645;B Bedrijfskunde;B;niet-EER;1;4
+2022;50950;B Economie en Bedrijfseconomie;B;EER;15;30
+2022;50950;B Economie en Bedrijfseconomie;B;NL;82;282
+2022;50950;B Economie en Bedrijfseconomie;B;niet-EER;5;10
+2022;50952;B International Business Administration;B;EER;1;3
+2022;50952;B International Business Administration;B;NL;91;290
+2022;50952;B International Business Administration;B;niet-EER;1;5
+2022;56553;B Gezondheidswetenschappen;B;EER;1;3
+2022;56553;B Gezondheidswetenschappen;B;NL;57;145
+2022;56560;B Tandheelkunde;B;EER;1;5
+2022;56560;B Tandheelkunde;B;NL;64;223
+2022;56560;B Tandheelkunde;B;niet-EER;0;1
+2022;56606;B Politicologie;B;EER;3;6
+2022;56606;B Politicologie;B;NL;17;49
+2022;56606;B Politicologie;B;niet-EER;1;2
+2022;56615;B Communicatiewetenschap;B;EER;1;4
+2022;56615;B Communicatiewetenschap;B;NL;8;55
+2022;56615;B Communicatiewetenschap;B;niet-EER;2;3
+2022;56833;B Econometrie en Operationele Research;B;EER;9;23
+2022;56833;B Econometrie en Operationele Research;B;NL;47;143
+2022;56833;B Econometrie en Operationele Research;B;niet-EER;3;4
+2022;56945;B Artificial Intelligence;B;EER;2;6
+2022;56945;B Artificial Intelligence;B;NL;14;85
+2022;56945;B Artificial Intelligence;B;niet-EER;1;1
+2022;56950;B Bewegingswetenschappen;B;EER;5;10
+2022;56950;B Bewegingswetenschappen;B;NL;26;126
+2022;56950;B Bewegingswetenschappen;B;niet-EER;2;6
+2022;59324;B Biomedical Sciences;B;EER;1;2
+2022;59324;B Biomedical Sciences;B;NL;63;169
+2022;59324;B Biomedical Sciences;B;niet-EER;1;4
+2022;60046;M Finance;M;EER;3;4
+2022;60046;M Finance;M;NL;32;73
+2022;60046;M Finance;M;niet-EER;2;3
+2022;60048;M Marketing;M;EER;6;8
+2022;60048;M Marketing;M;NL;73;95
+2022;60048;M Marketing;M;niet-EER;2;2
+2022;60052;M Beleid, Communicatie en Organisatie;M;EER;0;4
+2022;60052;M Beleid, Communicatie en Organisatie;M;NL;19;49
+2022;60052;M Beleid, Communicatie en Organisatie;M;niet-EER;1;2
+2022;60084;M Rechtsgeleerdheid;M;EER;0;2
+2022;60084;M Rechtsgeleerdheid;M;NL;18;40
+2022;60644;M Business Administration;M;EER;4;4
+2022;60644;M Business Administration;M;NL;29;36
+2022;66469;M Criminologie;M;EER;4;7
+2022;66469;M Criminologie;M;NL;93;192
+2022;66469;M Criminologie;M;niet-EER;2;8
+2022;66588;M Tandheelkunde;M;EER;1;3
+2022;66588;M Tandheelkunde;M;NL;75;226
+2022;66615;M Communicatiewetenschap;M;EER;1;1
+2022;66615;M Communicatiewetenschap;M;NL;29;42
+2022;66627;M Bestuurskunde;M;EER;1;1
+2022;66627;M Bestuurskunde;M;NL;21;28
+2022;66833;M Econometrics and Operations Research;M;EER;3;4
+2022;66833;M Econometrics and Operations Research;M;NL;51;78
+2022;66833;M Econometrics and Operations Research;M;niet-EER;1;1
+2022;66851;M Health Sciences;M;EER;1;2
+2022;66851;M Health Sciences;M;NL;18;51
+2022;66851;M Health Sciences;M;niet-EER;1;2
+2022;66950;M Human Movement Sciences: Sport, Exercise and Health;M;EER;2;2
+2022;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;25;45
+2023;50509;B Gezondheid en Leven;B;EER;4;4
+2023;50509;B Gezondheid en Leven;B;NL;50;111
+2023;50509;B Gezondheid en Leven;B;niet-EER;2;2
+2023;50645;B Bedrijfskunde;B;EER;2;11
+2023;50645;B Bedrijfskunde;B;NL;32;127
+2023;50645;B Bedrijfskunde;B;niet-EER;2;3
+2023;50950;B Economie en Bedrijfseconomie;B;EER;10;29
+2023;50950;B Economie en Bedrijfseconomie;B;NL;68;255
+2023;50950;B Economie en Bedrijfseconomie;B;niet-EER;5;11
+2023;50952;B International Business Administration;B;EER;1;7
+2023;50952;B International Business Administration;B;NL;108;309
+2023;50952;B International Business Administration;B;niet-EER;1;5
+2023;56553;B Gezondheidswetenschappen;B;EER;3;3
+2023;56553;B Gezondheidswetenschappen;B;NL;58;134
+2023;56560;B Tandheelkunde;B;EER;2;13
+2023;56560;B Tandheelkunde;B;NL;66;235
+2023;56560;B Tandheelkunde;B;niet-EER;0;2
+2023;56606;B Politicologie;B;EER;2;8
+2023;56606;B Politicologie;B;NL;20;51
+2023;56606;B Politicologie;B;niet-EER;0;1
+2023;56615;B Communicatiewetenschap;B;EER;1;4
+2023;56615;B Communicatiewetenschap;B;NL;28;66
+2023;56615;B Communicatiewetenschap;B;niet-EER;1;9
+2023;56833;B Econometrie en Operationele Research;B;EER;5;22
+2023;56833;B Econometrie en Operationele Research;B;NL;71;160
+2023;56833;B Econometrie en Operationele Research;B;niet-EER;3;10
+2023;56945;B Artificial Intelligence;B;EER;1;2
+2023;56945;B Artificial Intelligence;B;NL;24;76
+2023;56945;B Artificial Intelligence;B;niet-EER;1;2
+2023;56950;B Bewegingswetenschappen;B;EER;0;8
+2023;56950;B Bewegingswetenschappen;B;NL;19;106
+2023;56950;B Bewegingswetenschappen;B;niet-EER;1;6
+2023;59324;B Biomedical Sciences;B;EER;0;3
+2023;59324;B Biomedical Sciences;B;NL;16;116
+2023;59324;B Biomedical Sciences;B;niet-EER;0;1
+2023;60046;M Finance;M;EER;4;5
+2023;60046;M Finance;M;NL;35;61
+2023;60046;M Finance;M;niet-EER;1;1
+2023;60048;M Marketing;M;EER;12;12
+2023;60048;M Marketing;M;NL;79;105
+2023;60048;M Marketing;M;niet-EER;5;5
+2023;60052;M Beleid, Communicatie en Organisatie;M;EER;0;1
+2023;60052;M Beleid, Communicatie en Organisatie;M;NL;21;45
+2023;60052;M Beleid, Communicatie en Organisatie;M;niet-EER;0;1
+2023;60084;M Rechtsgeleerdheid;M;EER;0;1
+2023;60084;M Rechtsgeleerdheid;M;NL;22;42
+2023;60644;M Business Administration;M;EER;3;3
+2023;60644;M Business Administration;M;NL;21;31
+2023;60644;M Business Administration;M;niet-EER;1;1
+2023;66469;M Criminologie;M;EER;7;13
+2023;66469;M Criminologie;M;NL;71;171
+2023;66469;M Criminologie;M;niet-EER;4;7
+2023;66588;M Tandheelkunde;M;EER;0;3
+2023;66588;M Tandheelkunde;M;NL;87;236
+2023;66588;M Tandheelkunde;M;niet-EER;0;2
+2023;66615;M Communicatiewetenschap;M;EER;2;2
+2023;66615;M Communicatiewetenschap;M;NL;27;38
+2023;66627;M Bestuurskunde;M;NL;23;30
+2023;66833;M Econometrics and Operations Research;M;EER;3;5
+2023;66833;M Econometrics and Operations Research;M;NL;36;63
+2023;66833;M Econometrics and Operations Research;M;niet-EER;1;2
+2023;66851;M Health Sciences;M;EER;0;2
+2023;66851;M Health Sciences;M;NL;36;69
+2023;66950;M Human Movement Sciences: Sport, Exercise and Health;M;EER;4;5
+2023;66950;M Human Movement Sciences: Sport, Exercise and Health;M;NL;31;42
+2023;66950;M Human Movement Sciences: Sport, Exercise and Health;M;niet-EER;1;2
