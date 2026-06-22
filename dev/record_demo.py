@@ -17,12 +17,12 @@ from playwright.async_api import async_playwright
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-APP_URL   = "http://localhost:8502"
-SIZE      = {"width": 1280, "height": 780}
-ACCENT    = "#667eea"
-GREEN     = "#22c55e"
-AMBER     = "#f59e0b"
-FPS       = 12
+APP_URL  = "http://localhost:8502"
+SIZE     = {"width": 1280, "height": 780}
+ACCENT   = "#667eea"
+GREEN    = "#22c55e"
+AMBER    = "#f59e0b"
+FPS      = 12
 
 OUT_GIF_SRC  = Path("src/assets/demo.gif")
 OUT_GIF_DOCS = Path("docs/assets/demo.gif")
@@ -63,90 +63,88 @@ class ScreenRecorder:
 
 
 # ---------------------------------------------------------------------------
-# Cursor simulation
+# Cursor — stapsgewijze animatie zodat beweging zichtbaar is in GIF
 # ---------------------------------------------------------------------------
 
-CURSOR_STYLE = """
-#__fake-cursor {
+CURSOR_CSS = """
+#__cur {
     position: fixed;
-    width: 20px; height: 20px;
     pointer-events: none;
     z-index: 2147483646;
-    transition: left 0.25s ease, top 0.25s ease;
-}
-#__fake-cursor::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0;
     width: 0; height: 0;
     border-style: solid;
-    border-width: 0 6px 18px 6px;
+    border-width: 0 7px 20px 7px;
     border-color: transparent transparent #1a1a1a transparent;
     transform: rotate(-30deg) skewY(10deg);
-    filter: drop-shadow(1px 1px 1px rgba(255,255,255,.6));
+    filter: drop-shadow(1px 1px 2px rgba(255,255,255,.7));
+    left: -40px; top: -40px;
 }
 """
 
 
 async def _ensure_cursor(page):
-    await page.evaluate("""(style) => {
-        if (document.getElementById('__fake-cursor')) return;
+    await page.evaluate("""(css) => {
+        if (document.getElementById('__cur')) return;
         const s = document.createElement('style');
-        s.textContent = style;
+        s.textContent = css;
         document.head.appendChild(s);
         const c = document.createElement('div');
-        c.id = '__fake-cursor';
-        c.style.left = '-40px';
-        c.style.top  = '-40px';
+        c.id = '__cur';
         document.body.appendChild(c);
-    }""", CURSOR_STYLE)
+    }""", CURSOR_CSS)
 
 
-async def move_cursor(page, x: float, y: float):
+async def move_cursor(page, x: float, y: float, steps: int = 18, delay_ms: int = 30):
+    """Animate cursor from current position to (x, y) in *steps* micro-moves."""
     await _ensure_cursor(page)
-    await page.evaluate("""([x, y]) => {
-        const c = document.getElementById('__fake-cursor');
-        if (c) { c.style.left = x + 'px'; c.style.top = y + 'px'; }
-    }""", [x, y])
+    await page.evaluate("""([tx, ty, steps, delay]) => new Promise(resolve => {
+        const c = document.getElementById('__cur');
+        const sx = parseFloat(c.style.left) || -40;
+        const sy = parseFloat(c.style.top)  || -40;
+        let i = 0;
+        const t = setInterval(() => {
+            i++;
+            c.style.left = (sx + (tx - sx) * i / steps) + 'px';
+            c.style.top  = (sy + (ty - sy) * i / steps) + 'px';
+            if (i >= steps) { clearInterval(t); resolve(); }
+        }, delay);
+    })""", [x, y, steps, delay_ms])
 
 
 async def cursor_to(page, locator):
-    """Move fake cursor to the centre of *locator*."""
+    """Move cursor smoothly to centre of locator."""
     try:
         box = await locator.bounding_box(timeout=3000)
     except Exception:
         return
     if box:
-        await move_cursor(page, box["x"] + box["width"] / 2 - 10,
+        await move_cursor(page, box["x"] + box["width"] / 2 - 4,
                                 box["y"] + box["height"] / 2 - 10)
 
 
 # ---------------------------------------------------------------------------
-# Annotations
+# Annotations — enkel voor niet-vanzelfsprekende UI-elementen
 # ---------------------------------------------------------------------------
 
-ANN_STYLE = (
+ANN_CSS = (
     "@keyframes ann-in    { from { opacity:0; transform:scale(.85) } to { opacity:1; transform:scale(1) } }"
-    "@keyframes ann-pulse { 0%,100% { box-shadow:0 0 0 0 var(--ann-color) } 50% { box-shadow:0 0 0 8px transparent } }"
-    ".__ann-ring  { animation: ann-in .2s ease, ann-pulse 1.4s .2s ease infinite }"
-    ".__ann-badge { animation: ann-in .2s ease }"
+    "@keyframes ann-pulse { 0%,100% { box-shadow:0 0 0 0 var(--c) } 50% { box-shadow:0 0 0 8px transparent } }"
+    ".__ar { animation: ann-in .2s ease, ann-pulse 1.5s .2s ease infinite }"
+    ".__ab { animation: ann-in .2s ease }"
 )
 
 
-async def _inject_ann_style(page):
-    await page.evaluate("""(style) => {
-        if (!document.querySelector('#__ann-style')) {
-            const s = document.createElement('style');
-            s.id = '__ann-style';
-            s.textContent = style;
-            document.head.appendChild(s);
-        }
-    }""", ANN_STYLE)
+async def _inject_ann(page):
+    await page.evaluate("""(css) => {
+        if (document.getElementById('__ann-css')) return;
+        const s = document.createElement('style');
+        s.id = '__ann-css'; s.textContent = css;
+        document.head.appendChild(s);
+    }""", ANN_CSS)
 
 
 async def ann(page, locator, label, side="right", color=ACCENT):
-    """Pulsing ring + badge. locator may be a Playwright locator or CSS string."""
-    await _inject_ann_style(page)
+    await _inject_ann(page)
     if isinstance(locator, str):
         locator = page.locator(locator).first
     try:
@@ -155,33 +153,31 @@ async def ann(page, locator, label, side="right", color=ACCENT):
         return
     if not box:
         return
-
-    await page.evaluate("""([box, label, side, color]) => {
+    await page.evaluate("""([b, label, side, color]) => {
         document.querySelectorAll('.__ann').forEach(n => n.remove());
-        const pad = 8;
+        const p = 8;
         const ring = document.createElement('div');
-        ring.className = '__ann __ann-ring';
+        ring.className = '__ann __ar';
         ring.style.cssText =
-            `--ann-color:${color}55;position:fixed;pointer-events:none;z-index:2147483647;`
-          + `left:${box.x-pad}px;top:${box.y-pad}px;`
-          + `width:${box.width+pad*2}px;height:${box.height+pad*2}px;`
-          + `border:2.5px solid ${color};border-radius:6px;`;
+            '--c:' + color + '55;position:fixed;pointer-events:none;z-index:2147483647;'
+          + 'left:'+(b.x-p)+'px;top:'+(b.y-p)+'px;'
+          + 'width:'+(b.width+p*2)+'px;height:'+(b.height+p*2)+'px;'
+          + 'border:2.5px solid '+color+';border-radius:6px;';
         document.body.appendChild(ring);
-
-        const badge = document.createElement('div');
-        badge.className = '__ann __ann-badge';
-        badge.textContent = label;
         const bw = Math.max(label.length * 7.2 + 20, 100);
-        let bLeft, bTop;
-        if (side === 'right')  { bLeft = box.x + box.width + 12;  bTop = box.y + box.height/2 - 13; }
-        if (side === 'left')   { bLeft = box.x - bw - 12;         bTop = box.y + box.height/2 - 13; }
-        if (side === 'above')  { bLeft = box.x;                    bTop = box.y - 34; }
-        if (side === 'below')  { bLeft = box.x;                    bTop = box.y + box.height + 10; }
+        let bx, by;
+        if (side==='right') { bx = b.x+b.width+12; by = b.y+b.height/2-13; }
+        if (side==='left')  { bx = b.x-bw-12;      by = b.y+b.height/2-13; }
+        if (side==='above') { bx = b.x;             by = b.y-34; }
+        if (side==='below') { bx = b.x;             by = b.y+b.height+10; }
+        const badge = document.createElement('div');
+        badge.className = '__ann __ab';
+        badge.textContent = label;
         badge.style.cssText =
-            `position:fixed;pointer-events:none;z-index:2147483647;`
-          + `left:${bLeft}px;top:${bTop}px;background:${color};color:#fff;`
-          + `padding:3px 9px;font:bold 11.5px/22px monospace;`
-          + `border-radius:3px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.45);`;
+            'position:fixed;pointer-events:none;z-index:2147483647;'
+          + 'left:'+bx+'px;top:'+by+'px;background:'+color+';color:#fff;'
+          + 'padding:3px 10px;font:bold 11.5px/22px monospace;'
+          + 'border-radius:3px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4);';
         document.body.appendChild(badge);
     }""", [box, label, side, color])
 
@@ -194,82 +190,71 @@ async def pause(page, ms):
     await page.wait_for_timeout(ms)
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 async def wait_streamlit(page):
     await page.wait_for_selector('[data-testid="stAppViewContainer"]', timeout=20_000)
-    await pause(page, 900)
+    await pause(page, 1000)
 
 
-async def smooth_scroll(page, distance: int, steps: int = 8):
-    step = distance // steps
+async def smooth_scroll(page, distance: int):
+    steps = max(distance // 40, 6)
+    step  = distance // steps
     for _ in range(steps):
         await page.evaluate(f"() => window.scrollBy(0, {step})")
-        await pause(page, 60)
+        await pause(page, 80)
 
 
 # ---------------------------------------------------------------------------
-# Demo scenes
+# Demo scenes — langzaam, natuurlijk, max 4 annotaties totaal
 # ---------------------------------------------------------------------------
 
 async def scene_home(page):
     await page.goto(APP_URL)
     await wait_streamlit(page)
+    await pause(page, 800)
 
-    # Hero banner
-    hero = page.locator(".hero-banner")
-    await ann(page, hero, "DUO vaste-breedte data → leesbare CSV/Parquet", side="below", color=ACCENT)
-    await pause(page, 2200)
-    await clear_ann(page)
-    await pause(page, 200)
+    # Laat de pagina even ademen voordat we iets doen
+    await pause(page, 1500)
 
-    # How-it-works: annoteer de middelste kaart (de workflow)
-    cards = page.locator(".how-card")
-    await ann(page, cards.nth(1), "3 stappen — geen code nodig", side="below", color="#7c3aed")
-    await pause(page, 1800)
-    await clear_ann(page)
-    await pause(page, 200)
-
-    # Cursor naar demo-knop, klik
+    # Cursor traag naar "Probeer met demo" — annoteer de knop zelf
     demo_btn = page.get_by_role("button", name="Probeer met demo")
     await cursor_to(page, demo_btn)
     await pause(page, 600)
-    await ann(page, demo_btn, "Werkt direct met voorbeelddata", side="left", color=GREEN)
-    await pause(page, 1800)
+    # ANNOTATIE 1: waarom demo kiezen
+    await ann(page, demo_btn, "Geen installatie — werkt direct met voorbeelddata", side="left", color=GREEN)
+    await pause(page, 3000)
     await clear_ann(page)
-    await pause(page, 200)
+    await pause(page, 300)
     await demo_btn.click()
-    await pause(page, 1200)
+    await pause(page, 1500)
 
 
 async def scene_upload(page):
     await wait_streamlit(page)
+    await pause(page, 800)
 
-    # Demo-modus badge
-    badge = page.locator('[data-testid="stAlert"]').first
+    # Cursor naar de groene status-balk — dat is de interessante info
+    status = page.locator("text=26 bestanden gevonden").first
     try:
-        await badge.wait_for(state="visible", timeout=3000)
-        await cursor_to(page, badge)
-        await ann(page, badge, "Bestanden geladen — geen upload nodig", side="below", color=GREEN)
-        await pause(page, 2000)
+        await status.wait_for(state="visible", timeout=4000)
+        await cursor_to(page, status)
+        await pause(page, 600)
+        # ANNOTATIE 2: wat er gevonden is
+        await ann(page, status, "3 types herkend: beschrijvingen · Dec-tabellen · data", side="above", color=GREEN)
+        await pause(page, 3000)
         await clear_ann(page)
-        await pause(page, 200)
+        await pause(page, 500)
     except Exception:
         pass
 
-    # Bestand-overzicht: klap bestandsbeschrijvingen open
-    expanders = page.locator('[data-testid="stExpander"]')
-    first_exp = expanders.first
+    # Klap "Bekijk 3 bestanden" open zodat de bestandsnamen zichtbaar zijn
+    first_dropdown = page.locator('[data-testid="stSelectbox"], details, summary').first
+    bekijk = page.locator("text=Bekijk 3 bestanden").first
     try:
-        await first_exp.wait_for(state="visible", timeout=3000)
-        await cursor_to(page, first_exp)
-        await ann(page, first_exp, "26 bestanden: beschrijvingen + Dec-tabellen + data", side="above", color=ACCENT)
-        await pause(page, 2000)
-        await clear_ann(page)
-        await first_exp.click()
-        await pause(page, 800)
+        await bekijk.wait_for(state="visible", timeout=3000)
+        await cursor_to(page, bekijk)
+        await pause(page, 500)
+        await bekijk.click()
+        await pause(page, 1200)
     except Exception:
         pass
 
@@ -278,143 +263,123 @@ async def scene_upload(page):
     try:
         await fwd.wait_for(state="visible", timeout=3000)
         await cursor_to(page, fwd)
-        await pause(page, 500)
+        await pause(page, 600)
         await fwd.click()
     except Exception:
         await page.get_by_text("Stap 1 · Metadata extraheren").click()
-    await pause(page, 1200)
+    await pause(page, 1500)
 
 
 async def scene_extract(page):
     await wait_streamlit(page)
+    await pause(page, 800)
 
+    # Cursor naar knop en klik — geen annotatie, de actie spreekt voor zich
     run_btn = page.get_by_role("button", name="Extraheren starten")
     try:
         await run_btn.wait_for(state="visible", timeout=3000)
         await cursor_to(page, run_btn)
-        await ann(page, run_btn, "Parseert veldposities uit .txt bestanden → JSON + Excel", side="right", color=GREEN)
-        await pause(page, 2200)
-        await clear_ann(page)
+        await pause(page, 800)
         await run_btn.click()
-        # Wacht op console log
-        await pause(page, 7000)
+        # Console log opent vanzelf — wacht tot die zichtbaar is en laat hem lezen
+        await pause(page, 2000)
+        console_text = page.locator("text=Extractie gestart").first
+        try:
+            await console_text.wait_for(state="visible", timeout=6000)
+            await pause(page, 4000)   # laat de log uitrollen en leesbaar zijn
+        except Exception:
+            await pause(page, 6000)
     except Exception:
         pass
 
-    # Laat console log zien als die er is
-    console = page.locator('[data-testid="stExpander"]').filter(has_text="Console Log")
-    try:
-        await console.wait_for(state="visible", timeout=3000)
-        await console.click()
-        await pause(page, 1200)
-    except Exception:
-        pass
-
-    # Door naar stap 2
     fwd = page.get_by_role("button", name="Ga door naar stap 2 →")
     try:
-        await fwd.wait_for(state="visible", timeout=3000)
+        await fwd.wait_for(state="visible", timeout=5000)
         await cursor_to(page, fwd)
-        await pause(page, 400)
+        await pause(page, 500)
         await fwd.click()
     except Exception:
         await page.get_by_text("Stap 2 · Metadata valideren").click()
-    await pause(page, 1200)
+    await pause(page, 1500)
 
 
 async def scene_validate(page):
     await wait_streamlit(page)
+    await pause(page, 800)
 
     validate_btn = page.get_by_role("button", name="Validatie starten")
     try:
         await validate_btn.wait_for(state="visible", timeout=3000)
         await cursor_to(page, validate_btn)
-        await ann(page, validate_btn, "Koppelt ASC-bestanden aan metadata — controleert structuur", side="right", color=GREEN)
-        await pause(page, 2200)
-        await clear_ann(page)
+        await pause(page, 700)
         await validate_btn.click()
-        await pause(page, 6000)
-    except Exception:
-        pass
-
-    # Laat console log zien
-    console = page.locator('[data-testid="stExpander"]').filter(has_text="Console Log")
-    try:
-        await console.wait_for(state="visible", timeout=3000)
-        await console.click()
-        await pause(page, 1000)
+        await pause(page, 2000)
+        # Wacht op console log — laat resultaat zichtbaar zijn
+        passed = page.locator("text=18 passed").first
+        try:
+            await passed.wait_for(state="visible", timeout=8000)
+            await pause(page, 1000)
+            # ANNOTATIE 3: het resultaat is niet vanzelfsprekend voor nieuwe gebruikers
+            await ann(page, passed, "Alle veldposities correct — klaar voor conversie", side="right", color=GREEN)
+            await pause(page, 3000)
+            await clear_ann(page)
+        except Exception:
+            await pause(page, 5000)
     except Exception:
         pass
 
     fwd = page.get_by_role("button", name="Ga door naar stap 3 →")
     try:
-        await fwd.wait_for(state="visible", timeout=3000)
+        await fwd.wait_for(state="visible", timeout=5000)
         await cursor_to(page, fwd)
-        await pause(page, 400)
+        await pause(page, 500)
         await fwd.click()
     except Exception:
         await page.get_by_text("Stap 3 · Turbo Conversie").click()
-    await pause(page, 1200)
+    await pause(page, 1500)
 
 
 async def scene_convert(page):
     await wait_streamlit(page)
+    await pause(page, 800)
 
-    # Status: bestanden klaar
-    status = page.locator('[data-testid="stAlert"]').first
-    try:
-        await status.wait_for(state="visible", timeout=3000)
-        await ann(page, status, "16 bestanden klaar voor conversie", side="below", color=GREEN)
-        await pause(page, 1800)
-        await clear_ann(page)
-        await pause(page, 200)
-    except Exception:
-        pass
+    # Scroll traag naar uitvoervarianten — toon de opties
+    await smooth_scroll(page, 320)
+    await pause(page, 800)
 
-    # Scroll naar uitvoervarianten
-    await smooth_scroll(page, 350)
-    await pause(page, 400)
-
-    # Uitvoervarianten: _decoded en _enriched
+    # _decoded label: annoteert wat het betekent
     decoded = page.locator("text=_decoded").first
     try:
         await decoded.wait_for(state="visible", timeout=3000)
-        await ann(page, decoded, "Codes → leesbare labels via Dec_* tabellen", side="right", color=AMBER)
-        await pause(page, 2000)
+        await cursor_to(page, decoded)
+        await pause(page, 400)
+        await ann(page, decoded, "Codes vertaald naar leesbare omschrijvingen via Dec_* tabellen", side="right", color=AMBER)
+        await pause(page, 3000)
         await clear_ann(page)
-        await pause(page, 200)
+        await pause(page, 400)
     except Exception:
         pass
 
-    enriched = page.locator("text=_enriched").first
-    try:
-        await enriched.wait_for(state="visible", timeout=3000)
-        await ann(page, enriched, "Variabelen verrijkt met variable_metadata labels", side="right", color=AMBER)
-        await pause(page, 2000)
-        await clear_ann(page)
-        await pause(page, 200)
-    except Exception:
-        pass
-
-    # Kolomselectie modal openen
+    # Kolomselectie openen — ANNOTATIE 4
     kol_btn = page.get_by_role("button", name="Kolomselectie instellen →")
     try:
         await kol_btn.wait_for(state="visible", timeout=3000)
         await cursor_to(page, kol_btn)
-        await ann(page, kol_btn, "Selecteer welke kolommen te decoderen / verrijken", side="left", color=ACCENT)
-        await pause(page, 2000)
+        await pause(page, 600)
+        await ann(page, kol_btn, "Kies zelf welke kolommen te decoderen", side="left", color=ACCENT)
+        await pause(page, 2500)
         await clear_ann(page)
         await kol_btn.click()
         await pause(page, 1200)
 
-        # Modal zichtbaar
-        modal_title = page.locator("text=Kolomselectie")
-        await modal_title.wait_for(state="visible", timeout=4000)
-        await ann(page, modal_title, "24 kolommen — vink aan wat je wilt decoderen", side="below", color=ACCENT)
-        await pause(page, 2500)
-        await clear_ann(page)
+        # Toon modal — laat het even zien
+        modal = page.locator("text=Kolomselectie").first
+        try:
+            await modal.wait_for(state="visible", timeout=4000)
+            await pause(page, 2500)
+        except Exception:
+            pass
 
-        # Sluit modal
         close = page.get_by_role("button", name="Klaar")
         await cursor_to(page, close)
         await pause(page, 400)
@@ -423,21 +388,21 @@ async def scene_convert(page):
     except Exception:
         pass
 
-    # Scroll naar Start Turbo Convert
-    await smooth_scroll(page, 400)
-    await pause(page, 400)
+    # Scroll naar Start-knop
+    await smooth_scroll(page, 350)
+    await pause(page, 600)
 
-    start_btn = page.get_by_role("button", name="⚡ Start Turbo Convert ⚡")
+    start = page.get_by_role("button", name="⚡ Start Turbo Convert ⚡")
     try:
-        await start_btn.wait_for(state="visible", timeout=3000)
-        await cursor_to(page, start_btn)
-        await ann(page, start_btn, "Multiprocessing — alle bestanden tegelijk", side="above", color=GREEN)
-        await pause(page, 2500)
-        await clear_ann(page)
+        await start.wait_for(state="visible", timeout=3000)
+        await cursor_to(page, start)
+        await pause(page, 800)
+        # Hover effect — even wachten voor je klikt zodat het reëel lijkt
+        await pause(page, 1200)
     except Exception:
         pass
 
-    await pause(page, 400)
+    await pause(page, 500)
 
 
 # ---------------------------------------------------------------------------
@@ -471,7 +436,7 @@ def frames_to_gif(frames_dir: Path, gif_path: Path):
 async def run(frames_dir: Path):
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(headless=True)
-        page = await browser.new_page(viewport=SIZE)
+        page    = await browser.new_page(viewport=SIZE)
 
         recorder = ScreenRecorder(page, frames_dir, fps=FPS)
         recorder.start()
@@ -491,8 +456,8 @@ def main():
     frames_dir = Path(tempfile.mkdtemp(prefix="1cijferho-frames-"))
     try:
         asyncio.run(run(frames_dir))
-        frame_count = len(list(frames_dir.glob("frame_*.png")))
-        print(f"Captured {frame_count} frames ({frame_count / FPS:.0f}s)")
+        n = len(list(frames_dir.glob("frame_*.png")))
+        print(f"Captured {n} frames ({n / FPS:.0f}s)")
         print(f"Assembling → {OUT_GIF_SRC}")
         frames_to_gif(frames_dir, OUT_GIF_SRC)
         shutil.copy(OUT_GIF_SRC, OUT_GIF_DOCS)
