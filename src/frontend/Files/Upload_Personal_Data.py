@@ -1,11 +1,23 @@
 import base64
 import json
+import os
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 from streamlit_js import st_js_blocking
 
 from eencijferho.io import personal_data
+
+_JS_DIR = Path(__file__).parent / "js"
+# Key for HMAC-SHA256 UUID derivation; reused from the pseudonymizer config.
+_DEMO_UUID_KEY = "eencijfer-demo-uuid-key-change-me"
+_UUID_KEY = os.getenv("EENCIJFERHO_ENCRYPT_KEY", _DEMO_UUID_KEY)
+
+
+def _load_js(name: str, payload_b64: str) -> str:
+    template = (_JS_DIR / name).read_text(encoding="utf-8")
+    return template.replace("__PAYLOAD_B64__", payload_b64)
 
 # -----------------------------------------------------------------------------
 # Schema (column names) from the database, with defaults as fallback
@@ -124,89 +136,33 @@ st.caption(
 
 def _build_process_js(csv_b64: str, password: str,
                       sensitive: list[str], regular: list[str]) -> str:
-    """JS that loads Pyodide, encrypts sensitive cols + derives UUID, returns rows JSON."""
+    """Load the upload JS and inject all inputs as a single base64 JSON blob."""
     payload = json.dumps({
         "csv_b64": csv_b64,
         "password": password,
+        "uuid_key": _UUID_KEY,
         "sensitive": sensitive,
         "regular": regular,
     })
     payload_b64 = base64.b64encode(payload.encode()).decode()
-    return f"""
-const payload = JSON.parse(atob("{payload_b64}"));
-if (!window.__pyodidePromise) {{
-    window.__pyodidePromise = (async () => {{
-        const {{ loadPyodide }} = await import("https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.mjs");
-        const py = await loadPyodide();
-        await py.loadPackage(["micropip"]);
-        await py.runPythonAsync(`
-            import micropip
-            await micropip.install('cryptography')
-        `);
-        return py;
-    }})();
-}}
-const py = await window.__pyodidePromise;
-py.globals.set("csv_data_input", atob(payload.csv_b64));
-py.globals.set("password_input", payload.password);
-py.globals.set("sensitive_columns_input", payload.sensitive);
-py.globals.set("regular_columns_input", payload.regular);
-const result = await py.runPythonAsync(`
-import io, csv, hashlib, base64, json
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.backends import default_backend
-
-def derive_key(password, salt=b'eencijfer_salt_2025'):
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt,
-                     iterations=100000, backend=default_backend())
-    return base64.urlsafe_b64encode(kdf.derive(password.encode()))
-
-def generate_uuid(pgn):
-    h = hashlib.md5(str(pgn).encode()).hexdigest()
-    return h[:8] + "-" + h[8:12] + "-" + h[12:16] + "-" + h[16:20] + "-" + h[20:32]
-
-cipher = Fernet(derive_key(password_input))
-sensitive_columns = list(sensitive_columns_input)
-regular_columns = list(regular_columns_input)
-rows = list(csv.DictReader(io.StringIO(csv_data_input)))
-
-processed_rows = []
-encrypted_count = 0
-for i, row in enumerate(rows):
-    pgn_value = None
-    for col in row:
-        if col.lower() == 'persoonsgebonden_nummer':
-            pgn_value = row[col]
-            break
-    uuid = generate_uuid(pgn_value) if pgn_value else hashlib.md5(str(i).encode()).hexdigest()
-    processed_row = {{'uuid': uuid}}
-    for col in sensitive_columns:
-        if col in row and row[col]:
-            processed_row[col.lower()] = cipher.encrypt(str(row[col]).encode()).decode()
-            encrypted_count += 1
-        else:
-            processed_row[col.lower()] = ''
-    for col in regular_columns:
-        processed_row[col.lower()] = row.get(col, '')
-    for col in row:
-        if col not in sensitive_columns and col not in regular_columns:
-            processed_row[col] = row[col]
-    processed_rows.append(processed_row)
-
-json.dumps({{"encrypted_count": encrypted_count, "rows": processed_rows}})
-`);
-return result;
-"""
+    return _load_js("upload_personal.js", payload_b64)
 
 
+# st_js_blocking calls st.stop() until the browser component returns a result on
+# a later rerun, so the click must be latched in session_state — gating the work
+# directly on st.button() would drop the async result on the next rerun.
 if st.button("Verwerken & opslaan", type="primary"):
+    st.session_state["upload_personal_running"] = True
+
+if st.session_state.get("upload_personal_running"):
     csv_base64 = base64.b64encode(df.to_csv(index=False).encode()).decode()
     js = _build_process_js(csv_base64, password, detected_sensitive, detected_regular)
 
     with st.spinner("Verwerken in uw browser (Pyodide)..."):
         raw = st_js_blocking(js, key="upload_personal_js")
+
+    # Result is in; clear the latch so a rerun doesn't reprocess.
+    st.session_state["upload_personal_running"] = False
 
     try:
         result = json.loads(raw)
@@ -246,10 +202,11 @@ with st.expander("Hoe werkt dit?"):
     **Dataflow:**
     1. CSV wordt in uw browser geladen
     2. Gevoelige kolommen worden gedetecteerd: {', '.join(SENSITIVE_FIELDS)}
-    3. Het wachtwoord leidt een sleutel af (PBKDF2, 100.000 iteraties)
-    4. UUID wordt afgeleid van Persoonsgebonden_nummer (MD5)
+    3. Per record wordt een willekeurige salt gegenereerd; het wachtwoord leidt
+       daarmee een sleutel af (PBKDF2, 100.000 iteraties)
+    4. UUID wordt afgeleid van Persoonsgebonden_nummer (HMAC-SHA256)
     5. Zeer gevoelige kolommen worden versleuteld (Fernet, AES-128-CBC)
-    6. Alleen het **verwerkte** resultaat gaat naar de server
+    6. Alleen het **verwerkte** resultaat (incl. salt, excl. wachtwoord) gaat naar de server
 
     **Opslag:**
     - `secret_sensitive` (PostgreSQL): UUID + versleutelde identifiers

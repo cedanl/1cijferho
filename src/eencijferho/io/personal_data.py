@@ -14,7 +14,6 @@ HTTP, matching this repo's storage-abstraction architecture.
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 
 from eencijferho.io import get_backend
@@ -51,6 +50,7 @@ CREATE TABLE IF NOT EXISTS secret_sensitive (
     persoonsgebonden_nummer TEXT,
     burgerservice_nummer TEXT,
     onderwijs_nummer TEXT,
+    salt TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 """
@@ -100,7 +100,7 @@ def _table_columns(pg, table_name: str) -> list[str]:
         cur.execute(
             """
             SELECT column_name FROM information_schema.columns
-            WHERE table_name = %s AND column_name NOT IN ('uuid', 'created_at')
+            WHERE table_name = %s AND column_name NOT IN ('uuid', 'created_at', 'salt')
             ORDER BY ordinal_position
             """,
             (table_name,),
@@ -151,7 +151,7 @@ def upload_personal_data(rows: list[dict]) -> dict:
     pg = _pg()
     inserted = 0
     minio_rows: list[dict] = []
-    exclude = {c.lower() for c in sensitive_cols + regular_cols}
+    exclude = {c.lower() for c in sensitive_cols + regular_cols} | {"salt"}
 
     with pg.conn.cursor() as cur:
         for row in rows:
@@ -159,10 +159,12 @@ def upload_personal_data(rows: list[dict]) -> dict:
             if not uuid:
                 continue
 
-            # secret_sensitive
-            cols = ["uuid"] + sensitive_cols
-            vals = [uuid] + [_get_value(row, c) for c in sensitive_cols]
-            updates = ", ".join(f"{c} = EXCLUDED.{c}" for c in sensitive_cols)
+            # secret_sensitive — salt is stored alongside the encrypted fields so
+            # the per-record key can be re-derived on decrypt.
+            sensitive_with_salt = sensitive_cols + ["salt"]
+            cols = ["uuid"] + sensitive_with_salt
+            vals = [uuid] + [_get_value(row, c) for c in sensitive_with_salt]
+            updates = ", ".join(f"{c} = EXCLUDED.{c}" for c in sensitive_with_salt)
             cur.execute(
                 f"INSERT INTO secret_sensitive ({', '.join(cols)}) "
                 f"VALUES ({', '.join(['%s'] * len(cols))}) "
@@ -257,7 +259,7 @@ def view_file(filename: str, mode: str = "raw") -> list[dict]:
     pg = _pg()
     regular = _fetch_db_rows(pg, "secret_regular", regular_cols, uuids)
     sensitive = (
-        _fetch_db_rows(pg, "secret_sensitive", sensitive_cols, uuids)
+        _fetch_db_rows(pg, "secret_sensitive", sensitive_cols + ["salt"], uuids)
         if mode == "with_encrypted"
         else {}
     )

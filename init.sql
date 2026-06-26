@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS secret_sensitive (
     persoonsgebonden_nummer TEXT,
     burgerservice_nummer TEXT,
     onderwijs_nummer TEXT,
+    -- Per-record PBKDF2 salt (base64) used to derive this row's encryption key.
+    salt TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

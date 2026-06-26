@@ -1,12 +1,20 @@
 import base64
 import json
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 from streamlit_js import st_js_blocking
 
 from eencijferho.io import get_backend
+
+_JS_DIR = Path(__file__).parent / "js"
+
+
+def _load_js(name: str, payload_b64: str) -> str:
+    template = (_JS_DIR / name).read_text(encoding="utf-8")
+    return template.replace("__PAYLOAD_B64__", payload_b64)
 
 # -----------------------------------------------------------------------------
 # Page Header
@@ -94,64 +102,27 @@ st.caption(
 
 
 def _build_encrypt_js(csv_b64: str, password: str, column: str) -> str:
-    """JS that loads Pyodide, encrypts the chosen column in-browser, returns the CSV."""
+    """Load the encrypt JS and inject all inputs as a single base64 JSON blob."""
     payload = json.dumps({"csv_b64": csv_b64, "password": password, "column": column})
     payload_b64 = base64.b64encode(payload.encode()).decode()
-    return f"""
-const payload = JSON.parse(atob("{payload_b64}"));
-if (!window.__pyodidePromise) {{
-    window.__pyodidePromise = (async () => {{
-        const {{ loadPyodide }} = await import("https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.mjs");
-        const py = await loadPyodide();
-        await py.loadPackage(["micropip"]);
-        await py.runPythonAsync(`
-            import micropip
-            await micropip.install('cryptography')
-        `);
-        return py;
-    }})();
-}}
-const py = await window.__pyodidePromise;
-py.globals.set("csv_data_input", atob(payload.csv_b64));
-py.globals.set("password_input", payload.password);
-py.globals.set("column_name_input", payload.column);
-const result = await py.runPythonAsync(`
-import io, csv, base64
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.backends import default_backend
-
-def derive_key(password, salt=b'eencijfer_salt_2025'):
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt,
-                     iterations=100000, backend=default_backend())
-    return base64.urlsafe_b64encode(kdf.derive(password.encode()))
-
-cipher = Fernet(derive_key(password_input))
-rows = list(csv.DictReader(io.StringIO(csv_data_input)))
-encrypted_count = 0
-for row in rows:
-    if column_name_input in row and row[column_name_input]:
-        row[column_name_input] = cipher.encrypt(row[column_name_input].encode()).decode()
-        encrypted_count += 1
-output = io.StringIO()
-if rows:
-    writer = csv.DictWriter(output, fieldnames=rows[0].keys())
-    writer.writeheader()
-    writer.writerows(rows)
-import json as _json
-_json.dumps({{"encrypted_count": encrypted_count, "csv": output.getvalue()}})
-`);
-return result;
-"""
+    return _load_js("encrypt_upload.js", payload_b64)
 
 
+# st_js_blocking calls st.stop() until the browser component returns a result on
+# a later rerun, so the click must be latched in session_state — gating the work
+# directly on st.button() would drop the async result on the next rerun.
 if st.button("Versleutelen & opslaan", type="primary"):
+    st.session_state["encrypt_upload_running"] = True
+
+if st.session_state.get("encrypt_upload_running"):
     csv_base64 = base64.b64encode(df.to_csv(index=False).encode()).decode()
     js = _build_encrypt_js(csv_base64, password, column_to_encrypt)
 
     with st.spinner("Versleutelen in uw browser (Pyodide)..."):
         raw = st_js_blocking(js, key="encrypt_upload_js")
+
+    # Result is in; clear the latch so a rerun doesn't reprocess.
+    st.session_state["encrypt_upload_running"] = False
 
     try:
         result = json.loads(raw)
@@ -199,8 +170,10 @@ with st.expander("Hoe werkt browser-versleuteling?"):
     gebeurt **lokaal**; onversleutelde gevoelige data verlaat uw browser nooit.
 
     1. CSV wordt in uw browser geladen
-    2. Het wachtwoord leidt een sleutel af (PBKDF2, 100.000 iteraties)
-    3. De gekozen kolom wordt versleuteld met Fernet (AES-128-CBC)
+    2. Per rij wordt een willekeurige salt gegenereerd; het wachtwoord leidt
+       daarmee een sleutel af (PBKDF2, 100.000 iteraties)
+    3. De gekozen kolom wordt versleuteld met Fernet (AES-128-CBC); de salt komt
+       in een extra `salt`-kolom zodat ontsleuteling later mogelijk blijft
     4. Alleen het **versleutelde** resultaat gaat naar de server
     5. Het wordt opgeslagen in MinIO én PostgreSQL — downloaden is optioneel
     """)

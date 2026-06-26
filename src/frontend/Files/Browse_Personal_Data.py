@@ -1,11 +1,19 @@
 import base64
 import json
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
 from eencijferho.io import personal_data
+
+_JS_DIR = Path(__file__).parent / "js"
+
+
+def _load_html(name: str, payload_b64: str) -> str:
+    template = (_JS_DIR / name).read_text(encoding="utf-8")
+    return template.replace("__PAYLOAD_B64__", payload_b64)
 
 # -----------------------------------------------------------------------------
 # Page Header
@@ -118,121 +126,13 @@ else:
         st.error(f"Fout bij laden: {e}")
         st.stop()
 
-    data_base64 = base64.b64encode(json.dumps(data).encode()).decode()
-    password_escaped = password.replace("'", "\\'").replace('"', '\\"')
-    sensitive_fields_json = json.dumps(sensitive_fields)
-
-    decryption_html = f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
-    <style>
-        body {{ font-family: 'Source Sans Pro', sans-serif; padding: 20px; }}
-        .status {{ padding: 15px; margin: 10px 0; border-radius: 5px; font-size: 14px; }}
-        .loading {{ background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }}
-        .success {{ background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }}
-        .error {{ background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }}
-        table {{ width: 100%; border-collapse: collapse; font-size: 12px; }}
-        th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-        th {{ background-color: #f2f2f2; font-weight: bold; }}
-        tr:nth-child(even) {{ background-color: #f9f9f9; }}
-        #preview {{ max-height: 420px; overflow: auto; margin-top: 10px; }}
-    </style>
-</head>
-<body>
-    <div id="status" class="status loading">Pyodide initialiseren...</div>
-    <div id="preview"></div>
-
-    <script type="text/javascript">
-        let pyodide;
-
-        async function initPyodide() {{
-            try {{
-                document.getElementById('status').innerHTML = 'Pyodide laden (10-20 seconden)...';
-                pyodide = await loadPyodide();
-                document.getElementById('status').innerHTML = 'cryptography installeren...';
-                await pyodide.loadPackage(['micropip']);
-                await pyodide.runPythonAsync(`
-                    import micropip
-                    await micropip.install('cryptography')
-                `);
-                decryptData();
-            }} catch (error) {{
-                document.getElementById('status').innerHTML = 'Fout bij laden Pyodide: ' + error;
-                document.getElementById('status').className = 'status error';
-                console.error(error);
-            }}
-        }}
-
-        async function decryptData() {{
-            try {{
-                document.getElementById('status').innerHTML = 'Data ontsleutelen in browser...';
-                document.getElementById('status').className = 'status loading';
-
-                pyodide.globals.set('data_input', atob('{data_base64}'));
-                pyodide.globals.set('password_input', `{password_escaped}`);
-                pyodide.globals.set('sensitive_fields_input', {sensitive_fields_json});
-
-                const result = await pyodide.runPythonAsync(`
-import json, base64
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.backends import default_backend
-
-def derive_key(password, salt=b'eencijfer_salt_2025'):
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt,
-                     iterations=100000, backend=default_backend())
-    return base64.urlsafe_b64encode(kdf.derive(password.encode()))
-
-cipher = Fernet(derive_key(password_input))
-data = json.loads(data_input)
-sensitive_fields = sensitive_fields_input
-decrypted_count = 0
-for row in data:
-    for field in sensitive_fields:
-        if field in row and row[field]:
-            try:
-                row[field] = cipher.decrypt(row[field].encode()).decode()
-                decrypted_count += 1
-            except Exception as e:
-                row[field] = "DECRYPT_ERROR"
-str(decrypted_count) + "||" + json.dumps(data)
-                `);
-
-                const parts = result.split('||', 2);
-                const decrypted = JSON.parse(parts[1]);
-                let html = '<strong>Ontsleuteld: ' + parts[0] + ' waarden.</strong><br><br>';
-                if (decrypted.length > 0) {{
-                    html += '<table><thead><tr>';
-                    for (let key in decrypted[0]) html += '<th>' + key + '</th>';
-                    html += '</tr></thead><tbody>';
-                    for (let i = 0; i < Math.min(decrypted.length, 20); i++) {{
-                        html += '<tr>';
-                        for (let key in decrypted[i]) html += '<td>' + (decrypted[i][key] ?? '') + '</td>';
-                        html += '</tr>';
-                    }}
-                    html += '</tbody></table>';
-                    if (decrypted.length > 20)
-                        html += '<br><em>Eerste 20 van ' + decrypted.length + ' records.</em>';
-                }}
-                document.getElementById('preview').innerHTML = html;
-                document.getElementById('status').innerHTML = 'Klaar! ' + parts[0] + ' waarden ontsleuteld.';
-                document.getElementById('status').className = 'status success';
-            }} catch (error) {{
-                document.getElementById('status').innerHTML =
-                    'Ontsleutelfout: ' + error + ' — controleer het wachtwoord.';
-                document.getElementById('status').className = 'status error';
-                console.error(error);
-            }}
-        }}
-
-        initPyodide();
-    </script>
-</body>
-</html>
-"""
+    payload = json.dumps({
+        "data_b64": base64.b64encode(json.dumps(data).encode()).decode(),
+        "password": password,
+        "sensitive_fields": sensitive_fields,
+    })
+    payload_b64 = base64.b64encode(payload.encode()).decode()
+    decryption_html = _load_html("decrypt_personal.html", payload_b64)
     components.html(decryption_html, height=600, scrolling=True)
 
 # -----------------------------------------------------------------------------
