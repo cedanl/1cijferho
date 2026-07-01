@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-import pandas as pd
+import polars as pl
 import streamlit as st
 from streamlit_js import st_js_blocking
 
@@ -24,7 +24,7 @@ st.markdown("""
 <div class="page-intro">
     Upload een CSV-bestand en versleutel een gevoelige kolom (zoals BSN) <strong>in uw
     browser</strong>. Met één knop wordt de data versleuteld én opgeslagen in MinIO en
-    PostgreSQL. Onversleutelde data verlaat uw browser nooit.
+    PostgreSQL. De opgeslagen data bevat de gekozen kolom alleen in versleutelde vorm.
 </div>
 """, unsafe_allow_html=True)
 
@@ -51,7 +51,7 @@ if uploaded_file is None:
     st.stop()
 
 try:
-    df = pd.read_csv(uploaded_file)
+    df = pl.read_csv(uploaded_file, infer_schema_length=0)
 except Exception as e:
     st.error(f"Fout bij lezen van CSV: {e}")
     st.stop()
@@ -70,7 +70,7 @@ st.subheader("Stap 2 · Kolom kiezen om te versleutelen")
 
 column_to_encrypt = st.selectbox(
     "Selecteer de kolom met gevoelige data (bijv. BSN)",
-    options=df.columns.tolist(),
+    options=df.columns,
     index=0,
 )
 with st.expander(f"Voorbeeldwaarden van '{column_to_encrypt}'"):
@@ -115,7 +115,7 @@ if st.button("Versleutelen & opslaan", type="primary"):
     st.session_state["encrypt_upload_running"] = True
 
 if st.session_state.get("encrypt_upload_running"):
-    csv_base64 = base64.b64encode(df.to_csv(index=False).encode()).decode()
+    csv_base64 = base64.b64encode(df.write_csv().encode()).decode()
     js = _build_encrypt_js(csv_base64, password, column_to_encrypt)
 
     with st.spinner("Versleutelen in uw browser (Pyodide)..."):
@@ -166,8 +166,9 @@ if st.session_state.get("encrypt_upload_running"):
 st.markdown("---")
 with st.expander("Hoe werkt browser-versleuteling?"):
     st.markdown("""
-    **Pyodide** draait Python in uw browser via WebAssembly. Alle versleuteling
-    gebeurt **lokaal**; onversleutelde gevoelige data verlaat uw browser nooit.
+    **Pyodide** draait Python in uw browser via WebAssembly. De versleuteling van de
+    gekozen kolom gebeurt **lokaal**, zodat de opgeslagen data die kolom alleen in
+    versleutelde vorm bevat.
 
     1. CSV wordt in uw browser geladen
     2. Per rij wordt een willekeurige salt gegenereerd; het wachtwoord leidt

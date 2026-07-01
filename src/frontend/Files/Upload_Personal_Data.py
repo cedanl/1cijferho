@@ -1,18 +1,14 @@
 import base64
 import json
-import os
 from pathlib import Path
 
-import pandas as pd
+import polars as pl
 import streamlit as st
 from streamlit_js import st_js_blocking
 
 from eencijferho.io import personal_data
 
 _JS_DIR = Path(__file__).parent / "js"
-# Key for HMAC-SHA256 UUID derivation; reused from the pseudonymizer config.
-_DEMO_UUID_KEY = "eencijfer-demo-uuid-key-change-me"
-_UUID_KEY = os.getenv("EENCIJFERHO_ENCRYPT_KEY", _DEMO_UUID_KEY)
 
 
 def _load_js(name: str, payload_b64: str) -> str:
@@ -36,19 +32,27 @@ SENSITIVE_FIELDS, REGULAR_FIELDS = _schema()
 st.title("Persoonsgegevens uploaden")
 st.markdown("""
 <div class="page-intro">
-    Upload een CSV met persoonsgegevens. Zeer gevoelige velden worden automatisch
-    <strong>in uw browser</strong> versleuteld. Met één knop wordt de data verwerkt én
-    opgesplitst over PostgreSQL (gevoelig + regulier) en MinIO (overige velden).
+    Upload een CSV met persoonsgegevens. Zeer gevoelige velden worden versleuteld
+    <strong>voordat ze worden opgeslagen</strong>; de database bevat geen leesbare
+    persoonsgegevens. Met één knop wordt de data verwerkt én opgesplitst over
+    PostgreSQL (gevoelig + regulier) en MinIO (overige velden).
 </div>
 """, unsafe_allow_html=True)
+
+if personal_data.is_demo_key():
+    st.warning(
+        "Demo-sleutel actief: er is geen `EENCIJFERHO_ENCRYPT_KEY` ingesteld, dus de "
+        "UUID-afleiding gebruikt een bekende demo-sleutel. Niet gebruiken voor echte data."
+    )
 
 st.markdown("""
 **Stappen:**
 1. Upload een CSV met persoonsgegevens
 2. Het systeem detecteert gevoelige kolommen automatisch
 3. Voer een wachtwoord in
-4. Klik op **Verwerken & opslaan** — versleuteling + UUID-afleiding gebeuren in uw
-   browser, daarna wordt de data opgeslagen (downloaden blijft optioneel)
+4. Klik op **Verwerken & opslaan** — de gevoelige kolommen worden in uw browser
+   versleuteld; de UUID wordt server-side afgeleid. Daarna wordt de data opgeslagen
+   (downloaden blijft optioneel)
 """)
 
 st.markdown("---")
@@ -64,7 +68,7 @@ if uploaded_file is None:
     st.stop()
 
 try:
-    df = pd.read_csv(uploaded_file)
+    df = pl.read_csv(uploaded_file, infer_schema_length=0)
 except Exception as e:
     st.error(f"Fout bij lezen van CSV: {e}")
     st.stop()
@@ -130,7 +134,8 @@ st.warning("Onthoud dit wachtwoord — u heeft het nodig om de data later te ont
 
 st.caption(
     "De eerste keer duurt het laden van Pyodide in uw browser 10-20 seconden. "
-    "Versleuteling en UUID-afleiding gebeuren volledig lokaal."
+    "De versleuteling van gevoelige kolommen gebeurt lokaal; de UUID wordt "
+    "server-side afgeleid met een sleutel die de browser nooit ziet."
 )
 
 
@@ -140,7 +145,6 @@ def _build_process_js(csv_b64: str, password: str,
     payload = json.dumps({
         "csv_b64": csv_b64,
         "password": password,
-        "uuid_key": _UUID_KEY,
         "sensitive": sensitive,
         "regular": regular,
     })
@@ -155,7 +159,7 @@ if st.button("Verwerken & opslaan", type="primary"):
     st.session_state["upload_personal_running"] = True
 
 if st.session_state.get("upload_personal_running"):
-    csv_base64 = base64.b64encode(df.to_csv(index=False).encode()).decode()
+    csv_base64 = base64.b64encode(df.write_csv().encode()).decode()
     js = _build_process_js(csv_base64, password, detected_sensitive, detected_regular)
 
     with st.spinner("Verwerken in uw browser (Pyodide)..."):
@@ -204,9 +208,12 @@ with st.expander("Hoe werkt dit?"):
     2. Gevoelige kolommen worden gedetecteerd: {', '.join(SENSITIVE_FIELDS)}
     3. Per record wordt een willekeurige salt gegenereerd; het wachtwoord leidt
        daarmee een sleutel af (PBKDF2, 100.000 iteraties)
-    4. UUID wordt afgeleid van Persoonsgebonden_nummer (HMAC-SHA256)
-    5. Zeer gevoelige kolommen worden versleuteld (Fernet, AES-128-CBC)
-    6. Alleen het **verwerkte** resultaat (incl. salt, excl. wachtwoord) gaat naar de server
+    4. Zeer gevoelige kolommen worden versleuteld (Fernet, AES-128-CBC)
+    5. De server leidt de UUID af uit het Persoonsgebonden_nummer (HMAC-SHA256 met
+       een serversleutel die de browser nooit ziet); het plaintext-nummer wordt
+       daarbij niet opgeslagen
+    6. Alleen het versleutelde resultaat + de bron voor UUID-afleiding gaat naar de
+       server (excl. wachtwoord)
 
     **Opslag:**
     - `secret_sensitive` (PostgreSQL): UUID + versleutelde identifiers

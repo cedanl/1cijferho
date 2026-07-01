@@ -87,22 +87,47 @@ str(decrypted_count) + "||" + json.dumps(data)
 
                 const parts = result.split('||', 2);
                 const decrypted = JSON.parse(parts[1]);
-                let html = '<strong>Ontsleuteld: ' + parts[0] + ' waarden.</strong><br><br>';
+
+                // Build the table with DOM nodes and textContent so decrypted cell
+                // values are never interpreted as HTML (prevents stored XSS).
+                const preview = document.getElementById('preview');
+                preview.replaceChildren();
+                const heading = document.createElement('strong');
+                heading.textContent = 'Ontsleuteld: ' + parts[0] + ' waarden.';
+                preview.appendChild(heading);
+
                 if (decrypted.length > 0) {
-                    html += '<table><thead><tr>';
-                    for (let key in decrypted[0]) html += '<th>' + key + '</th>';
-                    html += '</tr></thead><tbody>';
-                    for (let i = 0; i < Math.min(decrypted.length, 20); i++) {
-                        html += '<tr>';
-                        for (let key in decrypted[i]) html += '<td>' + (decrypted[i][key] ?? '') + '</td>';
-                        html += '</tr>';
+                    const table = document.createElement('table');
+                    const thead = document.createElement('thead');
+                    const headRow = document.createElement('tr');
+                    for (let key in decrypted[0]) {
+                        const th = document.createElement('th');
+                        th.textContent = key;
+                        headRow.appendChild(th);
                     }
-                    html += '</tbody></table>';
-                    if (decrypted.length > 20)
-                        html += '<br><em>Eerste 20 van ' + decrypted.length + ' records.</em>';
+                    thead.appendChild(headRow);
+                    table.appendChild(thead);
+
+                    const tbody = document.createElement('tbody');
+                    for (let i = 0; i < Math.min(decrypted.length, 20); i++) {
+                        const tr = document.createElement('tr');
+                        for (let key in decrypted[i]) {
+                            const td = document.createElement('td');
+                            td.textContent = decrypted[i][key] ?? '';
+                            tr.appendChild(td);
+                        }
+                        tbody.appendChild(tr);
+                    }
+                    table.appendChild(tbody);
+                    preview.appendChild(table);
+
+                    if (decrypted.length > 20) {
+                        const note = document.createElement('em');
+                        note.textContent = 'Eerste 20 van ' + decrypted.length + ' records.';
+                        preview.appendChild(note);
+                    }
                 }
-                document.getElementById('preview').innerHTML = html;
-                document.getElementById('status').innerHTML = 'Klaar! ' + parts[0] + ' waarden ontsleuteld.';
+                document.getElementById('status').textContent = 'Klaar! ' + parts[0] + ' waarden ontsleuteld.';
                 document.getElementById('status').className = 'status success';
             } catch (error) {
                 document.getElementById('status').innerHTML =

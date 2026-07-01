@@ -14,11 +14,35 @@ HTTP, matching this repo's storage-abstraction architecture.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import os
 from datetime import datetime
 
 from eencijferho.io import get_backend
 
 MINIO_PREFIX = "personal-data"
+
+# HMAC key for server-side UUID derivation. Kept on the server so it never
+# reaches the browser; a client-side key would let anyone forge UUIDs for a
+# known PGN (the PGN search space is small).
+ENCRYPT_KEY_ENV = "EENCIJFERHO_ENCRYPT_KEY"
+DEMO_UUID_KEY = "eencijfer-demo-uuid-key-change-me"
+
+
+def is_demo_key() -> bool:
+    """True when no real key is configured and the demo fallback is in use."""
+    return not os.environ.get(ENCRYPT_KEY_ENV)
+
+
+def _uuid_key() -> bytes:
+    return os.environ.get(ENCRYPT_KEY_ENV, DEMO_UUID_KEY).encode("utf-8")
+
+
+def derive_uuid(source: str) -> str:
+    """Derive a stable UUID from a value via keyed HMAC-SHA256 (server-side)."""
+    h = hmac.new(_uuid_key(), str(source).encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:32]}"
 
 # Columns expected in the two PostgreSQL tables (excluding uuid/created_at).
 # These mirror init.sql; read_schema() refreshes them from the live DB.
@@ -139,9 +163,10 @@ def _get_value(row: dict, col: str):
 def upload_personal_data(rows: list[dict]) -> dict:
     """Store pre-encrypted rows across PostgreSQL tables and a MinIO JSON file.
 
-    Each row must already contain a ``uuid`` plus encrypted sensitive fields and
-    plaintext regular/extra fields (encryption happens client-side in the browser
-    via Pyodide before this is ever called).
+    Each row carries encrypted sensitive fields, plaintext regular/extra fields,
+    and a ``__uuid_source`` value (the plaintext PGN) from which the UUID is
+    derived here via keyed HMAC. The source is used to compute the UUID and then
+    dropped — it is never stored.
     """
     ensure_schema()
     schema = get_schema()
@@ -151,13 +176,14 @@ def upload_personal_data(rows: list[dict]) -> dict:
     pg = _pg()
     inserted = 0
     minio_rows: list[dict] = []
-    exclude = {c.lower() for c in sensitive_cols + regular_cols} | {"salt"}
+    exclude = {c.lower() for c in sensitive_cols + regular_cols} | {"salt", "__uuid_source"}
 
     with pg.conn.cursor() as cur:
         for row in rows:
-            uuid = row.get("uuid")
-            if not uuid:
+            uuid_source = row.get("__uuid_source")
+            if not uuid_source:
                 continue
+            uuid = derive_uuid(uuid_source)
 
             # secret_sensitive — salt is stored alongside the encrypted fields so
             # the per-record key can be re-derived on decrypt.

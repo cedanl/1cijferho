@@ -2,7 +2,7 @@ import base64
 import json
 from pathlib import Path
 
-import pandas as pd
+import polars as pl
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -21,8 +21,9 @@ def _load_html(name: str, payload_b64: str) -> str:
 st.title("Persoonsgegevens bekijken")
 st.markdown("""
 <div class="page-intro">
-    Bekijk bestanden uit MinIO op drie detailniveaus. Ontsleuteling van gevoelige
-    velden gebeurt <strong>in uw browser</strong> — het wachtwoord verlaat uw browser nooit.
+    Bekijk bestanden uit MinIO op drie detailniveaus. Gevoelige velden zijn
+    versleuteld opgeslagen; ontsleuteling gebeurt <strong>in uw browser</strong> met
+    uw wachtwoord.
 </div>
 """, unsafe_allow_html=True)
 
@@ -87,10 +88,10 @@ st.subheader("Stap 3 · Data bekijken")
 if view_mode.startswith("1"):
     try:
         data = personal_data.view_file(selected_file, mode="raw")
-        df = pd.DataFrame(data)
+        df = pl.DataFrame(data, infer_schema_length=None)
         st.write(f"**{len(df)} records** (UUID + overige velden, geen gevoelige data)")
         st.dataframe(df, use_container_width=True)
-        st.download_button("Download als CSV", df.to_csv(index=False),
+        st.download_button("Download als CSV", df.write_csv(),
                            file_name="raw.csv", mime="text/csv")
     except Exception as e:
         st.error(f"Fout bij laden: {e}")
@@ -98,10 +99,10 @@ if view_mode.startswith("1"):
 elif view_mode.startswith("2"):
     try:
         data = personal_data.view_file(selected_file, mode="with_regular")
-        df = pd.DataFrame(data)
+        df = pl.DataFrame(data, infer_schema_length=None)
         st.write(f"**{len(df)} records** (samengevoegd met demografische data uit secret_regular)")
         st.dataframe(df, use_container_width=True)
-        st.download_button("Download als CSV", df.to_csv(index=False),
+        st.download_button("Download als CSV", df.write_csv(),
                            file_name="with_regular.csv", mime="text/csv")
     except Exception as e:
         st.error(f"Fout bij laden: {e}")
@@ -117,7 +118,7 @@ else:
         st.info("Voer het ontsleutelwachtwoord in.")
         st.stop()
 
-    st.warning("Ontsleuteling gebeurt in uw browser. Het wachtwoord wordt nooit naar de server gestuurd.")
+    st.info("Ontsleuteling gebeurt in uw browser met Pyodide; de opgeslagen data blijft versleuteld in de database.")
 
     try:
         sensitive_fields = personal_data.get_schema()["sensitive_columns"]
@@ -146,5 +147,5 @@ with st.expander("Over de weergavemodi"):
     **2. Met reguliere data** — join met `secret_regular` op UUID (demografische velden).
 
     **3. Met ontsleutelde data** — join met `secret_sensitive` (versleuteld), daarna
-    client-side ontsleuteld met Pyodide. Het wachtwoord verlaat uw browser nooit.
+    client-side ontsleuteld met Pyodide in uw browser.
     """)
