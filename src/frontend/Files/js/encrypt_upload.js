@@ -3,19 +3,7 @@
 // Each row gets its own random PBKDF2 salt, written to a `salt` column so the
 // value can be decrypted later without a shared, source-baked salt.
 const payload = JSON.parse(atob("__PAYLOAD_B64__"));
-if (!window.__pyodidePromise) {
-    window.__pyodidePromise = (async () => {
-        const { loadPyodide } = await import("https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.mjs");
-        const py = await loadPyodide();
-        await py.loadPackage(["micropip"]);
-        await py.runPythonAsync(`
-            import micropip
-            await micropip.install('cryptography')
-        `);
-        return py;
-    })();
-}
-const py = await window.__pyodidePromise;
+__PYODIDE_BOOTSTRAP__
 py.globals.set("csv_data_input", atob(payload.csv_b64));
 py.globals.set("password_input", payload.password);
 py.globals.set("column_name_input", payload.column);

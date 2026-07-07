@@ -14,7 +14,10 @@ _JS_DIR = Path(__file__).parent / "js"
 
 def _load_js(name: str, payload_b64: str) -> str:
     template = (_JS_DIR / name).read_text(encoding="utf-8")
-    return template.replace("__PAYLOAD_B64__", payload_b64)
+    bootstrap = (_JS_DIR / "_pyodide_bootstrap.js").read_text(encoding="utf-8")
+    return template.replace("__PYODIDE_BOOTSTRAP__", bootstrap).replace(
+        "__PAYLOAD_B64__", payload_b64
+    )
 
 # -----------------------------------------------------------------------------
 # Page Header

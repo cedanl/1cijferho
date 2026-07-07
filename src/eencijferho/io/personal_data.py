@@ -290,19 +290,24 @@ def view_file(filename: str, mode: str = "raw") -> list[dict]:
         else {}
     )
 
-    merged = []
-    for file_row in file_data:
-        uuid = file_row.get("uuid")
-        ordered = {"uuid": uuid} if uuid is not None else {}
-        if mode == "with_encrypted" and uuid in sensitive:
-            ordered.update(sensitive[uuid])
-        if uuid in regular:
-            ordered.update(regular[uuid])
-        for key, value in file_row.items():
-            if key != "uuid":
-                ordered[key] = value
-        merged.append(ordered)
-    return merged
+    return [
+        _merge_row(file_row, regular, sensitive, mode == "with_encrypted")
+        for file_row in file_data
+    ]
+
+
+def _merge_row(file_row: dict, regular: dict, sensitive: dict, include_sensitive: bool) -> dict:
+    """Combine a MinIO row with its DB-side regular/sensitive fields, uuid first."""
+    uuid = file_row.get("uuid")
+    ordered = {"uuid": uuid} if uuid is not None else {}
+    if include_sensitive and uuid in sensitive:
+        ordered.update(sensitive[uuid])
+    if uuid in regular:
+        ordered.update(regular[uuid])
+    for key, value in file_row.items():
+        if key != "uuid":
+            ordered[key] = value
+    return ordered
 
 
 def delete_file(filename: str) -> dict:
