@@ -123,3 +123,45 @@ def minio_env(minio_service, monkeypatch):
     monkeypatch.setenv("MINIO_SECRET_KEY", "minioadmin")
     monkeypatch.setenv("MINIO_BUCKET", TEST_BUCKET)
     monkeypatch.setenv("MINIO_SECURE", "false")
+
+
+# ---------------------------------------------------------------------------
+# PostgreSQL — used by the personal-data store (needs MinIO + Postgres together)
+# ---------------------------------------------------------------------------
+
+def _postgres_available() -> bool:
+    """Check if a Postgres instance is reachable with the test credentials."""
+    try:
+        import psycopg2
+    except ImportError:
+        return False
+    try:
+        conn = psycopg2.connect(
+            host="localhost", port=5432, dbname="cijferho",
+            user="postgres", password="postgres", connect_timeout=3,
+        )
+        conn.close()
+        return True
+    except Exception:
+        return False
+
+
+@pytest.fixture
+def personal_data_env(minio_service, monkeypatch):
+    """Point both MinIO and Postgres backends at the local test instances.
+
+    Skips when Postgres is unavailable — the personal-data store splits records
+    across both, so it needs a live Postgres in addition to MinIO.
+    """
+    if not _postgres_available():
+        pytest.skip("PostgreSQL not available")
+    monkeypatch.setenv("MINIO_ENDPOINT", "localhost:9000")
+    monkeypatch.setenv("MINIO_ACCESS_KEY", "minioadmin")
+    monkeypatch.setenv("MINIO_SECRET_KEY", "minioadmin")
+    monkeypatch.setenv("MINIO_BUCKET", TEST_BUCKET)
+    monkeypatch.setenv("MINIO_SECURE", "false")
+    monkeypatch.setenv("POSTGRES_HOST", "localhost")
+    monkeypatch.setenv("POSTGRES_PORT", "5432")
+    monkeypatch.setenv("POSTGRES_DATABASE", "cijferho")
+    monkeypatch.setenv("POSTGRES_USER", "postgres")
+    monkeypatch.setenv("POSTGRES_PASSWORD", "postgres")

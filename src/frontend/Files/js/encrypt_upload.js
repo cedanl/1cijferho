@@ -3,7 +3,7 @@
 // Each row gets its own random PBKDF2 salt, written to a `salt` column so the
 // value can be decrypted later without a shared, source-baked salt.
 const payload = JSON.parse(atob("__PAYLOAD_B64__"));
-__PYODIDE_BOOTSTRAP__
+// __PYODIDE_BOOTSTRAP__
 py.globals.set("csv_data_input", atob(payload.csv_b64));
 py.globals.set("password_input", payload.password);
 py.globals.set("column_name_input", payload.column);
