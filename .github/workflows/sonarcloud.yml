@@ -15,11 +15,63 @@ jobs:
     permissions:
       contents: read
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: cijferho
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio server /data
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            echo "Waiting for MinIO... ($i)"
+            sleep 1
+          done
+
+      - name: Create MinIO test bucket
+        run: |
+          curl -LsSf https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
+          chmod +x /usr/local/bin/mc
+          mc alias set local http://localhost:9000 minioadmin minioadmin
+          mc mb local/1cijferho-test --ignore-existing
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies (with backends for integration tests)
+        run: uv sync --group dev --extra minio --extra postgres
+
+      - name: Run unit tests with coverage
+        run: uv run pytest tests/eencijferho/ --cov=eencijferho --cov-report=
+
+      - name: Run integration tests with coverage (append)
+        run: uv run pytest tests/integration/ --cov=eencijferho --cov-append --cov-report=xml
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
@@ -32,3 +84,5 @@ jobs:
             -Dsonar.organization=cedanl
             -Dsonar.python.version=3.13
             -Dsonar.sources=src/
+            -Dsonar.python.coverage.reportPaths=coverage.xml
+            -Dsonar.coverage.exclusions=src/frontend/**,src/main.py
