@@ -38,7 +38,9 @@ jobs:
           python-version: '3.13'
 
       - name: Install dependencies (with s3 extra)
-        run: uv sync --group dev --extra s3
+        # minio is included because tests/integration/conftest.py has a
+        # module-level import guard that skips the whole dir without it.
+        run: uv sync --group dev --extra s3 --extra minio
 
       - name: Run S3 backend tests
         run: uv run pytest tests/integration/test_s3_backend.py -v
