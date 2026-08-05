@@ -73,3 +73,4 @@ nav:
   - CLI-referentie: cli.md
   - API-referentie: api/index.md
   - Opslag backends: storage-abstraction.md
+  - S3 in CI (SURF): ci-surf-object-store.md

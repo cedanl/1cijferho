@@ -64,6 +64,36 @@ export MINIO_BUCKET=1cijferho
 export MINIO_SECURE=false
 ```
 
+### S3 (SURF object store / AWS / any S3-compatible)
+
+A generic S3 backend built on `boto3`, for object stores that aren't MinIO —
+notably **SURF's Ceph RADOS-Gateway**, but also AWS S3 or any S3-compatible
+service. Unlike the MinIO backend, it supports path-style addressing and an
+explicit region/SigV4, which RADOS-Gateway requires. Requires the `s3` optional
+dependency.
+
+```bash
+uv sync --extra s3
+# or: pip install eencijferho[s3]
+
+export STORAGE_BACKEND=s3
+export S3_ENDPOINT=https://object.surfsara.nl   # empty = AWS default endpoint
+export S3_ACCESS_KEY=your-access-key            # falls back to AWS_ACCESS_KEY_ID
+export S3_SECRET_KEY=your-secret-key            # falls back to AWS_SECRET_ACCESS_KEY
+export S3_BUCKET=1cijferho
+export S3_REGION=us-east-1                       # RADOS-GW accepts any
+export S3_SECURE=true                            # true for HTTPS
+export S3_PATH_STYLE=true                        # required for RADOS-GW
+```
+
+If `S3_ACCESS_KEY`/`S3_SECRET_KEY` are left empty, boto3's default credential
+chain is used (AWS credential files, environment variables, or IAM roles) —
+convenient on AWS, where you can also drop `S3_ENDPOINT`.
+
+In SDP (Kubernetes) deployments, provide the `S3_*` secrets via SOPS-encrypted
+secrets — see the `sdp-secrets-management` skill — and never commit them in
+plaintext.
+
 ### PostgreSQL
 
 Stores DataFrames as database tables, JSON in a native JSONB column, and binary files in a `_binary_storage` table. Requires the `postgres` optional dependency.
@@ -339,6 +369,11 @@ Integration tests automatically skip when:
 
 This means `uv run pytest tests/` always works — integration tests are silently skipped if MinIO isn't available.
 
+The generic S3 backend (`backends/s3.py`) is covered by `test_s3_backend.py`,
+which runs against the same MinIO container by default and against the **real
+SURF object store** in CI when credentials are configured — see
+[Testing the S3 backend in CI](ci-surf-object-store.md).
+
 ## Architecture
 
 ```
@@ -349,11 +384,12 @@ eencijferho/io/
 └── backends/
     ├── base.py          # StorageBackend ABC + convenience methods
     ├── disk.py          # Local filesystem
-    ├── minio.py         # S3-compatible (lazy import)
+    ├── minio.py         # MinIO S3-compatible (lazy import)
+    ├── s3.py            # Generic S3 via boto3 — SURF RADOS-GW / AWS (lazy import)
     └── postgres.py      # PostgreSQL tables + JSONB (lazy import)
 ```
 
-MinIO and PostgreSQL backends use lazy imports — their dependencies are only loaded when the backend is actually selected. The disk backend has no extra dependencies.
+MinIO, S3, and PostgreSQL backends use lazy imports — their dependencies are only loaded when the backend is actually selected. The disk backend has no extra dependencies.
 
 ## Migrated Modules
 
