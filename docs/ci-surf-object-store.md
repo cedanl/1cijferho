@@ -7,6 +7,19 @@ CI exercises the generic S3 backend (`eencijferho.io.backends.s3`) at two levels
 | `s3.yml` | Throwaway **MinIO** container | none | every push / PR (wired into `ci.yml`) |
 | `s3-surf.yml` | **Real SURF** Ceph RADOS-Gateway | GitHub secrets | `main` push + manual `workflow_dispatch`, **only if secrets are set** |
 
+> **⚠️ Network limitation — `s3-surf.yml` does not work on GitHub-hosted
+> runners.** `objectstore.surf.nl` is only reachable from the SURF network /
+> eduVPN. A GitHub-hosted runner has a public cloud IP with no VPN, so its
+> connections are dropped and every test fails with
+> `botocore.exceptions.EndpointConnectionError` (verified: a full run hung
+> through boto3's retries for 2h42m before the backend's connect timeout was
+> added). **Treat the SURF suite as a local/VPN-only check** — run it from a
+> machine on eduVPN (see [Running against SURF locally](#running-against-surf-locally)).
+> To run it in CI you would need a **self-hosted runner inside the SURF
+> network**; `s3-surf.yml` is kept (manual-dispatch + `main`) for that future
+> or for anyone wiring such a runner. The `S3Backend` now caps connect time and
+> retries, so if it *is* run without access it fails in ~30s instead of hours.
+
 `s3.yml` proves the code path on every PR without any external dependency
 (MinIO is S3-compatible). `s3-surf.yml` proves real-world compatibility against
 the actual SURF object store, and **skips itself cleanly** until a utility

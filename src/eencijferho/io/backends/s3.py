@@ -26,6 +26,8 @@ class S3Backend(StorageBackend):
         region: str = "us-east-1",
         secure: bool = True,
         path_style: bool = True,
+        connect_timeout: int = 10,
+        max_attempts: int = 2,
     ):
         try:
             import boto3
@@ -33,9 +35,16 @@ class S3Backend(StorageBackend):
         except ImportError:
             raise ImportError("Install 'boto3' package: pip install boto3")
 
+        # Cap connect time + retries so an unreachable endpoint (e.g. a
+        # VPN/firewall-gated store hit from a runner without network access)
+        # fails in seconds rather than hanging through boto3's long default
+        # retry loop. Read timeout is left at boto's default so large object
+        # transfers aren't cut short.
         config = Config(
             signature_version="s3v4",
             s3={"addressing_style": "path" if path_style else "auto"},
+            connect_timeout=connect_timeout,
+            retries={"max_attempts": max_attempts, "mode": "standard"},
         )
 
         # Empty keys defer to boto3's default credential chain (env vars,

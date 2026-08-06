@@ -16,10 +16,7 @@ name: S3 backend tests (SURF object store)
 
 on:
   push:
-    # TODO(WIP): remove 'feat/s3-object-store-backend' before merging — it is
-    # here only to prove a GitHub-hosted runner (no SURF VPN, cloud IP) can
-    # reach objectstore.surf.nl from this branch. Keep only [main] on merge.
-    branches: [main, feat/s3-object-store-backend]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
