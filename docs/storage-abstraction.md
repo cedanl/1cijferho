@@ -370,9 +370,12 @@ Integration tests automatically skip when:
 This means `uv run pytest tests/` always works — integration tests are silently skipped if MinIO isn't available.
 
 The generic S3 backend (`backends/s3.py`) is covered by `test_s3_backend.py`,
-which runs against the same MinIO container by default and against the **real
-SURF object store** in CI when credentials are configured — see
-[Testing the S3 backend in CI](ci-surf-object-store.md).
+which runs against the same MinIO container in CI on every PR. It can also run
+against the **real SURF object store**, but **only from a machine on the SURF
+network / eduVPN** — GitHub-hosted runners cannot reach `objectstore.surf.nl`
+(no VPN), so we do **not** test against the real object store in CI. See
+[Testing the S3 backend in CI](ci-surf-object-store.md) for the details and how
+to run the SURF suite locally.
 
 ## Architecture
 

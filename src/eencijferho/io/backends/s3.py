@@ -50,12 +50,15 @@ class S3Backend(StorageBackend):
         # Empty keys defer to boto3's default credential chain (env vars,
         # AWS credential files, IAM roles). A scheme is only prepended when an
         # endpoint is given; AWS uses the SDK default (endpoint_url=None).
+        # `secure` controls TLS: production (SURF/AWS) uses secure=True → https;
+        # secure=False is only for local dev stores (e.g. a MinIO container).
         endpoint_url = None
         if endpoint:
-            if endpoint.startswith(("http://", "https://")):
-                endpoint_url = endpoint
+            if "://" in endpoint:
+                endpoint_url = endpoint  # caller supplied an explicit scheme
             else:
-                endpoint_url = f"{'https' if secure else 'http'}://{endpoint}"
+                scheme = "https" if secure else "http"  # NOSONAR: http only when secure=False (local dev)
+                endpoint_url = f"{scheme}://{endpoint}"
 
         client_kwargs = {
             "endpoint_url": endpoint_url,

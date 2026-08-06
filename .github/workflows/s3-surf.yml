@@ -6,8 +6,20 @@ name: S3 backend tests (SURF object store)
 # are absent, so it is a no-op until the SURF account is provisioned and does
 # not fail on fork PRs (which never receive secrets).
 #
+# ⚠️ WHY THIS DOES NOT RUN ON PULL REQUESTS / EVERY PUSH:
+# The SURF object store (objectstore.surf.nl) is only reachable from the SURF
+# network / eduVPN. GitHub-hosted runners have a public cloud IP with NO VPN,
+# so they cannot connect to it — a verified run failed with
+# botocore EndpointConnectionError on every test (after hanging ~2h42m before
+# the backend's connect timeout was added). We therefore do NOT test against
+# the real object store in CI. This workflow is intentionally limited to
+# `main` push + manual dispatch, and is kept only for the future case of a
+# self-hosted runner INSIDE the SURF network. Day-to-day, verify against the
+# real store LOCALLY from a machine on eduVPN (see docs/ci-surf-object-store.md).
+# The always-on S3 coverage in CI runs against MinIO instead (see s3.yml).
+#
 # Required repository secrets (Settings → Secrets and variables → Actions):
-#   SURF_S3_ENDPOINT     e.g. https://object.surfsara.nl
+#   SURF_S3_ENDPOINT     e.g. https://objectstore.surf.nl
 #   SURF_S3_ACCESS_KEY   utility-account access key
 #   SURF_S3_SECRET_KEY   utility-account secret key
 #   SURF_S3_BUCKET       dedicated test bucket, e.g. 1cijferho-ci-test
