@@ -65,7 +65,7 @@ jobs:
           python-version: '3.13'
 
       - name: Install dependencies (with backends for integration tests)
-        run: uv sync --group dev --extra minio --extra postgres
+        run: uv sync --group dev --extra minio --extra s3 --extra postgres
 
       - name: Run unit tests with coverage
         run: uv run pytest tests/eencijferho/ --cov=eencijferho --cov-report=
