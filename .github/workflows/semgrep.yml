@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Run Semgrep
         run: semgrep ci --sarif --output=semgrep-results.sarif || true
@@ -31,7 +31,7 @@ jobs:
 
       - name: Upload SARIF to GitHub
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@8898e3a0d43a2f57b8c73b2c73a0d88e8e8e8e8e # v3.25.8
         with:
           sarif_file: semgrep-results.sarif
           category: semgrep

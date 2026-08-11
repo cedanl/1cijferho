@@ -16,22 +16,25 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@16ce1475533917ea7f670044db2fa47c6c9f126f # v5.0.0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@f677139edd7d37da08e7d4ef8508e42ca44ea2b27 # v5.1.1
         with:
           python-version: "3.13"
 
       - name: Install Bandit
-        run: pip install bandit[sarif]
+        run: uv pip install bandit[sarif]
 
       - name: Run Bandit
-        run: bandit -r src/ -f sarif -o bandit-results.sarif --severity-level medium || true
+        run: uv run bandit -r src/ -f sarif -o bandit-results.sarif --severity-level medium || true
 
       - name: Upload SARIF to GitHub
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@8898e3a0d43a2f57b8c73b2c73a0d88e8e8e8e8e # v3.25.8
         with:
           sarif_file: bandit-results.sarif
           category: bandit
