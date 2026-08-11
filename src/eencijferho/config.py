@@ -10,7 +10,6 @@ No Streamlit dependency - safe to use in any Python environment.
 """
 
 import os
-import sys
 from dataclasses import dataclass, field
 
 def validate_safe_path(path: str, base_dir: str = ".") -> str:
