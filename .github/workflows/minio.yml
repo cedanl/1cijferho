@@ -8,7 +8,7 @@ jobs:
     name: MinIO integration tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@v4
 
       - name: Start MinIO
         run: |
@@ -33,10 +33,10 @@ jobs:
           mc mb local/1cijferho-test --ignore-existing
 
       - name: Install uv
-        uses: astral-sh/setup-uv@16ce1475533917ea7f670044db2fa47c6c9f126f # v5.0.0
+        uses: astral-sh/setup-uv@v5
 
       - name: Set up Python
-        uses: actions/setup-python@f677139edd7d37da08e7d4ef8508e42ca44ea2b27 # v5.1.1
+        uses: actions/setup-python@v5
         with:
           python-version: '3.13'
 

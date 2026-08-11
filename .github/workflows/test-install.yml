@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v4
 
       # ── OneDrive simulation ──────────────────────────────────────────
       - name: Simulate OneDrive known-folder redirection
@@ -241,7 +241,7 @@ jobs:
       # ── Artifacts ────────────────────────────────────────────────────
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@c7d193f32edcadf64f46e6e288e654e3a0dd658c # v4.1.0
+        uses: actions/upload-artifact@v4
         with:
           name: logs-${{ matrix.account }}-onedrive-${{ matrix.onedrive }}
           path: ${{ runner.temp }}/*.log
