@@ -113,47 +113,56 @@ def _parse_values_section(lines: list[str], start: int, var_name: str) -> tuple[
 
     return i, values, notes_lines
 
+def _process_variable_block(lines: list[str], i: int, name: str, n: int) -> tuple[int, dict | None]:
+    """Process a variable block and return next index and variable dict."""
+    i, desc_lines = _parse_description_section(lines, i)
+    found_values = i < n and lines[i - 1].strip().lower().startswith('mogelijke waarden:')
+
+    if not found_values:
+        return i, None
+
+    i, values, notes_lines = _parse_values_section(lines, i, name)
+
+    desc = ' '.join(ln.strip() for ln in desc_lines if ln.strip())
+    if notes_lines:
+        desc = desc + ' ' + ' '.join(notes_lines)
+
+    return i, {'name': name, 'description': desc, 'values': values}
+
+def _scan_for_variable_header(lines: list[str], i: int, n: int) -> tuple[int, str | None]:
+    """Scan from current line for a variable header. Return next index and name or None."""
+    s = lines[i].strip()
+    if s == "":
+        return i + 1, None
+
+    name_candidate = s
+    j = _next_nonempty_index(lines, i + 1)
+
+    if j < n and _is_separator(lines, j):
+        return j + 1, name_candidate
+
+    return i + 1, None
+
 @with_storage
 def parse_metadata_file(storage, path: str) -> list[dict[str, Any]]:
     """Parse metadata text file for variable descriptions and possible values."""
     text = storage.read_text(path, encoding="latin-1")
     lines = text.split("\n")
+    n = len(lines)
 
     vars_out = []
     seen_names = set()
     i = 0
-    n = len(lines)
 
     while i < n:
-        s = lines[i].strip()
-        if s == "":
-            i += 1
+        i, name = _scan_for_variable_header(lines, i, n)
+        if name is None:
             continue
 
-        name_candidate = s
-        j = _next_nonempty_index(lines, i + 1)
-
-        if j < n and _is_separator(lines, j):
-            name = name_candidate
-            i = j + 1
-
-            i, desc_lines = _parse_description_section(lines, i)
-            found_values = i < n and lines[i - 1].strip().lower().startswith('mogelijke waarden:')
-
-            if not found_values:
-                continue
-
-            i, values, notes_lines = _parse_values_section(lines, i, name)
-
-            desc = ' '.join(ln.strip() for ln in desc_lines if ln.strip())
-            if notes_lines:
-                desc = desc + ' ' + ' '.join(notes_lines)
-
-            if name not in seen_names:
-                vars_out.append({'name': name, 'description': desc, 'values': values})
-                seen_names.add(name)
-        else:
-            i += 1
+        i, var_dict = _process_variable_block(lines, i, name, n)
+        if var_dict and var_dict['name'] not in seen_names:
+            vars_out.append(var_dict)
+            seen_names.add(var_dict['name'])
 
     return vars_out
 
