@@ -7,6 +7,9 @@ from eencijferho.core.parse_metadata import (
     _next_nonempty_index,
     _parse_description_section,
     _is_long_key_continuation,
+    _process_key_value_line,
+    _process_continuation_line,
+    _process_fallback_values,
 )
 
 
@@ -96,3 +99,78 @@ class TestParseMetadataHelpers:
         lines = ["", "Mogelijke waarden:"]
         i, desc = _parse_description_section(lines, 0)
         assert i == 2
+
+    def test_process_key_value_line_simple_kv(self):
+        """Process simple key=value line."""
+        values = {}
+        last_key = _process_key_value_line("key = value", "key = value", "TestVar", None, values)
+        assert last_key == "key"
+        assert values["key"] == "value"
+
+    def test_process_key_value_line_special_case_indicatie_geboren(self):
+        """Handle special case for 'Indicatie geboren' variable."""
+        values = {}
+        last_key = _process_key_value_line("99 = something", "99 = something", "Indicatie geboren", None, values)
+        assert last_key is None
+        assert values["99"] == "Onbekend"
+
+    def test_process_key_value_line_continuation_append(self):
+        """Append to existing key in continuation."""
+        values = {"key1": "value1"}
+        last_key = _process_key_value_line(
+            "key1 = continuation",
+            "key1 = continuation",
+            "TestVar",
+            "key1",
+            values
+        )
+        assert last_key == "key1"
+        assert "continuation" in values["key1"]
+
+    def test_process_key_value_line_no_match(self):
+        """Return last_key unchanged when no key=value pattern."""
+        values = {"existing": "value"}
+        last_key = _process_key_value_line("no equals here", "no equals here", "TestVar", "existing", values)
+        assert last_key == "existing"
+        assert values == {"existing": "value"}
+
+    def test_process_continuation_line_with_last_key(self):
+        """Append continuation line to last key."""
+        values = {"key1": "original"}
+        _process_continuation_line("some continuation", "key1", values)
+        assert "continuation" in values["key1"]
+        assert "original" in values["key1"]
+
+    def test_process_continuation_line_no_last_key(self):
+        """Skip continuation line when no last_key."""
+        values = {}
+        _process_continuation_line("orphan line", None, values)
+        assert values == {}
+
+    def test_process_fallback_values_reference(self):
+        """Detect reference line and set as reference."""
+        values = {}
+        values_lines = ["Zie bestand: some_file.csv"]
+        _process_fallback_values(values, values_lines)
+        assert values == {"reference": "Zie bestand: some_file.csv"}
+
+    def test_process_fallback_values_reference_zie(self):
+        """Detect 'Zie' as reference."""
+        values = {}
+        values_lines = ["Zie Appendix B"]
+        _process_fallback_values(values, values_lines)
+        assert values == {"reference": "Zie Appendix B"}
+
+    def test_process_fallback_values_list(self):
+        """Store multiple lines as list."""
+        values = {}
+        values_lines = ["Option A", "Option B", "Option C"]
+        _process_fallback_values(values, values_lines)
+        assert values == {"list": values_lines}
+
+    def test_process_fallback_values_with_existing_values(self):
+        """Skip fallback when values already exist."""
+        values = {"key": "value"}
+        values_lines = ["should", "not", "be", "added"]
+        _process_fallback_values(values, values_lines)
+        assert values == {"key": "value"}
