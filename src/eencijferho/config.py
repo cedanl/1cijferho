@@ -87,6 +87,10 @@ class OutputConfig:
                 raise ValueError("bsn_mapping_id_col mag niet leeg zijn.")
 
 
+# Output file suffixes (used across multiple modules)
+DECODED_SUFFIX: str = "_decoded.csv"
+ENRICHED_SUFFIX: str = "_enriched.csv"
+
 # DUO column names as they appear in raw output files (before snake_case conversion).
 # Centralised here so translator and any future code share one source of truth.
 DUO_PGN_COLUMN: str = "Persoonsgebonden nummer"

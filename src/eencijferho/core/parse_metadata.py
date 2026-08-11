@@ -11,6 +11,15 @@ from typing import Any
 
 from eencijferho.io.decorators import with_storage
 
+def _validate_safe_path(path: str, base_dir: str = ".") -> str:
+    """Validate that path is within base_dir to prevent path traversal."""
+    real_path = os.path.realpath(path)
+    real_base = os.path.realpath(base_dir)
+
+    if not real_path.startswith(real_base + os.sep) and real_path != real_base:
+        raise ValueError(f"Path traversal attempt detected: {path}")
+    return path
+
 
 def _next_nonempty_index(lines: list[str], start: int) -> int:
     n = len(lines)
@@ -80,7 +89,7 @@ def _parse_values_section(lines: list[str], start: int, var_name: str) -> tuple[
             i += 1
             continue
 
-        m = re.match(r'^([^=<>`]+?)\s*=\s*(.+)$', s)
+        m = re.match(r'^([^=<>`]+?)\s*=\s*(.+?)$', s)
         if m:
             key = m.group(1).strip()
             val = m.group(2).strip()
@@ -164,6 +173,14 @@ if __name__ == '__main__':
     parser.add_argument('infile', nargs='?', default=os.path.join('data', '01-input', 'Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.txt'))
     parser.add_argument('-o', '--output', default=os.path.join('data', '02-output', 'variables_with_values.json'))
     args = parser.parse_args()
+
+    # Validate paths to prevent traversal attacks
+    try:
+        _validate_safe_path(args.infile, base_dir='.')
+        _validate_safe_path(args.output, base_dir='.')
+    except ValueError as e:
+        print(f'Error: {e}', file=__import__('sys').stderr)
+        __import__('sys').exit(1)
 
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
     parsed = parse_metadata_file(args.infile)

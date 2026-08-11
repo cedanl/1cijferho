@@ -1,3 +1,4 @@
+from eencijferho.config import DECODED_SUFFIX, ENRICHED_SUFFIX
 import math
 import os
 import glob as _glob
@@ -617,8 +618,8 @@ else:
                         st.write("**Aangemaakte bestanden:**")
 
                         # Group files by type for better organization
-                        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_decoded.csv') and not f['name'].endswith('_enriched.csv')]
-                        decoded_files = [f for f in output_files if f['name'].endswith('_decoded.csv') or f['name'].endswith('_enriched.csv')]
+                        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith(DECODED_SUFFIX) and not f['name'].endswith(ENRICHED_SUFFIX)]
+                        decoded_files = [f for f in output_files if f['name'].endswith(DECODED_SUFFIX) or f['name'].endswith(ENRICHED_SUFFIX)]
                         parquet_files = [f for f in output_files if f['name'].endswith('.parquet')]
 
                         if csv_files:
@@ -691,8 +692,8 @@ if output_files:
         st.write("**Bestanden in de uitvoermap:**")
 
         # Group files by type for better organization
-        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith('_decoded.csv') and not f['name'].endswith('_enriched.csv')]
-        decoded_files = [f for f in output_files if f['name'].endswith('_decoded.csv') or f['name'].endswith('_enriched.csv')]
+        csv_files = [f for f in output_files if f['name'].endswith('.csv') and not f['name'].endswith(DECODED_SUFFIX) and not f['name'].endswith(ENRICHED_SUFFIX)]
+        decoded_files = [f for f in output_files if f['name'].endswith(DECODED_SUFFIX) or f['name'].endswith(ENRICHED_SUFFIX)]
         parquet_files = [f for f in output_files if f['name'].endswith('.parquet')]
 
         if csv_files:

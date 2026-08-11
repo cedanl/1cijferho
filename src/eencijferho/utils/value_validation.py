@@ -1,3 +1,4 @@
+from eencijferho.config import DECODED_SUFFIX, ENRICHED_SUFFIX
 # -----------------------------------------------------------------------------
 # Organization: CEDA
 # License: MIT
@@ -179,7 +180,7 @@ def validate_column_values_folder(
 
     csv_files = [
         f for f in output_dir.glob("*.csv")
-        if not f.name.endswith("_decoded.csv") and not f.name.endswith("_enriched.csv")
+        if not f.name.endswith(DECODED_SUFFIX) and not f.name.endswith(ENRICHED_SUFFIX)
     ]
 
     for csv_file in csv_files:

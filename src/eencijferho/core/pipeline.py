@@ -3,7 +3,7 @@ Modular pipeline orchestrator: conversion → decoding → validation → BSN tr
 """
 
 import os
-from eencijferho.config import OutputConfig
+from eencijferho.config import OutputConfig, DECODED_SUFFIX, ENRICHED_SUFFIX
 import polars as pl
 from eencijferho.core import converter, decoder
 import eencijferho.utils.converter_validation as cv
@@ -20,7 +20,7 @@ def _is_main_csv_file(filename: str) -> bool:
     """Check if filename is a main CSV file (not already decoded/enriched)."""
     is_main_type = filename.startswith("EV") or filename.startswith("VAKHAVW")
     is_csv = filename.endswith(".csv")
-    not_processed = not (filename.endswith("_decoded.csv") or filename.endswith("_enriched.csv"))
+    not_processed = not (filename.endswith(DECODED_SUFFIX) or filename.endswith(ENRICHED_SUFFIX))
     return is_main_type and is_csv and not_processed
 
 def _process_enriched_file(
@@ -43,7 +43,7 @@ def _process_enriched_file(
     )
 
     if dec_only_df is None or not enriched_df.equals(dec_only_df):
-        enriched_file = filepath.replace(".csv", "_enriched.csv")
+        enriched_file = filepath.replace(".csv", ENRICHED_SUFFIX)
         storage.write_text(enriched_df.write_csv(separator=";"), enriched_file)
     else:
         log += f"[pipeline] {filename}: _enriched identiek aan _decoded, overgeslagen.\n"
@@ -162,7 +162,7 @@ def run_turbo_convert_pipeline(
                     main_df, dec_metadata_json, dec_tables,
                     decode_columns=output_config.decode_columns,
                 )
-                dec_only_file = filepath.replace(".csv", "_decoded.csv")
+                dec_only_file = filepath.replace(".csv", DECODED_SUFFIX)
                 storage.write_text(dec_only_df.write_csv(separator=";"), dec_only_file)
             else:
                 dec_only_df = None
