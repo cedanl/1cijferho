@@ -4,8 +4,8 @@ import pytest
 from unittest.mock import MagicMock, patch
 import polars as pl
 
-from eencijferho.core.pipeline import _is_main_csv_file, _collect_output_files
-from eencijferho.config import OutputConfig
+from eencijferho.core.pipeline import _is_main_csv_file, _collect_output_files, _process_enriched_file
+from eencijferho.config import OutputConfig, ENRICHED_SUFFIX
 
 
 class TestPipelineHelpers:
@@ -133,3 +133,97 @@ class TestCollectOutputFiles:
 
         assert result[0]["size"] == 1024 * 1024
         assert result[0]["size_formatted"] == "1024.0 KB"
+
+
+class TestProcessEnrichedFile:
+    """Test _process_enriched_file function."""
+
+    def test_process_enriched_file_no_variable_mappings(self):
+        """Skip enrichment when no variable mappings available."""
+        storage = MagicMock()
+        main_df = pl.DataFrame({"Col1": [1, 2, 3]})
+        log = "[pipeline] Starting..."
+
+        with patch("eencijferho.core.pipeline.ch"):
+            result = _process_enriched_file(
+                storage=storage,
+                main_df=main_df,
+                filepath="output/file.csv",
+                filename="file.csv",
+                log=log,
+                dec_metadata_json="metadata.json",
+                dec_tables={},
+                variable_metadata_json="variables.json",
+                var_maps={},  # Empty var_maps
+                output_config=OutputConfig(),
+                dec_only_df=None,
+            )
+
+        # Should add log message and return unchanged
+        assert "geen variable_metadata mappings" in result
+        assert result.startswith("[pipeline] Starting...")
+
+    def test_process_enriched_file_identical_to_decoded(self):
+        """Skip writing enriched file when identical to decoded."""
+        storage = MagicMock()
+        main_df = pl.DataFrame({"EnrichedCol": [1, 2, 3]})
+        dec_only_df = main_df.clone()
+        log = "[pipeline] Starting..."
+
+        with patch("eencijferho.core.pipeline.ch") as mock_ch:
+            with patch("eencijferho.core.pipeline.decoder") as mock_decoder:
+                mock_ch.normalize_name = lambda x: x.lower()
+                mock_ch.clean_header_name = lambda x: x
+                mock_decoder.decode_fields.return_value = dec_only_df
+
+                result = _process_enriched_file(
+                    storage=storage,
+                    main_df=main_df,
+                    filepath="output/file.csv",
+                    filename="file.csv",
+                    log=log,
+                    dec_metadata_json="metadata.json",
+                    dec_tables={},
+                    variable_metadata_json="variables.json",
+                    var_maps={"enrichedcol": "value"},
+                    output_config=OutputConfig(),
+                    dec_only_df=dec_only_df,
+                )
+
+        # Should log that enriched is identical and skip writing
+        assert "identiek aan _decoded" in result
+        storage.write_text.assert_not_called()
+
+    def test_process_enriched_file_writes_when_different(self):
+        """Write enriched file when different from decoded."""
+        storage = MagicMock()
+        main_df = pl.DataFrame({"EnrichedCol": [1, 2, 3]})
+        enriched_df = pl.DataFrame({"EnrichedCol": [10, 20, 30]})
+        dec_only_df = pl.DataFrame({"EnrichedCol": [1, 2, 3]})
+        log = "[pipeline] Starting..."
+
+        with patch("eencijferho.core.pipeline.ch") as mock_ch:
+            with patch("eencijferho.core.pipeline.decoder") as mock_decoder:
+                mock_ch.normalize_name = lambda x: x.lower()
+                mock_ch.clean_header_name = lambda x: x
+                mock_decoder.decode_fields.return_value = enriched_df
+
+                result = _process_enriched_file(
+                    storage=storage,
+                    main_df=main_df,
+                    filepath="output/file.csv",
+                    filename="file.csv",
+                    log=log,
+                    dec_metadata_json="metadata.json",
+                    dec_tables={},
+                    variable_metadata_json="variables.json",
+                    var_maps={"enrichedcol": "value"},
+                    output_config=OutputConfig(),
+                    dec_only_df=dec_only_df,
+                )
+
+        # Should write the enriched file
+        storage.write_text.assert_called_once()
+        call_args = storage.write_text.call_args
+        # Check that the enriched suffix is used
+        assert ENRICHED_SUFFIX in call_args[0][1]
