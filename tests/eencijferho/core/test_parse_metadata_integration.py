@@ -200,3 +200,146 @@ Mogelijke waarden:
             assert len(result) == 1
             assert result[0]['name'] == 'Indicatie geboren'
             assert result[0]['values']['99'] == 'Onbekend'
+
+    def test_parse_variable_without_mogelijke_waarden(self):
+        """Skip variable when there's no 'Mogelijke waarden:' section."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            metadata_file = os.path.join(tmpdir, "test.txt")
+            with open(metadata_file, 'w', encoding='latin-1') as f:
+                f.write("""VarWithoutValues
+---
+This variable has no values section.
+
+Some other text here.
+
+Geslacht
+---
+Gender.
+
+Mogelijke waarden:
+1 = Male
+2 = Female
+""")
+            result = parse_metadata_file(metadata_file)
+            # VarWithoutValues should be skipped since no "Mogelijke waarden:"
+            assert len(result) == 1
+            assert result[0]['name'] == 'Geslacht'
+
+    def test_parse_long_key_continuation_in_values(self):
+        """Test continuation of long key-value pairs across lines."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            metadata_file = os.path.join(tmpdir, "test.txt")
+            with open(metadata_file, 'w', encoding='latin-1') as f:
+                f.write("""Description
+---
+Field description.
+
+Mogelijke waarden:
+Very Long Key Name That Exceeds 40 Characters = First part of value
+continuation of the value on next line
+""")
+            result = parse_metadata_file(metadata_file)
+            assert len(result) == 1
+            # The long key should trigger continuation handling
+            values_dict = result[0]['values']
+            # One of the values should have continuation
+            assert any('continuation' in str(v).lower() for v in values_dict.values())
+
+    def test_parse_invalid_header_not_followed_by_separator(self):
+        """Ignore line that looks like header but isn't followed by separator."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            metadata_file = os.path.join(tmpdir, "test.txt")
+            with open(metadata_file, 'w', encoding='latin-1') as f:
+                f.write("""This Looks Like A Header
+But it's not because there's no separator below it.
+
+ActualVar
+---
+Real variable.
+
+Mogelijke waarden:
+1 = Value
+""")
+            result = parse_metadata_file(metadata_file)
+            # Only ActualVar should be found
+            assert len(result) == 1
+            assert result[0]['name'] == 'ActualVar'
+
+    def test_parse_with_multiple_notes(self):
+        """Parse variable with multiple note lines."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            metadata_file = os.path.join(tmpdir, "test.txt")
+            with open(metadata_file, 'w', encoding='latin-1') as f:
+                f.write("""Status
+---
+Status field.
+
+Mogelijke waarden:
+1 = Active
+* First note
+* Second note
+* Third note
+""")
+            result = parse_metadata_file(metadata_file)
+            assert len(result) == 1
+            # All notes should be in description
+            desc = result[0]['description']
+            assert 'First note' in desc
+            assert 'Second note' in desc
+            assert 'Third note' in desc
+
+    def test_parse_mixed_key_value_and_continuation(self):
+        """Parse mixture of key=value pairs and continuation lines."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            metadata_file = os.path.join(tmpdir, "test.txt")
+            with open(metadata_file, 'w', encoding='latin-1') as f:
+                f.write("""Code
+---
+Code field.
+
+Mogelijke waarden:
+1 = First value
+with continuation
+2 = Second value
+with multiple
+continuation lines
+3 = Third value
+""")
+            result = parse_metadata_file(metadata_file)
+            assert len(result) == 1
+            values = result[0]['values']
+            assert '1' in values
+            assert '2' in values
+            assert '3' in values
+            # Check that continuation worked
+            assert 'continuation' in values['1']
+            assert 'multiple' in values['2']
+
+    def test_parse_long_key_continuation_exact_equals_position(self):
+        """Test long key continuation when equals sign is at exact position 40+."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            metadata_file = os.path.join(tmpdir, "test.txt")
+            with open(metadata_file, 'w', encoding='latin-1') as f:
+                # When a key=value line has equals at position 40+, it's treated as a continuation
+                # of the previous key (not as a new key). This tests that behavior.
+                f.write("""VeryLongFieldDescription
+---
+Field with very long keys.
+
+Mogelijke waarden:
+VeryShortKey = First value
+Extremely Long Key Name That Is More Than Forty Characters = continuation appended to VeryShortKey
+Another Short Key = separate value
+""")
+            result = parse_metadata_file(metadata_file)
+            assert len(result) == 1
+            values = result[0]['values']
+            # VeryShortKey should have the continuation appended to it
+            assert 'VeryShortKey' in values
+            # The value should contain both original and appended text
+            veryshortkey_value = values['VeryShortKey']
+            assert 'First value' in veryshortkey_value
+            assert 'continuation' in veryshortkey_value.lower()
+            # Another Short Key should be separate
+            assert 'Another Short Key' in values
+            assert values['Another Short Key'] == 'separate value'
