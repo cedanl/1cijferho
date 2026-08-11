@@ -88,7 +88,7 @@ def check_repo_version() -> dict | None:
                 "local_version": local_version,
                 "latest_version": latest_version,
             }
-    except:
+    except (FileNotFoundError, KeyError, ValueError, ConnectionError):
         return None
 
 

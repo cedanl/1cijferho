@@ -16,6 +16,60 @@ from typing import Any
 from eencijferho.io.decorators import with_storage
 
 
+def _is_main_csv_file(filename: str) -> bool:
+    """Check if filename is a main CSV file (not already decoded/enriched)."""
+    is_main_type = filename.startswith("EV") or filename.startswith("VAKHAVW")
+    is_csv = filename.endswith(".csv")
+    not_processed = not (filename.endswith("_decoded.csv") or filename.endswith("_enriched.csv"))
+    return is_main_type and is_csv and not_processed
+
+def _process_enriched_file(
+    storage, main_df: pl.DataFrame, filepath: str, filename: str, log: str,
+    dec_metadata_json: str, dec_tables: dict, variable_metadata_json: str,
+    var_maps: dict, output_config: OutputConfig, dec_only_df: pl.DataFrame | None
+) -> str:
+    """Process and write enriched file; return updated log."""
+    normalized_cols = {ch.normalize_name(ch.clean_header_name(c)) for c in main_df.columns}
+
+    if not (var_maps and normalized_cols & set(var_maps.keys())):
+        log += f"[pipeline] {filename}: geen variable_metadata mappings, _enriched overgeslagen.\n"
+        return log
+
+    enriched_df = decoder.decode_fields(
+        main_df, dec_metadata_json, dec_tables,
+        variable_metadata_path=variable_metadata_json,
+        decode_columns=output_config.decode_columns,
+        enrich_variables=output_config.enrich_variables,
+    )
+
+    if dec_only_df is None or not enriched_df.equals(dec_only_df):
+        enriched_file = filepath.replace(".csv", "_enriched.csv")
+        storage.write_text(enriched_df.write_csv(separator=";"), enriched_file)
+    else:
+        log += f"[pipeline] {filename}: _enriched identiek aan _decoded, overgeslagen.\n"
+
+    return log
+
+def _collect_output_files(storage, output_dir: str) -> list[dict[str, Any]]:
+    """Collect and format output file information."""
+    output_files = []
+    all_output = storage.list_files(f"{output_dir}/*")
+
+    for filepath in all_output:
+        filename = os.path.basename(filepath)
+        try:
+            size = len(storage.read_bytes(filepath))
+        except Exception:
+            size = 0
+
+        output_files.append({
+            "name": filename,
+            "size": size,
+            "size_formatted": f"{size / 1024:.1f} KB",
+        })
+
+    return output_files
+
 @with_storage
 def run_turbo_convert_pipeline(
     storage,
@@ -98,18 +152,12 @@ def run_turbo_convert_pipeline(
         csv_files = storage.list_files(f"{dec_dir}/*.csv")
         for filepath in csv_files:
             filename = os.path.basename(filepath)
-            if not (
-                (filename.startswith("EV") or filename.startswith("VAKHAVW"))
-                and filename.endswith(".csv")
-                and not filename.endswith("_decoded.csv")
-                and not filename.endswith("_enriched.csv")
-            ):
+            if not _is_main_csv_file(filename):
                 continue
 
             main_df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
 
             if do_decode:
-                # DEC-only decode
                 dec_only_df = decoder.decode_fields_dec_only(
                     main_df, dec_metadata_json, dec_tables,
                     decode_columns=output_config.decode_columns,
@@ -120,23 +168,11 @@ def run_turbo_convert_pipeline(
                 dec_only_df = None
 
             if do_enrich:
-                normalized_cols = {
-                    ch.normalize_name(ch.clean_header_name(c)) for c in main_df.columns
-                }
-                if not (var_maps and normalized_cols & set(var_maps.keys())):
-                    log += f"[pipeline] {filename}: geen variable_metadata mappings, _enriched overgeslagen.\n"
-                else:
-                    enriched_df = decoder.decode_fields(
-                        main_df, dec_metadata_json, dec_tables,
-                        variable_metadata_path=variable_metadata_json,
-                        decode_columns=output_config.decode_columns,
-                        enrich_variables=output_config.enrich_variables,
-                    )
-                    if dec_only_df is None or not enriched_df.equals(dec_only_df):
-                        enriched_file = filepath.replace(".csv", "_enriched.csv")
-                        storage.write_text(enriched_df.write_csv(separator=";"), enriched_file)
-                    else:
-                        log += f"[pipeline] {filename}: _enriched identiek aan _decoded, overgeslagen.\n"
+                log = _process_enriched_file(
+                    storage, main_df, filepath, filename, log,
+                    dec_metadata_json, dec_tables, variable_metadata_json,
+                    var_maps, output_config, dec_only_df
+                )
 
             decoded_count += 1
     if do_decode or do_enrich:
@@ -189,20 +225,6 @@ def run_turbo_convert_pipeline(
         log += "[pipeline] Kolomnamen gestandaardiseerd.\n"
     if progress_callback:
         progress_callback(100)
-    # Collect output files
-    output_files = []
-    all_output = storage.list_files(f"{output_dir}/*")
-    for filepath in all_output:
-        filename = os.path.basename(filepath)
-        try:
-            size = len(storage.read_bytes(filepath))
-        except Exception:
-            size = 0
-        output_files.append(
-            {
-                "name": filename,
-                "size": size,
-                "size_formatted": f"{size / 1024:.1f} KB",
-            }
-        )
+
+    output_files = _collect_output_files(storage, output_dir)
     return log, output_files

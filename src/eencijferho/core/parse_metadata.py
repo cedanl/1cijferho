@@ -12,130 +12,148 @@ from typing import Any
 from eencijferho.io.decorators import with_storage
 
 
+def _next_nonempty_index(lines: list[str], start: int) -> int:
+    n = len(lines)
+    j = start
+    while j < n and lines[j].strip() == "":
+        j += 1
+    return j
+
+def _is_separator(lines: list[str], idx: int) -> bool:
+    if idx >= len(lines):
+        return False
+    return bool(re.match(r'^-+\s*$', lines[idx].strip()))
+
+def _parse_description_section(lines: list[str], start: int) -> tuple[int, list[str]]:
+    """Parse description lines until 'Mogelijke waarden:' or next variable header."""
+    desc_lines = []
+    i = start
+    n = len(lines)
+
+    while i < n:
+        s = lines[i].strip()
+        if s.lower().startswith('mogelijke waarden:'):
+            return i + 1, desc_lines
+
+        k = _next_nonempty_index(lines, i)
+        if k < n:
+            kk = _next_nonempty_index(lines, k + 1)
+            if kk < n and _is_separator(lines, kk):
+                break
+
+        desc_lines.append(lines[i].rstrip())
+        i += 1
+
+    return i, desc_lines
+
+def _is_long_key_continuation(raw: str, key: str) -> bool:
+    eq_pos = raw.find('=')
+    return (eq_pos >= 40) or (len(key) > 20 and not re.search(r'^[0-9]+$', key))
+
+def _parse_values_section(lines: list[str], start: int, var_name: str) -> tuple[int, dict, list[str]]:
+    """Parse values section (key=value pairs, lists, references)."""
+    values = {}
+    values_lines = []
+    notes_lines = []
+    last_key = None
+    i = start
+    n = len(lines)
+
+    while i < n:
+        raw = lines[i]
+        s = raw.strip()
+
+        k = _next_nonempty_index(lines, i)
+        kk = _next_nonempty_index(lines, k + 1)
+        if k < n and kk < n and k == i and _is_separator(lines, kk):
+            break
+
+        if i >= n:
+            break
+
+        if s == "":
+            i += 1
+            continue
+
+        if s.startswith('*'):
+            notes_lines.append(s)
+            i += 1
+            continue
+
+        m = re.match(r'^([^=<>`]+?)\s*=\s*(.+)$', s)
+        if m:
+            key = m.group(1).strip()
+            val = m.group(2).strip()
+            is_continuation = _is_long_key_continuation(raw, key)
+
+            if var_name == "Indicatie geboren" and key == "99":
+                values[key] = "Onbekend"
+                last_key = None
+            elif is_continuation and last_key:
+                cont = re.sub(r'\s+', ' ', s).strip()
+                values[last_key] = values[last_key].rstrip() + ' ' + cont
+            else:
+                values[key] = val
+                last_key = key
+        else:
+            if last_key:
+                cont = re.sub(r'\s+', ' ', s).strip()
+                values[last_key] = values[last_key].rstrip() + ' ' + cont
+            else:
+                values_lines.append(s)
+
+        i += 1
+
+    if not values and values_lines:
+        if len(values_lines) == 1 and any(x in values_lines[0] for x in ['Zie bestand', 'Zie']):
+            values['reference'] = values_lines[0]
+        else:
+            values['list'] = values_lines
+
+    return i, values, notes_lines
+
 @with_storage
 def parse_metadata_file(storage, path: str) -> list[dict[str, Any]]:
     """Parse metadata text file for variable descriptions and possible values."""
     text = storage.read_text(path, encoding="latin-1")
     lines = text.split("\n")
 
-    n = len(lines)
-    i = 0
     vars_out = []
-
-    def next_nonempty_index(start: int) -> int:
-        j = start
-        while j < n and lines[j].strip() == "":
-            j += 1
-        return j
-
     seen_names = set()
+    i = 0
+    n = len(lines)
+
     while i < n:
-        if lines[i].strip() == "":
+        s = lines[i].strip()
+        if s == "":
             i += 1
             continue
 
-        name_candidate = lines[i].strip()
-        j = next_nonempty_index(i + 1)
-        # Detect header separator line (dashes)
-        if j < n and re.match(r'^-+\s*$', lines[j].strip()):
+        name_candidate = s
+        j = _next_nonempty_index(lines, i + 1)
+
+        if j < n and _is_separator(lines, j):
             name = name_candidate
             i = j + 1
 
-            # Collect description lines until 'Mogelijke waarden:' section
-            desc_lines = []
-            found_values = False
-            while i < n:
-                s = lines[i].strip()
-                if s.lower().startswith('mogelijke waarden:'):
-                    found_values = True
-                    i += 1
-                    break
-                k = next_nonempty_index(i)
-                if k < n:
-                    maybe_next = lines[k].strip()
-                    kk = next_nonempty_index(k + 1)
-                    if kk < n and re.match(r'^-+\s*$', lines[kk].strip()):
-                        break
-                desc_lines.append(lines[i].rstrip())
-                i += 1
+            i, desc_lines = _parse_description_section(lines, i)
+            found_values = i < n and lines[i - 1].strip().lower().startswith('mogelijke waarden:')
 
             if not found_values:
-                i += 1
                 continue
 
-            # Parse values section: key-value pairs, lists, or references
-            values = {}
-            values_lines = []
-            last_key = None
-            notes_lines = []
-            while i < n:
-                raw = lines[i]
-                s = raw.strip()
-                # Check for next variable header (non-empty + next non-empty dashes)
-                k = next_nonempty_index(i)
-                kk = next_nonempty_index(k + 1)
-                if k < n and kk < n and k == i and re.match(r'^-+\s*$', lines[kk].strip()):
-                    break
-                # End values section if we hit end of file
-                if i >= n:
-                    break
-                # If line is empty, treat as possible separator, but do not break
-                if s == "":
-                    i += 1
-                    continue
-                # Skip lines starting with '*' (not a value, but a note)
-                if s.startswith('*'):
-                    notes_lines.append(s)
-                    i += 1
-                    continue
-                m = re.match(r'^([^=<>`]+?)\s*=\s*(.+)$', s)
-                if m:
-                    # Decide whether this is a true key=value line or a
-                    # continuation line that happens to contain an '=' inside
-                    # parentheses or a long explanation. Use the position of
-                    # '=' in the original raw line as a heuristic.
-                    eq_pos = raw.find('=')
-                    key = m.group(1).strip()
-                    val = m.group(2).strip()
+            i, values, notes_lines = _parse_values_section(lines, i, name)
 
-                    long_key_continuation = (eq_pos is not None and eq_pos >= 0 and eq_pos > 40) or (len(key) > 20 and not re.search(r'^[0-9]+$', key))
-
-                    # Special handling for Indicatie geboren, value 99
-                    if name == "Indicatie geboren" and key == "99":
-                        values[key] = "Onbekend"
-                        last_key = None
-                    elif long_key_continuation and last_key:
-                        # Treat this line as a continuation for the previous key
-                        cont = re.sub(r'\s+', ' ', s).strip()
-                        values[last_key] = values[last_key].rstrip() + ' ' + cont
-                    else:
-                        values[key] = val
-                        last_key = key
-                else:
-                    # If previous key exists, treat as continuation
-                    if last_key:
-                        # Normalize whitespace and append as continuation
-                        cont = re.sub(r'\s+', ' ', s).strip()
-                        values[last_key] = values[last_key].rstrip() + ' ' + cont
-                    else:
-                        values_lines.append(s)
-                i += 1
-            # If no key-value pairs, but values_lines exist, store as 'reference' or 'list'
-            if not values and values_lines:
-                if len(values_lines) == 1 and ('Zie bestand' in values_lines[0] or 'Zie' in values_lines[0]):
-                    values['reference'] = values_lines[0]
-                else:
-                    values['list'] = values_lines
-            desc = ' '.join([ln.strip() for ln in desc_lines if ln.strip()])
+            desc = ' '.join(ln.strip() for ln in desc_lines if ln.strip())
             if notes_lines:
                 desc = desc + ' ' + ' '.join(notes_lines)
-            # Only add variable if not already seen
+
             if name not in seen_names:
                 vars_out.append({'name': name, 'description': desc, 'values': values})
                 seen_names.add(name)
-            continue
         else:
             i += 1
+
     return vars_out
 
 
