@@ -10,7 +10,17 @@ No Streamlit dependency - safe to use in any Python environment.
 """
 
 import os
+import sys
 from dataclasses import dataclass, field
+
+def validate_safe_path(path: str, base_dir: str = ".") -> str:
+    """Validate that path is within base_dir to prevent path traversal attacks."""
+    real_path = os.path.realpath(path)
+    real_base = os.path.realpath(base_dir)
+
+    if not real_path.startswith(real_base + os.sep) and real_path != real_base:
+        raise ValueError(f"Path traversal attempt detected: {path}")
+    return path
 
 @dataclass
 class OutputConfig:

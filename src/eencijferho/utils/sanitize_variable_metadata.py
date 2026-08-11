@@ -3,18 +3,11 @@ import os
 import sys
 from pathlib import Path
 
-def _validate_safe_path(path: str, base_dir: str = ".") -> str:
-    """Validate that path is within base_dir to prevent path traversal."""
-    real_path = os.path.realpath(path)
-    real_base = os.path.realpath(base_dir)
-
-    if not real_path.startswith(real_base + os.sep) and real_path != real_base:
-        raise ValueError(f"Path traversal attempt detected: {path}")
-    return path
+from eencijferho.config import validate_safe_path
 
 def sanitize_variable_metadata_json(json_path: str) -> None:
     # Validate path to prevent path traversal
-    json_path = _validate_safe_path(json_path)
+    json_path = validate_safe_path(json_path)
 
     with open(json_path, encoding='utf-8') as f:
         data = json.load(f)

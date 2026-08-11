@@ -10,15 +10,7 @@ import re
 from typing import Any
 
 from eencijferho.io.decorators import with_storage
-
-def _validate_safe_path(path: str, base_dir: str = ".") -> str:
-    """Validate that path is within base_dir to prevent path traversal."""
-    real_path = os.path.realpath(path)
-    real_base = os.path.realpath(base_dir)
-
-    if not real_path.startswith(real_base + os.sep) and real_path != real_base:
-        raise ValueError(f"Path traversal attempt detected: {path}")
-    return path
+from eencijferho.config import validate_safe_path
 
 
 def _next_nonempty_index(lines: list[str], start: int) -> int:
@@ -176,8 +168,8 @@ if __name__ == '__main__':
 
     # Validate paths to prevent traversal attacks
     try:
-        _validate_safe_path(args.infile, base_dir='.')
-        _validate_safe_path(args.output, base_dir='.')
+        validate_safe_path(args.infile, base_dir='.')
+        validate_safe_path(args.output, base_dir='.')
     except ValueError as e:
         print(f'Error: {e}', file=__import__('sys').stderr)
         __import__('sys').exit(1)

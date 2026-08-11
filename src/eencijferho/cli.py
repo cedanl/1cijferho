@@ -32,17 +32,17 @@ import datetime
 import os
 import sys
 
-import polars as pl
 from rich.console import Console
 from rich.panel import Panel
 
+from eencijferho.config import validate_safe_path as _check_safe_path
+
 def _validate_safe_path(path: str, base_dir: str = ".") -> None:
     """Validate that path is within base_dir to prevent path traversal."""
-    real_path = os.path.realpath(path)
-    real_base = os.path.realpath(base_dir)
-
-    if not real_path.startswith(real_base + os.sep) and real_path != real_base:
-        console.print(f"[red]Error: Path traversal attempt detected: {path}[/red]")
+    try:
+        _check_safe_path(path, base_dir)
+    except ValueError as e:
+        _console.print(f"[red]Error: {e}[/red]")
         sys.exit(1)
 
 from eencijferho.core.decoder import (
