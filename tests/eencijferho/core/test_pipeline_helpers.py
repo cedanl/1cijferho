@@ -1,8 +1,11 @@
 """Tests for pipeline helper functions."""
 
 import pytest
+from unittest.mock import MagicMock, patch
+import polars as pl
 
-from eencijferho.core.pipeline import _is_main_csv_file
+from eencijferho.core.pipeline import _is_main_csv_file, _collect_output_files
+from eencijferho.config import OutputConfig
 
 
 class TestPipelineHelpers:
@@ -51,3 +54,82 @@ class TestPipelineHelpers:
     def test_is_main_csv_file_both_variants(self):
         """Reject files that have both decoded and enriched markers."""
         assert _is_main_csv_file("EV_decoded_enriched.csv") is False
+
+
+class TestCollectOutputFiles:
+    """Test _collect_output_files function."""
+
+    def test_collect_output_files_empty_directory(self):
+        """Return empty list for empty output directory."""
+        storage = MagicMock()
+        storage.list_files.return_value = []
+
+        result = _collect_output_files(storage, "output_dir")
+
+        assert result == []
+        storage.list_files.assert_called_once_with("output_dir/*")
+
+    def test_collect_output_files_single_file(self):
+        """Collect single file with size information."""
+        storage = MagicMock()
+        storage.list_files.return_value = ["output_dir/file.csv"]
+        storage.read_bytes.return_value = b"x" * 1024  # 1 KB
+
+        result = _collect_output_files(storage, "output_dir")
+
+        assert len(result) == 1
+        assert result[0]["name"] == "file.csv"
+        assert result[0]["size"] == 1024
+        assert result[0]["size_formatted"] == "1.0 KB"
+
+    def test_collect_output_files_multiple_files(self):
+        """Collect multiple files with different sizes."""
+        storage = MagicMock()
+        storage.list_files.return_value = [
+            "output_dir/file1.csv",
+            "output_dir/file2.parquet",
+        ]
+        storage.read_bytes.side_effect = [
+            b"x" * 2048,  # 2 KB
+            b"x" * 5120,  # 5 KB
+        ]
+
+        result = _collect_output_files(storage, "output_dir")
+
+        assert len(result) == 2
+        assert result[0]["name"] == "file1.csv"
+        assert result[0]["size"] == 2048
+        assert result[0]["size_formatted"] == "2.0 KB"
+        assert result[1]["name"] == "file2.parquet"
+        assert result[1]["size"] == 5120
+        assert result[1]["size_formatted"] == "5.0 KB"
+
+    def test_collect_output_files_read_error_handled(self):
+        """Handle read errors gracefully by setting size to 0."""
+        storage = MagicMock()
+        storage.list_files.return_value = [
+            "output_dir/accessible.csv",
+            "output_dir/inaccessible.csv",
+        ]
+        storage.read_bytes.side_effect = [
+            b"x" * 1024,
+            Exception("Read failed"),
+        ]
+
+        result = _collect_output_files(storage, "output_dir")
+
+        assert len(result) == 2
+        assert result[0]["size"] == 1024
+        assert result[1]["size"] == 0
+        assert result[1]["size_formatted"] == "0.0 KB"
+
+    def test_collect_output_files_large_files(self):
+        """Format large file sizes correctly."""
+        storage = MagicMock()
+        storage.list_files.return_value = ["output_dir/large.csv"]
+        storage.read_bytes.return_value = b"x" * (1024 * 1024)  # 1 MB = 1024 KB
+
+        result = _collect_output_files(storage, "output_dir")
+
+        assert result[0]["size"] == 1024 * 1024
+        assert result[0]["size_formatted"] == "1024.0 KB"
