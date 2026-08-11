@@ -1,7 +1,14 @@
 import json
+import os
 import sys
+from pathlib import Path
+
+from eencijferho.config import validate_safe_path
 
 def sanitize_variable_metadata_json(json_path: str) -> None:
+    # Validate path to prevent path traversal
+    json_path = validate_safe_path(json_path)
+
     with open(json_path, encoding='utf-8') as f:
         data = json.load(f)
     changed = False

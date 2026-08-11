@@ -12,6 +12,15 @@ No Streamlit dependency - safe to use in any Python environment.
 import os
 from dataclasses import dataclass, field
 
+def validate_safe_path(path: str, base_dir: str = ".") -> str:
+    """Validate that path is within base_dir to prevent path traversal attacks."""
+    real_path = os.path.realpath(path)
+    real_base = os.path.realpath(base_dir)
+
+    if not real_path.startswith(real_base + os.sep) and real_path != real_base:
+        raise ValueError(f"Path traversal attempt detected: {path}")
+    return path
+
 @dataclass
 class OutputConfig:
     """Controls which output variants the pipeline produces.
@@ -86,6 +95,10 @@ class OutputConfig:
             if not self.bsn_mapping_id_col:
                 raise ValueError("bsn_mapping_id_col mag niet leeg zijn.")
 
+
+# Output file suffixes (used across multiple modules)
+DECODED_SUFFIX: str = "_decoded.csv"
+ENRICHED_SUFFIX: str = "_enriched.csv"
 
 # DUO column names as they appear in raw output files (before snake_case conversion).
 # Centralised here so translator and any future code share one source of truth.

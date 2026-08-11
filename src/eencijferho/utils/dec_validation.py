@@ -1,3 +1,4 @@
+from eencijferho.config import DECODED_SUFFIX, ENRICHED_SUFFIX
 # -----------------------------------------------------------------------------
 # Organization: CEDA
 # License: MIT
@@ -318,8 +319,8 @@ def validate_with_dec_files_folder(
     main_csvs = [
         f for f in output_dir.glob("*.csv")
         if not f.name.startswith("Dec_")
-        and not f.name.endswith("_decoded.csv")
-        and not f.name.endswith("_enriched.csv")
+        and not f.name.endswith(DECODED_SUFFIX)
+        and not f.name.endswith(ENRICHED_SUFFIX)
     ]
 
     for csv_file in main_csvs:

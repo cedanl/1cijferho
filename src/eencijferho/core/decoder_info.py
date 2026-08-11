@@ -56,7 +56,7 @@ def get_decode_column_info(storage, dec_metadata_json_path: str) -> dict[str, li
 
         def _parse_col_name(row: str) -> str:
             """Extract column name from a content row like 'Naam land   5   40'."""
-            return _re.sub(r"\s+\d+\s+\d+\s*$", "", row).strip()
+            return _re.sub(r"\s+\d+\s+\d+$", "", row).strip()
 
         result: dict[str, list[str]] = {}
         for table in meta.get("tables", []):
