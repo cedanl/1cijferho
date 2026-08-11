@@ -51,6 +51,42 @@ def _is_long_key_continuation(raw: str, key: str) -> bool:
     eq_pos = raw.find('=')
     return (eq_pos >= 40) or (len(key) > 20 and not re.search(r'^[0-9]+$', key))
 
+def _process_key_value_line(s: str, raw: str, var_name: str, last_key: str | None, values: dict) -> tuple[str | None]:
+    """Extract key-value pair and handle special cases. Returns updated last_key."""
+    m = re.match(r'^([^=<>`]+?)\s*=\s*(.+?)$', s)
+    if not m:
+        return last_key
+
+    key = m.group(1).strip()
+    val = m.group(2).strip()
+    is_continuation = _is_long_key_continuation(raw, key)
+
+    if var_name == "Indicatie geboren" and key == "99":
+        values[key] = "Onbekend"
+        return None
+
+    if is_continuation and last_key:
+        cont = re.sub(r'\s+', ' ', s).strip()
+        values[last_key] = values[last_key].rstrip() + ' ' + cont
+        return last_key
+
+    values[key] = val
+    return key
+
+def _process_continuation_line(s: str, last_key: str | None, values: dict) -> None:
+    """Handle non-key-value continuation lines."""
+    if last_key:
+        cont = re.sub(r'\s+', ' ', s).strip()
+        values[last_key] = values[last_key].rstrip() + ' ' + cont
+
+def _process_fallback_values(values: dict, values_lines: list[str]) -> None:
+    """Handle cases where no key=value pairs were found."""
+    if not values and values_lines:
+        if len(values_lines) == 1 and any(x in values_lines[0] for x in ['Zie bestand', 'Zie']):
+            values['reference'] = values_lines[0]
+        else:
+            values['list'] = values_lines
+
 def _parse_values_section(lines: list[str], start: int, var_name: str) -> tuple[int, dict, list[str]]:
     """Parse values section (key=value pairs, lists, references)."""
     values = {}
@@ -69,9 +105,6 @@ def _parse_values_section(lines: list[str], start: int, var_name: str) -> tuple[
         if k < n and kk < n and k == i and _is_separator(lines, kk):
             break
 
-        if i >= n:
-            break
-
         if s == "":
             i += 1
             continue
@@ -83,34 +116,13 @@ def _parse_values_section(lines: list[str], start: int, var_name: str) -> tuple[
 
         m = re.match(r'^([^=<>`]+?)\s*=\s*(.+?)$', s)
         if m:
-            key = m.group(1).strip()
-            val = m.group(2).strip()
-            is_continuation = _is_long_key_continuation(raw, key)
-
-            if var_name == "Indicatie geboren" and key == "99":
-                values[key] = "Onbekend"
-                last_key = None
-            elif is_continuation and last_key:
-                cont = re.sub(r'\s+', ' ', s).strip()
-                values[last_key] = values[last_key].rstrip() + ' ' + cont
-            else:
-                values[key] = val
-                last_key = key
+            last_key = _process_key_value_line(s, raw, var_name, last_key, values)
         else:
-            if last_key:
-                cont = re.sub(r'\s+', ' ', s).strip()
-                values[last_key] = values[last_key].rstrip() + ' ' + cont
-            else:
-                values_lines.append(s)
+            _process_continuation_line(s, last_key, values)
 
         i += 1
 
-    if not values and values_lines:
-        if len(values_lines) == 1 and any(x in values_lines[0] for x in ['Zie bestand', 'Zie']):
-            values['reference'] = values_lines[0]
-        else:
-            values['list'] = values_lines
-
+    _process_fallback_values(values, values_lines)
     return i, values, notes_lines
 
 def _process_variable_block(lines: list[str], i: int, name: str, n: int) -> tuple[int, dict | None]:
