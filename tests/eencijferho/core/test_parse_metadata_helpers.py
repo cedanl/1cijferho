@@ -137,14 +137,16 @@ class TestParseMetadataHelpers:
     def test_process_continuation_line_with_last_key(self):
         """Append continuation line to last key."""
         values = {"key1": "original"}
-        _process_continuation_line("some continuation", "key1", values)
+        should_append = _process_continuation_line("some continuation", "key1", values)
+        assert should_append is False
         assert "continuation" in values["key1"]
         assert "original" in values["key1"]
 
     def test_process_continuation_line_no_last_key(self):
-        """Skip continuation line when no last_key."""
+        """Return True when no last_key to append to values_lines."""
         values = {}
-        _process_continuation_line("orphan line", None, values)
+        should_append = _process_continuation_line("orphan line", None, values)
+        assert should_append is True
         assert values == {}
 
     def test_process_fallback_values_reference(self):

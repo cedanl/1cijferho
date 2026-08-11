@@ -73,11 +73,13 @@ def _process_key_value_line(s: str, raw: str, var_name: str, last_key: str | Non
     values[key] = val
     return key
 
-def _process_continuation_line(s: str, last_key: str | None, values: dict) -> None:
-    """Handle non-key-value continuation lines."""
+def _process_continuation_line(s: str, last_key: str | None, values: dict) -> bool:
+    """Handle non-key-value continuation lines. Returns True if should append to values_lines."""
     if last_key:
         cont = re.sub(r'\s+', ' ', s).strip()
         values[last_key] = values[last_key].rstrip() + ' ' + cont
+        return False
+    return True
 
 def _process_fallback_values(values: dict, values_lines: list[str]) -> None:
     """Handle cases where no key=value pairs were found."""
@@ -118,7 +120,8 @@ def _parse_values_section(lines: list[str], start: int, var_name: str) -> tuple[
         if m:
             last_key = _process_key_value_line(s, raw, var_name, last_key, values)
         else:
-            _process_continuation_line(s, last_key, values)
+            if _process_continuation_line(s, last_key, values):
+                values_lines.append(s)
 
         i += 1
 
