@@ -14,12 +14,12 @@ def _run_in_tmpdir(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         original_cwd = os.getcwd()
-        try:
-            with tempfile.TemporaryDirectory() as tmpdir:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            try:
                 os.chdir(tmpdir)
                 return func(*args, **kwargs)
-        finally:
-            os.chdir(original_cwd)
+            finally:
+                os.chdir(original_cwd)
     return wrapper
 
 

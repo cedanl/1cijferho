@@ -14,25 +14,25 @@ class TestCLIPathValidation:
         """Allow valid paths within current directory."""
         # Use relative path within current directory
         original_cwd = os.getcwd()
-        try:
-            with tempfile.TemporaryDirectory() as tmpdir:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            try:
                 os.chdir(tmpdir)
                 # Should not raise
                 _validate_safe_path(".")
-        finally:
-            os.chdir(original_cwd)
+            finally:
+                os.chdir(original_cwd)
 
     def test_validate_safe_path_subdirectory(self):
         """Allow valid subdirectories."""
         original_cwd = os.getcwd()
-        try:
-            with tempfile.TemporaryDirectory() as tmpdir:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            try:
                 os.chdir(tmpdir)
                 os.makedirs("subdir")
                 # Should not raise
                 _validate_safe_path("subdir")
-        finally:
-            os.chdir(original_cwd)
+            finally:
+                os.chdir(original_cwd)
 
     def test_validate_safe_path_traversal_attack_rejected(self):
         """Reject path traversal attempts."""
