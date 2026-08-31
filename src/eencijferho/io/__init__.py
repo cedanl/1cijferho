@@ -51,7 +51,7 @@ def get_backend(backend_type: str | None = None) -> StorageBackend:
     """Factory: return a configured storage backend.
 
     Args:
-        backend_type: "disk", "minio", or "postgres". If None, reads
+        backend_type: "disk", "minio", "s3", or "postgres". If None, reads
                       from STORAGE_BACKEND env var (default: "disk").
     """
     config = StorageConfig.from_env()
@@ -68,6 +68,18 @@ def get_backend(backend_type: str | None = None) -> StorageBackend:
             secret_key=config.minio_secret_key,
             bucket=config.minio_bucket,
             secure=config.minio_secure,
+        )
+    elif backend == "s3":
+        from eencijferho.io.backends.s3 import S3Backend
+
+        return S3Backend(
+            endpoint=config.s3_endpoint,
+            access_key=config.s3_access_key,
+            secret_key=config.s3_secret_key,
+            bucket=config.s3_bucket,
+            region=config.s3_region,
+            secure=config.s3_secure,
+            path_style=config.s3_path_style,
         )
     elif backend == "postgres":
         from eencijferho.io.backends.postgres import PostgresBackend

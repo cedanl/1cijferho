@@ -90,3 +90,10 @@ Zie [Aan de slag](getting-started.md) voor de volledige installatiestappen.
     ```
 
     Zie de [API-referentie](api/index.md) voor de volledige API.
+
+---
+
+## Achtergrond & presentaties
+
+- [Presentatie DAIR 2025](presentatie-DAIR-2025.pdf) — introductie op de tool en het 1cijferHO-verwerkingsproces.
+- [SDP & compliance](sdp/index.md) — analyse van de inzet op SURF's Developer Platform (NIS2, EU AI Act, Data Act) en de rol van de Object Store.
