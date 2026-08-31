@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="utf-8">
+    <title>Persoonsgegevens ontsleutelen</title>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"
+            integrity="sha384-+R8PTzDXzivdjpxOqwVwRhPS9dlske7tKAjwj0O0Kr361gKY5d2Xe6Osl+faRLT7"
+            crossorigin="anonymous"></script>
+    <style>
+        body { font-family: 'Source Sans Pro', sans-serif; padding: 20px; }
+        .status { padding: 15px; margin: 10px 0; border-radius: 5px; font-size: 14px; }
+        .loading { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        #preview { max-height: 420px; overflow: auto; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div id="status" class="status loading">Pyodide initialiseren...</div>
+    <div id="preview"></div>
+
+    <script type="text/javascript">
+        // All inputs (data, password, sensitive fields) arrive as one base64 JSON
+        // blob and are passed to Python via globals.set — never interpolated into
+        // source, so a password can never break out into executable code.
+        const payload = JSON.parse(atob('__PAYLOAD_B64__'));
+        let pyodide;
+
+        async function initPyodide() {
+            try {
+                document.getElementById('status').innerHTML = 'Pyodide laden (10-20 seconden)...';
+                pyodide = await loadPyodide();
+                document.getElementById('status').innerHTML = 'cryptography installeren...';
+                await pyodide.loadPackage(['micropip']);
+                await pyodide.runPythonAsync(`
+                    import micropip
+                    await micropip.install('cryptography')
+                `);
+                decryptData();
+            } catch (error) {
+                document.getElementById('status').innerHTML = 'Fout bij laden Pyodide: ' + error;
+                document.getElementById('status').className = 'status error';
+                console.error(error);
+            }
+        }
+
+        async function decryptData() {
+            try {
+                document.getElementById('status').innerHTML = 'Data ontsleutelen in browser...';
+                document.getElementById('status').className = 'status loading';
+
+                pyodide.globals.set('data_input', atob(payload.data_b64));
+                pyodide.globals.set('password_input', payload.password);
+                pyodide.globals.set('sensitive_fields_input', payload.sensitive_fields);
+
+                const result = await pyodide.runPythonAsync(`
+import json, base64
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.backends import default_backend
+
+def derive_key(password, salt):
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt,
+                     iterations=100000, backend=default_backend())
+    return base64.urlsafe_b64encode(kdf.derive(password.encode()))
+
+data = json.loads(data_input)
+sensitive_fields = sensitive_fields_input
+decrypted_count = 0
+for row in data:
+    # Each record was encrypted with its own salt; re-derive that row's key.
+    salt_b64 = row.get('salt')
+    if not salt_b64:
+        continue
+    cipher = Fernet(derive_key(password_input, base64.b64decode(salt_b64)))
+    for field in sensitive_fields:
+        if field in row and row[field]:
+            try:
+                row[field] = cipher.decrypt(row[field].encode()).decode()
+                decrypted_count += 1
+            except Exception as e:
+                row[field] = "DECRYPT_ERROR"
+    row.pop('salt', None)
+str(decrypted_count) + "||" + json.dumps(data)
+                `);
+
+                const parts = result.split('||', 2);
+                const decrypted = JSON.parse(parts[1]);
+
+                // Build the table with DOM nodes and textContent so decrypted cell
+                // values are never interpreted as HTML (prevents stored XSS).
+                const preview = document.getElementById('preview');
+                preview.replaceChildren();
+                const heading = document.createElement('strong');
+                heading.textContent = 'Ontsleuteld: ' + parts[0] + ' waarden.';
+                preview.appendChild(heading);
+
+                if (decrypted.length > 0) {
+                    const table = document.createElement('table');
+                    const thead = document.createElement('thead');
+                    const headRow = document.createElement('tr');
+                    for (let key in decrypted[0]) {
+                        const th = document.createElement('th');
+                        th.textContent = key;
+                        headRow.appendChild(th);
+                    }
+                    thead.appendChild(headRow);
+                    table.appendChild(thead);
+
+                    const tbody = document.createElement('tbody');
+                    for (let i = 0; i < Math.min(decrypted.length, 20); i++) {
+                        const tr = document.createElement('tr');
+                        for (let key in decrypted[i]) {
+                            const td = document.createElement('td');
+                            td.textContent = decrypted[i][key] ?? '';
+                            tr.appendChild(td);
+                        }
+                        tbody.appendChild(tr);
+                    }
+                    table.appendChild(tbody);
+                    preview.appendChild(table);
+
+                    if (decrypted.length > 20) {
+                        const note = document.createElement('em');
+                        note.textContent = 'Eerste 20 van ' + decrypted.length + ' records.';
+                        preview.appendChild(note);
+                    }
+                }
+                document.getElementById('status').textContent = 'Klaar! ' + parts[0] + ' waarden ontsleuteld.';
+                document.getElementById('status').className = 'status success';
+            } catch (error) {
+                document.getElementById('status').innerHTML =
+                    'Ontsleutelfout: ' + error + ' — controleer het wachtwoord.';
+                document.getElementById('status').className = 'status error';
+                console.error(error);
+            }
+        }
+
+        initPyodide();
+    </script>
+</body>
+</html>

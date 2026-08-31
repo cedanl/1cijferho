@@ -18,3 +18,6 @@ jobs:
 
   minio-pipeline:
     uses: ./.github/workflows/minio-pipeline.yml
+
+  s3:
+    uses: ./.github/workflows/s3.yml

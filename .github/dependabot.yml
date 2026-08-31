@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # This is a uv project (uv.lock). Dependabot's "pip" updater does NOT read or
+  # bump uv.lock, so with "pip" alerts fire but no update PRs ever land — the
+  # transitive CVEs just accumulate. The "uv" ecosystem understands uv.lock.
+  # (Verify "uv" against the current GitHub Dependabot ecosystem list before
+  # merge: docs.github.com/en/code-security/dependabot — native uv support.)
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"

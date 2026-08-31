@@ -17,10 +17,12 @@ RUN useradd -m $USER
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --extra frontend --extra all-backends
+RUN uv sync --frozen --no-dev --no-install-project --extra frontend --extra all-backends
 
 COPY src ./src
 COPY data ./data
+
+RUN uv sync --frozen --no-dev --extra frontend --extra all-backends
 
 RUN chown -R $USER:$USER /app
 USER $USER

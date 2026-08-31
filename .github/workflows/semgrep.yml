@@ -1,0 +1,37 @@
+name: Semgrep
+
+on:
+  push:
+    branches: [main, feat/**, fix/**]
+  pull_request:
+    branches: [main]
+
+jobs:
+  semgrep:
+    name: Semgrep Security Scan
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        run: semgrep ci --sarif --output=semgrep-results.sarif || true
+        env:
+          SEMGREP_RULES: >-
+            p/python
+            p/security-audit
+            p/owasp-top-ten
+            p/secrets
+
+      - name: Upload SARIF to GitHub
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep-results.sarif
+          category: semgrep

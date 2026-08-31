@@ -1,11 +1,15 @@
-name: MinIO integration tests
+name: S3 backend tests (MinIO)
+
+# Exercises the generic boto3 S3 backend against a throwaway MinIO container
+# (MinIO is S3-compatible). Needs no credentials — proves the S3 code path on
+# every PR. For the real SURF object store, see s3-surf.yml.
 
 on:
   workflow_call:
 
 jobs:
   test:
-    name: MinIO integration tests
+    name: S3 backend tests (MinIO)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,13 +29,6 @@ jobs:
             sleep 1
           done
 
-      - name: Create MinIO test bucket
-        run: |
-          curl -LsSf https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
-          chmod +x /usr/local/bin/mc
-          mc alias set local http://localhost:9000 minioadmin minioadmin
-          mc mb local/1cijferho-test --ignore-existing
-
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
@@ -40,10 +37,10 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install dependencies (with minio extra)
-        run: uv sync --group dev --extra minio
+      - name: Install dependencies (with s3 extra)
+        # minio is included because tests/integration/conftest.py has a
+        # module-level import guard that skips the whole dir without it.
+        run: uv sync --group dev --extra s3 --extra minio
 
-      - name: Run MinIO integration tests
-        # The S3 backend has its own leaf (s3.yml); exclude it here so it
-        # isn't run twice per PR.
-        run: uv run pytest tests/integration/ -v --ignore=tests/integration/test_s3_backend.py
+      - name: Run S3 backend tests
+        run: uv run pytest tests/integration/test_s3_backend.py -v

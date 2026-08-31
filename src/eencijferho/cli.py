@@ -32,9 +32,18 @@ import datetime
 import os
 import sys
 
-import polars as pl
 from rich.console import Console
 from rich.panel import Panel
+
+from eencijferho.config import validate_safe_path as _check_safe_path
+
+def _validate_safe_path(path: str, base_dir: str = ".") -> None:
+    """Validate that path is within base_dir to prevent path traversal."""
+    try:
+        _check_safe_path(path, base_dir)
+    except ValueError as e:
+        _console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
 
 from eencijferho.core.decoder import (
     decode_fields,
@@ -47,6 +56,7 @@ from eencijferho.core.extractor import (
     write_variable_metadata,
     process_json_folder,
 )
+from eencijferho.config import DECODED_SUFFIX, ENRICHED_SUFFIX
 from eencijferho.core.pipeline import run_turbo_convert_pipeline
 from eencijferho.config import OutputConfig
 from eencijferho.presets import PRESET_CONFIGS
@@ -70,6 +80,8 @@ def _resolve_dirs(output_dir: str) -> tuple[str, str, str]:
 
 def cmd_extract(args: argparse.Namespace) -> None:
     """Extract metadata from input files into <output>/metadata/."""
+    _validate_safe_path(args.input)
+    _validate_safe_path(args.output)
     metadata_dir, json_dir, _ = _resolve_dirs(args.output)
     print(f"[eencijferho] Extracting metadata from: {args.input}")
     print(f"[eencijferho] Writing metadata to:      {metadata_dir}")
@@ -81,6 +93,8 @@ def cmd_extract(args: argparse.Namespace) -> None:
 
 def cmd_validate(args: argparse.Namespace) -> None:
     """Validate extracted metadata and match input files."""
+    _validate_safe_path(args.input)
+    _validate_safe_path(args.output)
     metadata_dir, _, logs_dir = _resolve_dirs(args.output)
     validation_log = os.path.join(logs_dir, "(3)_xlsx_validation_log_latest.json")
     print(f"[eencijferho] Validating metadata in: {metadata_dir}")
@@ -92,6 +106,8 @@ def cmd_validate(args: argparse.Namespace) -> None:
 @with_storage
 def cmd_validate_output(storage, args: argparse.Namespace) -> None:
     """Validate converted output files: column values and DEC decoder files."""
+    _validate_safe_path(args.input)
+    _validate_safe_path(args.output)
     metadata_dir, json_dir, logs_dir = _resolve_dirs(args.output)
 
     print(f"[eencijferho] Validating output files in: {args.output}")
@@ -186,6 +202,8 @@ def cmd_validate_output(storage, args: argparse.Namespace) -> None:
 
 @with_storage
 def cmd_decode(storage, args: argparse.Namespace) -> None:
+    _validate_safe_path(args.input)
+    _validate_safe_path(args.output)
     """Decode CSV files using Dec_* lookup tables (Dec-only, no label substitution)."""
     from eencijferho.core.decoder import decode_fields_dec_only, load_dec_tables_from_metadata
 
@@ -206,12 +224,12 @@ def cmd_decode(storage, args: argparse.Namespace) -> None:
         if not (
             (fname.startswith("EV") or fname.startswith("VAKHAVW"))
             and fname.endswith(".csv")
-            and not fname.endswith("_decoded.csv")
+            and not fname.endswith(DECODED_SUFFIX)
         ):
             continue
         df = storage.read_dataframe(filepath, format="csv")
         decoded_df = decode_fields_dec_only(df, dec_metadata_json, dec_tables)
-        out_path = filepath.replace(".csv", "_decoded.csv")
+        out_path = filepath.replace(".csv", DECODED_SUFFIX)
         storage.write_text(decoded_df.write_csv(separator=";"), out_path)
         print(f"[eencijferho] Gedecodeerd: {fname} → {os.path.basename(out_path)}")
         count += 1
@@ -220,6 +238,8 @@ def cmd_decode(storage, args: argparse.Namespace) -> None:
 
 @with_storage
 def cmd_enrich(storage, args: argparse.Namespace) -> None:
+    _validate_safe_path(args.input)
+    _validate_safe_path(args.output)
     """Apply variable_metadata label substitution to decoded CSV files.
 
     Skips decode_fields entirely when no variable_metadata mappings apply to
@@ -244,7 +264,7 @@ def cmd_enrich(storage, args: argparse.Namespace) -> None:
     written = skipped = 0
     for filepath in storage.list_files(f"{args.output}/*_decoded.csv"):
         fname = os.path.basename(filepath)
-        base = filepath.replace("_decoded.csv", ".csv")
+        base = filepath.replace(DECODED_SUFFIX, ".csv")
         if not storage.exists(base):
             continue
         main_df = storage.read_dataframe(base, format="csv")
@@ -262,7 +282,7 @@ def cmd_enrich(storage, args: argparse.Namespace) -> None:
             print(f"[eencijferho] Overgeslagen (identiek aan decoded): {fname}")
             skipped += 1
             continue
-        out_path = filepath.replace("_decoded.csv", "_enriched.csv")
+        out_path = filepath.replace(DECODED_SUFFIX, ENRICHED_SUFFIX)
         storage.write_text(enriched_df.write_csv(separator=";"), out_path)
         print(f"[eencijferho] Verrijkt: {fname} → {os.path.basename(out_path)}")
         written += 1
@@ -315,6 +335,8 @@ def _build_output_config(args: argparse.Namespace) -> OutputConfig:
 
 
 def cmd_convert(args: argparse.Namespace) -> None:
+    _validate_safe_path(args.input)
+    _validate_safe_path(args.output)
     """Run the full turbo convert pipeline."""
     metadata_dir, _, _ = _resolve_dirs(args.output)
     print(f"[eencijferho] Running turbo convert pipeline: {args.input} → {args.output}")
@@ -331,6 +353,8 @@ def cmd_convert(args: argparse.Namespace) -> None:
 
 
 def cmd_pipeline(args: argparse.Namespace) -> None:
+    _validate_safe_path(args.input)
+    _validate_safe_path(args.output)
     """Run the complete end-to-end pipeline (extract → validate → convert)."""
     metadata_dir, json_dir, logs_dir = _resolve_dirs(args.output)
     validation_log = os.path.join(logs_dir, "(3)_xlsx_validation_log_latest.json")

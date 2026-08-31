@@ -45,6 +45,8 @@ Issues = "https://github.com/cedanl/1cijferho/issues"
 frontend = [
     "streamlit>=1.41.1",
     "streamlit-extras>=0.6.0",
+    "streamlit-js>=1.0.8",
+    "pandas>=2.0",
 ]
 dev = [
     "ruff>=0.10.0",
@@ -59,12 +61,22 @@ docs = [
 minio = [
     "minio>=7.2",
 ]
+s3 = [
+    "boto3>=1.34",
+]
 postgres = [
     "psycopg2-binary>=2.9",
     "sqlalchemy>=2.0",
 ]
 all-backends = [
     "eencijferho[minio]",
+    "eencijferho[s3]",
+    "eencijferho[postgres]",
+]
+demo = [
+    "eencijferho[frontend]",
+    "eencijferho[minio]",
+    "eencijferho[s3]",
     "eencijferho[postgres]",
 ]
 
@@ -75,6 +87,7 @@ eencijferho = "eencijferho.cli:main"
 dev = [
     "playwright>=1.60.0",
     "pytest>=9.0.2",
+    "pytest-cov>=6.0",
 ]
 
 [tool.setuptools.packages.find]
