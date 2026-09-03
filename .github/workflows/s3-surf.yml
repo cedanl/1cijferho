@@ -27,8 +27,6 @@ name: S3 backend tests (SURF object store)
 #   SURF_S3_REGION       (defaults to us-east-1; RADOS-GW accepts any)
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
