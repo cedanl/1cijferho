@@ -12,10 +12,10 @@ name: S3 backend tests (SURF object store)
 # so they cannot connect to it — a verified run failed with
 # botocore EndpointConnectionError on every test (after hanging ~2h42m before
 # the backend's connect timeout was added). We therefore do NOT test against
-# the real object store in CI. This workflow is intentionally limited to
-# `main` push + manual dispatch, and is kept only for the future case of a
-# self-hosted runner INSIDE the SURF network. Day-to-day, verify against the
-# real store LOCALLY from a machine on eduVPN (see docs/ci-surf-object-store.md).
+# the real object store in CI. This workflow is manually triggered only
+# (workflow_dispatch) and is kept for the future case of a self-hosted runner
+# INSIDE the SURF network. Day-to-day, verify against the real store LOCALLY
+# from a machine on eduVPN (see docs/ci-surf-object-store.md).
 # The always-on S3 coverage in CI runs against MinIO instead (see s3.yml).
 #
 # Required repository secrets (Settings → Secrets and variables → Actions):
