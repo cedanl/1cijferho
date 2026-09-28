@@ -28,11 +28,14 @@ jobs:
 
       - name: Start MinIO
         run: |
+          # Mirror, not `minio/minio`: the Docker Hub repo was deleted and the
+          # quay.io repo is auth-gated. See minio.yml for the full story.
+          # Verbatim upstream image -> `server /data` is unchanged.
           docker run -d --name minio \
             -p 9000:9000 \
             -e MINIO_ROOT_USER=minioadmin \
             -e MINIO_ROOT_PASSWORD=minioadmin \
-            minio/minio server /data
+            pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372 server /data
 
           for i in $(seq 1 30); do
             curl -sf http://localhost:9000/minio/health/live && break
@@ -40,16 +43,8 @@ jobs:
             sleep 1
           done
 
-      - name: Create bucket and upload demo data
-        run: |
-          curl -LsSf https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
-          chmod +x /usr/local/bin/mc
-          mc alias set local http://localhost:9000 minioadmin minioadmin
-          mc mb local/1cijferho-pipeline --ignore-existing
-          mc cp --recursive data/01-input/DEMO/ local/1cijferho-pipeline/data/01-input/DEMO/
-
-          echo "=== Uploaded files ==="
-          mc ls --recursive local/1cijferho-pipeline/data/01-input/DEMO/ | head -30
+          curl -sf http://localhost:9000/minio/health/live >/dev/null \
+            || { echo "MinIO did not become healthy in 30s"; docker logs minio; exit 1; }
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -61,6 +56,39 @@ jobs:
 
       - name: Install dependencies (with minio extra)
         run: uv sync --group dev --extra minio
+
+      # Replaces the old `mc mb` / `mc cp` step. The mc binary is no longer
+      # downloadable (dl.min.io returns 410 Gone) and the `minio/mc` image is
+      # gone from Docker Hub, so we use the `minio` Python client that this job
+      # already installed. Must run after "Install dependencies".
+      - name: Create bucket and upload demo data
+        run: |
+          uv run python - <<'PY'
+          import os
+          from pathlib import Path
+          from minio import Minio
+
+          client = Minio(
+              "localhost:9000",
+              access_key=os.environ["MINIO_ACCESS_KEY"],
+              secret_key=os.environ["MINIO_SECRET_KEY"],
+              secure=False,
+          )
+          bucket = os.environ["MINIO_BUCKET"]
+          if not client.bucket_exists(bucket):
+              client.make_bucket(bucket)
+
+          prefix = "data/01-input/DEMO"
+          for src in sorted(Path("data/01-input/DEMO").rglob("*")):
+              if src.is_file():
+                  dest = f"{prefix}/{src.relative_to('data/01-input/DEMO')}"
+                  client.fput_object(bucket, dest, str(src))
+                  print(f"  {dest}")
+
+          objects = list(client.list_objects(bucket, prefix=prefix, recursive=True))
+          print(f"=== {len(objects)} object(s) in {bucket}/{prefix} ===")
+          assert objects, f"no objects uploaded to {bucket}/{prefix}"
+          PY
 
       - name: Run pipeline (${{ matrix.config.name }})
         run: |
