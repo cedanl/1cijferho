@@ -206,13 +206,18 @@ def _apply_single_dec_join(
     """Apply one Dec table join (simple or composite key) to result_df."""
 
 
+    # Match on a stripped copy and leave the column itself alone. The code is an
+    # identifier, and DUO writes it fixed width in the data (00411) but unpadded
+    # in the Dec table (411). Rewriting the column used to change the value the
+    # user receives, and 00411 stopped being a code that exists anywhere.
+    join_key = "__dec_join_key"
     result_df = result_df.with_columns(
         pl.col(var_norm)
         .cast(pl.Utf8)
         .str.strip_chars_start("0")
         .str.replace("^$", "0")
         .str.strip_chars()
-        .alias(var_norm)
+        .alias(join_key)
     )
     try:
         if is_composite:
@@ -222,14 +227,14 @@ def _apply_single_dec_join(
             ]
             joined = result_df.join(
                 join_df,
-                left_on=[code_col_norm, var_norm],
+                left_on=[code_col_norm, join_key],
                 right_on=[code_col_norm, code_col2_norm],
                 how="left",
             )
         else:
             dec_cols = [c for c in join_df.columns if c != code_col_norm]
             joined = result_df.join(
-                join_df, left_on=var_norm, right_on=code_col_norm, how="left"
+                join_df, left_on=join_key, right_on=code_col_norm, how="left"
             )
 
         for col in dec_cols:
@@ -245,6 +250,8 @@ def _apply_single_dec_join(
                 print(f"[decoder] Niet-gematchte codes voor {var_norm}: {sample}")
     except Exception as e:
         print(f"[decoder] Fout bij Dec-join voor {var_norm}: {e}")
+    finally:
+        result_df = result_df.drop(join_key)
 
     return result_df
 
