@@ -1,12 +1,3 @@
-"""
-Unit tests for eencijferho.utils.value_validation
-
-Tests:
-    - test_valid_data: all column values are allowed -> success=True
-    - test_invalid_data: column contains disallowed value -> success=False with details
-    - test_missing_column: metadata has column not in CSV -> gracefully skipped
-    - test_reference_skipped: columns with 'reference' values are not validated
-"""
 
 import json
 import pytest

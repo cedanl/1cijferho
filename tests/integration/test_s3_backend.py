@@ -23,7 +23,6 @@ from eencijferho.io.decorators import with_storage
 
 
 class TestS3ReadWrite:
-    """Test fundamental read/write/exists/delete operations."""
 
     def test_write_and_read_bytes(self, s3_backend, minio_prefix):
         path = f"{minio_prefix}/hello.bin"
@@ -74,7 +73,6 @@ class TestS3ReadWrite:
 
 
 class TestS3DataFrame:
-    """Test DataFrame read/write in CSV and Parquet formats."""
 
     @pytest.fixture
     def sample_df(self):
@@ -113,7 +111,6 @@ class TestS3DataFrame:
 
 
 class TestS3ListFiles:
-    """Test list_files with glob patterns."""
 
     def test_list_files_wildcard(self, s3_backend, minio_prefix):
         s3_backend.write_bytes(b"a", f"{minio_prefix}/list/file1.txt")

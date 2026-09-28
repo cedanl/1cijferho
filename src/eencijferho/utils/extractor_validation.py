@@ -67,9 +67,7 @@ def validate_metadata(storage, file_path: str | Path) -> tuple[bool, dict[str, A
         "total_issues": 0
     }
 
-    # Load file
     try:
-        # Read the first four columns via storage
         df = storage.read_dataframe(str(file_path), format="excel", columns=[0, 1, 2, 3])
 
     except Exception as e:
@@ -77,7 +75,6 @@ def validate_metadata(storage, file_path: str | Path) -> tuple[bool, dict[str, A
         issues_dict["total_issues"] += 1
         return False, issues_dict
 
-    # Always rename the columns
     df = df.rename({
         df.columns[2]: "Start_Positie",
         df.columns[3]: "Aantal_Posities"
@@ -86,7 +83,6 @@ def validate_metadata(storage, file_path: str | Path) -> tuple[bool, dict[str, A
     try:
         fname = Path(file_path).name
         if any(x in fname for x in ("Dec_landcode", "Dec_nationaliteitscode")):
-            # add a temporary row counter so we can target the 2nd row (index 1)
             df = df.with_row_count("__rownum")
             if df.height > 1:
                 df = df.with_column(
@@ -103,14 +99,11 @@ def validate_metadata(storage, file_path: str | Path) -> tuple[bool, dict[str, A
     duplicate_names = df.filter(df["Naam"].is_duplicated())["Naam"].to_list()
 
     if duplicate_names:
-        # Store detailed information about duplicates with row numbers
         duplicate_details = []
         for dup_name in set(duplicate_names):
-            # Get row indices for each duplicate
             dup_rows = df.select(pl.col("Naam")).with_row_index().filter(pl.col("Naam") == dup_name)
             row_indices = dup_rows["index"].to_list()
 
-            # Add row numbers (1-based)
             row_numbers = [idx + 1 for idx in row_indices]  # Convert to 1-based indexing
 
             duplicate_details.append({
@@ -132,7 +125,6 @@ def validate_metadata(storage, file_path: str | Path) -> tuple[bool, dict[str, A
         curr_field = df["Naam"][i]
 
         if prev_end != curr_start:
-            # Store details about the position error
             error_detail = {
                 "row": i + 1,  # 1-based row number
                 "expected_start": prev_end,
@@ -157,7 +149,6 @@ def validate_metadata(storage, file_path: str | Path) -> tuple[bool, dict[str, A
         issues_dict["length_last"] = last_pos
         issues_dict["total_issues"] += 1
 
-    # Final result
     issues_count = issues_dict["total_issues"]
     if issues_count == 0:
         return True, issues_dict
@@ -190,7 +181,6 @@ def validate_metadata_folder(storage, metadata_folder: str = "data/00-metadata",
 
     console = Console()
 
-    # Find all Excel files via storage
     excel_files = storage.list_files(f"{metadata_folder}/*.xlsx")
 
     if not excel_files:
@@ -199,10 +189,8 @@ def validate_metadata_folder(storage, metadata_folder: str = "data/00-metadata",
 
     console.print(f"[green]Validating {len(excel_files)} Excel files")
 
-    # Setup logging — log folder is inside metadata_folder
     log_folder = os.path.join(metadata_folder, "logs")
 
-    # Create both timestamped and latest logs (similar to the extractor code)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     timestamped_log_file = os.path.join(log_folder, f"xlsx_validation_log_{timestamp}.json")
     latest_log_file = os.path.join(log_folder, "(3)_xlsx_validation_log_latest.json")
@@ -217,38 +205,31 @@ def validate_metadata_folder(storage, metadata_folder: str = "data/00-metadata",
         "failed_files": 0
     }
 
-    # Validate each file
     results = {}
     for file_path in excel_files:
         file_name = os.path.basename(file_path)
 
-        # Log file processing
         file_log = {
             "file": file_name,
             "status": "processing",
             "issues": None
         }
 
-        # Call the validation function
         success, issues = validate_metadata(file_path)
         results[file_name] = {"success": success, "issues": issues}
 
-        # Update log with results
         file_log["status"] = "success" if success else "failed"
         file_log["issues"] = issues
         log_data["processed_files"].append(file_log)
 
-    # Update log summary
     passed = sum(1 for res in results.values() if res["success"])
     log_data["status"] = "completed"
     log_data["total_files_processed"] = len(results)
     log_data["passed_files"] = passed
     log_data["failed_files"] = len(results) - passed
 
-    # Print summary
     console.print(f"[green]Validated {len(results)} files: {passed} passed[/green], [red]{len(results) - passed} failed[/red]")
 
-    # Show failed files with issues in console
     if len(results) - passed > 0:
         console.print("\n[yellow]Failed files with issues, manually adjust these files and re-run extractor validation:[/yellow]")
         for file_name, res in results.items():
@@ -256,12 +237,10 @@ def validate_metadata_folder(storage, metadata_folder: str = "data/00-metadata",
                 issues = res["issues"]
                 console.print(f"[bold red]{file_name}[/bold red]")
 
-                # Display key issues
                 if issues.get("duplicates"):
                     console.print(f"  - Duplicate fields: {len(issues['duplicates'])}")
                 if issues.get("position_errors"):
                     console.print(f"  - Position errors: {len(issues['position_errors'])}")
-                    # Show details for each position error for easier manual fixes
                     for err in issues["position_errors"]:
                         console.print(
                             f"    • Row {err['row']}: field '{err['current_field']}' expected start={err['expected_start']} "
@@ -275,7 +254,6 @@ def validate_metadata_folder(storage, metadata_folder: str = "data/00-metadata",
                 if issues.get("column_error"):
                     console.print(f"  - Column error: {issues['column_error']}")
 
-    # Save log files via storage
     storage.write_json(log_data, timestamped_log_file)
     storage.write_json(log_data, latest_log_file)
 

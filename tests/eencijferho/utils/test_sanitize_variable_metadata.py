@@ -24,7 +24,6 @@ def _run_in_tmpdir(func):
 
 
 class TestSanitizeVariableMetadata:
-    """Test sanitize_variable_metadata_json function."""
 
     @_run_in_tmpdir
     def test_sanitize_no_changes_needed(self, capsys):
@@ -140,7 +139,6 @@ class TestSanitizeVariableMetadata:
 
     @_run_in_tmpdir
     def test_sanitize_multiple_variables(self, capsys):
-        """Sanitize multiple variables in one file."""
         json_path = "variables.json"
         data = [
             {"name": "Var1", "values": {"1": "Value, one"}},

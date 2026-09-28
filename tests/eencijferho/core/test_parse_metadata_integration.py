@@ -11,7 +11,6 @@ class TestParseMetadataIntegration:
     """Integration tests for parse_metadata_file with realistic metadata."""
 
     def test_parse_simple_variable(self):
-        """Parse a simple variable with description and values."""
         with tempfile.TemporaryDirectory() as tmpdir:
             metadata_file = os.path.join(tmpdir, "test.txt")
             with open(metadata_file, 'w', encoding='latin-1') as f:
@@ -31,7 +30,6 @@ Mogelijke waarden:
             assert result[0]['values']['2'] == 'Vrouw'
 
     def test_parse_multiple_variables(self):
-        """Parse multiple variables from one file."""
         with tempfile.TemporaryDirectory() as tmpdir:
             metadata_file = os.path.join(tmpdir, "test.txt")
             with open(metadata_file, 'w', encoding='latin-1') as f:
@@ -59,7 +57,6 @@ Mogelijke waarden:
             assert '18-65' in result[1]['values']
 
     def test_parse_with_reference(self):
-        """Parse variable with 'Zie' reference instead of values."""
         with tempfile.TemporaryDirectory() as tmpdir:
             metadata_file = os.path.join(tmpdir, "test.txt")
             with open(metadata_file, 'w', encoding='latin-1') as f:
@@ -76,7 +73,6 @@ Zie bestand: codes.csv
             assert 'codes.csv' in result[0]['values']['reference']
 
     def test_parse_with_value_list(self):
-        """Parse variable with list of values instead of key=value pairs."""
         with tempfile.TemporaryDirectory() as tmpdir:
             metadata_file = os.path.join(tmpdir, "test.txt")
             with open(metadata_file, 'w', encoding='latin-1') as f:
@@ -133,7 +129,6 @@ Very Long Explanation Key Name = This value continues
                       for v in result[0]['values'].values())
 
     def test_parse_empty_file(self):
-        """Parse empty metadata file."""
         with tempfile.TemporaryDirectory() as tmpdir:
             metadata_file = os.path.join(tmpdir, "test.txt")
             with open(metadata_file, 'w', encoding='latin-1') as f:
@@ -289,7 +284,6 @@ Mogelijke waarden:
             assert 'Third note' in desc
 
     def test_parse_mixed_key_value_and_continuation(self):
-        """Parse mixture of key=value pairs and continuation lines."""
         with tempfile.TemporaryDirectory() as tmpdir:
             metadata_file = os.path.join(tmpdir, "test.txt")
             with open(metadata_file, 'w', encoding='latin-1') as f:
@@ -316,7 +310,6 @@ continuation lines
             assert 'multiple' in values['2']
 
     def test_parse_long_key_continuation_exact_equals_position(self):
-        """Test long key continuation when equals sign is at exact position 40+."""
         with tempfile.TemporaryDirectory() as tmpdir:
             metadata_file = os.path.join(tmpdir, "test.txt")
             with open(metadata_file, 'w', encoding='latin-1') as f:
