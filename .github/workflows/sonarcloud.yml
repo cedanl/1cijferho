@@ -38,23 +38,24 @@ jobs:
 
       - name: Start MinIO
         run: |
+          # Mirror, not `minio/minio`: the Docker Hub repo was deleted and the
+          # quay.io repo is auth-gated. See minio.yml for the full story.
+          # Verbatim upstream image -> `server /data` is unchanged.
           docker run -d --name minio \
             -p 9000:9000 \
             -e MINIO_ROOT_USER=minioadmin \
             -e MINIO_ROOT_PASSWORD=minioadmin \
-            minio/minio server /data
+            pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372 server /data
           for i in $(seq 1 30); do
             curl -sf http://localhost:9000/minio/health/live && break
             echo "Waiting for MinIO... ($i)"
             sleep 1
           done
+          curl -sf http://localhost:9000/minio/health/live >/dev/null \
+            || { echo "MinIO did not become healthy in 30s"; docker logs minio; exit 1; }
 
-      - name: Create MinIO test bucket
-        run: |
-          curl -LsSf https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
-          chmod +x /usr/local/bin/mc
-          mc alias set local http://localhost:9000 minioadmin minioadmin
-          mc mb local/1cijferho-test --ignore-existing
+      # No bucket pre-creation needed: MinIOBackend.__init__ calls
+      # make_bucket() when the bucket is missing, so the tests create their own.
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5

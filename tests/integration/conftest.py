@@ -63,9 +63,12 @@ def minio_service():
     already_running = _minio_healthy()
 
     if not already_running:
+        # Only the server: the bucket is auto-created by MinIOBackend, and the
+        # minio-init service (public-read policy) is not needed for the tests.
+        # Starting it here would pull in a build of the whole app image.
         result = subprocess.run(
-            ["docker", "compose", "up", "-d", "minio", "minio-init"],
-            capture_output=True, text=True, timeout=60,
+            ["docker", "compose", "up", "-d", "minio"],
+            capture_output=True, text=True, timeout=180,
         )
         if result.returncode != 0:
             pytest.skip(f"Could not start MinIO: {result.stderr}")
@@ -78,7 +81,7 @@ def minio_service():
     # Only tear down if we started it
     if not already_running:
         subprocess.run(
-            ["docker", "compose", "stop", "minio", "minio-init"],
+            ["docker", "compose", "stop", "minio"],
             capture_output=True, timeout=30,
         )
 
