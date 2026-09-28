@@ -57,7 +57,6 @@ class TestPipelineHelpers:
 
 
 class TestCollectOutputFiles:
-    """Test _collect_output_files function."""
 
     def test_collect_output_files_empty_directory(self):
         """Return empty list for empty output directory."""
@@ -83,7 +82,6 @@ class TestCollectOutputFiles:
         assert result[0]["size_formatted"] == "1.0 KB"
 
     def test_collect_output_files_multiple_files(self):
-        """Collect multiple files with different sizes."""
         storage = MagicMock()
         storage.list_files.return_value = [
             "output_dir/file1.csv",
@@ -136,7 +134,6 @@ class TestCollectOutputFiles:
 
 
 class TestProcessEnrichedFile:
-    """Test _process_enriched_file function."""
 
     def test_process_enriched_file_no_variable_mappings(self):
         """Skip enrichment when no variable mappings available."""
@@ -164,7 +161,6 @@ class TestProcessEnrichedFile:
         assert result.startswith("[pipeline] Starting...")
 
     def test_process_enriched_file_identical_to_decoded(self):
-        """Skip writing enriched file when identical to decoded."""
         storage = MagicMock()
         main_df = pl.DataFrame({"EnrichedCol": [1, 2, 3]})
         dec_only_df = main_df.clone()

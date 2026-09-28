@@ -27,8 +27,6 @@ def compare_csvs(orig_path, decoded_path):
     # Simple column count check
     if len(df_orig.columns) != len(df_dec.columns):
         print(f"[FAIL] Column count mismatch: original={len(df_orig.columns)}, decoded={len(df_dec.columns)}")
-        # print("Original columns:", df_orig.columns)
-        # print("Decoded columns :", df_dec.columns)
         print("Columns only in original:", set(df_orig.columns) - set(df_dec.columns))
         print("Columns only in decoded :", set(df_dec.columns) - set(df_orig.columns))
         return

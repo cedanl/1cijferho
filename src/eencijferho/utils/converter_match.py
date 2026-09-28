@@ -75,23 +75,18 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
     - Files containing "VAKHAVW" match with files containing "Vakgegevens"
     """
 
-    # Setup logging — derive log folder from the validation log path
     log_folder = os.path.dirname(log_path)
 
-    # Create both timestamped and latest logs
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     timestamped_log_file = os.path.join(log_folder, f"file_matching_log_{timestamp}.json")
     latest_log_file = os.path.join(log_folder, "(4)_file_matching_log_latest.json")
 
-    # Load both dataframes
     input_df = load_input_files(input_folder)
     validation_df = load_validation_log(log_path)
 
-    # Print initial status message
     console = Console()
     console.print("[green]Finding matches between input files and validation records")
 
-    # Initialize logging data structure
     log_data = {
         "timestamp": timestamp,
         "input_folder": input_folder,
@@ -106,7 +101,6 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
         "unmatched_validation_files": 0,
     }
 
-    # Create a new column with matches
     results = []
 
     # Keep track of which validation files have been matched
@@ -118,7 +112,6 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
 
         matches = None
 
-        # Apply special matching rules based on input filename
         if input_file.startswith("EV"):
             matches = validation_df.filter(pl.col("file").str.contains("1cyferho", literal=True))
         elif "VAKHAVW" in input_file:
@@ -134,12 +127,10 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
         }
 
         if len(matches) > 0:
-            # Get the status for each match
             file_log["status"] = "matched"
 
             for match_row in matches.rows():
                 validation_file = match_row[0]
-                # Add to set of matched validation files
                 matched_validation_files.add(validation_file)
 
                 match_detail = {
@@ -156,7 +147,6 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
                     "matched": True
                 })
         else:
-            # No match found
             results.append({
                 "input_file": input_file,
                 "row_count": row_count,
@@ -167,10 +157,8 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
 
         log_data["processed_files"].append(file_log)
 
-    # Create result dataframe for input files
     result_df = pl.DataFrame(results)
 
-    # Find unmatched validation files
     unmatched_validation = []
     for validation_row in validation_df.rows():
         validation_file = validation_row[0]
@@ -181,11 +169,9 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
                 "matched": False
             })
 
-    # Create unmatched validation dataframe
     unmatched_validation_df = pl.DataFrame(unmatched_validation)
 
 
-    # Update log data
     log_data["status"] = "completed"
     log_data["matched_files"] = result_df.filter(pl.col('matched')).height
     log_data["unmatched_files"] = result_df.filter(~pl.col('matched')).height
@@ -196,19 +182,15 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
         for row in unmatched_validation
     ]
 
-    # Save log files via storage
     storage.write_json(log_data, timestamped_log_file)
     storage.write_json(log_data, latest_log_file)
 
-    # Print summary to console
     console.print(f"[green]Total input files: {log_data['total_input_files']}  | Matched files: {log_data['matched_files']} [/green] | [red]Unmatched files: {log_data['unmatched_files']}[/red]")
     console.print(f"[green]Total validation files: {log_data['total_validation_files']} [/green] | [yellow]Unmatched validation files: {log_data['unmatched_validation_files']}[/yellow]")
 
-    # Print unmatched files with helpful header if there are any
     if log_data["unmatched_files"] > 0 or log_data["unmatched_validation_files"] > 0:
         console.print(f"\n[yellow]Perhaps a naming error? Manually fix in {input_folder} for input files or {os.path.dirname(log_path)} for validation files[/yellow]")
 
-    # Print unmatched input files details
     if log_data["unmatched_files"] > 0:
         console.print("\n[red]Unmatched input files:[/red]")
         unmatched_input = result_df.filter(~pl.col('matched'))
@@ -216,7 +198,6 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
             input_file = row[0]
             console.print(f"[red]{input_file}[/red]")
 
-    # Print unmatched validation files details
     if log_data["unmatched_validation_files"] > 0:
         console.print("\n[yellow]Unmatched validation files:[/yellow]")
         for item in log_data["unmatched_validation"]:
@@ -225,7 +206,6 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
 
     console.print(f"\n[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}[/blue]")
 
-    # Return both result dataframes
     return {
         "input_matches": result_df,
         "unmatched_validation": unmatched_validation_df

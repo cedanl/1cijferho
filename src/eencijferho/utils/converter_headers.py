@@ -13,7 +13,6 @@ def normalize_name(name: str, naming_func: Callable[[str], str] | None = None) -
     """
     if naming_func:
         return naming_func(name)
-    # First, convert accented letters to ASCII equivalents
     name = strip_accents(name)
     name = name.lower()
     name = re.sub(r'[^a-z0-9]+', '_', name)
@@ -46,7 +45,7 @@ def clean_header_name(name: str) -> str:
     """
     name = unicodedata.normalize('NFKD', str(name))
     name = ''.join(c for c in name if not unicodedata.combining(c))
-    name = name.replace('⁄', '/')  # Replace fraction slash if present
+    name = name.replace('⁄', '/')
     name = name.strip()
     return name
 
@@ -83,7 +82,6 @@ def convert_csv_headers_to_snake_case(
         from eencijferho.config import get_output_dir
         input_dir = get_output_dir()
 
-    # Find all CSV files
     csv_files = storage.list_files(f"{input_dir}/*.csv")
 
     if not csv_files:
@@ -118,10 +116,8 @@ def convert_csv_headers_to_snake_case(
                     truncate_ragged_lines=True,
                 )
 
-            # Get original column names
             original_columns = df.columns
 
-            # Clean column names using project-standard normalization
             df_cleaned = normalize_polars_columns(df)
 
             # --- Clean all string columns for latin-1 compatibility ---
@@ -131,22 +127,18 @@ def convert_csv_headers_to_snake_case(
             except Exception as e:
                 console.print(f"  [yellow]Warning: Could not apply clean_for_latin1: {e}[/yellow]")
 
-            # Get new column names
             new_columns = df_cleaned.columns
 
-            # Check if any changes were made
             changes = [(old, new) for old, new in zip(original_columns, new_columns) if old != new]
 
             if not changes:
                 console.print("  [dim]No changes needed - headers already in snake_case[/dim]\n")
                 continue
 
-            # Show changes
             console.print("  [green]Changes:[/green]")
             for old, new in changes:
                 console.print(f"    {old} → {new}")
 
-            # Write back to the same file
             csv_string = df_cleaned.write_csv(separator=delimiter)
             storage.write_text(csv_string, filepath)
 

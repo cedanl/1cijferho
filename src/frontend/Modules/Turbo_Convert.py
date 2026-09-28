@@ -20,11 +20,6 @@ from eencijferho.presets import PRESET_CONFIGS
 # -----------------------------------------------------------------------------
 # Page Configuration
 # -----------------------------------------------------------------------------
-#st.set_page_config(
-#    page_title="⚡ Turbo Convert",
-#    layout="centered",
-#    initial_sidebar_state="expanded"
-#)
 
 # -----------------------------------------------------------------------------
 # Helper Functions
@@ -81,7 +76,6 @@ def get_output_files() -> list[dict[str, Any]]:
                 'size_formatted': format_file_size(file_size)
             })
     
-    # Sort files by name
     files.sort(key=lambda x: x['name'])
     return files
 
@@ -225,7 +219,6 @@ def configure_columns_dialog(available_decode, available_enrich, decode_info, en
         st.rerun()
 
 
-# Initialize conversion trigger
 if 'start_turbo_convert' not in st.session_state:
     st.session_state.start_turbo_convert = False
 
@@ -249,7 +242,6 @@ with st.expander("Wat doet deze stap precies?"):
 """)
 
 
-# Get files and display status
 successful_pairs, skipped_pairs = get_matched_files()
 total_pairs = len(successful_pairs) + len(skipped_pairs)
 
@@ -260,7 +252,6 @@ if total_pairs == 0:
 else:
     st.success(f"✅ **{len(successful_pairs)} bestanden klaar voor conversie** ({len(skipped_pairs)} niet verwerkt wegens validatiefouten)")
     
-    # Show file pairs in compact expander - closed by default
     if successful_pairs or skipped_pairs:
         with st.expander(f"Bestanddetails ({len(successful_pairs)} klaar, {len(skipped_pairs)} niet verwerkt)", expanded=False):
             tab1, tab2 = st.tabs([f"✅ Klaar ({len(successful_pairs)})", f"❌ Niet verwerkt ({len(skipped_pairs)})"])
@@ -508,7 +499,6 @@ else:
                 if len(selected_enrich) < len(available_enrich):
                     opt_enrich_variables = selected_enrich
 
-    # Warning about existing converted files — shown before the action button
     if os.path.exists(get_output_dir()) and any(f for f in os.listdir(get_output_dir()) if not f.startswith(".")):
         st.warning("⚠️ Er zijn al eerder geconverteerde bestanden aanwezig. Een nieuwe conversie overschrijft deze.")
 
@@ -537,9 +527,7 @@ else:
         if next_page_clicked:
             st.switch_page("frontend/Modules/Validate_Output.py")
 
-        # Handle conversion logic using session state flag
         if st.session_state.start_turbo_convert:
-            # Reset the flag immediately
             st.session_state.start_turbo_convert = False
 
             # Pre-flight: koppelbestand moet bestaan als het is opgegeven

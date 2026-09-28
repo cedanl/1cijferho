@@ -8,7 +8,6 @@ from eencijferho.cli import _validate_safe_path
 
 
 class TestCLIPathValidation:
-    """Test path validation in CLI commands."""
 
     def test_validate_safe_path_valid_directory(self):
         """Allow valid paths within current directory."""
