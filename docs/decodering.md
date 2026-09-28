@@ -184,6 +184,7 @@ Dit document beschrijft welke DUO-velden worden gedecodeert naar labels en welke
 
 | Kolom | Type `_decoded` | Type `_enriched` | Gedrag | Risico's |
 |-------|-----------------|------------------|--------|----------|
+| Diplomajaar | **numeric** | **character** | Gelabeld in _enriched | ⚠️ **SVO:** zie opmerking hieronder |
 | Geboorteland | string | string | Code → Label | Niet-gemapte codes + dict-volgorde voor lege waarden |
 | Nationaliteit 1–3 | string | string | Code → Label | Idem |
 | Instellingscode | string | string | Code → Label | Historische codes verdwenen in lookup |
@@ -243,6 +244,23 @@ Dit document beschrijft welke DUO-velden worden gedecodeert naar labels en welke
 
 **Status:** ✅ **GEFIXED** in #199
 
+### 5. ⚠️ SVO Opmerking (#229)
+
+**Issue:** SVO rendement-berekening verwacht numerieke `diplomajaar`, maar `_enriched.csv` bevat string-waarden (gelabeld: "2023", "geen examen geregistreerd", etc.).
+
+**Gevolg:** `dplyr::na_if(diplomajaar, 0)` faalt → NaN → 74,6% foutieve categorisering.
+
+**Aanbeveling:** SVO-analyses gebruiken **`_decoded.csv`**, niet `_enriched.csv`:
+- `_decoded` bevat numerieke diplomajaar (kan gebruikt worden in `na_if()`)
+- `_enriched` bevat labels en is geschikt voor visuele analyse, niet numerieke berekeningen
+
+**Oplossing:**
+```R
+# Gebruik _decoded, niet _enriched
+d <- read.csv("/path/to/EV_DEMO_decoded.csv", sep=";")
+# diplomajaar is nu numeric → na_if() werkt correct
+```
+
 ---
 
 ## Hoe Dit Document Bijgewerkt Wordt
@@ -274,3 +292,4 @@ Voor vragen of aanpassingen:
 - [Issue #204](https://github.com/cedanl/1cijferho/issues/204) — Vakkenbestanden-metadata
 - [Issue #205](https://github.com/cedanl/1cijferho/issues/205) — Samengestelde sleutels
 - [Issue #207](https://github.com/cedanl/1cijferho/issues/207) — Niet-gemapte codes
+- [Issue #229](https://github.com/cedanl/1cijferho/issues/229) — SVO documentatie
