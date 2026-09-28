@@ -26,7 +26,11 @@ services:
 
   minio:
     container_name: minio
-    image: minio/minio:latest
+    # `minio/minio` was deleted from Docker Hub and `quay.io/minio/minio` is now
+    # auth-gated, so neither official source can be pulled any more. This is a
+    # verbatim upstream mirror (same entrypoint/cmd/env), pinned by multi-arch
+    # index digest (linux/amd64 + linux/arm64) of RELEASE.2026-08-04T00-00-00Z.
+    image: pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -37,28 +41,33 @@ services:
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      # Curl rather than `mc ready local`, so the healthcheck does not depend on
+      # the MinIO *client* being bundled in the server image. Upstream's
+      # Dockerfile.release ships a static curl (COPY /go/bin/curl* /usr/bin/),
+      # and the mirror carries it over.
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/live || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  # Replaces the old `minio/mc`-based init service: the mc client is no longer
+  # downloadable (dl.min.io is 410 Gone) and `minio/mc` is gone from Docker
+  # Hub. Uses the app image, which already ships the `minio` Python client.
   minio-init:
     container_name: minio-init
-    image: minio/mc:latest
+    build: .
+    entrypoint: ["python", "/init/minio_init.py"]
     depends_on:
       minio:
         condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
-      mc mb local/$${MINIO_BUCKET} --ignore-existing;
-      mc anonymous set download local/$${MINIO_BUCKET};
-      exit 0;
-      "
     environment:
-      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
-      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
       - MINIO_BUCKET=${MINIO_BUCKET:-1cijferho}
+      - MINIO_SECURE=false
+    volumes:
+      - ./scripts/minio_init.py:/init/minio_init.py:ro
 
   postgres:
     container_name: postgres
