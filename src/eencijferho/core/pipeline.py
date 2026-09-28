@@ -207,22 +207,23 @@ def run_turbo_convert_pipeline(
             progress_callback(55)
     if progress_callback:
         progress_callback(75)
-    # Step 5: Compress to Parquet
-    if "parquet" in output_config.formats:
-        if status_callback:
-            status_callback("🗜️ Bestanden comprimeren...")
-        log += "[pipeline] Bestanden comprimeren...\n"
-        co.convert_csv_to_parquet(output_dir)
-        log += "[pipeline] Compressie voltooid.\n"
-    if progress_callback:
-        progress_callback(90)
-    # Step 6: Header normalization
+    # Step 5: Header normalization
     if output_config.column_casing == "snake_case":
         if status_callback:
             status_callback("🔨 Kolomnamen standaardiseren...")
         log += "[pipeline] Kolomnamen standaardiseren...\n"
         ch.convert_csv_headers_to_snake_case(output_dir)
         log += "[pipeline] Kolomnamen gestandaardiseerd.\n"
+    if progress_callback:
+        progress_callback(90)
+    # Step 6: Compress to Parquet
+    # After step 5, so the parquet carries the same column names as the CSV.
+    if "parquet" in output_config.formats:
+        if status_callback:
+            status_callback("🗜️ Bestanden comprimeren...")
+        log += "[pipeline] Bestanden comprimeren...\n"
+        co.convert_csv_to_parquet(output_dir)
+        log += "[pipeline] Compressie voltooid.\n"
     if progress_callback:
         progress_callback(100)
 
