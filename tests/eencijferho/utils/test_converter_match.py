@@ -1,5 +1,7 @@
 # Tests for eencijferho.utils.converter_match
 
+import json
+
 import pytest
 import polars as pl
 from pathlib import Path
@@ -113,3 +115,79 @@ def test_match_files_writes_log(tmp_path, make_validation_log):
     )
     match_files(str(tmp_path), str(log))
     assert (tmp_path / "logs" / "(4)_file_matching_log_latest.json").exists()
+
+
+# --- jaargang-matching (issue #198) ---
+#
+# Een EV-bestand draagt zijn jaar als `XX<yy>` in de naam (`EV299XX24` = 2024).
+# De BB draagt het jaar als volledig jaar in de bestandsnaam. We vergelijken `yy`
+# met de laatste twee cijfers van het BB-jaar, zodat er niets geraden hoeft te
+# worden naar de eeuw.
+
+MATCH_LOG = "(4)_file_matching_log_latest.json"
+
+
+def _file_log(tmp_path, input_name):
+    """Het `processed_files`-element voor één invoerbestand uit het matchlog.
+
+    `match_files` schrijft de matchstatus in het logbestand; dat is het contract
+    waar `converter.py` op leest. De teruggegeven dataframe bevat alleen de
+    rijen van daadwerkelijk gematchte validatiebestanden.
+    """
+    log = json.loads((tmp_path / "logs" / MATCH_LOG).read_text(encoding="utf-8"))
+    return next(e for e in log["processed_files"] if e["input_file"] == input_name)
+
+
+def test_match_files_ev_kiest_bb_van_hetzelfde_jaar(tmp_path, make_validation_log):
+    _make_asc(tmp_path, "EV299XX24_DEMO.asc")
+    log = make_validation_log([
+        {"file": "Bestandsbeschrijving_1cyferho_2023_v1.1.xlsx", "status": "success"},
+        {"file": "Bestandsbeschrijving_1cyferho_2024_v1.1.xlsx", "status": "success"},
+    ])
+    result = match_files(str(tmp_path), str(log))
+    matched = result["input_matches"].filter(pl.col("input_file") == "EV299XX24_DEMO.asc")
+    assert matched["validation_file"].to_list() == [
+        "Bestandsbeschrijving_1cyferho_2024_v1.1.xlsx"
+    ]
+
+
+def test_match_files_ev_jaarmismatch_is_expliciet(tmp_path, make_validation_log):
+    _make_asc(tmp_path, "EV299XX24_DEMO.asc")
+    log = make_validation_log(
+        [{"file": "Bestandsbeschrijving_1cyferho_2023_v1.1.xlsx", "status": "success"}]
+    )
+    match_files(str(tmp_path), str(log))
+    entry = _file_log(tmp_path, "EV299XX24_DEMO.asc")
+    assert entry["status"] == "year_mismatch"
+    assert entry["year"] == 2024
+
+
+def test_match_files_ev_jaarmismatch_noemt_beschikbaar_jaar(tmp_path, make_validation_log):
+    _make_asc(tmp_path, "EV299XX24_DEMO.asc")
+    log = make_validation_log(
+        [{"file": "Bestandsbeschrijving_1cyferho_2023_v1.1.xlsx", "status": "success"}]
+    )
+    match_files(str(tmp_path), str(log))
+    entry = _file_log(tmp_path, "EV299XX24_DEMO.asc")
+    assert [m["validation_file"] for m in entry["matches"]] == [
+        "Bestandsbeschrijving_1cyferho_2023_v1.1.xlsx"
+    ]
+    assert [m["validation_year"] for m in entry["matches"]] == [2023]
+
+
+def test_match_files_ev_zonder_jaar_in_naam_valt_terug(tmp_path, make_validation_log):
+    _make_asc(tmp_path, "EV_zonder_jaar.asc")
+    log = make_validation_log(
+        [{"file": "Bestandsbeschrijving_1cyferho_2023_v1.1.xlsx", "status": "success"}]
+    )
+    match_files(str(tmp_path), str(log))
+    assert _file_log(tmp_path, "EV_zonder_jaar.asc")["status"] == "matched"
+
+
+def test_match_files_vakhavw_heeft_geen_jaar_in_bb(tmp_path, make_validation_log):
+    _make_asc(tmp_path, "VAKHAVW_99XX_DEMO.asc")
+    log = make_validation_log(
+        [{"file": "Bestandsbeschrijving_Vakgegevens.xlsx", "status": "success"}]
+    )
+    match_files(str(tmp_path), str(log))
+    assert _file_log(tmp_path, "VAKHAVW_99XX_DEMO.asc")["status"] == "matched"

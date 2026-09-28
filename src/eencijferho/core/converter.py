@@ -176,6 +176,21 @@ def _convert_one(
     input_file_name = file_info["input_file"]
     result: dict[str, Any] = {"input_file": input_file_name, "status": "skipped", "reason": ""}
 
+    if file_info["status"] == "year_mismatch":
+        # Er is een 1cyferho-bestandsbeschrijving, maar niet voor dit jaar. Converteren
+        # zou het bestand met de layout van een ander jaar lezen, dus dit is een fout
+        # die aandacht nodig heeft en geen bestand dat we stilletjes overslaan.
+        available = sorted(
+            {m["validation_year"] for m in file_info["matches"] if m.get("validation_year")}
+        )
+        years = ", ".join(str(year) for year in available) if available else "geen enkel"
+        result["status"] = "failed"
+        result["reason"] = (
+            f"Jaarmismatch: {input_file_name} is uit {file_info.get('year')}, "
+            f"maar alleen bestandsbeschrijving(en) uit {years} zijn aanwezig"
+        )
+        return result
+
     if file_info["status"] != "matched":
         result["reason"] = f"Bestandsstatus is {file_info['status']}"
         return result
@@ -183,6 +198,19 @@ def _convert_one(
     valid_matches = [m for m in file_info["matches"] if m["validation_status"] == "success"]
     if not valid_matches:
         result["reason"] = "Geen geldige validatiebestanden gevonden"
+        return result
+
+    if len(valid_matches) > 1:
+        # Twee geldige layoutbestanden voor één databestand: welke het handigst is,
+        # hangt van de data af en is hier niet te bepalen. Eerdere versies namen
+        # simpelweg de eerste, waardoor een verkeerde layout stilzwijgend werd
+        # gebruikt. Dat mag niet meer gebeuren.
+        names = ", ".join(sorted(m["validation_file"] for m in valid_matches))
+        result["status"] = "failed"
+        result["reason"] = (
+            f"Meerdere geldige bestandsbeschrijvingen voor {input_file_name}: {names}. "
+            "Verwijder of hernoem het overbodige layoutbestand; er wordt niet stilzwijgend een keuze gemaakt."
+        )
         return result
 
     input_path = os.path.join(input_folder, input_file_name)

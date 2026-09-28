@@ -16,6 +16,8 @@ Functions:
         - Matches input files with metadata files and logs the results
 """
 import os
+import re
+
 import polars as pl
 from rich.console import Console
 import datetime
@@ -66,12 +68,43 @@ def load_validation_log(storage, log_path: str) -> pl.DataFrame:
     return df
 
 
+def _validation_year(validation_file: str) -> int | None:
+    """Het jaartal uit de bestandsnaam van een bestandsbeschrijving, of None.
+
+    De BB-bestanden dragen het jaartal in hun naam, bijvoorbeeld
+    `Bestandsbeschrijving_1cyferho_2023_v1.1.txt`. De inhoud is geen bruikbare
+    bron: een BB bevat het jaartal ook in waardeomschrijvingen (25 keer "2023"
+    in de demobestand), dus daar lezen zou het verkeerde jaar kunnen opleveren.
+    """
+    match = re.search(r"(?<!\d)((?:19|20)\d{2})(?!\d)", validation_file)
+    return int(match.group(1)) if match else None
+
+
+def _input_year(input_file: str) -> int | None:
+    """Het jaartal uit de naam van een EV-bestand, of None als het er niet staat.
+
+    DUO schrijft het jaar als `XX<yy>`, bijvoorbeeld `EV299XX24` voor 2024. We
+    leveren de laatste twee cijfers en niet het volledige jaar, zodat er niets
+    naar de eeuw geraden hoeft te worden; `_year_matches` vergelijkt ze met de
+    laatste twee cijfers van het BB-jaar. Bestanden zonder `XX<yy>` (zoals
+    `VAKHAVW_99XX_DEMO.asc`) geven None en krijgen geen jaarfilter.
+    """
+    match = re.search(r"XX(\d{2})(?!\d)", os.path.splitext(input_file)[0])
+    return int(match.group(1)) if match else None
+
+
+def _year_matches(input_year: int, validation_year: int | None) -> bool:
+    """Of een BB-jaar bij het tweecijferige jaar van het EV-bestand past."""
+    return validation_year is not None and validation_year % 100 == input_year
+
+
 @with_storage
 def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/logs/(3)_xlsx_validation_log_latest.json") -> dict[str, pl.DataFrame]:
     """Match input files with metadata files and log the results.
 
     Special matching rules:
-    - Files starting with "EV" match with files containing "1cyferho"
+    - Files starting with "EV" match with files containing "1cyferho", and the
+      year in the file name must match the year in the metadata file name
     - Files containing "VAKHAVW" match with files containing "Vakgegevens"
     """
 
@@ -117,10 +150,24 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
         row_count = row[1]   # Row count
 
         matches = None
+        input_year = None
+        year_mismatch_candidates = None
 
         # Apply special matching rules based on input filename
         if input_file.startswith("EV"):
-            matches = validation_df.filter(pl.col("file").str.contains("1cyferho", literal=True))
+            candidates = validation_df.filter(pl.col("file").str.contains("1cyferho", literal=True))
+            input_year = _input_year(input_file)
+            if input_year is None:
+                matches = candidates
+            else:
+                matches = candidates.filter(
+                    pl.col("file").map_elements(
+                        lambda name: _year_matches(input_year, _validation_year(name)),
+                        return_dtype=pl.Boolean,
+                    )
+                )
+                if len(matches) == 0 and len(candidates) > 0:
+                    year_mismatch_candidates = candidates
         elif "VAKHAVW" in input_file:
             matches = validation_df.filter(pl.col("file").str.contains("Vakgegevens", literal=True))
         else:
@@ -133,6 +180,38 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
             "matches": []
         }
 
+        if year_mismatch_candidates is not None:
+            # Er is wel een 1cyferho-BB, maar niet voor dit jaar. Dat is geen
+            # "geen match" maar een conflict: het bestand zou anders stilzwijgend
+            # met de layout van een ander jaar worden gelezen. We markeren het
+            # daarom expliciet en tonen welke jaren er wél beschikbaar zijn.
+            file_log["status"] = "year_mismatch"
+            file_log["year"] = 2000 + input_year
+            file_log["matches"] = [
+                {
+                    "validation_file": name,
+                    "validation_status": status,
+                    "validation_year": _validation_year(name),
+                }
+                for name, status in year_mismatch_candidates.rows()
+            ]
+            available = ", ".join(
+                str(_validation_year(n)) for n, _ in year_mismatch_candidates.rows()
+            )
+            console.print(
+                f"[red]Jaarmismatch: {input_file} is uit {2000 + input_year}, maar de "
+                f"gevonden 1cyferho-bestandsbeschrijving(en) zijn uit: {available}"
+            )
+            results.append({
+                "input_file": input_file,
+                "row_count": row_count,
+                "validation_file": None,
+                "status": None,
+                "matched": False
+            })
+            log_data["processed_files"].append(file_log)
+            continue
+
         if len(matches) > 0:
             # Get the status for each match
             file_log["status"] = "matched"
@@ -144,7 +223,8 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
 
                 match_detail = {
                     "validation_file": validation_file,
-                    "validation_status": match_row[1]
+                    "validation_status": match_row[1],
+                    "validation_year": _validation_year(validation_file),
                 }
                 file_log["matches"].append(match_detail)
 
