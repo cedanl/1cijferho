@@ -240,3 +240,44 @@ def test_convert_one_succeeds(fixed_width_file, metadata_xlsx, tmp_path):
     )
     assert result["status"] == "success"
     assert Path(result["output_file"]).exists()
+
+
+def test_convert_one_year_mismatch_fails_and_names_both_years():
+    file_info = {
+        "input_file": "EV299XX24_DEMO.asc",
+        "status": "year_mismatch",
+        "year": 2024,
+        "matches": [
+            {
+                "validation_status": "success",
+                "validation_file": "Bestandsbeschrijving_1cyferho_2023.xlsx",
+                "validation_year": 2023,
+            }
+        ],
+    }
+    result = _convert_one(file_info, "/in", "/meta", "/out")
+    assert result["status"] == "failed"
+    assert "2024" in result["reason"]
+    assert "2023" in result["reason"]
+
+
+def test_convert_one_refuses_to_guess_between_two_valid_layouts():
+    file_info = {
+        "input_file": "EV299XX24_DEMO.asc",
+        "status": "matched",
+        "matches": [
+            {
+                "validation_status": "success",
+                "validation_file": "Bestandsbeschrijving_1cyferho_2024_v1.xlsx",
+                "validation_year": 2024,
+            },
+            {
+                "validation_status": "success",
+                "validation_file": "Bestandsbeschrijving_1cyferho_2024_v2.xlsx",
+                "validation_year": 2024,
+            },
+        ],
+    }
+    result = _convert_one(file_info, "/in", "/meta", "/out")
+    assert result["status"] == "failed"
+    assert "v1" in result["reason"] and "v2" in result["reason"]

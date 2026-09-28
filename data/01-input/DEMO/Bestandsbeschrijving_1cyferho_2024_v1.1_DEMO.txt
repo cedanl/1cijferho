@@ -7,8 +7,8 @@ Tot en met 2020 zijn de gegevens, na omhanging van personen, gelijk aan
 de gegevens zoals gebruikt voor 1 cijfer HO 2022, waarbij de gegevens
 vóór 1991 de gegevens afkomstig waren uit CRIHO en de gegevens vanaf
 1991 t/m 2020 uit ROD-HO, waarbij waar nodig oude ontbrekende gegevens
-waren aangevuld vanuit CRIHO. De inschrijvingsjaren 2021 t/m 2024 zijn
-afkomstig uit ROD-HO d.d. 1 december 2024.
+waren aangevuld vanuit CRIHO. De inschrijvingsjaren 2021 t/m 2023 zijn
+afkomstig uit ROD-HO d.d. 1 december 2023.
 
 Het bestand bevat naast de regulier bekostigde HO-instellingen ook de volgende
 instellingen:
@@ -1124,9 +1124,9 @@ vooropleiding omgezet naar een uniforme aggregatiecode.
 Bronnen:
 * ExamenResultatenRegister (ERR / ERA) 1998-2011
 * Basisregistratie Onderwijsnummer (BRON):
-  - voortgezet onderwijs (VO) examenjaren 2006 t/m 2024
-  - middelbaar beroepsonderwijs (MBO) kalenderjaren 2004 t/m 2024
-  - voortgezet algemeen volwassenenonderwijs (VAVO) examenjaren 2006 t/m 2024
+  - voortgezet onderwijs (VO) examenjaren 2006 t/m 2023
+  - middelbaar beroepsonderwijs (MBO) kalenderjaren 2004 t/m 2023
+  - voortgezet algemeen volwassenenonderwijs (VAVO) examenjaren 2006 t/m 2023
 * Registratie staatsexamens (DUO): diplomajaren 2013 t/m 2022
 * Registratie Aanmelding Selectie Plaatsing (RASP)
 * Studielink, geverifieerde vooropleidingen
@@ -1150,10 +1150,10 @@ oorspronkelijke (voor)opleidingscode opgenomen.
 Bronnen:
 * ExamenResultatenRegister (ERR / ERA) 1998-2011
 * Basisregistratie Onderwijsnummer (BRON):
-  - voortgezet onderwijs (VO) examenjaren 2006 t/m 2024
-  - middelbaar beroepsonderwijs (MBO) kalenderjaren 2004 t/m 2024
-  - voortgezet algemeen volwassenenonderwijs (VAVO) examenjaren 2006 t/m 2024
-* Registratie staatsexamens (DUO): examenjaren 2012 t/m 2024
+  - voortgezet onderwijs (VO) examenjaren 2006 t/m 2023
+  - middelbaar beroepsonderwijs (MBO) kalenderjaren 2004 t/m 2023
+  - voortgezet algemeen volwassenenonderwijs (VAVO) examenjaren 2006 t/m 2023
+* Registratie staatsexamens (DUO): examenjaren 2012 t/m 2023
 * Registratie Aanmelding Selectie Plaatsing (RASP)
 * Studielink, geverifieerde vooropleidingen
 * Vooropleiding zoals door de instellingen in CRIHO geregistreerd (VCRI)
@@ -1169,10 +1169,10 @@ Het diplomajaar behorende bij de hoogste vooropleiding vóór het hoger onderwijs.
 Bronnen:
 * ExamenResultatenRegister (ERR / ERA) 1998-2011
 * Basisregistratie Onderwijsnummer (BRON):
-  - voortgezet onderwijs (VO) examenjaren 2006 t/m 2024
-  - middelbaar beroepsonderwijs (MBO)  kalenderjaren 2004 t/m 2024
-  - voortgezet algemeen volwassenenonderwijs (VAVO) examenjaren 2006 t/m 2024
-* Registratie staatsexamens (DUO): examenjaren 2012 t/m 2024
+  - voortgezet onderwijs (VO) examenjaren 2006 t/m 2023
+  - middelbaar beroepsonderwijs (MBO)  kalenderjaren 2004 t/m 2023
+  - voortgezet algemeen volwassenenonderwijs (VAVO) examenjaren 2006 t/m 2023
+* Registratie staatsexamens (DUO): examenjaren 2012 t/m 2023
 * Registratie Aanmelding Selectie Plaatsing (RASP)
 * Studielink, geverifieerde vooropleidingen
 * Vooropleiding zoals door de instellingen in CRIHO geregistreerd (VCRI)
@@ -1191,9 +1191,9 @@ vooropleiding vóór het hoger onderwijs is behaald.
 Bronnen:
 * ExamenResultatenRegister (ERR / ERA) 1998-2011
 * Basisregistratie Onderwijsnummer (BRON):
-  - voortgezet onderwijs (VO) examenjaren 2006 t/m 2024
-  - middelbaar beroepsonderwijs (MBO)  kalenderjaren 2004 t/m 2024
-  - voortgezet algemeen volwassenenonderwijs (VAVO) examenjaren 2006 t/m 2024
+  - voortgezet onderwijs (VO) examenjaren 2006 t/m 2023
+  - middelbaar beroepsonderwijs (MBO)  kalenderjaren 2004 t/m 2023
+  - voortgezet algemeen volwassenenonderwijs (VAVO) examenjaren 2006 t/m 2023
 * Les- en Cursusgeldsysteem (LCS) 1998-2006
 
 De LCS-gegevens zijn gebruikt om dit veld te vullen wanneer het vooropleidingsgegeven
@@ -1214,7 +1214,7 @@ vooropleiding omgezet naar een uniforme aggregatiecode.
 
 Bronnen:
 * Centraal Register Inschrijvingen Hoger Onderwijs (CRIHO) 1982-1990
-* BRON Hoger Onderwijs 1991-2024
+* BRON Hoger Onderwijs 1991-2023
 * Registratie Aanmelding Selectie Plaatsing (RASP)
 * Studielink, geverifieerde vooropleidingen
 * Vooropleiding zoals door de instellingen in CRIHO geregistreerd (VCRI)
@@ -1236,7 +1236,7 @@ oorspronkelijke (voor)opleidingscode opgenomen.
 
 Bronnen:
 * Centraal Register Inschrijvingen Hoger Onderwijs (CRIHO) 1982-1990
-* BRON Hoger Onderwijs 1991-2024
+* BRON Hoger Onderwijs 1991-2023
 * Registratie Aanmelding Selectie Plaatsing (RASP)
 * Studielink, geverifieerde vooropleidingen
 * Vooropleiding zoals door de instellingen in CRIHO geregistreerd (VCRI)
@@ -1251,7 +1251,7 @@ Het diplomajaar behorende bij de hoogste vooropleiding binnen het hoger onderwij
 
 Bronnen:
 * Centraal Register Inschrijvingen Hoger Onderwijs (CRIHO) 1982-1990
-* BRON Hoger Onderwijs 1991-2024
+* BRON Hoger Onderwijs 1991-2023
 * Registratie Aanmelding Selectie Plaatsing (RASP)
 * Studielink, geverifieerde vooropleidingen
 * Vooropleiding zoals door de instellingen in CRIHO geregistreerd (VCRI)
@@ -1268,7 +1268,7 @@ vooropleiding binnen het hoger onderwijs is behaald.
 
 Bronnen:
 * Centraal Register Inschrijvingen Hoger Onderwijs (CRIHO) 1982-1990
-* BRON Hoger Onderwijs 1991-2024
+* BRON Hoger Onderwijs 1991-2023
 
 Mogelijke waarden:
 [leeg] = vooropleiding onbekend of instelling onbekend
@@ -2001,9 +2001,9 @@ Het vestigingsnummer behorende bij de instelling van de hoogste vooropleiding vó
 Bronnen:
 * ExamenResultatenRegister (ERR / ERA) 1998-2011
 * Basisregistratie Onderwijsnummer (BRON):
-  - voortgezet onderwijs (VO) examenjaren 2006 t/m 2024
-  - middelbaar beroepsonderwijs (MBO)  kalenderjaren 2004 t/m 2024
-  - voortgezet algemeen volwassenenonderwijs (VAVO) examenjaren 2006 t/m 2024
+  - voortgezet onderwijs (VO) examenjaren 2006 t/m 2023
+  - middelbaar beroepsonderwijs (MBO)  kalenderjaren 2004 t/m 2023
+  - voortgezet algemeen volwassenenonderwijs (VAVO) examenjaren 2006 t/m 2023
 
 Indien de instelling wel bekend is, maar het vestigingsnummer niet, heeft het vestigingsnummer
 de waarde 00 gekregen.
@@ -2019,7 +2019,7 @@ Vestigingsnummer van de hoogste vooropl. binnen het HO
 Het vestigingsnummer behorende bij de instelling van de hoogste vooropleiding binnen het HO.
 
 Bron:
-* BRON Hoger Onderwijs 1991-2024
+* BRON Hoger Onderwijs 1991-2023
 
 Indien de instelling wel bekend is, maar het vestigingsnummer niet, heeft het vestigingsnummer
 de waarde 00 gekregen.
@@ -2044,7 +2044,7 @@ Indicatie EER actueel
 ---------------------
 Deze indicatie geeft aan of de eerste nationaliteit van de student behoort tot de actuele
 lijst van landen van de Europese Economische Ruimte, aangevuld met Zwitserland en Suriname.
-De peildatum van de actuele lijst is 1 oktober 2024. NB: EER is inclusief Nederland!
+De peildatum van de actuele lijst is 1 oktober 2023. NB: EER is inclusief Nederland!
 
 Mogelijke waarden:
 J = EER-student
