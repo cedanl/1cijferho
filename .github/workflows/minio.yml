@@ -12,11 +12,17 @@ jobs:
 
       - name: Start MinIO
         run: |
+          # `minio/minio` was deleted from Docker Hub and `quay.io/minio/minio`
+          # is now auth-gated (the vendor moved the OSS images behind the paid
+          # AIStor registry), so neither official source can be pulled
+          # anonymously any more. This mirror is a verbatim upstream copy --
+          # same entrypoint, cmd and env -- so `server /data` still works.
+          # Index digest (linux/amd64 + linux/arm64) of RELEASE.2026-08-04T00-00-00Z.
           docker run -d --name minio \
             -p 9000:9000 \
             -e MINIO_ROOT_USER=minioadmin \
             -e MINIO_ROOT_PASSWORD=minioadmin \
-            minio/minio server /data
+            pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372 server /data
 
           # Wait for MinIO to be ready
           for i in $(seq 1 30); do
@@ -25,12 +31,13 @@ jobs:
             sleep 1
           done
 
-      - name: Create MinIO test bucket
-        run: |
-          curl -LsSf https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
-          chmod +x /usr/local/bin/mc
-          mc alias set local http://localhost:9000 minioadmin minioadmin
-          mc mb local/1cijferho-test --ignore-existing
+          # The loop above swallows a dead server, so the failure would only
+          # surface later as a confusing connection error in the tests.
+          curl -sf http://localhost:9000/minio/health/live >/dev/null \
+            || { echo "MinIO did not become healthy in 30s"; docker logs minio; exit 1; }
+
+      # No bucket pre-creation needed: MinIOBackend.__init__ calls
+      # make_bucket() when the bucket is missing, so the tests create their own.
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
