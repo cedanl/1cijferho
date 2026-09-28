@@ -2,6 +2,7 @@
 
 import json
 import pytest
+import polars as pl
 from pathlib import Path
 
 from eencijferho.core.converter import (
@@ -240,3 +241,79 @@ def test_convert_one_succeeds(fixed_width_file, metadata_xlsx, tmp_path):
     )
     assert result["status"] == "success"
     assert Path(result["output_file"]).exists()
+
+
+# ---------------------------------------------------------------------------
+# _load_metadata — Startpositie is the authority, a gap is an error
+# ---------------------------------------------------------------------------
+
+
+def _write_layout(path, names, widths, starts=None):
+    """Write a Lay-out Excel. Without `starts` the column is left out entirely."""
+    data = {"ID": list(range(1, len(names) + 1)), "Naam": names, "Aantal posities": widths}
+    if starts is not None:
+        data["Startpositie"] = starts
+    pl.DataFrame(data).write_excel(path)
+    return path
+
+
+def test_load_metadata_uses_startposities(tmp_path):
+    """Positions follow Startpositie, not the running sum of widths."""
+    path = _write_layout(
+        tmp_path / "layout.xlsx",
+        ["A", "B", "C"],
+        [3, 2, 4],
+        starts=[1, 4, 6],
+    )
+    _, positions = _load_metadata(str(path))
+    assert positions == [(0, 3), (3, 5), (5, 9)]
+
+
+def test_load_metadata_rejects_a_gap_between_fields(tmp_path):
+    """A gap would silently shift every following field, so it has to fail.
+
+    Without this the converter would read 'B' from the wrong three characters
+    and report status: success.
+    """
+    path = _write_layout(
+        tmp_path / "layout.xlsx",
+        ["A", "B", "C"],
+        [3, 2, 4],
+        starts=[1, 4, 9],  # C should start at 6
+    )
+    with pytest.raises(ValueError, match="C"):
+        _load_metadata(str(path))
+
+
+def test_load_metadata_gap_error_names_both_positions(tmp_path):
+    """The message has to say which field and what was expected."""
+    path = _write_layout(tmp_path / "layout.xlsx", ["A", "B"], [3, 2], starts=[1, 9])
+    with pytest.raises(ValueError) as err:
+        _load_metadata(str(path))
+    text = str(err.value)
+    assert "B" in text
+    assert "4" in text          # where the sum says it starts
+    assert "9" in text          # where the layout says it starts
+
+
+def test_load_metadata_rejects_a_leading_gap(tmp_path):
+    """The first field starting after position 1 is a gap too."""
+    path = _write_layout(tmp_path / "layout.xlsx", ["A", "B"], [3, 2], starts=[4, 7])
+    with pytest.raises(ValueError, match="A"):
+        _load_metadata(str(path))
+
+
+def test_load_metadata_without_startpositie_falls_back_to_widths(tmp_path, capsys):
+    """A future DUO version without the column still converts, but says so."""
+    path = _write_layout(tmp_path / "layout.xlsx", ["A", "B"], [3, 2])
+    columns, positions = _load_metadata(str(path))
+    assert columns == ["A", "B"]
+    assert positions == [(0, 3), (3, 5)]
+    assert "Startpositie" in capsys.readouterr().out
+
+
+def test_load_metadata_all_zero_width_field_is_not_a_gap(tmp_path):
+    """A field with width 0 keeps its own start, so it must not trip the check."""
+    path = _write_layout(tmp_path / "layout.xlsx", ["A", "B", "C"], [3, 0, 2], starts=[1, 4, 4])
+    _, positions = _load_metadata(str(path))
+    assert positions == [(0, 3), (3, 3), (3, 5)]
