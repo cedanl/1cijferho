@@ -1,4 +1,3 @@
-# Tests for eencijferho.utils.translator
 
 import pytest
 import polars as pl

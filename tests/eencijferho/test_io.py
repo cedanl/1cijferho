@@ -27,7 +27,6 @@ class TestDiskBackendPathResolution:
         assert resolved == Path("/abs/path/file.csv")
 
     def test_list_files_with_data_prefix(self, tmp_path):
-        """list_files should find files when paths include data/ prefix."""
         data_dir = tmp_path / "data" / "01-input"
         data_dir.mkdir(parents=True)
         (data_dir / "EV2023.asc").write_text("test")

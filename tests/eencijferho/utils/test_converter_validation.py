@@ -1,4 +1,3 @@
-# Tests for eencijferho.utils.converter_validation
 
 from eencijferho.utils.converter_validation import converter_validation
 

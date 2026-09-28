@@ -34,7 +34,6 @@ def _build_lookup(variables: list[dict[str, Any]]) -> dict[str, set]:
         values = var.get("values", {})
         if not values:
             continue
-        # Skip non-concrete value specs
         if "reference" in values or "list" in values:
             continue
         # Skip non-exhaustive fields: DUO uses ' > ' in descriptions to indicate
@@ -101,7 +100,6 @@ def validate_column_values(
         "total_issues": 0,
     }
 
-    # Load metadata
     try:
         with open(variable_metadata_path, encoding="utf-8") as f:
             variables = json.load(f)
@@ -115,7 +113,6 @@ def validate_column_values(
         results["warning"] = "No columns with concrete allowed values found in metadata."
         return True, results
 
-    # Load CSV
     try:
         df = pl.read_csv(data_file_path, separator=";", encoding="utf-8", infer_schema_length=0)
     except Exception as e:
@@ -123,7 +120,6 @@ def validate_column_values(
         results["total_issues"] += 1
         return False, results
 
-    # Normalise CSV column names for matching
     csv_cols = {normalize_name(c): c for c in df.columns}
 
     for norm_name, allowed in lookup.items():
@@ -133,14 +129,12 @@ def validate_column_values(
 
         results["columns_checked"] += 1
 
-        # Get unique values, cast to string, strip whitespace
         unique_vals = (
             df.select(pl.col(original_col).cast(pl.Utf8).str.strip_chars())
             .unique()
             .to_series()
             .to_list()
         )
-        # Treat null as empty string
         unique_vals_str = {v if v is not None else "" for v in unique_vals}
 
         invalid = unique_vals_str - allowed

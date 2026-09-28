@@ -98,7 +98,6 @@ def run_turbo_convert_pipeline(
     """
     if output_config is None:
         output_config = OutputConfig()
-    # Resolve metadata_dir and dec_metadata_json from arguments
     if metadata_dir is None:
         from eencijferho.config import METADATA_DIR
         metadata_dir = METADATA_DIR

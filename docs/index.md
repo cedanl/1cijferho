@@ -2,7 +2,7 @@
 
 **Maak 1cijferHO-data direct bruikbaar voor analyse en onderzoek.**
 
-1CijferHO Tool automatiseert het verwerken van DUO-onderwijsdata (fixed-width ASCII bestanden) naar schone CSV- en Parquet-bestanden — zonder programmeerkennis.
+1CijferHO Tool automatiseert het verwerken van DUO-onderwijsdata (fixed-width ASCII bestanden) naar CSV- en Parquet-bestanden — zonder programmeerkennis.
 
 [![Windows](https://custom-icon-badges.demolab.com/badge/Windows-0078D6?logo=windows11&logoColor=white)](#)
 [![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=F0F0F0)](#)
@@ -19,7 +19,9 @@
 | **Extract** | Metadata uit `.txt`-beschrijvingen wordt uitgelezen |
 | **Validate** | Veldposities en bestandskoppelingen worden gecontroleerd |
 | **Convert** | Fixed-width ASCII → CSV / Parquet via multiprocessing |
-| **Output** | Schone, gestructureerde bestanden klaar voor analyse |
+| **Output** | CSV met de ruwe data, plus optioneel varianten met gedecodeerde en verrijkte kolommen |
+
+De omzetting van het vaste-breedteformaat naar CSV is geverifieerd verliesvrij. Decoderen en verrijken zijn aanvullingen die codes kunnen wijzigen — controleer de logs in `metadata/logs/` en vergelijk een `_decoded.csv` met de ruwe `.csv` voordat je die gebruikt.
 
 ---
 
