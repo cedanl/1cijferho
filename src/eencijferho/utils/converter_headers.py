@@ -65,7 +65,10 @@ def convert_csv_headers_to_snake_case(
     delimiter: str = ";",
     encoding: str = "utf-8",
     quote_char: str = '"',
-    infer_schema_length: int | None = 0
+    infer_schema_length: int | None = 0,
+    *,
+    filenames: set[str] | None = None,
+    strict: bool = False,
 ) -> None:
     """
     Convert all CSV file headers in the input directory to snake_case.
@@ -94,6 +97,8 @@ def convert_csv_headers_to_snake_case(
 
     for filepath in csv_files:
         fname = os.path.basename(filepath)
+        if filenames is not None and fname not in filenames:
+            continue
         try:
             console.print(f"Processing: [bold]{fname}[/bold]")
 
@@ -145,6 +150,8 @@ def convert_csv_headers_to_snake_case(
             console.print("  [green]✓ Updated successfully[/green]\n")
 
         except Exception as e:
+            if strict:
+                raise ValueError(f"Kolomnormalisatie mislukt voor {fname}: {e}") from e
             console.print(f"  [red]✗ Error processing {fname}: {e}[/red]\n")
             failed_files.append((fname, str(e)))
 

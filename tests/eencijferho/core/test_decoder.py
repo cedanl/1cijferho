@@ -557,3 +557,121 @@ def test_get_decode_column_info_shared_table_all_variables(dec_metadata_json_pat
 
 def test_get_decode_column_info_missing_file():
     assert get_decode_column_info("/nonexistent/path.json") == {}
+
+
+# ---------------------------------------------------------------------------
+# _apply_single_dec_join — the data column must not be rewritten
+# ---------------------------------------------------------------------------
+
+PADDED_DF = pl.DataFrame(
+    {
+        "Vooropleiding": ["00411", "0411", "0000"],
+        "Instelling": ["02DZ", "02AB", "00AA"],
+    }
+)
+
+
+def test_apply_single_dec_join_preserves_leading_zeros_in_the_data():
+    """A code is an identifier, not a number.
+
+    DUO writes it fixed width: 00411 is a different code from 411. Stripping
+    the zero in the data column changes the value the user receives, and a
+    code that no longer exists in the source can no longer be joined to
+    anything.
+    """
+    join_df = _normalize_dec_table(
+        pl.DataFrame({"Code": ["411", "0"], "Omschrijving": ["HBO", "onbekend"]}),
+        "code",
+    )
+    result = _apply_single_dec_join(
+        _normalize_df(PADDED_DF)[0], join_df, "vooropleiding", "code",
+        is_composite=False, code_col2_norm=None,
+    )
+    assert result["vooropleiding"].to_list() == ["00411", "0411", "0000"]
+
+
+def test_apply_single_dec_join_still_matches_padded_codes():
+    """Preserving the data must not stop the join: that is the point of it."""
+    join_df = _normalize_dec_table(
+        pl.DataFrame({"Code": ["411", "0"], "Omschrijving": ["HBO", "onbekend"]}),
+        "code",
+    )
+    result = _apply_single_dec_join(
+        _normalize_df(PADDED_DF)[0], join_df, "vooropleiding", "code",
+        is_composite=False, code_col2_norm=None,
+    )
+    assert result["vooropleiding__omschrijving"].to_list() == ["HBO", "HBO", "onbekend"]
+
+
+def test_apply_single_dec_join_leaves_no_temporary_column_behind():
+    join_df = _normalize_dec_table(
+        pl.DataFrame({"Code": ["411"], "Omschrijving": ["HBO"]}), "code"
+    )
+    result = _apply_single_dec_join(
+        _normalize_df(PADDED_DF)[0], join_df, "vooropleiding", "code",
+        is_composite=False, code_col2_norm=None,
+    )
+    assert set(result.columns) == {"vooropleiding", "instelling", "vooropleiding__omschrijving"}
+
+
+def test_apply_single_dec_join_composite_preserves_leading_zeros():
+    """Same for a composite key: the variable column stays as it arrived.
+
+    code1 matches exactly here, so this test is about code2's padding alone.
+    """
+    data = pl.DataFrame({"Code1": ["2"], "Code2": ["00411"]})
+    join_df = _normalize_dec_table(
+        pl.DataFrame({"Code1": ["2"], "Code2": ["411"], "Omschrijving": ["HBO"]}), "code1"
+    )
+    join_df = join_df.with_columns(
+        pl.col("code2").cast(pl.Utf8).str.strip_chars_start("0")
+        .str.replace("^$", "0").str.strip_chars().alias("code2")
+    )
+    result = _apply_single_dec_join(
+        _normalize_df(data)[0], join_df, "code2", "code1",
+        is_composite=True, code_col2_norm="code2",
+    )
+    assert result["code2"].to_list() == ["00411"]
+    assert result["code2__omschrijving"].to_list() == ["HBO"]
+
+
+def test_composite_join_preserves_both_padded_source_codes():
+    source = pl.DataFrame({"code1": ["0002", "0002"], "code2": ["00411", "00012"]})
+    lookup = pl.DataFrame({"code1": ["2", "2"], "code2": ["411", "12"], "label": ["A", "B"]})
+    result = _apply_single_dec_join(source, lookup, "code2", "code1", True, "code2")
+    assert result.select(source.columns).equals(source)
+    assert result["code2__label"].to_list() == ["A", "B"]
+    assert result.height == source.height
+
+
+def test_dec_join_does_not_destroy_a_preexisting_temporary_name():
+    source = pl.DataFrame({"code": ["001"], "__dec_join_key": ["original"]})
+    lookup = pl.DataFrame({"code": ["1"], "label": ["Een"]})
+    result = _apply_single_dec_join(source, lookup, "code", "code", False, None)
+    assert result.select(source.columns).equals(source)
+    assert result["code__label"].to_list() == ["Een"]
+    assert result.width == source.width + 1
+
+
+def test_ambiguous_canonical_dec_keys_raise_instead_of_silently_skipping():
+    source = pl.DataFrame({"code": ["001"]})
+    lookup = _normalize_dec_table(pl.DataFrame({"code": ["1", "01"], "label": ["A", "B"]}), "code")
+    with pytest.raises(ValueError, match="Dec-join mislukt"):
+        _apply_single_dec_join(source, lookup, "code", "code", False, None)
+
+
+def test_lookup_reader_keeps_padded_and_late_alphanumeric_codes_after_header_normalization(tmp_path):
+    from eencijferho.core.decoder import load_dec_tables_from_metadata
+    metadata = tmp_path / "Dec.json"
+    metadata.write_text(json.dumps({"tables": [{
+        "table_title": "Dec_vooropl.asc",
+        "content": ["Naam  Startpositie", "Code Vooropleiding  1", "Omschrijving Vooropleiding  7"],
+    }]}))
+    codes = [str(i).zfill(4) for i in range(1, 102)] + ["M5001"]
+    pl.DataFrame({"code_vooropleiding": codes, "omschrijving_vooropleiding": ["0009"] * len(codes)}).write_csv(
+        tmp_path / "Dec_vooropl.csv", separator=";",
+    )
+    loaded = load_dec_tables_from_metadata(str(metadata), str(tmp_path))["Dec_vooropl.asc"]
+    assert loaded["code_vooropleiding"].to_list() == codes
+    assert loaded["omschrijving_vooropleiding"].to_list() == ["0009"] * len(codes)
+    assert all(dtype == pl.String for dtype in loaded.dtypes)

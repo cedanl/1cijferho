@@ -13,6 +13,8 @@ Public API:
 """
 
 import sys
+import csv
+from io import StringIO
 import os
 import multiprocessing as mp
 import datetime
@@ -47,12 +49,17 @@ def process_chunk(chunk_data: tuple[list[tuple[int, int]], list[str | bytes]]) -
     """
     positions, chunk = chunk_data
     output_lines = []
+    buffer = StringIO()
+    writer = csv.writer(buffer, delimiter=";", lineterminator="\n")
     for line in chunk:
         if isinstance(line, bytes):
             line = line.decode('latin1')
         if line.strip():
             fields = [line[start:end].strip() for start, end in positions]
-            output_lines.append(';'.join(fields))
+            buffer.seek(0)
+            buffer.truncate(0)
+            writer.writerow(fields)
+            output_lines.append(buffer.getvalue().removesuffix("\n"))
     return output_lines
 
 
@@ -69,11 +76,62 @@ def _resolve_output_path(input_file: str, output_dir: str) -> str:
 
 @with_storage
 def _load_metadata(storage, metadata_file: str) -> tuple[list[str], list[tuple[int, int]]]:
-    """Load column names and field (start, end) positions from an Excel metadata file."""
+    """Load column names and field (start, end) positions from an Excel metadata file.
+
+    ``Startpositie`` is the authority for where a field starts. DUO states it next
+    to the width, and a field that does not begin where the previous one ended
+    means the layout and the .asc file disagree about the format. Deriving the
+    positions from the widths instead filled such a gap without a word, which
+    shifted every following field and still reported status: success.
+
+    A layout without a ``Startpositie`` column (a future DUO version) falls back to
+    the running sum of the widths, with a warning.
+    """
     df = storage.read_dataframe(metadata_file, format="excel")
-    widths = [int(w) for w in df["Aantal posities"].to_list()]
+    def layout_numbers(column: str, minimum: int = 1) -> list[int]:
+        numbers = []
+        for value in df[column].to_list():
+            try:
+                number = int(value)
+                if isinstance(value, bool) or number < minimum or (
+                    isinstance(value, float) and value != number
+                ):
+                    raise ValueError("invalid layout integer")
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise ValueError(
+                    f"Layout {os.path.basename(metadata_file)}: {column} moet gehele "
+                    f"getallen >= {minimum} bevatten, gevonden {value!r}."
+                ) from exc
+            numbers.append(number)
+        return numbers
+
+    # Zero-width placeholders are valid; start positions remain one-based.
+    widths = layout_numbers("Aantal posities", minimum=0)
     column_names = df["Naam"].to_list()
-    positions = [(sum(widths[:i]), sum(widths[:i + 1])) for i in range(len(widths))]
+
+    if "Startpositie" not in df.columns:
+        _console.print(
+            f"[yellow]Layout {metadata_file} mist de kolom 'Startpositie'; "
+            f"posities afgeleid uit de breedtes.[/]"
+        )
+        positions = [(sum(widths[:i]), sum(widths[:i + 1])) for i in range(len(widths))]
+        return column_names, positions
+
+    starts = layout_numbers("Startpositie")
+    positions: list[tuple[int, int]] = []
+    expected = 0
+    for name, start, width in zip(column_names, starts, widths, strict=True):
+        if start - 1 != expected:
+            gap = start - 1 - expected
+            raise ValueError(
+                f"Layout-inconsistent in {os.path.basename(metadata_file)}: veld "
+                f"'{name}' begint op Startpositie {start}, terwijl de vorige velden "
+                f"tot {expected + 1} lopen. Gat van {gap} positie(s): velden na "
+                f"'{name}' zouden {gap} te vroeg worden afgelezen."
+            )
+        positions.append((expected, expected + width))
+        expected += width
+
     return column_names, positions
 
 
@@ -92,7 +150,7 @@ def _run_parallel(all_lines: list[str], positions: list[tuple[int, int]]) -> lis
     chunk_data = [(positions, chunk) for chunk in chunks]
     output_lines = []
     with mp.Pool(processes=num_processes) as pool:
-        for result in pool.imap_unordered(process_chunk, chunk_data):
+        for result in pool.imap(process_chunk, chunk_data):
             if result:
                 output_lines.extend(result)
     return output_lines
@@ -138,7 +196,9 @@ def converter(storage, input_file: str, metadata_file: str, output_dir: str | No
         csv_lines = _run_serial(all_lines, positions)
 
     # Build full CSV content: header + data lines
-    header = ';'.join(column_names)
+    header_buffer = StringIO()
+    csv.writer(header_buffer, delimiter=";", lineterminator="\n").writerow(column_names)
+    header = header_buffer.getvalue().removesuffix("\n")
     content = header + '\n' + '\n'.join(csv_lines) + '\n' if csv_lines else header + '\n'
     storage.write_text(content, output_file)
 
@@ -176,6 +236,21 @@ def _convert_one(
     input_file_name = file_info["input_file"]
     result: dict[str, Any] = {"input_file": input_file_name, "status": "skipped", "reason": ""}
 
+    if file_info["status"] == "year_mismatch":
+        # Er is een 1cyferho-bestandsbeschrijving, maar niet voor dit jaar. Converteren
+        # zou het bestand met de layout van een ander jaar lezen, dus dit is een fout
+        # die aandacht nodig heeft en geen bestand dat we stilletjes overslaan.
+        available = sorted(
+            {m["validation_year"] for m in file_info["matches"] if m.get("validation_year")}
+        )
+        years = ", ".join(str(year) for year in available) if available else "geen enkel"
+        result["status"] = "failed"
+        result["reason"] = (
+            f"Jaarmismatch: {input_file_name} is uit {file_info.get('year')}, "
+            f"maar alleen bestandsbeschrijving(en) uit {years} zijn aanwezig"
+        )
+        return result
+
     if file_info["status"] != "matched":
         result["reason"] = f"Bestandsstatus is {file_info['status']}"
         return result
@@ -185,8 +260,36 @@ def _convert_one(
         result["reason"] = "Geen geldige validatiebestanden gevonden"
         return result
 
+    valid_matches.sort(key=lambda match: match["validation_file"])
+    if len(valid_matches) > 1:
+        # The extractor also copies Dec_vakcode from Vakken into Dec-bestanden.
+        # Only identical Dec definitions are interchangeable. EV/VAK layouts
+        # remain ambiguous even if their positions happen to be the same.
+        equivalent = False
+        if input_file_name.startswith("Dec_"):
+            try:
+                layouts = [
+                    _load_metadata(os.path.join(metadata_folder, match["validation_file"]))
+                    for match in valid_matches
+                ]
+                equivalent = all(layout == layouts[0] for layout in layouts[1:])
+            except Exception as exc:
+                result["status"] = "failed"
+                result["reason"] = f"Kon dubbele Dec-layouts niet vergelijken: {exc}"
+                return result
+        if not equivalent:
+            names = ", ".join(match["validation_file"] for match in valid_matches)
+            result["status"] = "failed"
+            result["reason"] = (
+                f"Meerdere geldige bestandsbeschrijvingen voor {input_file_name}: {names}. "
+                "Verwijder of hernoem het overbodige layoutbestand; er wordt niet stilzwijgend een keuze gemaakt."
+            )
+            return result
+        result["equivalent_layouts"] = [match["validation_file"] for match in valid_matches]
+
+    result["validation_file"] = valid_matches[0]["validation_file"]
     input_path = os.path.join(input_folder, input_file_name)
-    metadata_path = os.path.join(metadata_folder, valid_matches[0]["validation_file"])
+    metadata_path = os.path.join(metadata_folder, result["validation_file"])
 
     if not storage.exists(input_path):
         _console.print(f"[red]Invoerbestand niet gevonden: {input_path}")
@@ -343,7 +446,9 @@ def convert_dec_files(
     input_folder: str,
     metadata_folder: str = "data/00-metadata",
     output_folder: str | None = None,
-) -> None:
+    *,
+    strict: bool = False,
+) -> list[str]:
     """
     Converts all Dec_*.asc files in input_folder using their corresponding metadata.
 
@@ -351,6 +456,10 @@ def convert_dec_files(
         input_folder (str): Folder containing Dec_*.asc files.
         metadata_folder (str): Folder with metadata files. Defaults to 'data/00-metadata'.
         output_folder (str | None): Output folder for converted CSVs.
+        strict: Raise on failed/ambiguous conversions instead of only warning.
+
+    Returns:
+        Paths of Dec CSVs produced in this call (not stale output files).
 
     Edge Cases:
         - Skips Dec_* files with no matching metadata.
@@ -359,6 +468,7 @@ def convert_dec_files(
     Example:
         >>> convert_dec_files('data/01-input')
     """
+    converted_files = []
     all_input = storage.list_files(f"{input_folder}/*")
     dec_files = [
         f for f in all_input
@@ -376,12 +486,22 @@ def convert_dec_files(
         if not meta_candidates:
             print(f"[converter] Waarschuwing: geen metadata gevonden voor {dec_file}, overgeslagen.")
             continue
-        meta_file = meta_candidates[0]
-        try:
-            converter(dec_filepath, meta_file, output_folder)
+        file_info = {
+            "input_file": dec_file, "status": "matched",
+            "matches": [
+                {"validation_file": os.path.basename(path), "validation_status": "success"}
+                for path in meta_candidates
+            ],
+        }
+        result = _convert_one(file_info, input_folder, metadata_folder, output_folder)
+        if result["status"] == "success":
+            converted_files.append(result["output_file"])
             print(f"[converter] Omgezet: {dec_file}")
-        except Exception as e:
-            print(f"[converter] Waarschuwing: kon {dec_file} niet omzetten: {e}")
+        elif strict:
+            raise ValueError(f"Kon {dec_file} niet omzetten: {result['reason']}")
+        else:
+            print(f"[converter] Waarschuwing: kon {dec_file} niet omzetten: {result['reason']}")
+    return converted_files
 
 
 if __name__ == "__main__":

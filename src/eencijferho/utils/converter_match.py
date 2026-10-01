@@ -16,6 +16,8 @@ Functions:
         - Matches input files with metadata files and logs the results
 """
 import os
+import re
+
 import polars as pl
 from rich.console import Console
 import datetime
@@ -61,9 +63,46 @@ def load_validation_log(storage, log_path: str) -> pl.DataFrame:
     df = pl.DataFrame([
         {'file': item['file'], 'status': item['status']}
         for item in data.get('processed_files', [])
-    ])
+    ], schema={'file': pl.String, 'status': pl.String})
 
     return df
+
+
+def _validation_year(validation_file: str) -> int | None:
+    """Het jaartal uit de bestandsnaam van een bestandsbeschrijving, of None.
+
+    De BB-bestanden dragen het jaartal in hun naam, bijvoorbeeld
+    `Bestandsbeschrijving_1cyferho_2023_v1.1.txt`. De inhoud is geen bruikbare
+    bron: een BB bevat het jaartal ook in waardeomschrijvingen (25 keer "2023"
+    in de demobestand), dus daar lezen zou het verkeerde jaar kunnen opleveren.
+    """
+    match = re.search(r"(?<!\d)((?:19|20)\d{2})(?!\d)", validation_file)
+    return int(match.group(1)) if match else None
+
+
+def _input_year(input_file: str) -> int | None:
+    """Read a two- or four-digit year from a recognized EV filename.
+
+    Accept EV<sequence><BRIN><year> (EV299XX24, EV21PL2024) and the short
+    EV[_]<year> form, optionally followed by an underscore/hyphen suffix.
+    A BRIN consists of two digits and two letters; XX is not a literal
+    requirement. Do not guess a year from digits in an unknown filename.
+    """
+    stem = os.path.splitext(os.path.basename(input_file))[0]
+    year = r"((?:19|20)\d{2}|\d{2})"
+    suffix = r"(?:[_-].*)?"
+    for pattern in (rf"EV[_-]?{year}{suffix}", rf"EV\d*\d{{2}}[A-Z]{{2}}{year}{suffix}"):
+        match = re.fullmatch(pattern, stem, flags=re.IGNORECASE)
+        if match:
+            return int(match.group(1))
+    return None
+
+
+def _year_matches(input_year: int, validation_year: int | None) -> bool:
+    """Compare full years exactly; compare two-digit years without guessing a century."""
+    if validation_year is None:
+        return False
+    return validation_year == input_year if input_year >= 100 else validation_year % 100 == input_year
 
 
 @with_storage
@@ -71,22 +110,28 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
     """Match input files with metadata files and log the results.
 
     Special matching rules:
-    - Files starting with "EV" match with files containing "1cyferho"
+    - Files starting with "EV" match with files containing "1cyferho", and the
+      year in the file name must match the year in the metadata file name
     - Files containing "VAKHAVW" match with files containing "Vakgegevens"
     """
 
+    # Setup logging — derive log folder from the validation log path
     log_folder = os.path.dirname(log_path)
 
+    # Create both timestamped and latest logs
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     timestamped_log_file = os.path.join(log_folder, f"file_matching_log_{timestamp}.json")
     latest_log_file = os.path.join(log_folder, "(4)_file_matching_log_latest.json")
 
+    # Load both dataframes
     input_df = load_input_files(input_folder)
     validation_df = load_validation_log(log_path)
 
+    # Print initial status message
     console = Console()
     console.print("[green]Finding matches between input files and validation records")
 
+    # Initialize logging data structure
     log_data = {
         "timestamp": timestamp,
         "input_folder": input_folder,
@@ -101,6 +146,7 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
         "unmatched_validation_files": 0,
     }
 
+    # Create a new column with matches
     results = []
 
     # Keep track of which validation files have been matched
@@ -111,9 +157,24 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
         row_count = row[1]   # Row count
 
         matches = None
+        input_year = None
+        year_mismatch_candidates = None
 
+        # Apply special matching rules based on input filename
         if input_file.startswith("EV"):
-            matches = validation_df.filter(pl.col("file").str.contains("1cyferho", literal=True))
+            candidates = validation_df.filter(pl.col("file").str.contains("1cyferho", literal=True))
+            input_year = _input_year(input_file)
+            if input_year is None:
+                matches = candidates
+            else:
+                matches = candidates.filter(
+                    pl.col("file").map_elements(
+                        lambda name: _year_matches(input_year, _validation_year(name)),
+                        return_dtype=pl.Boolean,
+                    )
+                )
+                if len(matches) == 0 and len(candidates) > 0:
+                    year_mismatch_candidates = candidates
         elif "VAKHAVW" in input_file:
             matches = validation_df.filter(pl.col("file").str.contains("Vakgegevens", literal=True))
         else:
@@ -126,16 +187,61 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
             "matches": []
         }
 
+        if input_file.startswith("EV"):
+            file_log["year_checked"] = input_year is not None
+            if input_year is None:
+                warning = (
+                    f"Jaargang niet gecontroleerd: geen herkend jaar in {input_file}. "
+                    "Controleer de bestandsnaam en bestandsbeschrijving."
+                )
+                file_log["warnings"] = [warning]
+                console.print(f"[yellow]{warning}[/yellow]")
+
+        if year_mismatch_candidates is not None:
+            # Er is wel een 1cyferho-BB, maar niet voor dit jaar. Dat is geen
+            # "geen match" maar een conflict: het bestand zou anders stilzwijgend
+            # met de layout van een ander jaar worden gelezen. We markeren het
+            # daarom expliciet en tonen welke jaren er wél beschikbaar zijn.
+            file_log["status"] = "year_mismatch"
+            file_log["year"] = input_year if input_year >= 100 else 2000 + input_year
+            file_log["matches"] = [
+                {
+                    "validation_file": name,
+                    "validation_status": status,
+                    "validation_year": _validation_year(name),
+                }
+                for name, status in year_mismatch_candidates.rows()
+            ]
+            available = ", ".join(
+                str(_validation_year(n)) for n, _ in year_mismatch_candidates.rows()
+            )
+            console.print(
+                f"[red]Jaarmismatch: {input_file} is uit {file_log['year']}, maar de "
+                f"gevonden 1cyferho-bestandsbeschrijving(en) zijn uit: {available}"
+            )
+            results.append({
+                "input_file": input_file,
+                "row_count": row_count,
+                "validation_file": None,
+                "status": None,
+                "matched": False
+            })
+            log_data["processed_files"].append(file_log)
+            continue
+
         if len(matches) > 0:
+            # Get the status for each match
             file_log["status"] = "matched"
 
             for match_row in matches.rows():
                 validation_file = match_row[0]
+                # Add to set of matched validation files
                 matched_validation_files.add(validation_file)
 
                 match_detail = {
                     "validation_file": validation_file,
-                    "validation_status": match_row[1]
+                    "validation_status": match_row[1],
+                    "validation_year": _validation_year(validation_file),
                 }
                 file_log["matches"].append(match_detail)
 
@@ -147,6 +253,7 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
                     "matched": True
                 })
         else:
+            # No match found
             results.append({
                 "input_file": input_file,
                 "row_count": row_count,
@@ -157,8 +264,13 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
 
         log_data["processed_files"].append(file_log)
 
-    result_df = pl.DataFrame(results)
+    # Create result dataframe for input files
+    result_df = pl.DataFrame(results, schema={
+        "input_file": pl.String, "row_count": pl.Int64, "validation_file": pl.String,
+        "status": pl.String, "matched": pl.Boolean,
+    })
 
+    # Find unmatched validation files
     unmatched_validation = []
     for validation_row in validation_df.rows():
         validation_file = validation_row[0]
@@ -169,9 +281,13 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
                 "matched": False
             })
 
-    unmatched_validation_df = pl.DataFrame(unmatched_validation)
+    # Create unmatched validation dataframe
+    unmatched_validation_df = pl.DataFrame(unmatched_validation, schema={
+        "validation_file": pl.String, "validation_status": pl.String, "matched": pl.Boolean,
+    })
 
 
+    # Update log data
     log_data["status"] = "completed"
     log_data["matched_files"] = result_df.filter(pl.col('matched')).height
     log_data["unmatched_files"] = result_df.filter(~pl.col('matched')).height
@@ -182,15 +298,19 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
         for row in unmatched_validation
     ]
 
+    # Save log files via storage
     storage.write_json(log_data, timestamped_log_file)
     storage.write_json(log_data, latest_log_file)
 
+    # Print summary to console
     console.print(f"[green]Total input files: {log_data['total_input_files']}  | Matched files: {log_data['matched_files']} [/green] | [red]Unmatched files: {log_data['unmatched_files']}[/red]")
     console.print(f"[green]Total validation files: {log_data['total_validation_files']} [/green] | [yellow]Unmatched validation files: {log_data['unmatched_validation_files']}[/yellow]")
 
+    # Print unmatched files with helpful header if there are any
     if log_data["unmatched_files"] > 0 or log_data["unmatched_validation_files"] > 0:
         console.print(f"\n[yellow]Perhaps a naming error? Manually fix in {input_folder} for input files or {os.path.dirname(log_path)} for validation files[/yellow]")
 
+    # Print unmatched input files details
     if log_data["unmatched_files"] > 0:
         console.print("\n[red]Unmatched input files:[/red]")
         unmatched_input = result_df.filter(~pl.col('matched'))
@@ -198,6 +318,7 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
             input_file = row[0]
             console.print(f"[red]{input_file}[/red]")
 
+    # Print unmatched validation files details
     if log_data["unmatched_validation_files"] > 0:
         console.print("\n[yellow]Unmatched validation files:[/yellow]")
         for item in log_data["unmatched_validation"]:
@@ -206,6 +327,7 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
 
     console.print(f"\n[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}[/blue]")
 
+    # Return both result dataframes
     return {
         "input_matches": result_df,
         "unmatched_validation": unmatched_validation_df

@@ -57,7 +57,7 @@ from eencijferho.core.extractor import (
     process_json_folder,
 )
 from eencijferho.config import DECODED_SUFFIX, ENRICHED_SUFFIX
-from eencijferho.core.pipeline import run_turbo_convert_pipeline
+from eencijferho.core.pipeline import PipelineError, _is_main_csv_file, run_turbo_convert_pipeline
 from eencijferho.config import OutputConfig
 from eencijferho.presets import PRESET_CONFIGS
 from eencijferho.utils.converter_headers import clean_header_name, normalize_name
@@ -200,6 +200,16 @@ def cmd_validate_output(storage, args: argparse.Namespace) -> None:
             _console.print(Panel("\n".join(lines), title="⚠️  DEC validatie", border_style="yellow"))
 
 
+def _match_header_style(source: "pl.DataFrame", derived: "pl.DataFrame") -> "pl.DataFrame":
+    """Keep standalone decode/enrich consistent with normalized pipeline output."""
+    from eencijferho.utils.converter_headers import clean_header_name, normalize_name
+
+    normalized_source = [normalize_name(clean_header_name(col)) for col in source.columns]
+    if source.columns == normalized_source:
+        return derived.rename({col: normalize_name(clean_header_name(col)) for col in derived.columns})
+    return derived
+
+
 @with_storage
 def cmd_decode(storage, args: argparse.Namespace) -> None:
     _validate_safe_path(args.input)
@@ -212,8 +222,7 @@ def cmd_decode(storage, args: argparse.Namespace) -> None:
         f"{json_dir}/Bestandsbeschrijving_Dec-bestanden*.json"
     )
     if not dec_json_matches:
-        print("[eencijferho] Geen Bestandsbeschrijving_Dec-bestanden JSON gevonden. Eerst 'extract' uitvoeren.")
-        return
+        raise PipelineError("Geen Dec-bestanden JSON gevonden. Eerst 'extract' uitvoeren.")
 
     dec_metadata_json = dec_json_matches[0]
     dec_tables = load_dec_tables_from_metadata(dec_metadata_json, args.output)
@@ -221,14 +230,11 @@ def cmd_decode(storage, args: argparse.Namespace) -> None:
     count = 0
     for filepath in storage.list_files(f"{args.output}/*.csv"):
         fname = os.path.basename(filepath)
-        if not (
-            (fname.startswith("EV") or fname.startswith("VAKHAVW"))
-            and fname.endswith(".csv")
-            and not fname.endswith(DECODED_SUFFIX)
-        ):
+        if not _is_main_csv_file(fname):
             continue
-        df = storage.read_dataframe(filepath, format="csv")
+        df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
         decoded_df = decode_fields_dec_only(df, dec_metadata_json, dec_tables)
+        decoded_df = _match_header_style(df, decoded_df)
         out_path = filepath.replace(".csv", DECODED_SUFFIX)
         storage.write_text(decoded_df.write_csv(separator=";"), out_path)
         print(f"[eencijferho] Gedecodeerd: {fname} → {os.path.basename(out_path)}")
@@ -253,8 +259,7 @@ def cmd_enrich(storage, args: argparse.Namespace) -> None:
         f"{json_dir}/Bestandsbeschrijving_Dec-bestanden*.json"
     )
     if not dec_json_matches:
-        print("[eencijferho] Geen Bestandsbeschrijving_Dec-bestanden JSON gevonden. Eerst 'extract' uitvoeren.")
-        return
+        raise PipelineError("Geen Dec-bestanden JSON gevonden. Eerst 'extract' uitvoeren.")
 
     dec_metadata_json = dec_json_matches[0]
     dec_tables = load_dec_tables_from_metadata(dec_metadata_json, args.output)
@@ -267,17 +272,18 @@ def cmd_enrich(storage, args: argparse.Namespace) -> None:
         base = filepath.replace(DECODED_SUFFIX, ".csv")
         if not storage.exists(base):
             continue
-        main_df = storage.read_dataframe(base, format="csv")
+        main_df = storage.read_dataframe(base, format="csv", infer_schema_length=0)
         normalized_cols = {normalize_name(clean_header_name(c)) for c in main_df.columns}
         if not (var_maps and normalized_cols & set(var_maps.keys())):
             print(f"[eencijferho] Overgeslagen (geen mappings): {fname}")
             skipped += 1
             continue
-        decoded_df = storage.read_dataframe(filepath, format="csv")
+        decoded_df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
         enriched_df = decode_fields(
             main_df, dec_metadata_json, dec_tables,
             variable_metadata_path=variable_metadata_json,
         )
+        enriched_df = _match_header_style(main_df, enriched_df)
         if enriched_df.equals(decoded_df):
             print(f"[eencijferho] Overgeslagen (identiek aan decoded): {fname}")
             skipped += 1
@@ -507,7 +513,10 @@ def main() -> None:
         "pipeline": cmd_pipeline,
         "validate-output": cmd_validate_output,
     }
-    dispatch[args.command](args)
+    try:
+        dispatch[args.command](args)
+    except PipelineError as exc:
+        parser.exit(1, f"[eencijferho] Fout: {exc}\n")
 
 
 if __name__ == "__main__":

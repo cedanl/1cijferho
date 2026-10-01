@@ -48,7 +48,6 @@ def validate_metadata(storage, file_path: str | Path) -> tuple[bool, dict[str, A
     Edge Cases:
         - Handles files that cannot be loaded (returns load_error)
         - Handles files with missing or unexpected columns (returns column_error)
-        - Special handling for files with names containing 'Dec_landcode' or 'Dec_nationaliteitscode'
         - Returns empty issues if no problems are found
 
     Raises:
@@ -79,21 +78,6 @@ def validate_metadata(storage, file_path: str | Path) -> tuple[bool, dict[str, A
         df.columns[2]: "Start_Positie",
         df.columns[3]: "Aantal_Posities"
     })
-
-    try:
-        fname = Path(file_path).name
-        if any(x in fname for x in ("Dec_landcode", "Dec_nationaliteitscode")):
-            df = df.with_row_count("__rownum")
-            if df.height > 1:
-                df = df.with_column(
-                    pl.when(pl.col("__rownum") == 1)
-                    .then(pl.col("Start_Positie") + 1)
-                    .otherwise(pl.col("Start_Positie"))
-                    .alias("Start_Positie")
-                )
-            df = df.drop("__rownum")
-    except Exception:
-        pass
 
     # 1. Duplicate check
     duplicate_names = df.filter(df["Naam"].is_duplicated())["Naam"].to_list()

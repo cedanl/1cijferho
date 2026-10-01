@@ -1,5 +1,5 @@
 """
-Modular pipeline orchestrator: conversion → decoding → validation → BSN translation (opt.) → compression → header normalization.
+Modular pipeline orchestrator: conversion → decoding → validation → BSN translation (opt.) → header normalization → compression.
 """
 
 import os
@@ -16,6 +16,31 @@ from typing import Any
 from eencijferho.io.decorators import with_storage
 
 
+class PipelineError(RuntimeError):
+    """A requested conversion or output stage could not be completed."""
+
+
+def _conversion_outputs(results: dict, output_config: OutputConfig) -> set[str]:
+    """Reject partial/failed runs and return filenames produced in this run."""
+    if results.get("status") == "failed":
+        raise PipelineError(results.get("reason", "Conversie mislukt."))
+    failures = []
+    generated = set()
+    for detail in results.get("details", []):
+        name = detail["input_file"]
+        main_requested = (
+            (name.startswith("EV") and output_config.convert_ev)
+            or (name.startswith("VAKHAVW") and output_config.convert_vakhavw)
+        )
+        if detail["status"] == "failed" or (main_requested and detail["status"] != "success"):
+            failures.append(f"{name}: {detail.get('reason', detail['status'])}")
+        elif detail["status"] == "success":
+            generated.add(os.path.basename(detail["output_file"]))
+    if failures or results.get("failed_conversions", 0):
+        raise PipelineError("Conversie onvolledig:\n" + "\n".join(failures))
+    return generated
+
+
 def _is_main_csv_file(filename: str) -> bool:
     """Check if filename is a main CSV file (not already decoded/enriched)."""
     is_main_type = filename.startswith("EV") or filename.startswith("VAKHAVW")
@@ -26,7 +51,8 @@ def _is_main_csv_file(filename: str) -> bool:
 def _process_enriched_file(
     storage, main_df: pl.DataFrame, filepath: str, filename: str, log: str,
     dec_metadata_json: str, dec_tables: dict, variable_metadata_json: str,
-    var_maps: dict, output_config: OutputConfig, dec_only_df: pl.DataFrame | None
+    var_maps: dict, output_config: OutputConfig, dec_only_df: pl.DataFrame | None,
+    generated_files: set[str] | None = None,
 ) -> str:
     """Process and write enriched file; return updated log."""
     normalized_cols = {ch.normalize_name(ch.clean_header_name(c)) for c in main_df.columns}
@@ -45,18 +71,24 @@ def _process_enriched_file(
     if dec_only_df is None or not enriched_df.equals(dec_only_df):
         enriched_file = filepath.replace(".csv", ENRICHED_SUFFIX)
         storage.write_text(enriched_df.write_csv(separator=";"), enriched_file)
+        if generated_files is not None:
+            generated_files.add(os.path.basename(enriched_file))
     else:
         log += f"[pipeline] {filename}: _enriched identiek aan _decoded, overgeslagen.\n"
 
     return log
 
-def _collect_output_files(storage, output_dir: str) -> list[dict[str, Any]]:
+def _collect_output_files(
+    storage, output_dir: str, filenames: set[str] | None = None,
+) -> list[dict[str, Any]]:
     """Collect and format output file information."""
     output_files = []
     all_output = storage.list_files(f"{output_dir}/*")
 
     for filepath in all_output:
         filename = os.path.basename(filepath)
+        if filenames is not None and filename not in filenames:
+            continue
         try:
             size = len(storage.read_bytes(filepath))
         except Exception:
@@ -122,14 +154,21 @@ def run_turbo_convert_pipeline(
         skip_prefixes.append("VAKHAVW")
         log += "[pipeline] VAKHAVW-omzetting overgeslagen.\n"
     skip_prefixes = skip_prefixes or None
-    converter.run_conversions_from_matches(
+    conversion_results = converter.run_conversions_from_matches(
         input_dir,
         metadata_folder=metadata_dir,
         match_log_file=match_log_file,
         output_folder=output_dir,
         skip_prefixes=skip_prefixes,
     )
-    converter.convert_dec_files(input_dir, metadata_folder=metadata_dir, output_folder=output_dir)
+    generated_files = _conversion_outputs(conversion_results, output_config)
+    try:
+        extra_dec_files = converter.convert_dec_files(
+            input_dir, metadata_folder=metadata_dir, output_folder=output_dir, strict=True,
+        )
+    except Exception as exc:
+        raise PipelineError(f"Dec-conversie mislukt: {exc}") from exc
+    generated_files.update(os.path.basename(path) for path in extra_dec_files)
     log += "[pipeline] Omzetting voltooid.\n"
     if progress_callback:
         progress_callback(30)
@@ -144,14 +183,17 @@ def run_turbo_convert_pipeline(
     decoded_count = 0
 
     # Load dec_tables and variable_mappings once — shared across all files
-    dec_tables = decoder.load_dec_tables_from_metadata(dec_metadata_json, dec_dir)
-    var_maps = decoder.load_variable_mappings(variable_metadata_json)
+    dec_tables = (
+        decoder.load_dec_tables_from_metadata(dec_metadata_json, dec_dir)
+        if do_decode or do_enrich else {}
+    )
+    var_maps = decoder.load_variable_mappings(variable_metadata_json) if do_enrich else {}
 
     if do_decode or do_enrich:
         csv_files = storage.list_files(f"{dec_dir}/*.csv")
         for filepath in csv_files:
             filename = os.path.basename(filepath)
-            if not _is_main_csv_file(filename):
+            if not _is_main_csv_file(filename) or filename not in generated_files:
                 continue
 
             main_df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
@@ -163,6 +205,7 @@ def run_turbo_convert_pipeline(
                 )
                 dec_only_file = filepath.replace(".csv", DECODED_SUFFIX)
                 storage.write_text(dec_only_df.write_csv(separator=";"), dec_only_file)
+                generated_files.add(os.path.basename(dec_only_file))
             else:
                 dec_only_df = None
 
@@ -170,7 +213,7 @@ def run_turbo_convert_pipeline(
                 log = _process_enriched_file(
                     storage, main_df, filepath, filename, log,
                     dec_metadata_json, dec_tables, variable_metadata_json,
-                    var_maps, output_config, dec_only_df
+                    var_maps, output_config, dec_only_df, generated_files
                 )
 
             decoded_count += 1
@@ -206,24 +249,36 @@ def run_turbo_convert_pipeline(
             progress_callback(55)
     if progress_callback:
         progress_callback(75)
-    # Step 5: Compress to Parquet
-    if "parquet" in output_config.formats:
-        if status_callback:
-            status_callback("🗜️ Bestanden comprimeren...")
-        log += "[pipeline] Bestanden comprimeren...\n"
-        co.convert_csv_to_parquet(output_dir)
-        log += "[pipeline] Compressie voltooid.\n"
-    if progress_callback:
-        progress_callback(90)
-    # Step 6: Header normalization
+    # Step 5: Header normalization
     if output_config.column_casing == "snake_case":
         if status_callback:
             status_callback("🔨 Kolomnamen standaardiseren...")
         log += "[pipeline] Kolomnamen standaardiseren...\n"
-        ch.convert_csv_headers_to_snake_case(output_dir)
+        try:
+            ch.convert_csv_headers_to_snake_case(output_dir, filenames=generated_files, strict=True)
+        except Exception as exc:
+            raise PipelineError(f"Kolomnormalisatie mislukt: {exc}") from exc
         log += "[pipeline] Kolomnamen gestandaardiseerd.\n"
+    if progress_callback:
+        progress_callback(90)
+    # Step 6: Compress to Parquet
+    # After step 5, so the parquet carries the same column names as the CSV.
+    if "parquet" in output_config.formats:
+        if status_callback:
+            status_callback("🗜️ Bestanden comprimeren...")
+        log += "[pipeline] Bestanden comprimeren...\n"
+        try:
+            co.convert_csv_to_parquet(output_dir, filenames=generated_files, strict=True)
+        except Exception as exc:
+            raise PipelineError(f"Parquet-conversie mislukt: {exc}") from exc
+        generated_files.update(
+            name.rsplit(".", 1)[0] + ".parquet"
+            for name in list(generated_files)
+            if name.endswith(".csv") and not name.lower().startswith("dec_")
+        )
+        log += "[pipeline] Compressie voltooid.\n"
     if progress_callback:
         progress_callback(100)
 
-    output_files = _collect_output_files(storage, output_dir)
+    output_files = _collect_output_files(storage, output_dir, generated_files)
     return log, output_files

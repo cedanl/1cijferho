@@ -41,6 +41,7 @@ jobs:
           uv run eencijferho pipeline \
             --input data/01-input/DEMO \
             --output data/test-output/${{ matrix.config.name }} \
+            --fail-on-empty-output \
             ${{ matrix.config.flags }}
 
       - name: Validate snapshot (${{ matrix.config.name }})

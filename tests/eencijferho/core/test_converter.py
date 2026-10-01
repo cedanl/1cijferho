@@ -2,6 +2,7 @@
 
 import json
 import pytest
+import polars as pl
 from pathlib import Path
 
 from eencijferho.core.converter import (
@@ -240,3 +241,181 @@ def test_convert_one_succeeds(fixed_width_file, metadata_xlsx, tmp_path):
     )
     assert result["status"] == "success"
     assert Path(result["output_file"]).exists()
+
+
+# ---------------------------------------------------------------------------
+# _load_metadata — Startpositie is the authority, a gap is an error
+# ---------------------------------------------------------------------------
+
+
+def _write_layout(path, names, widths, starts=None):
+    """Write a Lay-out Excel. Without `starts` the column is left out entirely."""
+    data = {"ID": list(range(1, len(names) + 1)), "Naam": names, "Aantal posities": widths}
+    if starts is not None:
+        data["Startpositie"] = starts
+    pl.DataFrame(data).write_excel(path)
+    return path
+
+
+def test_load_metadata_uses_startposities(tmp_path):
+    """Positions follow Startpositie, not the running sum of widths."""
+    path = _write_layout(
+        tmp_path / "layout.xlsx",
+        ["A", "B", "C"],
+        [3, 2, 4],
+        starts=[1, 4, 6],
+    )
+    _, positions = _load_metadata(str(path))
+    assert positions == [(0, 3), (3, 5), (5, 9)]
+
+
+def test_load_metadata_rejects_a_gap_between_fields(tmp_path):
+    """A gap would silently shift every following field, so it has to fail.
+
+    Without this the converter would read 'B' from the wrong three characters
+    and report status: success.
+    """
+    path = _write_layout(
+        tmp_path / "layout.xlsx",
+        ["A", "B", "C"],
+        [3, 2, 4],
+        starts=[1, 4, 9],  # C should start at 6
+    )
+    with pytest.raises(ValueError, match="C"):
+        _load_metadata(str(path))
+
+
+def test_load_metadata_gap_error_names_both_positions(tmp_path):
+    """The message has to say which field and what was expected."""
+    path = _write_layout(tmp_path / "layout.xlsx", ["A", "B"], [3, 2], starts=[1, 9])
+    with pytest.raises(ValueError) as err:
+        _load_metadata(str(path))
+    text = str(err.value)
+    assert "B" in text
+    assert "4" in text          # where the sum says it starts
+    assert "9" in text          # where the layout says it starts
+
+
+def test_load_metadata_rejects_a_leading_gap(tmp_path):
+    """The first field starting after position 1 is a gap too."""
+    path = _write_layout(tmp_path / "layout.xlsx", ["A", "B"], [3, 2], starts=[4, 7])
+    with pytest.raises(ValueError, match="A"):
+        _load_metadata(str(path))
+
+
+def test_load_metadata_without_startpositie_falls_back_to_widths(tmp_path, capsys):
+    """A future DUO version without the column still converts, but says so."""
+    path = _write_layout(tmp_path / "layout.xlsx", ["A", "B"], [3, 2])
+    columns, positions = _load_metadata(str(path))
+    assert columns == ["A", "B"]
+    assert positions == [(0, 3), (3, 5)]
+    assert "Startpositie" in capsys.readouterr().out
+
+
+def test_load_metadata_all_zero_width_field_is_not_a_gap(tmp_path):
+    """A field with width 0 keeps its own start, so it must not trip the check."""
+    path = _write_layout(tmp_path / "layout.xlsx", ["A", "B", "C"], [3, 0, 2], starts=[1, 4, 4])
+    _, positions = _load_metadata(str(path))
+    assert positions == [(0, 3), (3, 3), (3, 5)]
+
+
+
+def test_convert_one_year_mismatch_fails_and_names_both_years():
+    file_info = {
+        "input_file": "EV299XX24_DEMO.asc",
+        "status": "year_mismatch",
+        "year": 2024,
+        "matches": [
+            {
+                "validation_status": "success",
+                "validation_file": "Bestandsbeschrijving_1cyferho_2023.xlsx",
+                "validation_year": 2023,
+            }
+        ],
+    }
+    result = _convert_one(file_info, "/in", "/meta", "/out")
+    assert result["status"] == "failed"
+    assert "2024" in result["reason"]
+    assert "2023" in result["reason"]
+
+
+def test_convert_one_refuses_to_guess_between_two_valid_layouts():
+    file_info = {
+        "input_file": "EV299XX24_DEMO.asc",
+        "status": "matched",
+        "matches": [
+            {
+                "validation_status": "success",
+                "validation_file": "Bestandsbeschrijving_1cyferho_2024_v1.xlsx",
+                "validation_year": 2024,
+            },
+            {
+                "validation_status": "success",
+                "validation_file": "Bestandsbeschrijving_1cyferho_2024_v2.xlsx",
+                "validation_year": 2024,
+            },
+        ],
+    }
+    result = _convert_one(file_info, "/in", "/meta", "/out")
+    assert result["status"] == "failed"
+    assert "v1" in result["reason"] and "v2" in result["reason"]
+
+
+def _duplicate_dec_case(tmp_path, fixed_width_file, metadata_xlsx, *, conflicting=False):
+    name = "Dec_vakcode.asc"
+    (tmp_path / name).write_bytes(fixed_width_file.read_bytes())
+    other = tmp_path / "Bestandsbeschrijving_Vakken_vakcode.xlsx"
+    frame = pl.read_excel(metadata_xlsx)
+    if conflicting:
+        frame = frame.with_columns(pl.Series("Naam", ["Naam", "Andere betekenis"]))
+    else:
+        # Excel bytes/notes can differ without changing the conversion definition.
+        frame = frame.with_columns(pl.Series("Opmerking", ["Kopie", "Uit Vakken"]))
+    frame.write_excel(other)
+    info = {"input_file": name, "status": "matched", "matches": [
+        {"validation_file": other.name, "validation_status": "success"},
+        {"validation_file": metadata_xlsx.name, "validation_status": "success"},
+    ]}
+    return info
+
+
+def test_identical_dec_layouts_are_deduplicated_and_recorded(tmp_path, fixed_width_file, metadata_xlsx):
+    info = _duplicate_dec_case(tmp_path, fixed_width_file, metadata_xlsx)
+    result = _convert_one(info, str(tmp_path), str(tmp_path), str(tmp_path / "output"))
+    assert result["status"] == "success"
+    assert len(result["equivalent_layouts"]) == 2
+    assert result["validation_file"] == sorted(result["equivalent_layouts"])[0]
+    assert pl.read_csv(result["output_file"], separator=";", infer_schema_length=0).height == 3
+
+
+def test_conflicting_dec_layout_does_not_replace_existing_output(tmp_path, fixed_width_file, metadata_xlsx):
+    info = _duplicate_dec_case(tmp_path, fixed_width_file, metadata_xlsx, conflicting=True)
+    output = tmp_path / "output"
+    output.mkdir()
+    old = output / "Dec_vakcode.csv"
+    old.write_text("approved output")
+    result = _convert_one(info, str(tmp_path), str(tmp_path), str(output))
+    assert result["status"] == "failed"
+    assert "Meerdere geldige" in result["reason"]
+    assert old.read_text() == "approved output"
+
+
+def test_identical_ev_layouts_still_require_an_explicit_choice(tmp_path, fixed_width_file, metadata_xlsx):
+    info = _duplicate_dec_case(tmp_path, fixed_width_file, metadata_xlsx)
+    info["input_file"] = "EV21PL24.asc"
+    result = _convert_one(info, str(tmp_path), str(tmp_path), str(tmp_path / "output"))
+    assert result["status"] == "failed"
+    assert "equivalent_layouts" not in result
+
+
+def test_parallel_conversion_preserves_chunk_order(monkeypatch):
+    from unittest.mock import MagicMock
+    from eencijferho.core import converter as module
+    pool = MagicMock()
+    pool.__enter__.return_value = pool
+    pool.imap.side_effect = lambda func, items: map(func, items)
+    monkeypatch.setattr(module.mp, "Pool", lambda **kwargs: pool)
+    monkeypatch.setattr(module.mp, "cpu_count", lambda: 2)
+    lines = ["001", "002", "003", "004"]
+    assert module._run_parallel(lines, [(0, 3)]) == lines
+    pool.imap_unordered.assert_not_called()

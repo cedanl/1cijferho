@@ -115,22 +115,16 @@ def load_dec_tables_from_metadata(
         dec_file = table["table_title"].replace(".asc", ".csv")
         dec_path = os.path.join(dec_output_dir, dec_file)
 
-        schema_overrides: dict[str, Any] = {}
-        content = table.get("content", [])
-        if len(content) >= 2:
-            code_col = content[1].split("  ")[0].strip()
-            schema_overrides[code_col] = pl.String
-            if len(content) > 2:
-                code_col2 = content[2].split("  ")[0].strip()
-                schema_overrides[code_col2] = pl.String
-
+        # CSV headers may already be snake_case. Overrides derived from the
+        # original metadata names then miss their columns, causing codes such
+        # as 0001/M5001 to be inferred as integers on a repeated decode run.
         try:
-            df = storage.read_dataframe(dec_path, schema_overrides=schema_overrides)
+            df = storage.read_dataframe(dec_path, infer_schema_length=0)
             dec_tables[table["table_title"]] = df
         except Exception:
             try:
                 df = storage.read_dataframe(
-                    dec_path, schema_overrides=schema_overrides, quote_char=None,
+                    dec_path, infer_schema_length=0, quote_char=None,
                 )
                 dec_tables[table["table_title"]] = df
             except Exception as e:
@@ -203,33 +197,37 @@ def _apply_single_dec_join(
     code_col2_norm: str | None,
     naming_func: Callable | None = None,
 ) -> pl.DataFrame:
-    """Apply one Dec table join (simple or composite key) to result_df."""
+    """Join on temporary canonical keys without changing any source codes."""
+    join_keys = []
 
+    def add_key(column: str) -> str:
+        nonlocal result_df
+        key = "__dec_join_key"
+        while key in result_df.columns:
+            key += "_"
+        result_df = result_df.with_columns(
+            pl.col(column).cast(pl.String).str.strip_chars()
+            .str.strip_chars_start("0").str.replace("^$", "0").alias(key)
+        )
+        join_keys.append(key)
+        return key
 
-    result_df = result_df.with_columns(
-        pl.col(var_norm)
-        .cast(pl.Utf8)
-        .str.strip_chars_start("0")
-        .str.replace("^$", "0")
-        .str.strip_chars()
-        .alias(var_norm)
-    )
     try:
+        variable_key = add_key(var_norm)
         if is_composite:
-            dec_cols = [
-                c for c in join_df.columns
-                if c != code_col_norm and c != code_col2_norm
-            ]
+            anchor_key = add_key(code_col_norm)
+            dec_cols = [c for c in join_df.columns if c not in (code_col_norm, code_col2_norm)]
             joined = result_df.join(
                 join_df,
-                left_on=[code_col_norm, var_norm],
+                left_on=[anchor_key, variable_key],
                 right_on=[code_col_norm, code_col2_norm],
-                how="left",
+                how="left", validate="m:1", maintain_order="left",
             )
         else:
             dec_cols = [c for c in join_df.columns if c != code_col_norm]
             joined = result_df.join(
-                join_df, left_on=var_norm, right_on=code_col_norm, how="left"
+                join_df, left_on=variable_key, right_on=code_col_norm,
+                how="left", validate="m:1", maintain_order="left",
             )
 
         for col in dec_cols:
@@ -243,9 +241,10 @@ def _apply_single_dec_join(
             if unmatched.height > 0:
                 sample = unmatched[var_norm].unique().to_list()[:5]
                 print(f"[decoder] Niet-gematchte codes voor {var_norm}: {sample}")
-    except Exception as e:
-        print(f"[decoder] Fout bij Dec-join voor {var_norm}: {e}")
-
+    except Exception as exc:
+        raise ValueError(f"Dec-join mislukt voor {var_norm}: {exc}") from exc
+    finally:
+        result_df = result_df.drop(join_keys)
     return result_df
 
 
