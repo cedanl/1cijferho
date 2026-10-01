@@ -557,3 +557,79 @@ def test_get_decode_column_info_shared_table_all_variables(dec_metadata_json_pat
 
 def test_get_decode_column_info_missing_file():
     assert get_decode_column_info("/nonexistent/path.json") == {}
+
+
+# ---------------------------------------------------------------------------
+# _apply_single_dec_join — the data column must not be rewritten
+# ---------------------------------------------------------------------------
+
+PADDED_DF = pl.DataFrame(
+    {
+        "Vooropleiding": ["00411", "0411", "0000"],
+        "Instelling": ["02DZ", "02AB", "00AA"],
+    }
+)
+
+
+def test_apply_single_dec_join_preserves_leading_zeros_in_the_data():
+    """A code is an identifier, not a number.
+
+    DUO writes it fixed width: 00411 is a different code from 411. Stripping
+    the zero in the data column changes the value the user receives, and a
+    code that no longer exists in the source can no longer be joined to
+    anything.
+    """
+    join_df = _normalize_dec_table(
+        pl.DataFrame({"Code": ["411", "0"], "Omschrijving": ["HBO", "onbekend"]}),
+        "code",
+    )
+    result = _apply_single_dec_join(
+        _normalize_df(PADDED_DF)[0], join_df, "vooropleiding", "code",
+        is_composite=False, code_col2_norm=None,
+    )
+    assert result["vooropleiding"].to_list() == ["00411", "0411", "0000"]
+
+
+def test_apply_single_dec_join_still_matches_padded_codes():
+    """Preserving the data must not stop the join: that is the point of it."""
+    join_df = _normalize_dec_table(
+        pl.DataFrame({"Code": ["411", "0"], "Omschrijving": ["HBO", "onbekend"]}),
+        "code",
+    )
+    result = _apply_single_dec_join(
+        _normalize_df(PADDED_DF)[0], join_df, "vooropleiding", "code",
+        is_composite=False, code_col2_norm=None,
+    )
+    assert result["vooropleiding__omschrijving"].to_list() == ["HBO", "HBO", "onbekend"]
+
+
+def test_apply_single_dec_join_leaves_no_temporary_column_behind():
+    join_df = _normalize_dec_table(
+        pl.DataFrame({"Code": ["411"], "Omschrijving": ["HBO"]}), "code"
+    )
+    result = _apply_single_dec_join(
+        _normalize_df(PADDED_DF)[0], join_df, "vooropleiding", "code",
+        is_composite=False, code_col2_norm=None,
+    )
+    assert set(result.columns) == {"vooropleiding", "instelling", "vooropleiding__omschrijving"}
+
+
+def test_apply_single_dec_join_composite_preserves_leading_zeros():
+    """Same for a composite key: the variable column stays as it arrived.
+
+    code1 matches exactly here, so this test is about code2's padding alone.
+    """
+    data = pl.DataFrame({"Code1": ["2"], "Code2": ["00411"]})
+    join_df = _normalize_dec_table(
+        pl.DataFrame({"Code1": ["2"], "Code2": ["411"], "Omschrijving": ["HBO"]}), "code1"
+    )
+    join_df = join_df.with_columns(
+        pl.col("code2").cast(pl.Utf8).str.strip_chars_start("0")
+        .str.replace("^$", "0").str.strip_chars().alias("code2")
+    )
+    result = _apply_single_dec_join(
+        _normalize_df(data)[0], join_df, "code2", "code1",
+        is_composite=True, code_col2_norm="code2",
+    )
+    assert result["code2"].to_list() == ["00411"]
+    assert result["code2__omschrijving"].to_list() == ["HBO"]
