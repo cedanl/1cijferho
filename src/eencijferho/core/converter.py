@@ -69,11 +69,44 @@ def _resolve_output_path(input_file: str, output_dir: str) -> str:
 
 @with_storage
 def _load_metadata(storage, metadata_file: str) -> tuple[list[str], list[tuple[int, int]]]:
-    """Load column names and field (start, end) positions from an Excel metadata file."""
+    """Load column names and field (start, end) positions from an Excel metadata file.
+
+    ``Startpositie`` is the authority for where a field starts. DUO states it next
+    to the width, and a field that does not begin where the previous one ended
+    means the layout and the .asc file disagree about the format. Deriving the
+    positions from the widths instead filled such a gap without a word, which
+    shifted every following field and still reported status: success.
+
+    A layout without a ``Startpositie`` column (a future DUO version) falls back to
+    the running sum of the widths, with a warning.
+    """
     df = storage.read_dataframe(metadata_file, format="excel")
     widths = [int(w) for w in df["Aantal posities"].to_list()]
     column_names = df["Naam"].to_list()
-    positions = [(sum(widths[:i]), sum(widths[:i + 1])) for i in range(len(widths))]
+
+    if "Startpositie" not in df.columns:
+        _console.print(
+            f"[yellow]Layout {metadata_file} mist de kolom 'Startpositie'; "
+            f"posities afgeleid uit de breedtes.[/]"
+        )
+        positions = [(sum(widths[:i]), sum(widths[:i + 1])) for i in range(len(widths))]
+        return column_names, positions
+
+    starts = [int(s) for s in df["Startpositie"].to_list()]
+    positions: list[tuple[int, int]] = []
+    expected = 0
+    for name, start, width in zip(column_names, starts, widths, strict=True):
+        if start - 1 != expected:
+            gap = start - 1 - expected
+            raise ValueError(
+                f"Layout-inconsistent in {os.path.basename(metadata_file)}: veld "
+                f"'{name}' begint op Startpositie {start}, terwijl de vorige velden "
+                f"tot {expected + 1} lopen. Gat van {gap} positie(s): velden na "
+                f"'{name}' zouden {gap} te vroeg worden afgelezen."
+            )
+        positions.append((expected, expected + width))
+        expected += width
+
     return column_names, positions
 
 
