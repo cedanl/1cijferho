@@ -29,7 +29,7 @@ Met deze tool kun je in enkele minuten grote hoeveelheden data verwerken, zonder
 
 Bekijk hieronder een korte demonstratie van hoe de 1CijferHO Tool werkt:
 
-![Demo](src/assets/demo.gif)
+<video src="https://github.com/user-attachments/assets/a8a60a3f-d746-4c4b-84ea-faa8feb7b5d3" controls width="100%"></video>
 
 ### 📑 Congrespresentatie(s)
 
