@@ -108,3 +108,52 @@ def test_missing_metadata_file(valid_csv):
 
     assert success is False
     assert "load_error" in results
+
+
+# ---------------------------------------------------------------------------
+# Non-exhaustive value lists
+# ---------------------------------------------------------------------------
+
+def test_non_exhaustive_flag_skips_the_column(make_temp_file):
+    """A '>' marker in the bestandsbeschrijving says the list is not exhaustive.
+
+    The parser records that as non_exhaustive_values instead of leaving ' > '
+    in the value text, so the flag has to carry the skip. Without it, the 16
+    affected DUO fields start reporting their own documented values as invalid.
+    """
+    metadata = [
+        {
+            "name": "Diplomajaar",
+            "description": "Jaar waarin het diploma is behaald.",
+            "values": {"0000": "geen examen geregistreerd"},
+            "non_exhaustive_values": True,
+        }
+    ]
+    # 2015 is legitimate under DUO's own note, but absent from the list above
+    csv = make_temp_file("Diplomajaar\n0000\n2015\n", ".csv")
+    meta = make_temp_file(json.dumps(metadata, ensure_ascii=False), ".json")
+
+    success, results = validate_column_values(csv, meta)
+
+    assert success is True
+    assert results["columns_checked"] == 0
+    assert results["total_issues"] == 0
+
+
+def test_exhaustive_list_is_still_validated(make_temp_file):
+    """The flag must not disable validation for lists that are complete."""
+    metadata = [
+        {
+            "name": "Diplomajaar",
+            "description": "Jaar waarin het diploma is behaald.",
+            "values": {"0000": "geen examen geregistreerd"},
+            "non_exhaustive_values": False,
+        }
+    ]
+    csv = make_temp_file("Diplomajaar\n0000\n2015\n", ".csv")
+    meta = make_temp_file(json.dumps(metadata, ensure_ascii=False), ".json")
+
+    success, results = validate_column_values(csv, meta)
+
+    assert success is False
+    assert results["total_issues"] > 0

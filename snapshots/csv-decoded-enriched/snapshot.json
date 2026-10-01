@@ -1,9 +1,11 @@
 {
-  "generated_at": "2026-04-13T11:16:23.832141",
-  "output_dir": "data/snap_c2",
+  "snapshot_version": 2,
+  "generated_at": "2026-10-01T20:48:25.206100",
+  "output_dir": "data/test-output/csv-decoded-enriched",
   "file_count": 18,
   "files": {
     "Dec_actuele_instelling.csv": {
+      "file_hash": "e869a55e0d1cfae1d9966fd0eeaae16453b46c5942d66598c0bfa3261aa56b9b",
       "row_count": 59,
       "column_count": 2,
       "columns": [
@@ -12,6 +14,7 @@
       ]
     },
     "Dec_ho-inst.csv": {
+      "file_hash": "3d7b2bf60cdec71386e078ad5c1c08b606559e4f9e2da844f632853487d25e78",
       "row_count": 316,
       "column_count": 2,
       "columns": [
@@ -20,6 +23,7 @@
       ]
     },
     "Dec_ho_ISCED.csv": {
+      "file_hash": "394b8b172e333f56265f1118445867ea83580b87280cc4679a6584066a159229",
       "row_count": 3968,
       "column_count": 5,
       "columns": [
@@ -31,6 +35,7 @@
       ]
     },
     "Dec_instellingscode.csv": {
+      "file_hash": "2e5bd2056087558a11801154660c034c44bbc60aa95aec0d76343de2d275a937",
       "row_count": 19273,
       "column_count": 8,
       "columns": [
@@ -45,6 +50,7 @@
       ]
     },
     "Dec_landcode.csv": {
+      "file_hash": "2ce4c22bc8d392800681315fa8135a67bad5f5f3783bec56699adc856d0d7f4e",
       "row_count": 391,
       "column_count": 6,
       "columns": [
@@ -57,6 +63,7 @@
       ]
     },
     "Dec_nationaliteitscode.csv": {
+      "file_hash": "28e5a14fe1d65009698f3ebb72948fb65af280ca67a51fe1283d149d0d5bab14",
       "row_count": 219,
       "column_count": 6,
       "columns": [
@@ -69,6 +76,7 @@
       ]
     },
     "Dec_opleidingscode.csv": {
+      "file_hash": "24ae6645ed02b35919aeae2ac1ec1a03f0999f29ed73750b2177efe286df30e8",
       "row_count": 4114,
       "column_count": 2,
       "columns": [
@@ -77,6 +85,7 @@
       ]
     },
     "Dec_postcodecijfers_2024.csv": {
+      "file_hash": "65b2ac667d2ffb5813d590186aed84d4b0d46b5331d795c10b17ac8e1d49c3f2",
       "row_count": 4878,
       "column_count": 4,
       "columns": [
@@ -87,6 +96,7 @@
       ]
     },
     "Dec_vakcode.csv": {
+      "file_hash": "613171abd8c9f6531ca72417cf3f99ecd22d97595acdf2e4615d6b9cbd6278d2",
       "row_count": 635,
       "column_count": 4,
       "columns": [
@@ -97,6 +107,7 @@
       ]
     },
     "Dec_vest_ho.csv": {
+      "file_hash": "f0a87af5ea17e90e9950d00c4dc10a2e7be50c0d22405e6f272a437a58de501e",
       "row_count": 482,
       "column_count": 5,
       "columns": [
@@ -108,6 +119,7 @@
       ]
     },
     "Dec_vestnr_ho_compleet.csv": {
+      "file_hash": "2917cfff9ed8e0da947dafae244229f76c67d776bde074138d53dc8626ead1cd",
       "row_count": 1027,
       "column_count": 5,
       "columns": [
@@ -119,6 +131,7 @@
       ]
     },
     "Dec_vooropl.csv": {
+      "file_hash": "c92cef0a3267cf88bc61430d7a8ea1725709ae57a926786b6f405ee175d8b6fe",
       "row_count": 9471,
       "column_count": 3,
       "columns": [
@@ -128,6 +141,7 @@
       ]
     },
     "Dec_vopl.csv": {
+      "file_hash": "b808de679ac110e797eb7d08b22e56ec66749bda33391278a4bb4572940c184d",
       "row_count": 192,
       "column_count": 2,
       "columns": [
@@ -136,6 +150,7 @@
       ]
     },
     "EV299XX24_DEMO.csv": {
+      "file_hash": "de6027f6b88ebaadb9596cca723ac5b2f2a013340a1ef92516a2b9be7fb78fdf",
       "row_count": 43663,
       "column_count": 115,
       "columns": [
@@ -257,6 +272,7 @@
       ]
     },
     "EV299XX24_DEMO_decoded.csv": {
+      "file_hash": "b1f7a32e3681ef636512f8d8efbcb7a9a0f91093db0fe1d641e407ee89256d83",
       "row_count": 43663,
       "column_count": 186,
       "columns": [
@@ -449,6 +465,7 @@
       ]
     },
     "EV299XX24_DEMO_enriched.csv": {
+      "file_hash": "6930bec7b8c4ad6122ee6e654f0d5a758bf666122aebbf8ec10bcfe36298689d",
       "row_count": 43663,
       "column_count": 186,
       "columns": [
@@ -641,6 +658,7 @@
       ]
     },
     "VAKHAVW_99XX_DEMO.csv": {
+      "file_hash": "c53297cbeaa63ba8870fe4d1b1a45f0ba2495727b7057c8e163cd6fb05754ee0",
       "row_count": 222637,
       "column_count": 21,
       "columns": [
@@ -668,6 +686,7 @@
       ]
     },
     "VAKHAVW_99XX_DEMO_decoded.csv": {
+      "file_hash": "c91165d32db4750d5e0c1f84601ab25d7aa9b6c0b6cc7b471bd456409a867cf9",
       "row_count": 222637,
       "column_count": 24,
       "columns": [

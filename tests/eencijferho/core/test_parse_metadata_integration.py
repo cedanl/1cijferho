@@ -336,3 +336,105 @@ Another Short Key = separate value
             # Another Short Key should be separate
             assert 'Another Short Key' in values
             assert values['Another Short Key'] == 'separate value'
+
+
+class TestParseMetadataContinuationMarker:
+    """DUO's '>' marker: the same code, in a different case.
+
+    Text fragments below are copied verbatim from
+    Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.txt, which has 16 of them.
+    """
+
+    # BB lines 979-980
+    SIMPLE = """Diplomajaar
+---
+De jaaraanduiding van de periode waarin het diploma is behaald.
+
+Mogelijke waarden:
+0000 = geen examen geregistreerd
+> 0000 voor overige inschrijvingen
+
+"""
+
+    # BB lines 1181-1184: the note wraps onto a second line
+    WRAPPED = """Vooropleiding hoogste vooropleiding
+---
+Vooropleiding zoals geregistreerd.
+
+Mogelijke waarden:
+0000 = vooropleiding onbekend of geregistreerd diplomajaar is ongeldig
+> 0000 voor overige inschrijvingen. NB wanneer het diplomajaar 2003 is, dan
+betreft het een diploma behaald in het schooljaar 2003/2004.
+
+"""
+
+    # BB lines 2136-2138: a plain wrapped value, no '>' involved
+    PLAIN_WRAP = """Aantal actieve inschrijvingen HO
+---
+Aantal actieve inschrijvingen.
+
+Mogelijke waarden:
+00 = inschrijving heeft soort inschrijving actuele instelling-type HO binnen soort HO van 3 of 5
+     (of 8 of C)
+
+"""
+
+    def _parse(self, tmp_path, text):
+        metadata_file = tmp_path / "test.txt"
+        metadata_file.write_text(text, encoding="latin-1")
+        return parse_metadata_file(str(metadata_file))
+
+    def test_marker_does_not_end_up_in_the_value(self, tmp_path):
+        """The marker is documentation about a code, not part of what the code means."""
+        result = self._parse(tmp_path, self.SIMPLE)
+        assert result[0]["values"]["0000"] == "geen examen geregistreerd"
+
+    def test_no_value_description_contains_the_marker(self, tmp_path):
+        result = self._parse(tmp_path, self.SIMPLE)
+        assert not any(">" in str(v) for v in result[0]["values"].values())
+
+    def test_marker_marks_the_list_as_non_exhaustive(self, tmp_path):
+        """'… voor overige inschrijvingen' means the list does not cover every case.
+
+        value_validation skips these lists; it needs to know this without
+        grepping the value text for ' > '.
+        """
+        result = self._parse(tmp_path, self.SIMPLE)
+        assert result[0]["non_exhaustive_values"] is True
+
+    def test_wrapped_marker_block_is_swallowed_whole(self, tmp_path):
+        """The NB note wraps. Half of it leaking in is worse than none of it."""
+        result = self._parse(tmp_path, self.WRAPPED)
+        assert result[0]["values"]["0000"] == "vooropleiding onbekend of geregistreerd diplomajaar is ongeldig"
+
+    def test_list_without_marker_is_not_flagged(self, tmp_path):
+        result = self._parse(tmp_path, "Geslacht\n---\nGeslacht.\n\nMogelijke waarden:\n1 = Man\n2 = Vrouw\n\n")
+        assert not result[0].get("non_exhaustive_values")
+
+    def test_plain_wrapped_value_is_still_appended(self, tmp_path):
+        """Guard: only '>' starts a note. Ordinary wrapping keeps working."""
+        result = self._parse(tmp_path, self.PLAIN_WRAP)
+        assert result[0]["values"]["00"].endswith("(of 8 of C)")
+        assert not result[0].get("non_exhaustive_values")
+
+    def test_note_is_kept_in_the_description(self, tmp_path):
+        """The note is documentation about the field, so it moves to the description.
+
+        It must not be dropped: a data tool that silently discards what the
+        source says is exactly the failure mode this parser had elsewhere.
+        """
+        result = self._parse(tmp_path, self.WRAPPED)
+        assert "> 0000 voor overige inschrijvingen" in result[0]["description"]
+        assert "betreft het een diploma behaald in het schooljaar 2003/2004" in result[0]["description"]
+
+    def test_code_after_the_block_is_still_parsed(self, tmp_path):
+        """The block must not swallow the rest of the list."""
+        text = (
+            "Diplomajaar\n---\nBeschrijving.\n\nMogelijke waarden:\n"
+            "0000 = geen examen geregistreerd\n"
+            "> 0000 voor overige inschrijvingen\n\n"
+            "2015 = diploma behaald in 2015\n\n"
+        )
+        result = self._parse(tmp_path, text)
+        assert result[0]["values"]["2015"] == "diploma behaald in 2015"
+        assert result[0]["values"]["0000"] == "geen examen geregistreerd"

@@ -18,7 +18,7 @@ try:
 except _PackageNotFoundError:
     __version__ = "unknown"
 
-from eencijferho.core.pipeline import run_turbo_convert_pipeline
+from eencijferho.core.pipeline import PipelineError, run_turbo_convert_pipeline
 from eencijferho.core.extractor import process_txt_folder, write_variable_metadata, process_json_folder, get_fwf_params, list_fwf_tables
 from eencijferho.utils.converter_validation import converter_validation
 from eencijferho.utils.compressor import convert_csv_to_parquet
@@ -30,6 +30,7 @@ from eencijferho.utils.translator import translate_bsn_to_local_id
 __all__ = [
     "__version__",
     "run_turbo_convert_pipeline",
+    "PipelineError",
     "process_txt_folder",
     "write_variable_metadata",
     "process_json_folder",

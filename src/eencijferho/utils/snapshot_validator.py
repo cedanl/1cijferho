@@ -13,9 +13,9 @@ Snapshot contents per file:
   - dtypes         : Polars dtype per column (Parquet only)
 """
 
+import hashlib
 import json
 import os
-import re
 from datetime import datetime
 
 from rich.console import Console
@@ -35,15 +35,15 @@ def _scan_file(storage, filepath: str) -> dict:
     fname = os.path.basename(filepath)
     ext = fname.rsplit(".", 1)[-1].lower() if "." in fname else ""
     entry: dict = {}
+    try:
+        entry["file_hash"] = hashlib.sha256(storage.read_bytes(filepath)).hexdigest()
+    except Exception as exc:
+        entry["read_error"] = str(exc)
+        return entry
 
     if ext == "csv":
         try:
-            try:
-                df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
-            except Exception:
-                df = storage.read_dataframe(
-                    filepath, format="csv", infer_schema_length=0, quote_char=None
-                )
+            df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
             entry["row_count"] = len(df)
             entry["column_count"] = len(df.columns)
             entry["columns"] = sorted(df.columns)
@@ -76,6 +76,7 @@ def generate_snapshot(storage, output_dir: str, snapshot_path: str) -> None:
     ]
 
     snapshot = {
+        "snapshot_version": 2,
         "generated_at": datetime.now().isoformat(),
         "output_dir": output_dir,
         "file_count": len(files),
@@ -85,7 +86,10 @@ def generate_snapshot(storage, output_dir: str, snapshot_path: str) -> None:
     for filepath in sorted(files):
         fname = os.path.basename(filepath)
         _console.print(f"  [dim]Scanning {fname}[/dim]")
-        snapshot["files"][fname] = _scan_file(storage, filepath)
+        entry = _scan_file(storage, filepath)
+        if "read_error" in entry:
+            raise ValueError(f"Kan geen snapshot maken van onleesbaar bestand {fname}: {entry['read_error']}")
+        snapshot["files"][fname] = entry
 
     os.makedirs(os.path.dirname(os.path.abspath(snapshot_path)), exist_ok=True)
     with open(snapshot_path, "w", encoding="utf-8") as fh:
@@ -99,12 +103,14 @@ def generate_snapshot(storage, output_dir: str, snapshot_path: str) -> None:
 
 @with_storage
 def validate_snapshot(
-    storage, output_dir: str, snapshot_path: str
+    storage, output_dir: str, snapshot_path: str, *, strict_files: bool = True,
 ) -> tuple[bool, list[str], list[str]]:
     """Compare *output_dir* against a saved snapshot.
 
     Returns ``(passed, errors, warnings)``.
-    *passed* is True only when *errors* is empty.
+    *passed* is True only when *errors* is empty. Unreadable files always fail.
+    Unexpected files fail unless ``strict_files=False`` is requested explicitly.
+    Legacy snapshots without hashes still check schema, with a warning.
     """
     with open(snapshot_path, encoding="utf-8") as fh:
         expected = json.load(fh)
@@ -125,19 +131,32 @@ def validate_snapshot(
     for fname in sorted(expected_names - current_names):
         errors.append(f"Bestand ontbreekt: {fname}")
     for fname in sorted(current_names - expected_names):
-        warnings.append(f"Onverwacht bestand aanwezig: {fname}")
+        (errors if strict_files else warnings).append(f"Onverwacht bestand aanwezig: {fname}")
 
     for fname, exp in sorted(expected["files"].items()):
         if fname not in current_map:
             continue
 
+        if "read_error" in exp:
+            errors.append(f"{fname}: snapshot bevat een leesfout; maak een geldige baseline")
+            continue
         cur = _scan_file(storage, current_map[fname])
+        if "read_error" in cur:
+            errors.append(f"{fname}: bestand onleesbaar: {cur['read_error']}")
+            continue
+        if "file_hash" in exp:
+            if cur.get("file_hash") != exp["file_hash"]:
+                errors.append(f"{fname}: inhoud gewijzigd (SHA256 verschilt)")
+        elif expected.get("snapshot_version", 1) >= 2:
+            errors.append(f"{fname}: SHA256 ontbreekt in de snapshot")
+        else:
+            warnings.append(f"{fname}: oude snapshot zonder inhoudhash; alleen schema wordt gecontroleerd")
 
         for key in ("row_count", "column_count"):
-            if key in exp and key in cur and cur[key] != exp[key]:
+            if key in exp and cur.get(key) != exp[key]:
                 label = "rijen" if key == "row_count" else "kolommen"
                 errors.append(
-                    f"{fname}: {label} {cur[key]} ≠ verwacht {exp[key]}"
+                    f"{fname}: {label} {cur.get(key)} ≠ verwacht {exp[key]}"
                 )
 
         if "columns" in exp and "columns" in cur:
