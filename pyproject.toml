@@ -2,9 +2,6 @@
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.uv]
-cache-dir = "./.uv_cache"
-
 [project]
 name = "eencijferho"
 version = "0.1.8"
