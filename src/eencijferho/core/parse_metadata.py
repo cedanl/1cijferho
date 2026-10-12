@@ -25,6 +25,8 @@ def _is_separator(lines: list[str], idx: int) -> bool:
         return False
     return bool(re.match(r'^-+\s*$', lines[idx].strip()))
 
+_KEY_VALUE_RE = re.compile(r'^([^=<>`]+?)\s*=\s*(.+?)$')
+
 def _parse_description_section(lines: list[str], start: int) -> tuple[int, list[str]]:
     """Parse description lines until 'Mogelijke waarden:' or next variable header."""
     desc_lines = []
@@ -53,7 +55,7 @@ def _is_long_key_continuation(raw: str, key: str) -> bool:
 
 def _process_key_value_line(s: str, raw: str, var_name: str, last_key: str | None, values: dict) -> tuple[str | None]:
     """Extract key-value pair and handle special cases. Returns updated last_key."""
-    m = re.match(r'^([^=<>`]+?)\s*=\s*(.+?)$', s)
+    m = _KEY_VALUE_RE.match(s)
     if not m:
         return last_key
 
@@ -89,11 +91,34 @@ def _process_fallback_values(values: dict, values_lines: list[str]) -> None:
         else:
             values['list'] = values_lines
 
-def _parse_values_section(lines: list[str], start: int, var_name: str) -> tuple[int, dict, list[str]]:
+def _read_continuation_marker(lines: list[str], i: int) -> tuple[str, int]:
+    """Read DUO's '>' note plus the lines it wraps onto.
+
+    DUO writes e.g. '> 0000 voor overige inschrijvingen' under the '0000 = …'
+    line it belongs to: the same code, for other enrolments. The note describes
+    the code, it is not what the code means, and it means the list does not
+    cover every case. The note moves to the description, marker included like
+    the '*' notes, so nothing is lost and the value stays a value.
+
+    Returns the note and the index of the first line after the note block.
+    """
+    n = len(lines)
+    note_lines = [lines[i].strip()]
+    i += 1
+    while i < n:
+        s = lines[i].strip()
+        if s == '' or s.startswith('*') or _is_separator(lines, i) or _KEY_VALUE_RE.match(s):
+            break
+        note_lines.append(s)
+        i += 1
+    return ' '.join(x for x in note_lines if x), i
+
+def _parse_values_section(lines: list[str], start: int, var_name: str) -> tuple[int, dict, list[str], bool]:
     """Parse values section (key=value pairs, lists, references)."""
     values = {}
     values_lines = []
     notes_lines = []
+    non_exhaustive = False
     last_key = None
     i = start
     n = len(lines)
@@ -116,7 +141,14 @@ def _parse_values_section(lines: list[str], start: int, var_name: str) -> tuple[
             i += 1
             continue
 
-        m = re.match(r'^([^=<>`]+?)\s*=\s*(.+?)$', s)
+        if s.startswith('>'):
+            note, i = _read_continuation_marker(lines, i)
+            if note:
+                notes_lines.append(note)
+            non_exhaustive = True
+            continue
+
+        m = _KEY_VALUE_RE.match(s)
         if m:
             last_key = _process_key_value_line(s, raw, var_name, last_key, values)
         else:
@@ -126,7 +158,7 @@ def _parse_values_section(lines: list[str], start: int, var_name: str) -> tuple[
         i += 1
 
     _process_fallback_values(values, values_lines)
-    return i, values, notes_lines
+    return i, values, notes_lines, non_exhaustive
 
 def _process_variable_block(lines: list[str], i: int, name: str, n: int) -> tuple[int, dict | None]:
     """Process a variable block and return next index and variable dict."""
@@ -136,13 +168,16 @@ def _process_variable_block(lines: list[str], i: int, name: str, n: int) -> tupl
     if not found_values:
         return i, None
 
-    i, values, notes_lines = _parse_values_section(lines, i, name)
+    i, values, notes_lines, non_exhaustive = _parse_values_section(lines, i, name)
 
     desc = ' '.join(ln.strip() for ln in desc_lines if ln.strip())
     if notes_lines:
         desc = desc + ' ' + ' '.join(notes_lines)
 
-    return i, {'name': name, 'description': desc, 'values': values}
+    variable = {'name': name, 'description': desc, 'values': values}
+    if non_exhaustive:
+        variable['non_exhaustive_values'] = True
+    return i, variable
 
 def _scan_for_variable_header(lines: list[str], i: int, n: int) -> tuple[int, str | None]:
     """Scan from current line for a variable header. Return next index and name or None."""

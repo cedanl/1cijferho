@@ -27,7 +27,8 @@ def _build_lookup(variables: list[dict[str, Any]]) -> dict[str, set]:
     - Fields with 'reference' or 'list' values (non-concrete)
     - Fields where any value description contains ' > ' — DUO notation for
       "value X for case Y > value Z for all other cases", meaning the list is
-      not exhaustive and we cannot reliably validate against it.
+      not exhaustive and we cannot reliably validate against it. The parser
+      records this as non_exhaustive_values.
     """
     lookup: dict[str, set] = {}
     for var in variables:
@@ -36,8 +37,13 @@ def _build_lookup(variables: list[dict[str, Any]]) -> dict[str, set]:
             continue
         if "reference" in values or "list" in values:
             continue
-        # Skip non-exhaustive fields: DUO uses ' > ' in descriptions to indicate
-        # conditional/open-ended documentation (e.g. "0000 voor overige inschrijvingen")
+        # Skip non-exhaustive fields: DUO marks these with a '>' note below the
+        # value ("0000 = …" / "> 0000 voor overige inschrijvingen"), meaning the
+        # list does not cover every case. The parser records that as
+        # non_exhaustive_values; the ' > ' check stays for JSON from an older
+        # extractor, which still carries the marker inside the value text.
+        if var.get("non_exhaustive_values"):
+            continue
         if any(" > " in str(v) for v in values.values()):
             continue
         # Skip open-ended fields: [gevuld] means "any non-empty value is valid"
