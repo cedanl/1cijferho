@@ -1,0 +1,12 @@
+# English words that look Dutch in names and prose; judged as English, one per line.
+gids
+opname
+getint
+anno
+vals
+schema
+tolist
+tolines
+toline
+meter
+amsterdam

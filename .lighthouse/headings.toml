@@ -1,0 +1,322 @@
+# The heading table (besluit 8): every heading that code or a skill reads as a
+# contract, with one variant per language. Writing uses `[project] language`;
+# reading accepts every variant. A skill names a heading as `heading:<key>`.
+# Read it with `python3 .lighthouse/lib/lighthouse_lib/headings.py <key>`.
+
+# Issues
+[acceptance_criteria]
+nl = "Acceptatiecriteria"
+en = "Acceptance criteria"
+
+# The kinds of a `🤖 <kind>` comment
+[kind_handoff]
+nl = "Handoff"
+en = "Handoff"
+
+[kind_started]
+nl = "Gestart"
+en = "Started"
+
+[kind_question]
+nl = "Vraag"
+en = "Question"
+
+[kind_resumed]
+nl = "Hervat"
+en = "Resumed"
+
+[kind_done]
+nl = "Klaar"
+en = "Done"
+
+[kind_returned]
+nl = "Teruggegeven"
+en = "Returned"
+
+[kind_rebased]
+nl = "Herbaseerd"
+en = "Rebased"
+
+[kind_parked]
+nl = "Geparkeerd"
+en = "Parked"
+
+# Texts the dispatcher posts
+[reason_needs_brainstorm]
+nl = "heeft brainstorm nodig"
+en = "needs a brainstorm"
+
+[reason_interactive]
+nl = "vraagt interactieve uitvoering"
+en = "asks for interactive execution"
+
+[reason_skill_missing]
+nl = "skill niet geïnstalleerd in de worktree"
+en = "skill not installed in the worktree"
+
+[reason_not_allowed]
+nl = "commando niet toegestaan"
+en = "command not allowed"
+
+[reason_bad_handoff]
+nl = "handoff onleesbaar"
+en = "handoff unreadable"
+
+[reason_state_lost]
+nl = "runstaat kwijt"
+en = "run state lost"
+
+[reason_start_failed]
+nl = "start mislukt"
+en = "start failed"
+
+[reason_workplace_gone]
+nl = "werkplek verdwenen"
+en = "workplace gone"
+
+[reason_pr_closed]
+nl = "PR gesloten"
+en = "PR closed"
+
+[reason_pr_draft]
+nl = "PR is draft"
+en = "PR is a draft"
+
+[reason_pr_red]
+nl = "PR rood"
+en = "PR red"
+
+[reason_pr_red_ceiling]
+nl = "PR rood na 3 fix-pr-runs"
+en = "PR red after 3 fix-pr runs"
+
+[reason_no_handoff]
+nl = "geen handoff of vraag"
+en = "no handoff or question"
+
+[reason_start_uncertain]
+nl = "start onzeker: geen sessie gevonden"
+en = "start uncertain: no session found"
+
+[reason_permission]
+nl = "wacht op permissie"
+en = "waiting for permission"
+
+[reason_silent]
+nl = "geen activiteit in max_wait"
+en = "no activity in max_wait"
+
+[reason_silent_forge]
+nl = "geen activiteit in max_wait (forge-stand; transcript niet meetbaar)"
+en = "no activity in max_wait (forge state; transcript not measurable)"
+
+[reason_timeout]
+nl = "time-out (max_runtime)"
+en = "timeout (max_runtime)"
+
+[skip_spec_review]
+nl = "spec-review overgeslagen (config)"
+en = "spec review skipped (config)"
+
+[skip_plan_review]
+nl = "plan-review overgeslagen (config)"
+en = "plan review skipped (config)"
+
+[note_done]
+nl = "Checks groen, klaar voor review. Mergen blijft bij jou; na de merge toetst de controller het issue opnieuw als het nog open staat."
+en = "Checks green, ready for review. Merging stays with you; after the merge the controller checks the issue again if it is still open."
+
+[prompt_usage_resume]
+nl = "ga verder"
+en = "continue"
+
+# The fields of a question
+[question_where]
+nl = "Waar het staat"
+en = "Where it stands"
+
+[question_what]
+nl = "Wat er speelt"
+en = "What is going on"
+
+[question_label]
+nl = "Vraag"
+en = "Question"
+
+[question_close]
+nl = "**Max 1 comment als reactie.**"
+en = "**At most 1 comment in reply.**"
+
+[question_bundle_hint]
+nl = "Antwoord per vraag, bijvoorbeeld `1a, 2c`."
+en = "Answer per question, for example `1a, 2c`."
+
+[question_run_yourself]
+nl = "**Zelf draaien:**"
+en = "**Run it yourself:**"
+
+[question_recommended]
+nl = "*(aanbevolen)*"
+en = "*(recommended)*"
+
+[question_phase]
+nl = "fase"
+en = "phase"
+
+[question_task]
+nl = "taak"
+en = "task"
+
+# The visible line of an artefact comment
+[artefact_version]
+nl = "versie"
+en = "version"
+
+[artefact_part]
+nl = "deel"
+en = "part"
+
+[artefact_source]
+nl = "bron"
+en = "source"
+
+# start-issue and its scout
+[gate_line]
+nl = "Poort"
+en = "Gate"
+
+[scout_skipped]
+nl = "Scout: overgeslagen"
+en = "Scout: skipped"
+
+[impact_pack]
+nl = "IMPACT PACK"
+en = "IMPACT PACK"
+
+# The evidence of a PR
+[evidence_holds]
+nl = "klopt"
+en = "holds"
+
+[evidence_fails]
+nl = "klopt niet"
+en = "does not hold"
+
+[evidence_invalid]
+nl = "ongeldig"
+en = "invalid"
+
+[evidence_unmeasurable]
+nl = "niet meetbaar"
+en = "not measurable"
+
+[evidence_after_pr]
+nl = "na PR: "
+en = "after PR: "
+
+[evidence_after_pr_unmeasured]
+nl = "na PR, niet gemeten"
+en = "after PR, not measured"
+
+[evidence_table_head]
+nl = "| AC | Uitkomst | Detail |"
+en = "| AC | Outcome | Detail |"
+
+[evidence_closes_without_block]
+nl = "Closes zonder bewijsblok:"
+en = "Closes without evidence block:"
+
+# The adversarial reviews
+[open_after_review]
+nl = "## Open na review"
+en = "## Open after review"
+
+# Milestones
+[milestone_dod]
+nl = "Definition of Done"
+en = "Definition of Done"
+
+[milestone_no_gos]
+nl = "No-Gos"
+en = "No-Gos"
+
+[milestone_not_yet_decided]
+nl = "Nog niet vastgelegd"
+en = "Not yet decided"
+
+# Texts of the triage comment
+[triage_title]
+nl = "Triage"
+en = "Triage"
+
+[triage_invariant]
+nl = "invariant gebroken"
+en = "invariant broken"
+
+[triage_invariant_missing]
+nl = "geen label met prefix"
+en = "no label with prefix"
+
+[triage_invariant_many]
+nl = "meer dan één label met prefix"
+en = "more than one label with prefix"
+
+[triage_invariant_blocking]
+nl = "meer dan één blokkadelabel"
+en = "more than one blocking label"
+
+[triage_invariant_note]
+nl = "Er is niets aangepast en het issue gaat niet naar de dispatcher. Maak de labels weer kloppend; dan vervalt deze triage."
+en = "Nothing was changed and the issue does not go to the dispatcher. Fix the labels; this triage then lapses."
+
+[triage_duplicate]
+nl = "Mogelijk dubbel van"
+en = "Possibly a duplicate of"
+
+[triage_done]
+nl = "Mogelijk al af"
+en = "Possibly already done"
+
+[triage_redundant_note]
+nl = "Er is niets gesloten en het issue gaat niet naar de dispatcher; kijk zelf of dit klopt."
+en = "Nothing was closed and the issue does not go to the dispatcher; check yourself whether this holds."
+
+[triage_stop_note]
+nl = "Het issue gaat niet naar de dispatcher."
+en = "The issue does not go to the dispatcher."
+
+[triage_stop_expires]
+nl = "Deze triage vervalt vanzelf zodra de stop weg is."
+en = "This triage lapses by itself as soon as the stop is gone."
+
+[triage_design_questions]
+nl = "Ontwerpvragen"
+en = "Design questions"
+
+[triage_interactive]
+nl = "Dit moet interactief:"
+en = "This has to be interactive:"
+
+[triage_untrusted]
+nl = "De auteur van dit issue valt niet in answer_permissions: een vertrouwde gebruiker zet het zelf door."
+en = "The author of this issue is not in answer_permissions: a trusted user forwards it themselves."
+
+[triage_forwarded_night]
+nl = "Doorgezet naar de dispatcher. De handoff start de run pas in het nachtvenster; tot dan kun je corrigeren."
+en = "Forwarded to the dispatcher. The handoff starts the run only in the night window; until then you can correct it."
+
+[triage_forwarded_now]
+nl = "Doorgezet naar de dispatcher; de eerstvolgende tick start het."
+en = "Forwarded to the dispatcher; the next tick starts it."
+
+[triage_fix_forwarded]
+nl = "Corrigeren: niet naar de dispatcher: zet de status terug naar To do en verwijder de 🤖 Handoff. Opnieuw triëren: zet eerst de status terug naar To do, verwijder dan deze comment en de 🤖 Handoff. Zelf oppakken: zet eerst de status terug naar To do, start dan /lighthouse-start-issue."
+en = "To correct: not to the dispatcher: set the status back to To do and delete the 🤖 Handoff. Triage again: first set the status back to To do, then delete this comment and the 🤖 Handoff. Pick it up yourself: first set the status back to To do, then start /lighthouse-start-issue."
+
+[triage_fix_forwarded_now]
+nl = "Corrigeren: niet naar de dispatcher: zet de status terug naar To do. Opnieuw triëren: zet eerst de status terug naar To do, verwijder dan deze comment. Zelf oppakken: zet eerst de status terug naar To do, start dan /lighthouse-start-issue."
+en = "To correct: not to the dispatcher: set the status back to To do. Triage again: first set the status back to To do, then delete this comment. Pick it up yourself: first set the status back to To do, then start /lighthouse-start-issue."
+
+[triage_fix_other]
+nl = "Corrigeren: pas zo nodig de labels of de body aan en verwijder deze comment; de volgende ronde triëert opnieuw."
+en = "To correct: adjust the labels or the body if needed and delete this comment; the next round triages again."
