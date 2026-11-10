@@ -53,8 +53,8 @@ def _is_long_key_continuation(raw: str, key: str) -> bool:
     eq_pos = raw.find('=')
     return (eq_pos >= 40) or (len(key) > 20 and not re.search(r'^[0-9]+$', key))
 
-def _process_key_value_line(s: str, raw: str, var_name: str, last_key: str | None, values: dict) -> tuple[str | None]:
-    """Extract key-value pair and handle special cases. Returns updated last_key."""
+def _process_key_value_line(s: str, raw: str, last_key: str | None, values: dict) -> str | None:
+    """Extract a key-value pair or a long-key continuation. Returns updated last_key."""
     m = _KEY_VALUE_RE.match(s)
     if not m:
         return last_key
@@ -62,10 +62,6 @@ def _process_key_value_line(s: str, raw: str, var_name: str, last_key: str | Non
     key = m.group(1).strip()
     val = m.group(2).strip()
     is_continuation = _is_long_key_continuation(raw, key)
-
-    if var_name == "Indicatie geboren" and key == "99":
-        values[key] = "Onbekend"
-        return None
 
     if is_continuation and last_key:
         cont = re.sub(r'\s+', ' ', s).strip()
@@ -113,13 +109,22 @@ def _read_continuation_marker(lines: list[str], i: int) -> tuple[str, int]:
         i += 1
     return ' '.join(x for x in note_lines if x), i
 
-def _parse_values_section(lines: list[str], start: int, var_name: str) -> tuple[int, dict, list[str], bool]:
-    """Parse values section (key=value pairs, lists, references)."""
+def _parse_values_section(lines: list[str], start: int) -> tuple[int, dict, list[str], bool]:
+    """Parse values section (key=value pairs, lists, references).
+
+    An unindented line of free text after a blank line starts a note about the
+    list (e.g. 'Het CBS dikt de waarden als volgt in:' under 'Indicatie
+    geboren'), not a wrap of the last value. The note and the lines that wrap
+    it go to the description, until the next key=value line. An indented line
+    after a blank line still continues the last value (a multi-paragraph value).
+    """
     values = {}
     values_lines = []
     notes_lines = []
     non_exhaustive = False
     last_key = None
+    after_blank = False
+    in_note = False
     i = start
     n = len(lines)
 
@@ -133,8 +138,12 @@ def _parse_values_section(lines: list[str], start: int, var_name: str) -> tuple[
             break
 
         if s == "":
+            after_blank = True
             i += 1
             continue
+
+        starts_note = after_blank and bool(values) and not raw[:1].isspace()
+        after_blank = False
 
         if s.startswith('*'):
             notes_lines.append(s)
@@ -149,8 +158,14 @@ def _parse_values_section(lines: list[str], start: int, var_name: str) -> tuple[
             continue
 
         m = _KEY_VALUE_RE.match(s)
-        if m:
-            last_key = _process_key_value_line(s, raw, var_name, last_key, values)
+        is_new_key = bool(m) and not _is_long_key_continuation(raw, m.group(1).strip())
+        if (starts_note or in_note) and not is_new_key:
+            notes_lines.append(re.sub(r'\s+', ' ', s))
+            in_note = True
+            last_key = None
+        elif m:
+            in_note = False
+            last_key = _process_key_value_line(s, raw, last_key, values)
         else:
             if _process_continuation_line(s, last_key, values):
                 values_lines.append(s)
@@ -168,7 +183,7 @@ def _process_variable_block(lines: list[str], i: int, name: str, n: int) -> tupl
     if not found_values:
         return i, None
 
-    i, values, notes_lines, non_exhaustive = _parse_values_section(lines, i, name)
+    i, values, notes_lines, non_exhaustive = _parse_values_section(lines, i)
 
     desc = ' '.join(ln.strip() for ln in desc_lines if ln.strip())
     if notes_lines:
