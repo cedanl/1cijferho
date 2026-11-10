@@ -1,8 +1,13 @@
 """Tests voor _build_output_config in eencijferho.cli."""
 
 import argparse
+import sys
+from unittest.mock import patch
+
 import pytest
+from eencijferho import cli
 from eencijferho.cli import _build_output_config
+from eencijferho.core.decode_report import DecodeReport
 
 
 def _args(**kwargs) -> argparse.Namespace:
@@ -125,3 +130,69 @@ def test_bsn_mapping_file_default_is_none():
 def test_bsn_mapping_file_passed_through():
     cfg = _build_output_config(_args(bsn_mapping_file="data/mapping.csv"))
     assert cfg.bsn_mapping_file == "data/mapping.csv"
+
+
+# ---------------------------------------------------------------------------
+# --strict (#210)
+# ---------------------------------------------------------------------------
+
+
+def _fake_pipeline(findings: bool):
+    """Stub voor run_turbo_convert_pipeline die het meegegeven rapport vult."""
+
+    def _run(**kwargs):
+        report: DecodeReport = kwargs["decode_report"]
+        if findings:
+            report.record_dec_table_not_loaded("Dec_test.asc", "file_not_found")
+        report.log_path = "out/metadata/logs/(7)_decoding_log_latest.json"
+        return "", [{"name": "EV.csv", "size": 1, "size_formatted": "0.0 KB"}]
+
+    return _run
+
+
+@pytest.fixture
+def stub_cli_steps(tmp_path, monkeypatch):
+    """Draai cmd_convert/cmd_pipeline zonder echte extractie of conversie."""
+    monkeypatch.chdir(tmp_path)
+    for name in (
+        "process_txt_folder", "write_variable_metadata", "process_json_folder",
+        "validate_metadata_folder", "match_files",
+    ):
+        monkeypatch.setattr(cli, name, lambda *a, **k: None)
+
+
+def _cli_args(**kwargs) -> argparse.Namespace:
+    return _args(input="in", output="out", preset=None, fail_on_empty_output=False, **kwargs)
+
+
+@pytest.mark.parametrize("command", [cli.cmd_convert, cli.cmd_pipeline])
+def test_strict_exits_1_with_findings(command, stub_cli_steps, capsys):
+    with (
+        patch.object(cli, "run_turbo_convert_pipeline", _fake_pipeline(findings=True)),
+        pytest.raises(SystemExit) as exc,
+    ):
+        command(_cli_args(strict=True))
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert "Dec-tabel" in err
+    assert "(7)_decoding_log_latest.json" in err
+
+
+@pytest.mark.parametrize("command", [cli.cmd_convert, cli.cmd_pipeline])
+def test_without_strict_findings_do_not_fail(command, stub_cli_steps):
+    with patch.object(cli, "run_turbo_convert_pipeline", _fake_pipeline(findings=True)):
+        command(_cli_args(strict=False))
+
+
+@pytest.mark.parametrize("command", [cli.cmd_convert, cli.cmd_pipeline])
+def test_strict_without_findings_passes(command, stub_cli_steps):
+    with patch.object(cli, "run_turbo_convert_pipeline", _fake_pipeline(findings=False)):
+        command(_cli_args(strict=True))
+
+
+def test_strict_flag_in_help(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["eencijferho", "pipeline", "--help"])
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 0
+    assert "--strict" in capsys.readouterr().out
