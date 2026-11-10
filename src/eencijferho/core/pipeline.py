@@ -129,13 +129,15 @@ def run_turbo_convert_pipeline(
         skip_prefixes.append("VAKHAVW")
         log += "[pipeline] VAKHAVW-omzetting overgeslagen.\n"
     skip_prefixes = skip_prefixes or None
-    converter.run_conversions_from_matches(
+    conversion = converter.run_conversions_from_matches(
         input_dir,
         metadata_folder=metadata_dir,
         match_log_file=match_log_file,
         output_folder=output_dir,
         skip_prefixes=skip_prefixes,
     )
+    for item in conversion.get("unsupported_files", []):
+        log += f"[pipeline] {item['input_file']}: {item['reason']}\n"
     converter.convert_dec_files(input_dir, metadata_folder=metadata_dir, output_folder=output_dir)
     log += "[pipeline] Omzetting voltooid.\n"
     if progress_callback:

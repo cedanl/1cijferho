@@ -16,11 +16,13 @@ import sys
 import os
 import multiprocessing as mp
 import datetime
+import re
 from typing import Any
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 from eencijferho.config import INPUT_DIR, OUTPUT_DIR, DECODER_INPUT_DIR
 from eencijferho.io.decorators import with_storage
+from eencijferho.core.dec_layouts import INFERRED_LAYOUT_NOTE, SUPPLEMENTARY_LAYOUT_FILENAME
 
 _console = Console()
 
@@ -185,6 +187,36 @@ def converter(storage, input_file: str, metadata_file: str, output_dir: str | No
 # ---------------------------------------------------------------------------
 
 
+_YEAR_SUFFIX_RE = re.compile(r"^(?P<stem>.+)_(?P<year>\d{4})$")
+
+
+@with_storage
+def _layout_files(storage, metadata_folder: str) -> list[str]:
+    """Names of the layout (Excel) files in metadata_folder."""
+    return sorted(os.path.basename(p) for p in storage.list_files(f"{metadata_folder}/*.xlsx"))
+
+
+def _unsupported_reason(input_file: str, layout_files: list[str]) -> str:
+    """Dutch reason why an input file without a layout is not converted.
+
+    For a yearly file (``Dec_postcodecijfers_2021.asc``) it names the years
+    that are described, so the user sees which delivery to use instead.
+    """
+    reason = (
+        "Bestand niet ondersteund: geen bestandsbeschrijving in de invoer "
+        "beschrijft dit bestand, dus het wordt niet omgezet."
+    )
+    m = _YEAR_SUFFIX_RE.match(os.path.splitext(input_file)[0])
+    if m:
+        year_re = re.compile(rf"{re.escape(m.group('stem'))}_(\d{{4}})\.asc", re.IGNORECASE)
+        years = sorted({
+            ym.group(1) for name in layout_files if (ym := year_re.search(name))
+        })
+        if years:
+            reason += f" Beschreven jaren voor {m.group('stem')}: {', '.join(years)}."
+    return reason
+
+
 @with_storage
 def _load_match_log(storage, match_log_file: str) -> list[dict] | None:
     """Load processed_files from a match log JSON. Returns None on failure."""
@@ -297,9 +329,12 @@ def run_conversions_from_matches(
         "successful_conversions": 0,
         "failed_conversions": 0,
         "skipped_files": 0,
+        "unsupported_count": 0,
         "details": [],
         "skipped_file_pairs": [],
+        "unsupported_files": [],
     }
+    layout_files = _layout_files(metadata_folder)
 
     valid_files = [
         f for f in processed_files
@@ -337,7 +372,32 @@ def run_conversions_from_matches(
                 })
                 progress.update(task, advance=1)
                 continue
+            if file_info["status"] == "unmatched":
+                # No layout describes this file: report it, do not skip it silently.
+                reason = _unsupported_reason(file_info["input_file"], layout_files)
+                results["unsupported_count"] += 1
+                results["unsupported_files"].append({
+                    "input_file": file_info["input_file"],
+                    "reason": reason,
+                })
+                results["details"].append({
+                    "input_file": file_info["input_file"],
+                    "status": "unsupported",
+                    "reason": reason,
+                })
+                progress.update(task, advance=1)
+                continue
             file_result = _convert_one(file_info, input_folder, metadata_folder, output_folder)
+            layout_file = next(
+                (m["validation_file"] for m in file_info.get("matches", [])
+                 if m.get("validation_status") == "success"),
+                "",
+            )
+            if (
+                file_result["status"] == "success"
+                and layout_file.startswith(SUPPLEMENTARY_LAYOUT_FILENAME)
+            ):
+                file_result["layout_note"] = INFERRED_LAYOUT_NOTE
 
             if file_result["status"] == "success":
                 results["successful_conversions"] += 1
@@ -367,6 +427,10 @@ def run_conversions_from_matches(
         _console.print(f"[yellow]Overgeslagen bestanden: {results['skipped_files']}")
         for idx, skipped in enumerate(results["skipped_file_pairs"], 1):
             _console.print(f"[yellow] {idx}. {skipped['input_file']} — {skipped['reason']}[/yellow]")
+    if results["unsupported_files"]:
+        _console.print(f"[yellow]Niet ondersteund: {results['unsupported_count']} bestand(en)")
+        for item in results["unsupported_files"]:
+            _console.print(f"[yellow] - {item['input_file']} — {item['reason']}[/yellow]")
     _console.print(f"[blue]Log opgeslagen: {os.path.basename(latest_log_file)} en conversion_log_{timestamp}.json in {log_folder}")
 
     return results
