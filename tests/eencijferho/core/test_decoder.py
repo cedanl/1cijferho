@@ -745,13 +745,13 @@ def test_dec_join_duplicate_codes_after_padding_keep_row_count_and_labels(capsys
     assert "Dubbele codes" in capsys.readouterr().out
 
 
-def test_dec_join_leaves_no_temporary_column_when_join_raises(capsys):
+def test_dec_join_leaves_no_temporary_column_when_join_raises(caplog):
     data = pl.DataFrame({"code": ["00411"]})
     dec_without_code_col = pl.DataFrame({"other": ["411"], "naam": ["HBO"]})
     result = _apply_single_dec_join(
         data, dec_without_code_col, "code", "code", is_composite=False, code_col2_norm=None,
     )
-    assert "Fout bij Dec-join" in capsys.readouterr().out
+    assert "Fout bij Dec-join" in caplog.text
     assert result.columns == ["code"]
     assert result["code"].to_list() == ["00411"]
 

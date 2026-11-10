@@ -1,10 +1,12 @@
 import json
+import logging
 import os
 import re as _re
 
 import polars as pl
 
 from eencijferho.utils.converter_headers import clean_header_name, normalize_name, strip_accents
+from eencijferho.utils.run_log import log_failed, log_skipped, log_unexpected
 from eencijferho.io.decorators import with_storage
 from eencijferho.core.dec_layouts import supplementary_tables
 from eencijferho.core.decode_report import (
@@ -15,6 +17,13 @@ from eencijferho.core.decode_report import (
 )
 from collections.abc import Callable
 from typing import Any
+
+logger = logging.getLogger(__name__)
+
+
+def _report_file(report: DecodeReport | None) -> str | None:
+    """Name of the file being decoded, for the run log; None without a report."""
+    return report.current_file if report is not None else None
 
 
 # ---------------------------------------------------------------------------
@@ -87,8 +96,11 @@ def load_variable_mappings(
 
     try:
         items = storage.read_json(path)
-    except Exception as e:
-        print(f"[decoder] Waarschuwing: kon variable metadata niet laden {path}: {e}")
+    except Exception as e:  # catch-all: any storage backend or JSON error; the run goes on without mappings
+        log_failed(
+            logger, "variable_metadata_load", e, file=path, show_message=True,
+            detail=f"[decoder] Waarschuwing: kon variable metadata niet laden {path}",
+        )
         if report is not None:
             report.record_variable_metadata(path, "unreadable", 0)
         return {}
@@ -110,15 +122,15 @@ def load_variable_mappings(
                 entry[key.zfill(2)] = v
                 try:
                     entry[int(key)] = v
-                except Exception:
-                    pass
+                except ValueError:
+                    pass  # a digit int() does not read (e.g. "²"): the string keys suffice
             else:
                 try:
                     int_key = int(key)
                     if int_key not in entry:
                         entry[int_key] = v
-                except Exception:
-                    pass
+                except ValueError:
+                    pass  # not a number: the string keys suffice
         if entry:
             maps[norm] = {"orig_name": name, "mapping": entry}
 
@@ -134,17 +146,20 @@ def _read_dec_csv(storage, dec_path: str) -> pl.DataFrame | None:
 
     Dec labels can be codes too (an ISCED rubriek such as 031103) and must
     keep their leading zeros. Falls back to reading without quote parsing.
+    Polars errors can quote cell values: the run log gets the error type only.
     """
+    name = os.path.basename(dec_path)
     try:
         return storage.read_dataframe(dec_path, infer_schema_length=0)
-    except Exception:
-        try:
-            return storage.read_dataframe(
-                dec_path, infer_schema_length=0, quote_char=None,
-            )
-        except Exception as e:
-            print(f"[decoder] Kon {os.path.basename(dec_path)} niet laden: {e}")
-            return None
+    except Exception as e:  # catch-all: any read error gets the retry without quote parsing
+        log_skipped(logger, "dec_load", "retry_without_quote_parsing", file=name, error=e)
+    try:
+        return storage.read_dataframe(
+            dec_path, infer_schema_length=0, quote_char=None,
+        )
+    except Exception as e:  # catch-all: missing file, storage or parse error; the table is not loaded
+        log_failed(logger, "dec_load", e, file=name, detail=f"[decoder] Kon {name} niet laden")
+        return None
 
 
 @with_storage
@@ -431,8 +446,11 @@ def _apply_single_dec_join(
                     report.record_unmatched(keys, dec_table_title or "", unmatched)
         elif report is not None:
             report.record_skip(var_norm, NO_LABEL_COLUMNS)
-    except Exception as e:
-        print(f"[decoder] Fout bij Dec-join voor {var_norm}: {e}")
+    except Exception as e:  # catch-all: one failed join leaves the column undecoded, not the run
+        log_failed(
+            logger, "dec_join", e, file=_report_file(report), column=var_norm,
+            detail=f"[decoder] Fout bij Dec-join voor {var_norm}",
+        )
         if report is not None:
             report.record_error(var_norm, "dec_join", e)
 
@@ -794,8 +812,11 @@ def _apply_vakken_simple(
                     report.record_unmatched([var_norm], dec_table_title, unmatched)
         elif report is not None:
             report.record_skip(var_norm, NO_LABEL_COLUMNS)
-    except Exception as e:
-        print(f"[decoder][vakken] Fout bij join voor {naam}: {e}")
+    except Exception as e:  # catch-all: one failed join leaves the column undecoded, not the run
+        log_failed(
+            logger, "dec_join", e, file=_report_file(report), column=var_norm,
+            detail=f"[decoder][vakken] Fout bij join voor {naam}",
+        )
         if report is not None:
             report.record_error(var_norm, "dec_join", e)
     return result_df
@@ -883,8 +904,11 @@ def _apply_vakken_composite(
                     report.record_unmatched([composite_norm, var_norm], dec_table_title, unmatched)
         elif report is not None:
             report.record_skip(var_norm, NO_LABEL_COLUMNS)
-    except Exception as e:
-        print(f"[decoder][vakken] Fout bij samengestelde join voor {var_norm}: {e}")
+    except Exception as e:  # catch-all: one failed join leaves the column undecoded, not the run
+        log_failed(
+            logger, "dec_join", e, file=_report_file(report), column=var_norm,
+            detail=f"[decoder][vakken] Fout bij samengestelde join voor {var_norm}",
+        )
         if report is not None:
             report.record_error(var_norm, "dec_join", e)
     return result_df
@@ -954,8 +978,11 @@ def _apply_variable_mappings(
             result_df = _apply_single_mapping(
                 result_df, chosen_col, mapping, var_norm, orig_name, report=report,
             )
-    except Exception as e:
-        print(f"[decoder] Fout bij toepassen variabele-mappings: {e}")
+    except Exception as e:  # catch-all: per-column errors are handled in _apply_single_mapping
+        log_unexpected(
+            logger, "variable_mapping", e, file=_report_file(report),
+            detail="[decoder] Fout bij toepassen variabele-mappings",
+        )
     return result_df
 
 
@@ -1060,7 +1087,11 @@ def _apply_single_mapping(
 
         try:
             result_df = result_df.with_columns(pl.Series(mapped_vals).alias(chosen_col))
-        except Exception:
+        except (TypeError, pl.exceptions.PolarsError) as e:
+            logger.debug(
+                "outcome=retry step=variable_mapping column=%s error=%s: cast naar String",
+                chosen_col, type(e).__name__,
+            )
             result_df = result_df.with_columns(
                 pl.Series(mapped_vals).cast(pl.Utf8).alias(chosen_col)
             )
@@ -1078,8 +1109,11 @@ def _apply_single_mapping(
                 chosen_col, orig_name or var_norm, mapped_count, total_non_null, unmapped_seen,
                 int_fallback_count, int_fallback_seen,
             )
-    except Exception as e:
-        print(f"[decoder] Fout bij mapping voor {var_norm}: {e}")
+    except Exception as e:  # catch-all: one failed mapping leaves the column unmapped, not the run
+        log_failed(
+            logger, "variable_mapping", e, file=_report_file(report), column=chosen_col,
+            detail=f"[decoder] Fout bij mapping voor {var_norm}",
+        )
         if report is not None:
             report.record_error(chosen_col, "variable_mapping", e)
     return result_df

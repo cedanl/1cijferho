@@ -134,6 +134,11 @@ class DecodeReport:
         if columns is not None and not self._current.input_columns:
             self._current.input_columns = list(columns)
 
+    @property
+    def current_file(self) -> str | None:
+        """Name of the file that findings currently belong to, or None."""
+        return self._current.name if self._current is not None else None
+
     def set_file_status(self, **status: str) -> None:
         """Set status fields of the current file (e.g. ``enriched=...``)."""
         self._file().status.update(status)
