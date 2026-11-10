@@ -25,6 +25,9 @@ en dit project volgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Parquet in sync met CSV**: Parquet-bestanden na header-normalisatie (#219)
 - **Eén leesstrategie voor bestandsbeschrijvingen**: extractor, metadata-parser en DEC-validatie lezen bestandsbeschrijvingen via één functie (BOM → UTF-8 → latin-1), zodat "vóór" overal dezelfde naam oplevert. Een bestandsbeschrijving met vervangingstekens (U+FFFD) laat `extract` nu stoppen met een foutmelding (bestand + regelnummers) in plaats van stil verder te werken; herstel zo'n bestand of sla het op als UTF-8 of ISO-8859-1. De regex-noodoplossing in de DEC-validatie, de beschadigde spelling in de NFWA-preset en de beschadigde regels in de DEMO-`Bestandsbeschrijving_Dec-bestanden.txt` zijn verwijderd/hersteld (#203)
 - **Niet-Latin-1 tekens blijven behouden**: Header-normalisatie wijzigt alleen kolomnamen; tekens als `–`, `€`, `œ` en `⁄` in celwaarden worden niet meer vervangen door `?` of `/` (#208)
+- **Turbo Convert loopt niet meer vast op Linux** (#263): de converter sluit de procespool na de laatste chunk met `close()` en `join()`. Onder Streamlit erfden de workers een SIGTERM-handler die het proces niet beëindigt, waardoor het afsluiten van de pool eindeloos wachtte en de conversie in de UI nooit klaar was.
+- **DEC-validatie in de UI** (#264): een bestandsbeschrijving met vervangingstekens (U+FFFD) geeft op 'Output valideren' een foutmelding met bestand en regelnummers in plaats van een traceback.
+- **Versleutelen behoudt tekens buiten ASCII** (#265): 'Versleutelen & uploaden' en 'Persoonsgegevens uploaden' decoderen de CSV in de browser als UTF-8. Elke letter buiten ASCII kwam voorheen als twee tekens in het resultaat terecht (`ü` werd `Ã¼`).
 
 ### Removed
 - `sanitize_variable_metadata.py`: Dode module (#212)
