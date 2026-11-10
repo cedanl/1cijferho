@@ -1,0 +1,1083 @@
+
+<!doctype html>
+<html lang="nl" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Verwerk DUO-onderwijsdata naar analyse-klare CSV/Parquet bestanden">
+      
+      
+      
+        <link rel="canonical" href="https://cedanl.github.io/1cijferho/decodering/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/npuls_logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Decodering in 1CijferHO - 1CijferHO</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#decodering-in-1cijferho" class="md-skip">
+          Ga naar inhoud
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="1CijferHO" class="md-header__button md-logo" aria-label="1CijferHO" data-md-component="logo">
+      
+  <img src="../assets/npuls_logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            1CijferHO
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Decodering in 1CijferHO
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Donker thema"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Donker thema" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Licht thema"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Licht thema" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Zoeken" placeholder="Zoeken" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Zoeken">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Leegmaken" aria-label="Leegmaken" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Zoeken initialiseren
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/cedanl/1cijferho" title="Ga naar repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cedanl/1cijferho
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Aan de slag
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../cli/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  CLI-referentie
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../api/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  API-referentie
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../storage-abstraction/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Opslag backends
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../ci-surf-object-store/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  S3 in CI (SURF)
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../sdp/" class="md-tabs__link">
+          
+  
+  
+  SDP & compliance
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigatie" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="1CijferHO" class="md-nav__button md-logo" aria-label="1CijferHO" data-md-component="logo">
+      
+  <img src="../assets/npuls_logo.png" alt="logo">
+
+    </a>
+    1CijferHO
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/cedanl/1cijferho" title="Ga naar repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cedanl/1cijferho
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aan de slag
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI-referentie
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API-referentie
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage-abstraction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Opslag backends
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ci-surf-object-store/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S3 in CI (SURF)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDP & compliance
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SDP & compliance
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overzicht
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdp/object-store-for-gaps.slides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Object Store voor de gaps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdp/object-store-questions-for-sda/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vragen voor team SDA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="decodering-in-1cijferho">Decodering in 1CijferHO<a class="headerlink" href="#decodering-in-1cijferho" title="Permanent link">&para;</a></h1>
+<p>Dit document beschrijft welke DUO-velden worden gedecodeert naar labels en welke nog niet.</p>
+<h2 id="samenvatting">Samenvatting<a class="headerlink" href="#samenvatting" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Velden</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>✅ <strong>Geïmplementeerd</strong></td>
+<td>Geboorteland, Nationaliteiten, Opleidingscodes, Vooropleidingen, Instellingen, Postcodecijfers, Vakkenbestanden (Vakcode, Brinnummer, Brinnummer+Vestigingsnummer, Vooropleiding)</td>
+</tr>
+<tr>
+<td>❌ <strong>Niet geïmplementeerd</strong></td>
+<td>Samengestelde sleutels in het 1CijferHO-bestand</td>
+</tr>
+</tbody>
+</table>
+<h2 id="geimplementeerde-decodeerregels">Geïmplementeerde Decodeerregels<a class="headerlink" href="#geimplementeerde-decodeerregels" title="Permanent link">&para;</a></h2>
+<h3 id="geboorteland-dec_landcodeasc">Geboorteland (<code>Dec_landcode.asc</code>)<a class="headerlink" href="#geboorteland-dec_landcodeasc" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>Geboorteland</code> → Naam land ✅</li>
+<li><code>Geboorteland ouder 1</code> → Naam land ✅</li>
+<li><code>Geboorteland ouder 2</code> → Naam land ✅</li>
+</ul>
+<h3 id="nationaliteit-dec_nationaliteitscodeasc">Nationaliteit (<code>Dec_nationaliteitscode.asc</code>)<a class="headerlink" href="#nationaliteit-dec_nationaliteitscodeasc" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>Nationaliteit 1–3</code> → Omschrijving ✅</li>
+</ul>
+<h3 id="opleidingscode-dec_opleidingscodeasc">Opleidingscode (<code>Dec_opleidingscode.asc</code>)<a class="headerlink" href="#opleidingscode-dec_opleidingscodeasc" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>Opleidingscode</code> → Naam opleiding ✅</li>
+</ul>
+<h3 id="vooropleiding-dec_voplasc-dec_vooroplasc">Vooropleiding (<code>Dec_vopl.asc</code>, <code>Dec_vooropl.asc</code>)<a class="headerlink" href="#vooropleiding-dec_voplasc-dec_vooroplasc" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>Hoogste vooropleiding v.d. HO</code> ✅</li>
+<li><code>Hoogste vooropleiding binnen HO</code> ✅</li>
+<li><code>Hoogste vooropleiding oorspronkelijk</code> ✅</li>
+</ul>
+<h3 id="instellingen">Instellingen<a class="headerlink" href="#instellingen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>Instellingscode</code> → Naam ✅</li>
+<li><code>Actuele instelling</code> → Naam ✅</li>
+</ul>
+<h3 id="postcodecijfers-dec_postcodecijfers_yyyyasc">Postcodecijfers (<code>Dec_postcodecijfers_YYYY.asc</code>)<a class="headerlink" href="#postcodecijfers-dec_postcodecijfers_yyyyasc" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>Postcodecijfers student</code> → Regio ✅</li>
+<li><code>Postcodecijfers vooropl</code> → Regio ✅</li>
+</ul>
+<h3 id="vakkenbestanden-vakhavw_asc">Vakkenbestanden (<code>VAKHAVW_*.asc</code>)<a class="headerlink" href="#vakkenbestanden-vakhavw_asc" title="Permanent link">&para;</a></h3>
+<p>De decodeerregels staan in de kolom <em>Opmerking</em> van de tabel <em>Vakgegevens</em> in
+<code>Bestandsbeschrijving_Vakkenbestanden.txt</code> ("te decoderen met Dec_X.asc",
+eventueel "in combinatie met ..."). De decoder leest die lay-out zelf in.</p>
+<table>
+<thead>
+<tr>
+<th>Veld</th>
+<th>Dec-bestand</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vakcode</td>
+<td><code>Dec_vakcode.asc</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Brinnummer VO-instelling</td>
+<td><code>Dec_brinnummer.asc</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Vestigingsnummer VO-vestiging (+ Brinnummer)</td>
+<td><code>Dec_brinvestigingsnummer.asc</code></td>
+<td>✅ samengestelde sleutel</td>
+</tr>
+<tr>
+<td>Vooropleiding oorspronkelijke code</td>
+<td><code>Dec_vooropl.asc</code></td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<p>DUO levert voor <code>Dec_brinnummer.asc</code> en <code>Dec_brinvestigingsnummer.asc</code> geen
+bestandsbeschrijving. 1CijferHO gebruikt daarom een <strong>afgeleide lay-out</strong>
+(dezelfde opbouw als <code>Dec_instellingscode.asc</code> en <code>Dec_instellingscodevest.asc</code>).
+Die lay-out komt in <code>metadata/json/Lay-out_afgeleid_1CijferHO.json</code> en in de
+logs staat bij deze bestanden dat de lay-out niet van DUO komt. Alleen de
+sleutelkolommen (Brinnummer, Vestigingsnummer) zijn nodig voor de koppeling.</p>
+<p><strong>Issue:</strong> #204</p>
+<h2 id="waarden-uit-variable_metadata-_enriched">Waarden uit <code>variable_metadata</code> (_enriched)<a class="headerlink" href="#waarden-uit-variable_metadata-_enriched" title="Permanent link">&para;</a></h2>
+<p>Naast de Dec-tabellen vervangt de <code>_enriched</code>-variant codes door de labels uit
+<code>metadata/json/variable_metadata.json</code> (de waardenlijsten uit de
+bestandsbeschrijving). Die lijsten zijn vaak niet volledig: soms staan alleen
+<code>[leeg]</code> en <code>[gevuld]</code> erin, soms een bereik als <code>1000 t/m 9999</code>.</p>
+<h3 id="niet-gemapte-waarden-blijven-een-code">Niet-gemapte waarden blijven een code<a class="headerlink" href="#niet-gemapte-waarden-blijven-een-code" title="Permanent link">&para;</a></h3>
+<p>Een waarde zonder label in de lijst blijft staan zoals hij in het bestand staat
+(de code). Er komt geen extra kolom bij. Een kolom kan dus labels en codes door
+elkaar bevatten. Welke kolommen dat zijn, staat in het decodeerlog
+<code>metadata/logs/(7)_decoding_log_latest.json</code>, onder <code>details[].variable_mappings</code>,
+één regel per kolom:</p>
+<table>
+<thead>
+<tr>
+<th>Veld</th>
+<th>Betekenis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>semantics</code></td>
+<td><code>label</code>: elke gevulde waarde is een label. <code>mixed</code>: een deel is een label, de rest is de code gebleven. <code>code</code>: geen enkele waarde is vervangen, of de mapping is niet toegepast (zie <code>skip_reason</code>).</td>
+</tr>
+<tr>
+<td><code>mapped_rows</code></td>
+<td>Aantal rijen dat een label kreeg (gelijk aan het oudere veld <code>mapped</code>).</td>
+</tr>
+<tr>
+<td><code>unmapped_rows</code></td>
+<td>Aantal gevulde rijen dat de code hield, omdat de lijst er geen label voor heeft. Een lege waarde zonder <code>[leeg]</code>-sleutel telt mee.</td>
+</tr>
+<tr>
+<td><code>unmapped_distinct</code>, <code>sample</code></td>
+<td>Aantal verschillende niet-gemapte waarden en hooguit 5 voorbeelden. Nooit voorbeelden uit BSN-, PGN- of onderwijsnummerkolommen (<code>sample_withheld</code>).</td>
+</tr>
+<tr>
+<td><code>skip_reason</code>, <code>skipped_rows</code></td>
+<td>Alleen als de mapping niet is toegepast: de reden (<code>labels_too_long</code>) en het aantal rijen dat zijn code hield.</td>
+</tr>
+</tbody>
+</table>
+<p>In <code>summary</code> telt <code>total_unmapped_rows</code> de niet-gemapte rijen van alle kolommen
+op en <code>variable_mappings_skipped</code> het aantal niet-toegepaste mappings. De console
+meldt per kolom bijvoorbeeld <code>'geslacht' (orig: 'Geslacht'): 9/10 gemapt, 1 rij(en)
+niet-gemapt (code behouden): ['X']</code>. Niet-gemapte waarden laten <code>--strict</code> niet
+falen: de lijsten zijn vaak bewust onvolledig.</p>
+<h3 id="lege-waarden">Lege waarden<a class="headerlink" href="#lege-waarden" title="Permanent link">&para;</a></h3>
+<p>Een lege waarde krijgt het label van de sleutel <code>[leeg]</code> (hoofdletters en spaties
+tellen niet). Is die er niet, dan geldt de eerste andere sleutel met <code>leeg</code> erin,
+op alfabetische volgorde. De volgorde in het bestand maakt dus niet uit. Hebben
+meerdere van die sleutels een verschillend label, dan meldt de console welke
+gekozen is en staat de keuze in het log (<code>empty_label_choice</code>). Een sleutel als
+<code>[leeg] of 0</code> geldt voor de lege waarde én voor code <code>0</code>, tenzij <code>0</code> ook als
+aparte sleutel in de lijst staat.</p>
+<p>Let op: in de pipeline komt een leeg DUO-veld als lege cel (null) binnen. Een
+lege cel blijft leeg en telt niet mee in <code>total_non_null</code> of <code>unmapped_rows</code>; de
+<code>[leeg]</code>-regel geldt alleen voor een waarde die een lege tekst is, bijvoorbeeld
+als je <code>decode_fields</code> op een eigen DataFrame aanroept.</p>
+<h3 id="lange-labels-worden-niet-ingevuld">Lange labels worden niet ingevuld<a class="headerlink" href="#lange-labels-worden-niet-ingevuld" title="Permanent link">&para;</a></h3>
+<p>Bij sommige variabelen is het "label" een hele alinea uitleg van DUO. Een mapping
+met een label langer dan 300 tekens (<code>MAX_LABEL_LENGTH</code> in
+<code>src/eencijferho/core/decoder.py</code>) wordt voor die kolom helemaal niet toegepast:
+de kolom houdt al zijn codes, ook <code>0</code> en lege waarden, zodat hij niet half codes
+en half alinea's bevat. Het log noteert de kolom met <code>skip_reason:
+"labels_too_long"</code>, <code>skipped_rows</code> en <code>max_label_length</code>. De betekenis van de
+codes staat in de bestandsbeschrijving.</p>
+<p>In de DEMO-data geldt dit alleen voor <strong>Code beëindiging</strong> (labels tot 468
+tekens). De langste labels van andere variabelen zijn korter (tot 288 tekens bij
+Code examenresultaat); die kolommen houden hun labels.</p>
+<h3 id="postcodecijfers">Postcodecijfers<a class="headerlink" href="#postcodecijfers" title="Permanent link">&para;</a></h3>
+<p>Voor <code>Postcodecijfers student op 1 oktober</code> en <code>Postcodecijfers van de hoogste
+vooropl. vóór het HO</code> geeft <code>variable_metadata</code> deze waarden:</p>
+<table>
+<thead>
+<tr>
+<th>Waarde in de kolom</th>
+<th>Betekenis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>1000</code> t/m <code>9999</code></td>
+<td>De eerste vier cijfers van een Nederlandse postcode. De lijst geeft alleen het bereik, dus deze waarden blijven als code staan.</td>
+</tr>
+<tr>
+<td><code>0010</code></td>
+<td>woonachtig in België</td>
+</tr>
+<tr>
+<td><code>0020</code></td>
+<td>woonachtig in Duitsland</td>
+</tr>
+<tr>
+<td><code>0030</code></td>
+<td>woonachtig elders in het buitenland</td>
+</tr>
+<tr>
+<td><code>0040</code></td>
+<td>geen vaste woon- of verblijfplaats</td>
+</tr>
+<tr>
+<td>leeg</td>
+<td>onbekend (de cel blijft in de pipeline leeg, zie hierboven)</td>
+</tr>
+</tbody>
+</table>
+<p>In <code>_enriched</code> staat bij <code>0010</code> t/m <code>0040</code> dus het label, bij een Nederlandse
+postcode de vier cijfers: <code>semantics</code> is <code>mixed</code>. <code>Dec_postcodecijfers_YYYY.asc</code>
+geeft bij een Nederlandse postcode de gemeentecode en gemeentenaam per 1 januari
+van dat jaar, en bij <code>0010</code> t/m <code>0040</code> gemeentecode <code>9910</code> t/m <code>9940</code> met
+dezelfde omschrijving als gemeentenaam. Die staan in aparte kolommen naast de
+postcodekolom.</p>
+<p><strong>Issue:</strong> #207</p>
+<h2 id="namen-koppelen">Namen koppelen<a class="headerlink" href="#namen-koppelen" title="Permanent link">&para;</a></h2>
+<p>De decoder koppelt een naam uit een bestandsbeschrijving aan een kolom als de
+genormaliseerde namen exact gelijk zijn (#202). Er wordt niet gegokt op
+gelijkenis.</p>
+<p>DUO noemt zes velden in de Dec-beschrijving en de variabelenbeschrijving anders
+dan in de lay-out van het 1CijferHO-bestand. Die paren staan in een vaste tabel
+(<code>_LAYOUT_NAMES</code> in <code>core/decoder.py</code>). De decoder zoekt eerst een kolom met de
+naam uit de beschrijving en gebruikt de tabel alleen als die kolom ontbreekt.</p>
+<table>
+<thead>
+<tr>
+<th>Naam in de beschrijving</th>
+<th>Naam in de lay-out</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Diplomajaar van de hoogste vooropleiding</td>
+<td>Diplomajaar hoogste vooropleiding</td>
+</tr>
+<tr>
+<td>Hoogste vooropleiding vóór het HO oorspr. code</td>
+<td>Hoogste vooropleiding vóór het HO oorspronkelijke code</td>
+</tr>
+<tr>
+<td>Hoogste vooropleiding binnen het HO oorspr. code</td>
+<td>Hoogste vooropleiding binnen het HO oorspronkelijke code</td>
+</tr>
+<tr>
+<td>Indicatie eerstejaars opleiding actueel equivalent</td>
+<td>Indicatie eerstejaars opl. actueel equivalent</td>
+</tr>
+<tr>
+<td>Indicatie eerstejaars actuele opleiding-instelling</td>
+<td>Indicatie eerstejaars actuele opl.-instelling</td>
+</tr>
+<tr>
+<td>Indicatie eerstejaars act. inst - type ho binnen soort ho</td>
+<td>Indicatie eerstejrs act. inst - type ho binnen soort ho</td>
+</tr>
+</tbody>
+</table>
+<p>Een naam die in geen van beide vormen als kolom voorkomt, wordt overgeslagen.
+Dat staat in de console en in <code>variables_not_found</code> van
+<code>(7)_decoding_log_latest.json</code>. Wijkt een naam in een nieuwe levering af, voeg
+het paar dan toe aan de tabel.</p>
+<h2 id="niet-geimplementeerde-regels">Niet Geïmplementeerde Regels<a class="headerlink" href="#niet-geimplementeerde-regels" title="Permanent link">&para;</a></h2>
+<h3 id="niet-ondersteunde-bestanden">Niet-ondersteunde bestanden<a class="headerlink" href="#niet-ondersteunde-bestanden" title="Permanent link">&para;</a></h3>
+<p>Een bestand in de invoermap waarvoor geen bestandsbeschrijving bestaat
+(bijvoorbeeld <code>Croho.asc</code>, <code>Croho_vest.asc</code>, <code>Dec_land_naar_herkomstindikking.asc</code>
+of een jaargang van <code>Dec_postcodecijfers_YYYY.asc</code> die niet beschreven is) wordt
+niet omgezet. Het wordt gemeld als <strong>niet ondersteund</strong>, met de reden, in
+<code>(5)_conversion_log_latest.json</code> (<code>unsupported_files</code> en status <code>unsupported</code>
+in <code>details</code>), in de console en in het log van Turbo Convert. Bij
+<code>Dec_postcodecijfers</code> noemt de melding de jaren die wel beschreven zijn.</p>
+<h3 id="samengestelde-sleutels">Samengestelde Sleutels<a class="headerlink" href="#samengestelde-sleutels" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Beschrijving</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vestigingsnummer diploma (Brinnummer + Vestigingsnr)</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Vestigingsnummer HO (Instellingscode + Vestigingsnr)</td>
+<td>❌</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Reden:</strong> Pipeline ondersteunt geen meerderelige lookups.</p>
+<p><strong>Issue:</strong> #205</p>
+<h2 id="bekende-risicos">Bekende Risico's<a class="headerlink" href="#bekende-risicos" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Niet-gemapte codes blijven staan</strong> (#207) — een <code>_enriched</code>-kolom kan deels codes, deels labels bevatten; het decodeerlog telt ze per kolom (<code>unmapped_rows</code>, <code>semantics</code>), zie <a href="#niet-gemapte-waarden-blijven-een-code">Niet-gemapte waarden</a></li>
+<li><strong>Voorloopnullen gestript</strong> (gefixed in #199) — codes als <code>0001</code> kunnen niet gematcht worden</li>
+<li><strong>Afgeleide lay-out voor <code>Dec_brinnummer</code> / <code>Dec_brinvestigingsnummer</code></strong> (#204) — DUO publiceert er geen; de labelkolommen naast de sleutel zijn een beste schatting</li>
+<li><strong>Samengestelde sleutels niet ondersteund</strong> (#205) — multi-kolom combinaties in het 1CijferHO-bestand werken niet</li>
+</ol>
+<h2 id="zie-ook">Zie Ook<a class="headerlink" href="#zie-ook" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../CHANGELOG.md">CHANGELOG.md</a> — Versiegeschiedenis</li>
+<li>Issues: #204, #205, #207, #199</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Terug naar boven
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "toc.integrate", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Gekopieerd naar klembord", "clipboard.copy": "Kopi\u00ebren naar klembord", "search.result.more.one": "1 extra overeenkomst op deze pagina", "search.result.more.other": "# extra overeenkomsten op deze pagina", "search.result.none": "Geen overeenkomende documenten", "search.result.one": "1 overeenkomende document", "search.result.other": "# overeenkomende documenten", "search.result.placeholder": "Typ om te beginnen met zoeken", "search.result.term.missing": "Ontbreekt", "select.version": "Selecteer versie"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
