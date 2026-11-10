@@ -1,5 +1,13 @@
 # Claude Configuration - 1CijferHO
 
+## ⚠️ IMPORTANT: Repository Location
+
+**Work on this project at: https://github.com/cedanl/1cijferho**
+
+**DO NOT work on:** https://github.com/asewnandan/1cijferho
+- No issues, no PRs, no commits on asewnandan/1cijferho
+- That repository is archived — use cedanl/1cijferho for all development
+
 ## Project Overview
 1CijferHO is a CEDA/Npuls tool for transforming DUO educational data (fixed-width ASCII files) into research-ready CSV/Parquet formats. Built with Streamlit for an accessible UI that requires no programming knowledge from end users.
 

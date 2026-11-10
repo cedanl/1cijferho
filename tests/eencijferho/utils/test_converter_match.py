@@ -1,4 +1,3 @@
-# Tests for eencijferho.utils.converter_match
 
 import pytest
 import polars as pl

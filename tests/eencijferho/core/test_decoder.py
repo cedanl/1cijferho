@@ -1,22 +1,3 @@
-# Tests for eencijferho.core.decoder
-#
-# Covers:
-#   - _normalize_df: column normalisation and string casting
-#   - _normalize_dec_table: Dec table preparation
-#   - _apply_single_dec_join: simple and composite key joins
-#   - _apply_dec_tables: full Dec-table loop (incl. fallback, composite key)
-#   - _parse_vakken_opmerking: Opmerking parsing
-#   - _join_key / _code_width: the shared join-key rule (zfill to field width)
-#   - _apply_vakken_simple / _apply_vakken_composite: data columns left untouched
-#   - _apply_single_mapping: int-fallback logging
-#   - _apply_variable_mappings: variable_metadata label substitution
-#   - decode_fields_dec_only / decode_fields: public API contract
-#   - skip-if-identical behaviour (VAKHAVW scenario)
-#   - _has_real_mappings: placeholder filter
-#   - get_available_enrich_variables: filters [leeg]/[gevuld]-only entries
-#   - get_available_decode_columns: reads decoding_variables from Dec JSON
-#   - get_decode_column_info: maps decoding variables to label columns
-#   - get_enrich_variable_info: returns real code→label samples only
 
 import json
 import pytest
@@ -277,8 +258,6 @@ def test_apply_dec_tables_missing_table_skipped(tmp_path):
 
 def test_apply_dec_tables_no_duplicate_columns_from_shadow_bug_fix():
     """Verifies the shadowed-loop bug is fixed: each Dec table applied exactly once."""
-    call_count = {"n": 0}
-    original_join = pl.DataFrame.join
 
     meta = {
         "tables": [

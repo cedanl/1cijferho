@@ -1,4 +1,3 @@
-# Tests for eencijferho.utils.pseudonymizer
 
 import hashlib
 import hmac

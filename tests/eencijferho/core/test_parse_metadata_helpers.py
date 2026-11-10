@@ -17,20 +17,17 @@ class TestParseMetadataHelpers:
     """Test parse_metadata module helper functions."""
 
     def test_is_separator_with_dashes(self):
-        """Detect separator line with dashes."""
         lines = ["---", "----", "-----"]
         assert _is_separator(lines, 0) is True
         assert _is_separator(lines, 1) is True
         assert _is_separator(lines, 2) is True
 
     def test_is_separator_with_spaces(self):
-        """Detect separator with trailing spaces."""
         lines = ["---  ", "---- ", "----- "]
         assert _is_separator(lines, 0) is True
         assert _is_separator(lines, 1) is True
 
     def test_is_not_separator_with_text(self):
-        """Reject lines with text as separator."""
         lines = ["---text", "- - -", "Separator"]
         assert _is_separator(lines, 0) is False
         assert _is_separator(lines, 1) is False
@@ -81,7 +78,6 @@ class TestParseMetadataHelpers:
         assert _is_long_key_continuation(raw, "key") is False
 
     def test_parse_description_section_basic(self):
-        """Parse basic description section."""
         lines = ["Line 1", "Line 2", "Mogelijke waarden:"]
         i, desc = _parse_description_section(lines, 0)
         assert i == 3
@@ -101,7 +97,6 @@ class TestParseMetadataHelpers:
         assert i == 2
 
     def test_process_key_value_line_simple_kv(self):
-        """Process simple key=value line."""
         values = {}
         last_key = _process_key_value_line("key = value", "key = value", "TestVar", None, values)
         assert last_key == "key"
@@ -135,7 +130,6 @@ class TestParseMetadataHelpers:
         assert values == {"existing": "value"}
 
     def test_process_continuation_line_with_last_key(self):
-        """Append continuation line to last key."""
         values = {"key1": "original"}
         should_append = _process_continuation_line("some continuation", "key1", values)
         assert should_append is False

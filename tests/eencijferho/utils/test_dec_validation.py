@@ -1,16 +1,3 @@
-"""
-Unit tests for eencijferho.utils.dec_validation
-
-Tests:
-    - test_parse_dec_mapping_simple: simple mappings zijn correct geparseerd
-    - test_parse_dec_mapping_composite: composite key mapping (in combinatie met) geparseerd
-    - test_composite_key_plus_skipped: "+"-stijl composite key in simple sectie overgeslagen
-    - test_valid_data: alle kolomwaarden komen voor in DEC bestand -> success=True
-    - test_invalid_data: kolom bevat waarde die niet in DEC staat -> success=False
-    - test_missing_dec_file: DEC CSV niet aanwezig -> kolom stilzwijgend overgeslagen
-    - test_composite_key_validation_valid: geldige paren in composite DEC -> success=True
-    - test_composite_key_validation_invalid: ongeldig paar in composite DEC -> success=False
-"""
 
 import pytest
 

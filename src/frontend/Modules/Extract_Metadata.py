@@ -86,12 +86,10 @@ if not bestandsbeschrijvingen:
 else:
     st.success(f"✅ **{len(bestandsbeschrijvingen)} bestandsbeschrijving(en) gevonden**")
 
-    # Warn about existing files — before the action button
     _metadata_dir_pre = get_metadata_dir()
     if os.path.exists(_metadata_dir_pre) and os.listdir(_metadata_dir_pre):
         st.warning("⚠️ Er zijn al eerder geëxtraheerde bestanden aanwezig. Een nieuwe extractie overschrijft deze.")
 
-    # Check if extraction already completed
     metadata_dir = get_metadata_dir()
     logs_dir = os.path.join(metadata_dir, "logs")
     extraction_complete = False

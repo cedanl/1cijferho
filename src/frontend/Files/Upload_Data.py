@@ -10,19 +10,16 @@ def categorize_files() -> tuple[bool, dict[str, list[str]], int]:
     """Check if the input directory exists and categorize files found"""
     input_dir = get_input_dir()
 
-    # Create directory if it doesn't exist
     os.makedirs(input_dir, exist_ok=True)
 
     if not os.path.exists(input_dir):
         return False, {}, 0
 
-    # Get all files in the directory (any extension, excluding .zip files)
     all_files_paths = glob.glob(os.path.join(input_dir, "*"))
     # Also include decoder files from root input dir when in DEMO_MODE
     if get_demo_mode():
         all_files_paths += glob.glob(os.path.join(get_decoder_input_dir(), "Dec_*.asc"))
 
-    # Filter out directories and .zip files, keep only regular files
     all_files = []
     seen = set()
     for file_path in all_files_paths:
@@ -32,7 +29,6 @@ def categorize_files() -> tuple[bool, dict[str, list[str]], int]:
                 seen.add(basename)
                 all_files.append(basename)
 
-    # Categorize files
     categorized_files = {
         "bestandsbeschrijvingen": [],
         "decodeer_files": [],

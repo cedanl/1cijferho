@@ -161,7 +161,6 @@ class TestMinIODecorators:
 
 
 class TestMinIOExtractorWorkflow:
-    """Test extractor functions against MinIO."""
 
     def _upload_bestandsbeschrijving(self, backend, prefix, title="TestTabel"):
         """Upload a minimal DUO bestandsbeschrijving to MinIO."""
@@ -203,7 +202,6 @@ class TestMinIOExtractorWorkflow:
 
 
 class TestMinIOConverterWorkflow:
-    """Test converter functions against MinIO."""
 
     def test_process_chunk_is_pure(self):
         """process_chunk doesn't use storage — just verify it still works."""
@@ -211,7 +209,6 @@ class TestMinIOConverterWorkflow:
         assert result == ["abc;def"]
 
     def test_load_metadata_from_minio(self, minio_env, minio_prefix):
-        """Upload an Excel metadata file to MinIO and load it."""
         backend = get_backend()
 
         # Create and upload a metadata Excel file using openpyxl

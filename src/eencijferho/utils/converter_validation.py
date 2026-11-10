@@ -41,7 +41,6 @@ def converter_validation(storage, conversion_log_path: str = "data/00-metadata/l
         >>> results = converter_validation()
         >>> print(results["successful_conversions"])
     """
-    # Prepare results structure
     results = {
         "timestamp": datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
         "total_files": 0,
@@ -51,17 +50,13 @@ def converter_validation(storage, conversion_log_path: str = "data/00-metadata/l
         "file_details": []
     }
     
-    # Load logs
     conversion_data = storage.read_json(conversion_log_path)
     matching_data = storage.read_json(matching_log_path)
     
-    # Create lookup dictionaries
     conversion_files = {item["input_file"]: item for item in conversion_data.get("details", [])}
     
-    # Get file details from matching log
     matching_files = {item["input_file"]: item for item in matching_data.get("processed_files", [])}
     
-    # Compare files from both logs
     for filename, match_data in matching_files.items():
         if filename in conversion_files and conversion_files[filename]["status"] == "success":
             expected_rows = match_data.get("row_count", 0)
@@ -84,10 +79,8 @@ def converter_validation(storage, conversion_log_path: str = "data/00-metadata/l
             results["file_details"].append(file_result)
             results["total_files"] += 1
     
-    # Save results to output log
     storage.write_json(results, output_log_path)
     
-    # Print summary using rich
     if results["failed_conversions"] == 0:
         rprint("[green]Total files:", results["total_files"])
         rprint("[green]Successfully validated:", results["successful_conversions"])

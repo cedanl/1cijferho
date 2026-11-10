@@ -74,11 +74,9 @@ def main():
     df2 = load_data(args.file2)
     print(f"  -> {df2.shape[0]:,} rows x {df2.shape[1]} columns")
 
-    # Convert to pandas for sweetviz
     pdf1 = df1.to_pandas()
     pdf2 = df2.to_pandas()
 
-    # Set labels
     if args.labels:
         label1, label2 = args.labels
     else:

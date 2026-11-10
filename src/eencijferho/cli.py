@@ -351,6 +351,9 @@ def cmd_convert(args: argparse.Namespace) -> None:
     for f in output_files:
         print(f"  - {f['name']} ({f['size_formatted']})")
 
+    if getattr(args, "fail_on_empty_output", False) and len(output_files) == 0:
+        sys.exit(1)
+
 
 def cmd_pipeline(args: argparse.Namespace) -> None:
     _validate_safe_path(args.input)
@@ -383,6 +386,9 @@ def cmd_pipeline(args: argparse.Namespace) -> None:
     )
     print(log)
     print(f"[eencijferho] Pipeline complete. Output files: {len(output_files)}")
+
+    if getattr(args, "fail_on_empty_output", False) and len(output_files) == 0:
+        sys.exit(1)
 
 
 def main() -> None:
@@ -448,6 +454,10 @@ def main() -> None:
         choices=available_presets,
         help=f"Laad een vooraf gedefinieerde configuratie. Overschrijft alle andere uitvoeropties. "
              f"Beschikbaar: {', '.join(available_presets)}.",
+    )
+    _output_opts.add_argument(
+        "--fail-on-empty-output", action="store_true",
+        help="Exit met code 1 als geen outputs worden geleverd (standaard: exit 0)",
     )
 
     subparsers.add_parser(

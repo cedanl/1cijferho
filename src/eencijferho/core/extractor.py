@@ -66,15 +66,12 @@ def _extract_decoding_variables(lines: list[str], start_index: int) -> list[str]
     decoding_variables = []
     j = start_index
 
-    # Look for "Ten behoeve van de decodering" or "Ten behoeve van de vertaling" section
     while j < len(lines) and j < start_index + MAX_LOOKAHEAD_LINES_FOR_DECODING_SECTION:
         current_line = lines[j].strip().lower()
 
-        # Check if we've found the decoding/vertaling section
         if ("ten behoeve van de decodering" in current_line) or (
             "ten behoeve van de vertaling" in current_line
         ):
-            # Now collect all the bullet points (lines starting with *)
             j += 1
             while (
                 j < len(lines)
@@ -82,27 +79,22 @@ def _extract_decoding_variables(lines: list[str], start_index: int) -> list[str]
             ):
                 var_line = lines[j].strip()
                 if var_line.startswith("*"):
-                    # Extract the variable name after the asterisk
                     var_name = var_line[1:].strip()
                     if var_name:
                         decoding_variables.append(var_name)
                     j += 1
                 elif not var_line:
-                    # Empty line, continue to check for more
                     j += 1
                 elif (
                     var_line.startswith("NB:")
                     or var_line.startswith("Opmerking:")
                     or var_line.startswith("Mogelijke")
                 ):
-                    # Stop when we hit notes or remarks
                     break
                 else:
-                    # Stop if we hit non-empty line that's not a bullet point or empty line
                     break
             break
 
-        # Stop if we hit another table or section divider
         if current_line.startswith("==") or "startpositie" in current_line:
             break
 
@@ -242,14 +234,12 @@ def process_txt_folder(
     Example:
         >>> process_txt_folder('data/01-input')
     """
-    # Remove any existing json files
     for f in storage.list_files(f"{json_output_folder}/*.json"):
         storage.delete(f)
 
     # Setup logging — log folder is a sibling of json_output_folder
     log_folder = os.path.join(os.path.dirname(json_output_folder), "logs")
 
-    # Create both timestamped and latest logs
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     timestamped_log_file = os.path.join(
         log_folder, f"json_processing_log_{timestamp}.json"
@@ -269,7 +259,6 @@ def process_txt_folder(
     filter_keyword = "Bestandsbeschrijving"
     extracted_files = []
 
-    # Get all files from input folder and filter
     all_files = storage.list_files(f"{input_folder}/*")
     for filepath in all_files:
         filename = os.path.basename(filepath)
@@ -285,16 +274,13 @@ def process_txt_folder(
                 file_log["output"] = os.path.basename(json_path)
             log_data["processed_files"].append(file_log)
 
-    # Update final log status
     log_data["status"] = "completed"
     log_data["total_files_processed"] = len(log_data["processed_files"])
     log_data["total_files_extracted"] = len(extracted_files)
 
-    # Save log files via storage
     storage.write_json(log_data, timestamped_log_file)
     storage.write_json(log_data, latest_log_file)
 
-    # Print summary to console
     _console.print(f"[green]Processed {log_data['total_files_processed']} text files")
     _console.print(
         f"[green]Extracted tables to {log_data['total_files_extracted']} JSON files"
@@ -310,14 +296,12 @@ def process_txt_folder(
         try:
             vak_data = storage.read_json(vakken_json)
             dec_data = storage.read_json(dec_json)
-            # Find Dec_vakcode table in vak_data
             vakcode_tables = [
                 t
                 for t in vak_data.get("tables", [])
                 if "vakcode" in t.get("table_title", "").lower()
             ]
             if vakcode_tables:
-                # Only add if not already present in dec_data
                 existing_titles = [
                     t.get("table_title", "").lower() for t in dec_data.get("tables", [])
                 ]
@@ -326,17 +310,14 @@ def process_txt_folder(
                     or [0]
                 )
                 for t in vakcode_tables:
-                    # Set correct table_title and unique table_number
                     t["table_title"] = "Dec_vakcode.asc"
                     max_table_number += 1
                     t["table_number"] = max_table_number
-                    # If decoding_variables is empty, set to ["Vakcode"]
                     if not t.get("decoding_variables"):
                         t["decoding_variables"] = ["Vakcode"]
                     if t["table_title"].lower() not in existing_titles:
                         dec_data["tables"].append(t)
                         existing_titles.append(t["table_title"].lower())
-                # Save back
                 storage.write_json(dec_data, dec_json)
                 _console.print(
                     f"[cyan]Patched: Added Dec_vakcode table(s) from Vakkenbestanden JSON to Dec-bestanden JSON with correct title and table_number."
@@ -382,7 +363,6 @@ def write_variable_metadata(
         _console.print(f"[red]Error importing canonical parser for variable metadata")
         return
 
-    # Recursively find all Bestandsbeschrijving*.txt files in input_dir
     txt_files = storage.list_files(f"{input_dir}/**/Bestandsbeschrijving*.txt")
     if not txt_files:
         _console.print(
@@ -853,14 +833,11 @@ def process_json_folder(
     """
     os.makedirs(excel_output_folder, exist_ok=True)
 
-    # Remove any existing Excel files
     for f in storage.list_files(f"{excel_output_folder}/*.xlsx"):
         storage.delete(f)
 
-    # Setup logging — log folder is a subdirectory of excel_output_folder (the metadata dir)
     log_folder = os.path.join(excel_output_folder, "logs")
 
-    # Create both a timestamped log and a latest log
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     timestamped_log_file = os.path.join(
         log_folder, f"xlsx_processing_log_{timestamp}.json"
@@ -892,7 +869,6 @@ def process_json_folder(
         storage.write_json(log_data, latest_log_file)
         return None
 
-    # Process each JSON file
     total_excel_files = 0
     processed_json_files = 0
     total_row_mismatches = 0
@@ -900,25 +876,20 @@ def process_json_folder(
     for json_file in json_files:
         file_name = os.path.basename(json_file)
 
-        # Log file processing
         file_log = {"file": file_name, "status": "processing", "tables": []}
 
-        # Extract tables from JSON file - now also gets detailed results
         table_results, files_created, tables_found = extract_excel_from_json(
             json_file, excel_output_folder
         )
 
-        # Check for row count mismatches in any tables
         file_has_mismatch = False
         for table_result in table_results:
             if "Row count mismatch" in table_result.get("notes", ""):
                 file_has_mismatch = True
                 total_row_mismatches += 1
 
-            # Add table results to file log
             file_log["tables"].append(table_result)
 
-        # Update file status in log
         file_log["status"] = "success" if files_created > 0 else "no_tables_extracted"
         file_log["tables_found"] = tables_found
         file_log["files_created"] = files_created
@@ -926,22 +897,18 @@ def process_json_folder(
 
         log_data["processed_files"].append(file_log)
 
-        # Update counters
         total_excel_files += files_created
         if files_created > 0:
             processed_json_files += 1
 
-    # Update final log status
     log_data["status"] = "completed"
     log_data["total_files_processed"] = total_json_files
     log_data["total_files_extracted"] = processed_json_files
     log_data["row_count_mismatches"] = total_row_mismatches
 
-    # Save log files via storage
     storage.write_json(log_data, timestamped_log_file)
     storage.write_json(log_data, latest_log_file)
 
-    # Print summary to console
     _console.print(f"[green]Processed {total_json_files} JSON files")
     _console.print(
         f"[green]Created {total_excel_files} Excel files from {processed_json_files} JSON files"

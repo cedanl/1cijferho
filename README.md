@@ -29,7 +29,7 @@ Met deze tool kun je in enkele minuten grote hoeveelheden data verwerken, zonder
 
 Bekijk hieronder een korte demonstratie van hoe de 1CijferHO Tool werkt:
 
-![Demo](src/assets/demo.gif)
+<video src="https://github.com/user-attachments/assets/a8a60a3f-d746-4c4b-84ea-faa8feb7b5d3" controls width="100%"></video>
 
 ### 📑 Congrespresentatie(s)
 
@@ -42,15 +42,15 @@ Tijdens de DAIR-conferentie in 2025 hebben we de 1CijferHO Tool gepresenteerd. B
 
 1cijferHO-data is essentieel voor beleidsvorming en onderzoek, maar het handmatig verwerken ervan kost veel tijd en brengt risico’s met zich mee. De 1CijferHO Tool biedt een oplossing die:
 - **Tijd bespaart**: Verwerk gigabytes aan data in enkele minuten.
-- **Betrouwbaar is**: Voorkomt fouten door automatische validatie.
-- **Gebruiksklaar**: Levert schone CSV- of Parquet-bestanden voor directe analyse.
+- **Navolgbaar is**: De stappen die bestanden selecteren en omzetten laten een logbestand achter in `metadata/logs/` naast je output, zodat je naderhand kunt nagaan welke bestanden zijn verwerkt en welke zijn overgeslagen.
+- **Controleerbaar is**: De omzetting van het vaste-breedteformaat naar CSV is geverifieerd verliesvrij — de ruwe `.asc` en de `.csv` bevatten exact dezelfde waarden. De stappen daarna zijn aanvullingen: decoderen en verrijken kunnen codes wijzigen of ongemapt laten. Vergelijk een `_decoded.csv` daarom met de ruwe `.csv` voordat je die als definitief beschouwt.
 
 
 ## Hoe werkt het?
 
 1. **Start de tool** met één eenvoudige opdracht.
 2. **Upload je bestanden** (data en metadata).
-3. **Bekijk de resultaten**: Je krijgt direct schone, geoptimaliseerde bestanden.
+3. **Bekijk de resultaten**: Je krijgt een CSV met de ruwe data, en optionaal varianten met gedecodeerde en verrijkte kolommen.
 
 
 ## Aan de slag

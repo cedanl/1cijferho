@@ -72,7 +72,7 @@ if "demo_mode" not in st.session_state:
 
 
 
-@st.cache_data(ttl=3600)  # Cache for 1 hour
+@st.cache_data(ttl=3600)
 def check_repo_version() -> dict | None:
     """Check if local version matches latest GitHub release"""
     try:
@@ -111,7 +111,6 @@ def show_version_notification() -> bool:
 
 
 # -----------------------------------------------------------------------------
-# Pages Overview - YOU CAN ADD MORE PAGES HERE
 # -----------------------------------------------------------------------------
 home_page = st.Page("frontend/Overview/Home.py", icon="🏠", title="Startpagina")
 documentation_page = st.Page(
