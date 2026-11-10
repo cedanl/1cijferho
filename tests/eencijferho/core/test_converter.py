@@ -332,7 +332,9 @@ def _match_log(tmp_path, processed_files):
     logs = tmp_path / "meta" / "logs"
     logs.mkdir(parents=True)
     path = logs / "(4)_file_matching_log_latest.json"
-    path.write_text(json.dumps({"processed_files": processed_files}), encoding="utf-8")
+    path.write_text(
+        json.dumps({"status": "completed", "processed_files": processed_files}), encoding="utf-8",
+    )
     return path
 
 
@@ -398,7 +400,7 @@ def test_run_conversions_marks_an_inferred_layout(tmp_path, fixed_width_file):
         "ID": [1, 2], "Naam": ["Naam", "Waarde"],
         "Startpositie": [1, 11], "Aantal posities": [10, 5], "Opmerking": ["", ""],
     }).write_excel(layout)
-    log.write_text(json.dumps({"processed_files": [{
+    log.write_text(json.dumps({"status": "completed", "processed_files": [{
         "input_file": fixed_width_file.name, "status": "matched",
         "matches": [{"validation_file": layout.name, "validation_status": "success"}],
     }]}), encoding="utf-8")
