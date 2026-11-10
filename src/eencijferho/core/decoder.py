@@ -100,7 +100,8 @@ def load_dec_tables_from_metadata(
         naming_func: Optional column name normalizer.
 
     Returns:
-        Mapping of table titles to DataFrames. Missing files are skipped.
+        Mapping of table titles to DataFrames with all columns as strings.
+        Missing files are skipped.
 
     Example:
         >>> dec_tables = load_dec_tables_from_metadata(
@@ -115,22 +116,15 @@ def load_dec_tables_from_metadata(
         dec_file = table["table_title"].replace(".asc", ".csv")
         dec_path = os.path.join(dec_output_dir, dec_file)
 
-        schema_overrides: dict[str, Any] = {}
-        content = table.get("content", [])
-        if len(content) >= 2:
-            code_col = content[1].split("  ")[0].strip()
-            schema_overrides[code_col] = pl.String
-            if len(content) > 2:
-                code_col2 = content[2].split("  ")[0].strip()
-                schema_overrides[code_col2] = pl.String
-
+        # Read every column as a string: Dec labels can be codes too (an
+        # ISCED rubriek such as 031103) and must keep their leading zeros.
         try:
-            df = storage.read_dataframe(dec_path, schema_overrides=schema_overrides)
+            df = storage.read_dataframe(dec_path, infer_schema_length=0)
             dec_tables[table["table_title"]] = df
         except Exception:
             try:
                 df = storage.read_dataframe(
-                    dec_path, schema_overrides=schema_overrides, quote_char=None,
+                    dec_path, infer_schema_length=0, quote_char=None,
                 )
                 dec_tables[table["table_title"]] = df
             except Exception as e:
@@ -176,22 +170,117 @@ def _normalize_dec_table(
     code_col_norm: str,
     naming_func: Callable | None = None,
 ) -> pl.DataFrame:
-    """Normalize Dec table column names and strip leading zeros from the code column."""
+    """Normalize Dec table column names and trim whitespace in the code column.
 
-
+    The code itself is left as it is: matching happens on a temporary key built
+    by ``_join_key``, so data and Dec codes are normalised by the same rule.
+    """
     join_df = dec_table.rename(
         {c: normalize_name(strip_accents(c), naming_func) for c in dec_table.columns}
     )
     if code_col_norm in join_df.columns:
         join_df = join_df.with_columns(
-            pl.col(code_col_norm)
-            .cast(pl.Utf8)
-            .str.strip_chars_start("0")
-            .str.replace("^$", "0")
-            .str.strip_chars()
-            .alias(code_col_norm)
+            pl.col(code_col_norm).cast(pl.Utf8).str.strip_chars().alias(code_col_norm)
         )
     return join_df
+
+
+_CODE_WIDTH_RE = _re.compile(r"^\s*\S.*?\s{2,}\d+\s+(\d+)(?:\s|$)")
+
+
+def _code_width(content_row: str | None) -> int | None:
+    """Field width ("Aantal posities") of a code row in the file description.
+
+    Rows look like ``"Code land     1     4"`` (name, start position, width,
+    optionally followed by a ``}`` key marker). Returns None when the row
+    carries no width.
+    """
+    if not content_row:
+        return None
+    m = _CODE_WIDTH_RE.match(content_row)
+    if not m:
+        return None
+    width = int(m.group(1))
+    return width if width > 0 else None
+
+
+def _key_width(meta_width: int | None, *columns: pl.Series) -> int | None:
+    """Width to pad a join key to.
+
+    The width from the file description wins. Without it, fall back to the
+    longest code found on either side of the join, so both sides are padded
+    to one common width.
+    """
+    if meta_width:
+        return meta_width
+    lengths = [
+        col.cast(pl.Utf8).str.strip_chars().str.len_chars().max()
+        for col in columns
+    ]
+    lengths = [n for n in lengths if n]
+    return max(lengths) if lengths else None
+
+
+def _join_key(expr: pl.Expr, width: int | None) -> pl.Expr:
+    """The one normalisation rule for matching a code to a Dec table.
+
+    Trim whitespace and left-pad with zeros to ``width``, so ``411``, ``0411``
+    and ``00411`` all match at width 5 and ``2UC`` matches ``02UC`` at width 4.
+    An empty code becomes null, so it never matches a real ``0000`` (Dec tables
+    such as Dec_landcode carry an empty sentinel row next to ``0000``).
+
+    Use it only for temporary key columns: a data column is never overwritten.
+    """
+    code = expr.cast(pl.Utf8).str.strip_chars()
+    code = pl.when(code != "").then(code)  # empty -> null
+    if width:
+        code = code.str.zfill(width)
+    return code
+
+
+def _keyed_lookup(
+    result_df: pl.DataFrame,
+    join_df: pl.DataFrame,
+    pairs: list[tuple[str, str, int | None]],
+    dec_cols: list[str],
+    log_name: str,
+    log_prefix: str = "[decoder]",
+) -> tuple[pl.DataFrame, list[str]]:
+    """Left-join the Dec label columns onto result_df through temporary keys.
+
+    Args:
+        pairs: ``(data_col, dec_col, meta_width)`` per key column.
+        dec_cols: Dec label columns to fetch.
+
+    Returns:
+        ``(joined, label_cols)``: a frame with result_df's height and order,
+        holding only the temporary key and label columns (named
+        ``label_cols``, in the order of ``dec_cols``). result_df itself is not
+        changed, so no temporary column can end up in the output.
+    """
+    key_cols = [f"__dec_key_{i}" for i in range(len(pairs))]
+    label_cols = [f"__dec_label_{i}" for i in range(len(dec_cols))]
+    left_keys, right_keys = [], []
+    for key, (data_col, dec_col, meta_width) in zip(key_cols, pairs):
+        width = _key_width(meta_width, join_df[dec_col], result_df[data_col])
+        left_keys.append(_join_key(pl.col(data_col), width).alias(key))
+        right_keys.append(_join_key(pl.col(dec_col), width).alias(key))
+
+    left = result_df.select(left_keys)
+    right = (
+        join_df.select(
+            right_keys + [pl.col(c).alias(n) for c, n in zip(dec_cols, label_cols)]
+        )
+        .drop_nulls(subset=key_cols)
+    )
+    deduped = right.unique(subset=key_cols, keep="first", maintain_order=True)
+    if deduped.height < right.height:
+        print(
+            f"{log_prefix} Dubbele codes in Dec-tabel voor {log_name}: "
+            f"{right.height - deduped.height} rij(en) genegeerd"
+        )
+    joined = left.join(deduped, on=key_cols, how="left", maintain_order="left")
+    return joined, label_cols
 
 
 def _apply_single_dec_join(
@@ -202,43 +291,44 @@ def _apply_single_dec_join(
     is_composite: bool,
     code_col2_norm: str | None,
     naming_func: Callable | None = None,
+    code_width: int | None = None,
+    code2_width: int | None = None,
 ) -> pl.DataFrame:
-    """Apply one Dec table join (simple or composite key) to result_df."""
+    """Apply one Dec table join (simple or composite key) to result_df.
 
+    The data column is matched through a temporary key and never rewritten:
+    a code is an identifier, and DUO writes it fixed width (00411 is not 411).
 
-    result_df = result_df.with_columns(
-        pl.col(var_norm)
-        .cast(pl.Utf8)
-        .str.strip_chars_start("0")
-        .str.replace("^$", "0")
-        .str.strip_chars()
-        .alias(var_norm)
-    )
+    Args:
+        code_width: Width of ``code_col_norm`` from the file description.
+        code2_width: Width of ``code_col2_norm`` (composite key only).
+    """
     try:
         if is_composite:
             dec_cols = [
                 c for c in join_df.columns
                 if c != code_col_norm and c != code_col2_norm
             ]
-            joined = result_df.join(
-                join_df,
-                left_on=[code_col_norm, var_norm],
-                right_on=[code_col_norm, code_col2_norm],
-                how="left",
-            )
+            pairs = [
+                (code_col_norm, code_col_norm, code_width),
+                (var_norm, code_col2_norm, code2_width),
+            ]
         else:
             dec_cols = [c for c in join_df.columns if c != code_col_norm]
-            joined = result_df.join(
-                join_df, left_on=var_norm, right_on=code_col_norm, how="left"
+            pairs = [(var_norm, code_col_norm, code_width)]
+
+        joined, label_cols = _keyed_lookup(result_df, join_df, pairs, dec_cols, var_norm)
+
+        result_df = result_df.with_columns(
+            joined[label].alias(
+                f"{var_norm}__{normalize_name(strip_accents(col), naming_func)}"
             )
+            for col, label in zip(dec_cols, label_cols)
+        )
 
-        for col in dec_cols:
-            new_col = f"{var_norm}__{normalize_name(strip_accents(col), naming_func)}"
-            result_df = result_df.with_columns(joined[col].alias(new_col))
-
-        if dec_cols:
-            unmatched = joined.filter(
-                pl.col(var_norm).is_not_null() & pl.col(dec_cols[0]).is_null()
+        if label_cols:
+            unmatched = result_df.filter(
+                pl.col(var_norm).is_not_null() & joined[label_cols[0]].is_null()
             )
             if unmatched.height > 0:
                 sample = unmatched[var_norm].unique().to_list()[:5]
@@ -265,8 +355,6 @@ def _apply_dec_tables(
         decode_columns: When not None, only decode variables whose name
             appears in this list (matched after normalization).
     """
-
-
     allowed: set[str] | None = None
     if decode_columns is not None:
         allowed = {normalize_name(strip_accents(c), naming_func) for c in decode_columns}
@@ -317,14 +405,6 @@ def _apply_dec_tables(
                 and code_col_norm in result_df.columns
             ):
                 is_composite = True
-                join_df = join_df.with_columns(
-                    pl.col(code_col2_norm)
-                    .cast(pl.Utf8)
-                    .str.strip_chars_start("0")
-                    .str.replace("^$", "0")
-                    .str.strip_chars()
-                    .alias(code_col2_norm)
-                )
 
         for var in dec_vars:
             var_norm = normalize_name(strip_accents(var), naming_func)
@@ -339,6 +419,8 @@ def _apply_dec_tables(
             result_df = _apply_single_dec_join(
                 result_df, join_df, var_norm, code_col_norm,
                 is_composite, code_col2_norm, naming_func,
+                code_width=_code_width(content[1]),
+                code2_width=_code_width(content[2]) if is_composite else None,
             )
 
     return result_df
@@ -406,6 +488,7 @@ def _apply_vakken_patch(
             else:
                 result_df = _apply_vakken_simple(
                     result_df, join_df, var_norm, dec_code_col_norm, naam, dec_table_title,
+                    dec_content,
                 )
 
     return result_df
@@ -438,30 +521,32 @@ def _apply_vakken_simple(
     dec_code_col_norm: str,
     naam: str,
     dec_table_title: str,
+    dec_content: list | None = None,
 ) -> pl.DataFrame:
-    """Apply a simple (single-key) Vakkenbestanden join."""
+    """Apply a simple (single-key) Vakkenbestanden join.
+
+    Matches through a temporary key (see ``_join_key``); the data column is
+    left as it is.
+    """
     if var_norm not in result_df.columns:
         closest = difflib.get_close_matches(var_norm, result_df.columns, n=1)
         print(f"[decoder][vakken] Sla '{naam}' over — niet in DataFrame. Dichtste: {closest}")
         return result_df
 
-    result_df = result_df.with_columns(
-        pl.col(var_norm).cast(pl.Utf8).str.strip_chars().alias(var_norm)
-    )
-    if dec_code_col_norm in join_df.columns:
-        join_df = join_df.with_columns(
-            pl.col(dec_code_col_norm).cast(pl.Utf8).str.strip_chars().alias(dec_code_col_norm)
-        )
     try:
         dec_cols = [c for c in join_df.columns if c != dec_code_col_norm]
-        joined = result_df.join(
-            join_df, left_on=var_norm, right_on=dec_code_col_norm, how="left"
+        width = _code_width(dec_content[1]) if dec_content and len(dec_content) > 1 else None
+        joined, label_cols = _keyed_lookup(
+            result_df, join_df, [(var_norm, dec_code_col_norm, width)],
+            dec_cols, naam, log_prefix="[decoder][vakken]",
         )
-        for col in dec_cols:
-            result_df = result_df.with_columns(joined[col].alias(f"{var_norm}__{col}"))
-        if dec_cols:
-            unmatched = joined.filter(
-                pl.col(var_norm).is_not_null() & pl.col(dec_cols[0]).is_null()
+        result_df = result_df.with_columns(
+            joined[label].alias(f"{var_norm}__{col}")
+            for col, label in zip(dec_cols, label_cols)
+        )
+        if label_cols:
+            unmatched = result_df.filter(
+                pl.col(var_norm).is_not_null() & joined[label_cols[0]].is_null()
             )
             if unmatched.height > 0:
                 print(f"[decoder][vakken] Niet-gematcht voor {naam}: {unmatched[var_norm].unique().to_list()[:5]}")
@@ -480,7 +565,11 @@ def _apply_vakken_composite(
     dec_table_title: str,
     naming_func: Callable | None = None,
 ) -> pl.DataFrame:
-    """Apply a composite-key Vakkenbestanden join."""
+    """Apply a composite-key Vakkenbestanden join.
+
+    Matches through temporary keys (see ``_join_key``); the data columns are
+    left as they are.
+    """
     composite_norm = normalize_name(composite, naming_func)
     if len(dec_content) <= 2:
         print(f"[decoder][vakken] Geen tweede sleutelkolom voor samengestelde join in {dec_table_title}")
@@ -493,32 +582,28 @@ def _apply_vakken_composite(
             closest = difflib.get_close_matches(col, result_df.columns, n=1)
             print(f"[decoder][vakken] Sla {col} over (samengesteld) — niet in DataFrame. Dichtste: {closest}")
             return result_df
-        result_df = result_df.with_columns(
-            pl.col(col).cast(pl.Utf8).str.zfill(2).str.strip_chars().alias(col)
-        )
-    for col in [dec_code_col_norm, dec_code_col2_norm]:
-        if col in join_df.columns:
-            join_df = join_df.with_columns(
-                pl.col(col).cast(pl.Utf8).str.zfill(2).str.strip_chars().alias(col)
-            )
     try:
         dec_cols = [
             c for c in join_df.columns
             if c not in (dec_code_col_norm, dec_code_col2_norm)
         ]
-        joined = result_df.join(
-            join_df,
-            left_on=[var_norm, composite_norm],
-            right_on=[dec_code_col_norm, dec_code_col2_norm],
-            how="left",
+        joined, label_cols = _keyed_lookup(
+            result_df, join_df,
+            [
+                (var_norm, dec_code_col_norm, _code_width(dec_content[1])),
+                (composite_norm, dec_code_col2_norm, _code_width(dec_content[2])),
+            ],
+            dec_cols, var_norm, log_prefix="[decoder][vakken]",
         )
-        for col in dec_cols:
-            result_df = result_df.with_columns(joined[col].alias(f"{var_norm}__{col}"))
-        if dec_cols:
-            unmatched = joined.filter(
+        result_df = result_df.with_columns(
+            joined[label].alias(f"{var_norm}__{col}")
+            for col, label in zip(dec_cols, label_cols)
+        )
+        if label_cols:
+            unmatched = result_df.filter(
                 pl.col(var_norm).is_not_null()
                 & pl.col(composite_norm).is_not_null()
-                & pl.col(dec_cols[0]).is_null()
+                & joined[label_cols[0]].is_null()
             )
             if unmatched.height > 0:
                 pairs = list(zip(
@@ -624,7 +709,8 @@ def _apply_single_mapping(
         lower_map = {k.lower(): v for k, v in mapping.items() if isinstance(k, str)}
         mapped_vals = []
         unmapped_seen: set = set()
-        total_non_null = mapped_count = 0
+        int_fallback_seen: set = set()
+        total_non_null = mapped_count = int_fallback_count = 0
 
         for v in src_vals:
             if v is None:
@@ -655,6 +741,11 @@ def _apply_single_mapping(
                     found = mapping.get(int(s))
                 except (ValueError, TypeError):
                     pass
+                if found is not None:
+                    # Only the numeric value matched (00411 -> 411): log it, so a
+                    # fixed-width code resolving through int() is never silent.
+                    int_fallback_count += 1
+                    int_fallback_seen.add(s)
             if found is None:
                 found = lower_map.get(s.lower())
 
@@ -674,6 +765,11 @@ def _apply_single_mapping(
             f"[decoder] '{chosen_col}' (orig: '{orig_name}'): "
             f"{mapped_count}/{total_non_null} gemapt, niet-gemapt: {list(unmapped_seen)[:5]}"
         )
+        if int_fallback_count:
+            print(
+                f"[decoder] '{chosen_col}': {int_fallback_count} waarde(n) alleen via "
+                f"numerieke sleutel gemapt, bijv. {sorted(int_fallback_seen)[:5]}"
+            )
     except Exception as e:
         print(f"[decoder] Fout bij mapping voor {var_norm}: {e}")
     return result_df
