@@ -7,9 +7,10 @@ where the pipeline is fully deterministic.
 
 Snapshot contents per file:
   - file_hash      : SHA256 of the file bytes (version 2; not for Parquet). For CSV
-                     the bytes are hashed after normalising CRLF to LF, so a
-                     checkout or editor that rewrites line endings does not count
-                     as a change. The pipeline itself only writes LF.
+                     the bytes are normalised from CRLF to LF and then both hashed
+                     and parsed for the counts and column names, so a checkout or
+                     editor that rewrites line endings does not count as a change.
+                     The pipeline itself only writes LF.
   - data_hash      : SHA256 over schema and cell values (version 2; Parquet only)
   - row_count      : number of data rows (CSV/Parquet)
   - column_count   : number of columns
@@ -35,6 +36,7 @@ so no row content ends up in a snapshot or a CI log.
 """
 
 import hashlib
+import io
 import json
 import os
 from datetime import datetime
@@ -63,9 +65,14 @@ def _update_framed(digest, data: bytes) -> None:
     digest.update(data)
 
 
-def _csv_hash(raw: bytes) -> str:
-    """SHA256 of CSV bytes with CRLF normalised to LF."""
-    return hashlib.sha256(raw.replace(b"\r\n", b"\n")).hexdigest()
+def _normalise_csv(raw: bytes) -> bytes:
+    """CSV bytes with CRLF normalised to LF."""
+    return raw.replace(b"\r\n", b"\n")
+
+
+def _read_csv(data: bytes, **kwargs) -> pl.DataFrame:
+    """Parse ``;``-separated CSV bytes with every column as String."""
+    return pl.read_csv(io.BytesIO(data), separator=";", infer_schema_length=0, **kwargs)
 
 
 def _data_hash(df: pl.DataFrame) -> str:
@@ -123,16 +130,17 @@ def _scan_file(storage, filepath: str) -> dict:
         entry["file_hash"] = hashlib.sha256(raw).hexdigest()
         return entry
 
-    entry["file_hash"] = _csv_hash(raw)
+    # Hash and parse the same normalised bytes, so a CRLF copy of a file yields
+    # the same hash and the same column names (no trailing "\r") as the LF original.
+    data = _normalise_csv(raw)
+    entry["file_hash"] = hashlib.sha256(data).hexdigest()
     try:
         try:
-            df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
+            df = _read_csv(data)
         except Exception:
             # The converter does not escape quotes in values (yet), so a Dec table
             # value like '"de Bontekoe" NTC-VO' is only readable without quote parsing.
-            df = storage.read_dataframe(
-                filepath, format="csv", infer_schema_length=0, quote_char=None
-            )
+            df = _read_csv(data, quote_char=None)
         entry["row_count"] = len(df)
         entry["column_count"] = len(df.columns)
         entry["columns"] = sorted(df.columns)

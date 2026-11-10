@@ -11,13 +11,16 @@ import pytest
 from eencijferho.utils import snapshot_validator
 from eencijferho.utils.snapshot_validator import generate_snapshot, validate_snapshot
 
+# Fixtures are written as bytes: write_text would translate "\n" to "\r\n" on Windows.
+LF_CSV = b"code;label\n0001;Een\n"
+
 
 @pytest.fixture
 def snapshot_case(tmp_path):
     output = tmp_path / "output"
     output.mkdir()
     csv = output / "EV-test.csv"
-    csv.write_text("code;label\n0001;Een\n", encoding="utf-8")
+    csv.write_bytes(LF_CSV)
     snapshot = tmp_path / "snapshot.json"
     generate_snapshot(str(output), str(snapshot))
     return output, csv, snapshot
@@ -26,7 +29,7 @@ def snapshot_case(tmp_path):
 def test_snapshot_records_hash_and_preserves_string_schema(snapshot_case):
     output, csv, snapshot = snapshot_case
     entry = json.loads(snapshot.read_text())["files"][csv.name]
-    assert entry["file_hash"] == hashlib.sha256(csv.read_bytes()).hexdigest()
+    assert entry["file_hash"] == hashlib.sha256(LF_CSV).hexdigest()
     assert entry["row_count"] == 1
     assert entry["columns"] == ["code", "label"]
     assert validate_snapshot(str(output), str(snapshot)) == (True, [], [])
@@ -34,7 +37,7 @@ def test_snapshot_records_hash_and_preserves_string_schema(snapshot_case):
 
 def test_changed_values_fail_even_when_shape_matches(snapshot_case):
     output, csv, snapshot = snapshot_case
-    csv.write_text("code;label\n9999;Anders\n", encoding="utf-8")
+    csv.write_bytes(b"code;label\n9999;Anders\n")
     passed, errors, _ = validate_snapshot(str(output), str(snapshot))
     assert not passed
     # Same row count, columns and dtypes: the hash is the only thing that differs.
@@ -86,7 +89,7 @@ def test_missing_counts_in_current_file_fail(tmp_path):
     """A file whose scan yields no counts must not pass a snapshot that expects them."""
     output = tmp_path / "output"
     output.mkdir()
-    (output / "EV-test.txt").write_text("code;label\n0001;Een\n", encoding="utf-8")
+    (output / "EV-test.txt").write_bytes(LF_CSV)
     snapshot = tmp_path / "snapshot.json"
     snapshot.write_text(json.dumps(
         {"files": {"EV-test.txt": {"row_count": 1, "column_count": 2}}}
@@ -100,7 +103,7 @@ def test_missing_counts_in_current_file_fail(tmp_path):
 def test_unescaped_quotes_still_read_via_fallback(snapshot_case):
     """The converter does not escape quotes (yet); the fallback keeps such output readable."""
     output, csv, snapshot = snapshot_case
-    csv.write_text('code;label\n0001;"de Bontekoe" NTC-VO\n', encoding="utf-8")
+    csv.write_bytes(b'code;label\n0001;"de Bontekoe" NTC-VO\n')
     generate_snapshot(str(output), str(snapshot))
     assert validate_snapshot(str(output), str(snapshot)) == (True, [], [])
 
@@ -116,7 +119,7 @@ def test_missing_file_fails(snapshot_case):
 def test_unexpected_file_warns_by_default_and_fails_when_strict(snapshot_case):
     """Lenient while the baselines are v1; strict becomes the default once they are v2."""
     output, _, snapshot = snapshot_case
-    (output / "EV-old.csv").write_text("code\n1\n", encoding="utf-8")
+    (output / "EV-old.csv").write_bytes(b"code\n1\n")
     passed, errors, warnings = validate_snapshot(str(output), str(snapshot))
     assert passed and not errors
     assert any("Onverwacht bestand" in warning for warning in warnings)
@@ -187,7 +190,7 @@ def test_metadata_is_not_an_output_product(snapshot_case):
 @pytest.mark.parametrize("strict, exit_code", [(False, None), (True, 1)])
 def test_cli_passes_strict_files_through(snapshot_case, monkeypatch, strict, exit_code):
     output, _, snapshot = snapshot_case
-    (output / "EV-old.csv").write_text("code\n1\n", encoding="utf-8")
+    (output / "EV-old.csv").write_bytes(b"code\n1\n")
     argv = ["snapshot_validator", "--output", str(output), "--snapshot", str(snapshot), "--validate"]
     monkeypatch.setattr(sys, "argv", argv + (["--strict-files"] if strict else []))
     if exit_code is None:
@@ -283,7 +286,32 @@ def test_v2_snapshot_cannot_omit_parquet_data_hash(parquet_case):
 
 def test_csv_with_crlf_line_endings_validates(snapshot_case):
     output, csv, snapshot = snapshot_case
-    csv.write_bytes(csv.read_bytes().replace(b"\n", b"\r\n"))
+    csv.write_bytes(LF_CSV.replace(b"\n", b"\r\n"))
+    assert validate_snapshot(str(output), str(snapshot), strict_files=True) == (True, [], [])
+
+
+@pytest.mark.parametrize("baseline_eol, current_eol", [
+    (b"\n", b"\r\n"),
+    (b"\r\n", b"\n"),
+    (b"\r\n", b"\r\n"),
+])
+def test_crlf_and_lf_csv_give_identical_entries(tmp_path, baseline_eol, current_eol):
+    """A CRLF header must not leave a trailing "\r" in the last column name."""
+    output = tmp_path / "output"
+    output.mkdir()
+    csv = output / "EV-test.csv"
+    csv.write_bytes(LF_CSV.replace(b"\n", baseline_eol))
+    snapshot = tmp_path / "snapshot.json"
+    generate_snapshot(str(output), str(snapshot))
+    entry = json.loads(snapshot.read_text(encoding="utf-8"))["files"][csv.name]
+    assert entry == {
+        "file_hash": hashlib.sha256(LF_CSV).hexdigest(),
+        "row_count": 1,
+        "column_count": 2,
+        "columns": ["code", "label"],
+    }
+
+    csv.write_bytes(LF_CSV.replace(b"\n", current_eol))
     assert validate_snapshot(str(output), str(snapshot), strict_files=True) == (True, [], [])
 
 
