@@ -17,6 +17,7 @@ import os
 import multiprocessing as mp
 import datetime
 import re
+from collections.abc import Sequence
 from typing import Any
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
@@ -31,7 +32,7 @@ class MatchLogNotCompletedError(RuntimeError):
     """The match log has a status other than ``completed``; nothing may be converted."""
 
 
-def process_chunk(chunk_data: tuple[list[tuple[int, int]], list[str | bytes]]) -> list[str]:
+def process_chunk(chunk_data: tuple[list[tuple[int, int]], Sequence[str | bytes]]) -> list[str]:
     """
     Processes a chunk of lines from a fixed-width file and returns the converted output as CSV lines.
 

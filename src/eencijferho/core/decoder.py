@@ -100,7 +100,7 @@ def load_variable_mappings(
         if not name or not isinstance(values, dict):
             continue
         norm = _canonical_name(name, naming_func)
-        entry: dict[str, Any] = {}
+        entry: dict[str | int, Any] = {}
         for k, v in values.items():
             key = k.strip() if isinstance(k, str) else str(k)
             entry[key] = v
@@ -298,11 +298,11 @@ def _key_width(meta_width: int | None, *columns: pl.Series) -> int | None:
     """
     if meta_width:
         return meta_width
-    lengths = [
+    maxima = [
         col.cast(pl.Utf8).str.strip_chars().str.len_chars().max()
         for col in columns
     ]
-    lengths = [n for n in lengths if n]
+    lengths = [n for n in maxima if isinstance(n, int) and n]
     return max(lengths) if lengths else None
 
 
@@ -394,6 +394,10 @@ def _apply_single_dec_join(
     """
     try:
         if is_composite:
+            if code_col2_norm is None:
+                # The caller sets is_composite only with a second code column.
+                # TypeError: what join_df[None] raised here before.
+                raise TypeError("samengestelde sleutel zonder tweede codekolom")
             dec_cols = [
                 c for c in join_df.columns
                 if c != code_col_norm and c != code_col2_norm

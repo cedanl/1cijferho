@@ -20,7 +20,7 @@ def get_metadata_files() -> list[str]:
     return sorted([os.path.basename(f) for f in glob.glob(os.path.join(metadata_dir, "*.xlsx"))])
 
 
-def load_validation_logs() -> tuple[list[dict[str, Any]], list[dict[str, Any]]] | None:
+def load_validation_logs() -> tuple[list[dict[str, Any]] | None, list[dict[str, Any]] | None]:
     """Load the latest validation logs and return failure information"""
     logs_dir = os.path.join(get_metadata_dir(), "logs")
     if not os.path.exists(logs_dir):
