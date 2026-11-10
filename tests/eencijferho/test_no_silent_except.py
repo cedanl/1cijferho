@@ -61,11 +61,17 @@ def _logs_or_raises(handler: ast.ExceptHandler) -> bool:
 
 
 def _broad_handlers(path: Path):
+    """Yield (handler, header) per broad handler; header spans every line up to the body.
+
+    A formatter may wrap a long ``except Exception as e:  # catch-all: ...`` over
+    several lines, so the comment is looked for in the whole header.
+    """
     source = path.read_text(encoding="utf-8")
     lines = source.splitlines()
     for node in ast.walk(ast.parse(source, filename=str(path))):
         if isinstance(node, ast.ExceptHandler) and _is_broad(node):
-            yield node, lines[node.lineno - 1]
+            header = lines[node.lineno - 1 : max(node.lineno, node.body[0].lineno - 1)]
+            yield node, "\n".join(header)
 
 
 def test_sources_found():
@@ -85,8 +91,8 @@ def test_every_catch_all_logs_or_raises(path):
 def test_every_catch_all_is_documented(path):
     undocumented = [
         f"{path.name}:{h.lineno}"
-        for h, line in _broad_handlers(path)
-        if "# catch-all:" not in line
+        for h, header in _broad_handlers(path)
+        if "# catch-all:" not in header
     ]
     assert undocumented == [], f"catch-all without '# catch-all: <reason>': {undocumented}"
 
@@ -121,3 +127,13 @@ def test_guard_flags_a_silent_handler(tmp_path):
     )
     found = [(h.lineno, _logs_or_raises(h)) for h, _ in _broad_handlers(sample)]
     assert found == [(3, False), (7, True), (11, False)]
+
+
+def test_guard_reads_a_wrapped_header(tmp_path):
+    sample = tmp_path / "wrapped.py"
+    sample.write_text(
+        "try:\n    pass\nexcept (\n    Exception\n) as e:  # catch-all: x\n    logger.error('e')\n",
+        encoding="utf-8",
+    )
+    [(_handler, header)] = list(_broad_handlers(sample))
+    assert "# catch-all:" in header
