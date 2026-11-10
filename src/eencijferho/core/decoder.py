@@ -7,6 +7,12 @@ import polars as pl
 
 from eencijferho.utils.converter_headers import clean_header_name, normalize_name, strip_accents
 from eencijferho.io.decorators import with_storage
+from eencijferho.core.decode_report import (
+    DEC_TABLE_NOT_LOADED,
+    NO_LABEL_COLUMNS,
+    NOT_IN_DECODE_SCOPE,
+    DecodeReport,
+)
 from collections.abc import Callable
 from typing import Any
 
@@ -21,6 +27,7 @@ def load_variable_mappings(
     storage,
     variable_metadata_path: str | None = None,
     naming_func: Callable[[str], str] | None = None,
+    report: DecodeReport | None = None,
 ) -> dict[str, dict[str, Any]]:
     """
     Loads variable-level value mappings from a variable metadata JSON file.
@@ -29,6 +36,7 @@ def load_variable_mappings(
         variable_metadata_path: Path to variable_metadata.json. Falls back to
             the default location inside data/00-metadata/json/ when None.
         naming_func: Optional column name normalizer.
+        report: Optional collector for the decode log.
 
     Returns:
         Mapping of normalized variable names to ``{"orig_name": ..., "mapping": {...}}``.
@@ -42,12 +50,16 @@ def load_variable_mappings(
     )
     path = next((p for p in candidates if storage.exists(p)), None)
     if path is None:
+        if report is not None:
+            report.record_variable_metadata(variable_metadata_path, "missing", 0)
         return {}
 
     try:
         items = storage.read_json(path)
     except Exception as e:
         print(f"[decoder] Waarschuwing: kon variable metadata niet laden {path}: {e}")
+        if report is not None:
+            report.record_variable_metadata(path, "unreadable", 0)
         return {}
 
     maps: dict[str, dict[str, Any]] = {}
@@ -81,6 +93,8 @@ def load_variable_mappings(
 
     if maps:
         print(f"[decoder] {len(maps)} variabele-mappings geladen uit {path}")
+    if report is not None:
+        report.record_variable_metadata(path, "loaded", len(maps))
     return maps
 
 
@@ -90,6 +104,7 @@ def load_dec_tables_from_metadata(
     metadata_json_path: str,
     dec_output_dir: str,
     naming_func: Callable[[str], str] | None = None,
+    report: DecodeReport | None = None,
 ) -> dict[str, pl.DataFrame]:
     """
     Loads Dec_* tables as Polars DataFrames based on metadata JSON.
@@ -98,6 +113,8 @@ def load_dec_tables_from_metadata(
         metadata_json_path: Path to the metadata JSON file.
         dec_output_dir: Directory containing Dec_* CSV files.
         naming_func: Optional column name normalizer.
+        report: Optional collector for the decode log; records every table
+            that could not be loaded.
 
     Returns:
         Mapping of table titles to DataFrames with all columns as strings.
@@ -129,7 +146,12 @@ def load_dec_tables_from_metadata(
                 dec_tables[table["table_title"]] = df
             except Exception as e:
                 print(f"[decoder] Kon {dec_file} niet laden: {e}")
+                if report is not None:
+                    reason = "file_not_found" if not storage.exists(dec_path) else "read_error"
+                    report.record_dec_table_not_loaded(table["table_title"], reason)
 
+    if report is not None:
+        report.record_dec_tables_loaded(len(meta["tables"]), len(dec_tables))
     return dec_tables
 
 
@@ -293,6 +315,8 @@ def _apply_single_dec_join(
     naming_func: Callable | None = None,
     code_width: int | None = None,
     code2_width: int | None = None,
+    report: DecodeReport | None = None,
+    dec_table_title: str | None = None,
 ) -> pl.DataFrame:
     """Apply one Dec table join (simple or composite key) to result_df.
 
@@ -302,6 +326,8 @@ def _apply_single_dec_join(
     Args:
         code_width: Width of ``code_col_norm`` from the file description.
         code2_width: Width of ``code_col2_norm`` (composite key only).
+        report: Optional collector for the decode log.
+        dec_table_title: Dec table title, used in the decode log.
     """
     try:
         if is_composite:
@@ -333,8 +359,15 @@ def _apply_single_dec_join(
             if unmatched.height > 0:
                 sample = unmatched[var_norm].unique().to_list()[:5]
                 print(f"[decoder] Niet-gematchte codes voor {var_norm}: {sample}")
+                if report is not None:
+                    keys = [code_col_norm, var_norm] if is_composite else [var_norm]
+                    report.record_unmatched(keys, dec_table_title or "", unmatched)
+        elif report is not None:
+            report.record_skip(var_norm, NO_LABEL_COLUMNS)
     except Exception as e:
         print(f"[decoder] Fout bij Dec-join voor {var_norm}: {e}")
+        if report is not None:
+            report.record_error(var_norm, "dec_join", e)
 
     return result_df
 
@@ -345,6 +378,7 @@ def _apply_dec_tables(
     dec_tables: dict[str, pl.DataFrame],
     naming_func: Callable | None = None,
     decode_columns: list[str] | None = None,
+    report: DecodeReport | None = None,
 ) -> pl.DataFrame:
     """Apply all Dec table joins defined in metadata to result_df.
 
@@ -354,6 +388,7 @@ def _apply_dec_tables(
     Args:
         decode_columns: When not None, only decode variables whose name
             appears in this list (matched after normalization).
+        report: Optional collector for the decode log.
     """
     allowed: set[str] | None = None
     if decode_columns is not None:
@@ -368,12 +403,26 @@ def _apply_dec_tables(
         if not dec_vars and len(content) > 1:
             dec_vars = [content[1].split("  ")[0].strip()]
 
-        if not dec_vars or dec_table is None or len(content) < 2:
+        if not dec_vars or len(content) < 2:
             continue
 
         if allowed is not None:
+            if report is not None:
+                for v in dec_vars:
+                    v_norm = normalize_name(strip_accents(v), naming_func)
+                    if v_norm not in allowed:
+                        report.record_skip(v_norm, NOT_IN_DECODE_SCOPE)
             dec_vars = [v for v in dec_vars if normalize_name(strip_accents(v), naming_func) in allowed]
         if not dec_vars:
+            continue
+
+        if dec_table is None:
+            if report is not None:
+                report.record_dec_table_not_loaded(table["table_title"], "not_loaded")
+                for v in dec_vars:
+                    report.record_skip(
+                        normalize_name(strip_accents(v), naming_func), DEC_TABLE_NOT_LOADED
+                    )
             continue
 
         code_col_raw = content[1].split("  ")[0].strip()
@@ -412,8 +461,12 @@ def _apply_dec_tables(
                 closest = difflib.get_close_matches(var_norm, result_df.columns, n=1, cutoff=0.8)
                 if closest:
                     var_norm = closest[0]
+                    if report is not None:
+                        report.record_fuzzy(var, var_norm, "dec_variable")
                 else:
                     print(f"[decoder] Sla '{var}' over — niet gevonden in DataFrame.")
+                    if report is not None:
+                        report.record_not_found(var, table["table_title"])
                     continue
 
             result_df = _apply_single_dec_join(
@@ -421,6 +474,8 @@ def _apply_dec_tables(
                 is_composite, code_col2_norm, naming_func,
                 code_width=_code_width(content[1]),
                 code2_width=_code_width(content[2]) if is_composite else None,
+                report=report,
+                dec_table_title=table["table_title"],
             )
 
     return result_df
@@ -431,6 +486,7 @@ def _apply_vakken_patch(
     meta: dict,
     dec_tables: dict[str, pl.DataFrame],
     naming_func: Callable | None = None,
+    report: DecodeReport | None = None,
 ) -> pl.DataFrame:
     """Apply Vakkenbestanden decoding via 'te decoderen met Dec_X' in Opmerking column."""
     for table in meta["tables"]:
@@ -465,6 +521,9 @@ def _apply_vakken_patch(
             dec_table = dec_tables.get(dec_table_title)
             if dec_table is None:
                 print(f"[decoder][vakken] Dec-tabel niet geladen: {dec_table_title}")
+                if report is not None:
+                    report.record_dec_table_not_loaded(dec_table_title, "not_loaded")
+                    report.record_skip(normalize_name(naam, naming_func), DEC_TABLE_NOT_LOADED)
                 continue
 
             dec_content = next(
@@ -484,11 +543,12 @@ def _apply_vakken_patch(
                 result_df = _apply_vakken_composite(
                     result_df, join_df, var_norm, composite,
                     dec_code_col_norm, dec_content, dec_table_title, naming_func,
+                    report=report,
                 )
             else:
                 result_df = _apply_vakken_simple(
                     result_df, join_df, var_norm, dec_code_col_norm, naam, dec_table_title,
-                    dec_content,
+                    dec_content, report=report,
                 )
 
     return result_df
@@ -522,6 +582,7 @@ def _apply_vakken_simple(
     naam: str,
     dec_table_title: str,
     dec_content: list | None = None,
+    report: DecodeReport | None = None,
 ) -> pl.DataFrame:
     """Apply a simple (single-key) Vakkenbestanden join.
 
@@ -531,6 +592,8 @@ def _apply_vakken_simple(
     if var_norm not in result_df.columns:
         closest = difflib.get_close_matches(var_norm, result_df.columns, n=1)
         print(f"[decoder][vakken] Sla '{naam}' over — niet in DataFrame. Dichtste: {closest}")
+        if report is not None:
+            report.record_not_found(naam, dec_table_title)
         return result_df
 
     try:
@@ -550,8 +613,14 @@ def _apply_vakken_simple(
             )
             if unmatched.height > 0:
                 print(f"[decoder][vakken] Niet-gematcht voor {naam}: {unmatched[var_norm].unique().to_list()[:5]}")
+                if report is not None:
+                    report.record_unmatched([var_norm], dec_table_title, unmatched)
+        elif report is not None:
+            report.record_skip(var_norm, NO_LABEL_COLUMNS)
     except Exception as e:
         print(f"[decoder][vakken] Fout bij join voor {naam}: {e}")
+        if report is not None:
+            report.record_error(var_norm, "dec_join", e)
     return result_df
 
 
@@ -564,6 +633,7 @@ def _apply_vakken_composite(
     dec_content: list,
     dec_table_title: str,
     naming_func: Callable | None = None,
+    report: DecodeReport | None = None,
 ) -> pl.DataFrame:
     """Apply a composite-key Vakkenbestanden join.
 
@@ -581,6 +651,8 @@ def _apply_vakken_composite(
         if col not in result_df.columns:
             closest = difflib.get_close_matches(col, result_df.columns, n=1)
             print(f"[decoder][vakken] Sla {col} over (samengesteld) — niet in DataFrame. Dichtste: {closest}")
+            if report is not None:
+                report.record_not_found(col, dec_table_title)
             return result_df
     try:
         dec_cols = [
@@ -611,8 +683,14 @@ def _apply_vakken_composite(
                     unmatched[composite_norm].unique().to_list()[:5],
                 ))
                 print(f"[decoder][vakken] Niet-gematchte samengestelde codes: {pairs}")
+                if report is not None:
+                    report.record_unmatched([composite_norm, var_norm], dec_table_title, unmatched)
+        elif report is not None:
+            report.record_skip(var_norm, NO_LABEL_COLUMNS)
     except Exception as e:
         print(f"[decoder][vakken] Fout bij samengestelde join voor {var_norm}: {e}")
+        if report is not None:
+            report.record_error(var_norm, "dec_join", e)
     return result_df
 
 
@@ -623,6 +701,7 @@ def _apply_variable_mappings(
     norm_map: dict[str, str],
     orig_columns: list[str],
     enrich_variables: list[str] | None = None,
+    report: DecodeReport | None = None,
 ) -> pl.DataFrame:
     """Apply variable-level code→label mappings from variable_metadata.json.
 
@@ -632,6 +711,7 @@ def _apply_variable_mappings(
     Args:
         enrich_variables: When not None, only apply mappings for variables
             whose name appears in this list (matched after normalization).
+        report: Optional collector for the decode log.
     """
     allowed_enrich: set[str] | None = None
     if enrich_variables is not None:
@@ -650,11 +730,14 @@ def _apply_variable_mappings(
             mapping = info.get("mapping") if isinstance(info, dict) else info
             orig_name = info.get("orig_name") if isinstance(info, dict) else None
             chosen_col = _resolve_mapping_column(
-                var_norm, orig_name, result_df, norm_map, orig_columns, naming_func
+                var_norm, orig_name, result_df, norm_map, orig_columns, naming_func,
+                report=report,
             )
             if chosen_col is None:
                 continue
-            result_df = _apply_single_mapping(result_df, chosen_col, mapping, var_norm, orig_name)
+            result_df = _apply_single_mapping(
+                result_df, chosen_col, mapping, var_norm, orig_name, report=report,
+            )
     except Exception as e:
         print(f"[decoder] Fout bij toepassen variabele-mappings: {e}")
     return result_df
@@ -667,6 +750,7 @@ def _resolve_mapping_column(
     norm_map: dict[str, str],
     orig_columns: list[str],
     naming_func: Callable | None,
+    report: DecodeReport | None = None,
 ) -> str | None:
     """Find the best matching column in result_df for a variable mapping."""
     if var_norm in result_df.columns:
@@ -682,6 +766,8 @@ def _resolve_mapping_column(
     closest = difflib.get_close_matches(var_norm, candidates, n=3)
     if not closest:
         print(f"[decoder] Mapping voor '{var_norm}' (orig: '{orig_name}') — kolom niet gevonden.")
+        if report is not None:
+            report.record_not_found(orig_name or var_norm, "variable_metadata")
         return None
 
     pick = next((c for c in closest if c in result_df.columns), None)
@@ -690,6 +776,8 @@ def _resolve_mapping_column(
     if pick is None:
         pick = closest[0]
     print(f"[decoder] Mapping voor '{var_norm}' → dichtste match '{pick}'")
+    if report is not None:
+        report.record_fuzzy(orig_name or var_norm, pick, "variable_mapping")
     return pick
 
 
@@ -699,6 +787,7 @@ def _apply_single_mapping(
     mapping: dict,
     var_norm: str,
     orig_name: str | None,
+    report: DecodeReport | None = None,
 ) -> pl.DataFrame:
     """Replace values in chosen_col using code→label mapping."""
     try:
@@ -770,8 +859,15 @@ def _apply_single_mapping(
                 f"[decoder] '{chosen_col}': {int_fallback_count} waarde(n) alleen via "
                 f"numerieke sleutel gemapt, bijv. {sorted(int_fallback_seen)[:5]}"
             )
+        if report is not None:
+            report.record_mapping(
+                chosen_col, orig_name or var_norm, mapped_count, total_non_null, unmapped_seen,
+                int_fallback_count, int_fallback_seen,
+            )
     except Exception as e:
         print(f"[decoder] Fout bij mapping voor {var_norm}: {e}")
+        if report is not None:
+            report.record_error(chosen_col, "variable_mapping", e)
     return result_df
 
 
@@ -786,6 +882,7 @@ def decode_fields_dec_only(
     dec_tables: dict[str, pl.DataFrame],
     naming_func: Callable[[str], str] | None = None,
     decode_columns: list[str] | None = None,
+    report: DecodeReport | None = None,
 ) -> pl.DataFrame:
     """
     Decode fields using only Dec_* lookup tables (no variable_metadata enrichment).
@@ -801,14 +898,20 @@ def decode_fields_dec_only(
         naming_func: Optional column name normalizer.
         decode_columns: When not None, only decode these column names.
             Use decoder_info.get_available_decode_columns() to discover valid names.
+        report: Optional collector for the decode log (see
+            :class:`eencijferho.core.decode_report.DecodeReport`).
 
     Returns:
         DataFrame with Dec-decoded columns appended.
     """
     meta = _load_meta(metadata_json_path)
-    norm_df, norm_map, _orig = _normalize_df(df, naming_func)
-    result_df = _apply_dec_tables(norm_df, meta, dec_tables, naming_func, decode_columns)
-    result_df = _apply_vakken_patch(result_df, meta, dec_tables, naming_func)
+    norm_df, norm_map, orig_columns = _normalize_df(df, naming_func)
+    if report is not None:
+        report.start_pass(norm_map, orig_columns)
+    result_df = _apply_dec_tables(norm_df, meta, dec_tables, naming_func, decode_columns, report=report)
+    result_df = _apply_vakken_patch(result_df, meta, dec_tables, naming_func, report=report)
+    if report is not None:
+        report.record_coverage(norm_df.columns, result_df.columns)
     return result_df.rename({k: v for k, v in norm_map.items() if k in result_df.columns})
 
 
@@ -820,6 +923,7 @@ def decode_fields(
     variable_metadata_path: str | None = None,
     decode_columns: list[str] | None = None,
     enrich_variables: list[str] | None = None,
+    report: DecodeReport | None = None,
 ) -> pl.DataFrame:
     """
     Decode fields using Dec_* tables, then apply variable_metadata label substitution.
@@ -840,6 +944,8 @@ def decode_fields(
         enrich_variables: When not None, only apply variable_metadata labels
             for these variable names.  Use decoder_info.get_available_enrich_variables() to
             discover valid names.
+        report: Optional collector for the decode log (see
+            :class:`eencijferho.core.decode_report.DecodeReport`).
 
     Returns:
         DataFrame with Dec-decoded columns appended and variable-level labels
@@ -847,10 +953,15 @@ def decode_fields(
     """
     meta = _load_meta(metadata_json_path)
     norm_df, norm_map, orig_columns = _normalize_df(df, naming_func)
-    result_df = _apply_dec_tables(norm_df, meta, dec_tables, naming_func, decode_columns)
-    result_df = _apply_vakken_patch(result_df, meta, dec_tables, naming_func)
+    if report is not None:
+        report.start_pass(norm_map, orig_columns)
+    result_df = _apply_dec_tables(norm_df, meta, dec_tables, naming_func, decode_columns, report=report)
+    result_df = _apply_vakken_patch(result_df, meta, dec_tables, naming_func, report=report)
+    if report is not None:
+        report.record_coverage(norm_df.columns, result_df.columns)
     result_df = _apply_variable_mappings(
-        result_df, variable_metadata_path, naming_func, norm_map, orig_columns, enrich_variables
+        result_df, variable_metadata_path, naming_func, norm_map, orig_columns, enrich_variables,
+        report=report,
     )
     return result_df.rename({k: v for k, v in norm_map.items() if k in result_df.columns})
 
