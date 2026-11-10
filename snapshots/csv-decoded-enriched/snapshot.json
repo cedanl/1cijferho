@@ -1,7 +1,7 @@
 {
   "snapshot_version": 2,
-  "generated_at": "2026-11-10T17:46:34.961118",
-  "output_dir": "data/02-output/factory-ci/sync1/csv-decoded-enriched",
+  "generated_at": "2026-11-10T22:50:30.701597",
+  "output_dir": "data/02-output/factory-ci/job028/csv-decoded-enriched",
   "file_count": 20,
   "files": {
     "Dec_actuele_instelling.csv": {
@@ -492,7 +492,7 @@
       ]
     },
     "EV299XX24_DEMO_enriched.csv": {
-      "file_hash": "d9db9aad114212ec401fb0076c2120bf76d18de816f9e6632e491b9dfd326965",
+      "file_hash": "1485a16de8d2bc268c26d9e3854f7508498d63c3f40236412beb1bb034c69633",
       "row_count": 43663,
       "column_count": 182,
       "columns": [

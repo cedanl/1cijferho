@@ -1,7 +1,7 @@
 {
   "snapshot_version": 2,
-  "generated_at": "2026-11-10T17:46:49.995921",
-  "output_dir": "data/02-output/factory-ci/sync1/full-pipeline",
+  "generated_at": "2026-11-10T22:50:46.794946",
+  "output_dir": "data/02-output/factory-ci/job028/full-pipeline",
   "file_count": 25,
   "files": {
     "Dec_actuele_instelling.csv": {
@@ -1104,7 +1104,7 @@
       }
     },
     "EV299XX24_DEMO_enriched.csv": {
-      "file_hash": "6ab3fd1f9aee6674d2a8e69260abb26c098550cd306dfa0a969a814b5b646ee4",
+      "file_hash": "907a0d7ce4d12545da15ed7b838424325052a34f82c2b88b11d0040cc2f9aa4f",
       "row_count": 43663,
       "column_count": 182,
       "columns": [
@@ -1293,7 +1293,7 @@
       ]
     },
     "EV299XX24_DEMO_enriched.parquet": {
-      "data_hash": "8c71629207842947d77187aa147c57c4f49b0d587ddc497806b581b2c65d4f8f",
+      "data_hash": "c8caaa91e934b8832f4896ce986c9ff1df12adb473a4910b27e3dbf998058741",
       "row_count": 43663,
       "column_count": 182,
       "columns": [
