@@ -3,9 +3,12 @@
 import hashlib
 import json
 
+import sys
+
 import polars as pl
 import pytest
 
+from eencijferho.utils import snapshot_validator
 from eencijferho.utils.snapshot_validator import generate_snapshot, validate_snapshot
 
 
@@ -34,19 +37,68 @@ def test_changed_values_fail_even_when_shape_matches(snapshot_case):
     csv.write_text("code;label\n9999;Anders\n", encoding="utf-8")
     passed, errors, _ = validate_snapshot(str(output), str(snapshot))
     assert not passed
-    assert any("SHA256" in error for error in errors)
+    # Same row count, columns and dtypes: the hash is the only thing that differs.
+    assert errors == [f"{csv.name}: inhoud gewijzigd (SHA256 verschilt)"]
 
 
 def test_unreadable_csv_never_passes(snapshot_case):
     output, csv, snapshot = snapshot_case
-    csv.write_bytes(b"code;label\n\xff;fout\n")
+    csv.write_bytes(b"code;label\n\xff;MARKER123\n")
     passed, errors, _ = validate_snapshot(str(output), str(snapshot))
     assert not passed
-    assert any("onleesbaar" in error for error in errors)
+    assert any(csv.name in error and "onleesbaar" in error for error in errors)
+    assert not any("MARKER123" in error for error in errors)
+
+
+def test_read_error_never_echoes_exception_text(snapshot_case, monkeypatch):
+    """Reader errors can quote cell values; only the exception type is reported."""
+    output, csv, snapshot = snapshot_case
+
+    def failing_read(*args, **kwargs):
+        raise ValueError("could not parse `MARKER-VALUE` as Int64")
+
+    monkeypatch.setattr(pl, "read_csv", failing_read)
+    passed, errors, _ = validate_snapshot(str(output), str(snapshot))
+    assert not passed
+    assert errors == [f"{csv.name}: bestand onleesbaar: ValueError bij het lezen"]
+
+
+def test_corrupt_parquet_fails_validate_and_generate(tmp_path):
+    output = tmp_path / "output"
+    output.mkdir()
+    parquet = output / "EV-test.parquet"
+    pl.DataFrame({"code": ["1"]}).write_parquet(parquet)
+    snapshot = tmp_path / "snapshot.json"
+    generate_snapshot(str(output), str(snapshot))
+    baseline = snapshot.read_bytes()
+
+    parquet.write_bytes(b"not a parquet file")
+    passed, errors, _ = validate_snapshot(str(output), str(snapshot))
+    assert not passed
+    assert any(parquet.name in error and "onleesbaar" in error for error in errors)
+
+    with pytest.raises(ValueError, match="onleesbaar"):
+        generate_snapshot(str(output), str(snapshot))
+    assert snapshot.read_bytes() == baseline
+
+
+def test_missing_counts_in_current_file_fail(tmp_path):
+    """A file whose scan yields no counts must not pass a snapshot that expects them."""
+    output = tmp_path / "output"
+    output.mkdir()
+    (output / "EV-test.txt").write_text("code;label\n0001;Een\n", encoding="utf-8")
+    snapshot = tmp_path / "snapshot.json"
+    snapshot.write_text(json.dumps(
+        {"files": {"EV-test.txt": {"row_count": 1, "column_count": 2}}}
+    ))
+    passed, errors, _ = validate_snapshot(str(output), str(snapshot))
+    assert not passed
+    assert any("rijen None" in error for error in errors)
+    assert any("kolommen None" in error for error in errors)
 
 
 def test_unescaped_quotes_still_read_via_fallback(snapshot_case):
-    """De converter escapet (nog) geen quotes; de terugval houdt zulke output leesbaar."""
+    """The converter does not escape quotes (yet); the fallback keeps such output readable."""
     output, csv, snapshot = snapshot_case
     csv.write_text('code;label\n0001;"de Bontekoe" NTC-VO\n', encoding="utf-8")
     generate_snapshot(str(output), str(snapshot))
@@ -62,7 +114,7 @@ def test_missing_file_fails(snapshot_case):
 
 
 def test_unexpected_file_warns_by_default_and_fails_when_strict(snapshot_case):
-    """Lenient zolang de baselines v1 zijn; strict wordt de default zodra ze v2 zijn."""
+    """Lenient while the baselines are v1; strict becomes the default once they are v2."""
     output, _, snapshot = snapshot_case
     (output / "EV-old.csv").write_text("code\n1\n", encoding="utf-8")
     passed, errors, warnings = validate_snapshot(str(output), str(snapshot))
@@ -130,3 +182,17 @@ def test_metadata_is_not_an_output_product(snapshot_case):
     metadata.mkdir(parents=True)
     (metadata / "log.json").write_text("{}")
     assert validate_snapshot(str(output), str(snapshot)) == (True, [], [])
+
+
+@pytest.mark.parametrize("strict, exit_code", [(False, None), (True, 1)])
+def test_cli_passes_strict_files_through(snapshot_case, monkeypatch, strict, exit_code):
+    output, _, snapshot = snapshot_case
+    (output / "EV-old.csv").write_text("code\n1\n", encoding="utf-8")
+    argv = ["snapshot_validator", "--output", str(output), "--snapshot", str(snapshot), "--validate"]
+    monkeypatch.setattr(sys, "argv", argv + (["--strict-files"] if strict else []))
+    if exit_code is None:
+        snapshot_validator.main()
+    else:
+        with pytest.raises(SystemExit) as exc_info:
+            snapshot_validator.main()
+        assert exc_info.value.code == exit_code
