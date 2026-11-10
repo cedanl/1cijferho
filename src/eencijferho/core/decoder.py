@@ -152,7 +152,10 @@ def _read_dec_csv(storage, dec_path: str) -> pl.DataFrame | None:
     try:
         return storage.read_dataframe(dec_path, infer_schema_length=0)
     except Exception as e:  # catch-all: any read error gets the retry without quote parsing
-        log_skipped(logger, "dec_load", "retry_without_quote_parsing", file=name, error=e)
+        log_skipped(
+            logger, "dec_load", "retry_without_quote_parsing", file=name, error=e,
+            detail=f"[decoder] {name}: opnieuw lezen zonder quote-verwerking",
+        )
     try:
         return storage.read_dataframe(
             dec_path, infer_schema_length=0, quote_char=None,
