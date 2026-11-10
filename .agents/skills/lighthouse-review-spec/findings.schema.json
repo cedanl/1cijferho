@@ -1,0 +1,41 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["review_markdown", "status", "findings", "top3", "verdict", "could_not_verify"],
+  "properties": {
+    "review_markdown": {
+      "type": "string",
+      "description": "Write this FIRST and in full: the complete free-form review in the markdown format given in the prompt. Reason here without any structural constraint. Every field below is a restructuring of what you wrote here, never a substitute for it."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["Blockers found", "Majors only", "Clean"]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "severity",
+          "spec_section",
+          "problem",
+          "evidence",
+          "failure_scenario",
+          "proposed_fix"
+        ],
+        "properties": {
+          "severity": { "type": "string", "enum": ["BLOCKER", "MAJOR", "MINOR"] },
+          "spec_section": { "type": "string" },
+          "problem": { "type": "string" },
+          "evidence": { "type": "string" },
+          "failure_scenario": { "type": "string" },
+          "proposed_fix": { "type": "string" }
+        }
+      }
+    },
+    "top3": { "type": "array", "items": { "type": "string" } },
+    "verdict": { "type": "string" },
+    "could_not_verify": { "type": "array", "items": { "type": "string" } }
+  }
+}

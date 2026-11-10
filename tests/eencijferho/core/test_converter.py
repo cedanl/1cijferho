@@ -207,14 +207,15 @@ def test_convert_one_skips_unmatched_file():
     assert result["status"] == "skipped"
 
 
-def test_convert_one_skips_no_valid_matches():
+def test_convert_one_fails_no_valid_matches():
     file_info = {
         "input_file": "test.asc",
         "status": "matched",
         "matches": [{"validation_status": "failed", "validation_file": "meta.xlsx"}],
     }
     result = _convert_one(file_info, "/in", "/meta", "/out")
-    assert result["status"] == "skipped"
+    assert result["status"] == "failed"
+    assert result["candidates"] == ["meta.xlsx"]
 
 
 def test_convert_one_fails_missing_input(tmp_path, metadata_xlsx):

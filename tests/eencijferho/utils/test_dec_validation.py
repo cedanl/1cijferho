@@ -1,6 +1,7 @@
 
 import pytest
 
+from eencijferho.io.text_encoding import DescriptionEncodingError
 from eencijferho.utils.dec_validation import (
     parse_dec_mapping,
     validate_with_dec_files,
@@ -210,3 +211,61 @@ def test_composite_key_validation_invalid(composite_invalid_csv, dec_dir_composi
     assert len(failed) > 0
     # Invalid pair (9999, 99) should appear in invalid_values
     assert any("9999" in str(r["invalid_values"]) for r in failed)
+
+
+# ---------------------------------------------------------------------------
+# Tests: encoding of the DEC txt (#203)
+# ---------------------------------------------------------------------------
+
+DEC_TXT_VOOROPL = """\
+Dec_vooropl.asc
+===============
+                                             Startpositie  Aantal posities
+Code vooropleiding                                  1             5
+
+Ten behoeve van de decodering van de velden:
+* Hoogste vooropleiding vóór het HO
+
+"""
+
+
+@pytest.mark.parametrize("encoding", ["latin-1", "utf-8", "utf-8-sig"])
+def test_parse_dec_mapping_same_for_every_encoding(tmp_path, encoding):
+    path = tmp_path / "Bestandsbeschrijving_Dec-bestanden.txt"
+    path.write_bytes(DEC_TXT_VOOROPL.encode(encoding))
+    mapping = parse_dec_mapping(path)
+    assert mapping == {
+        "Dec_vooropl": {"type": "simple", "columns": ["Hoogste vooropleiding vóór het HO"]}
+    }
+
+
+def test_parse_dec_mapping_crlf_same_as_lf(tmp_path):
+    lf = tmp_path / "lf.txt"
+    lf.write_bytes(DEC_TXT_SIMPLE.encode("utf-8"))
+    crlf = tmp_path / "crlf.txt"
+    crlf.write_bytes(DEC_TXT_SIMPLE.replace("\n", "\r\n").encode("latin-1"))
+    assert parse_dec_mapping(crlf) == parse_dec_mapping(lf)
+
+
+def test_parse_dec_mapping_raises_on_replacement_char(tmp_path):
+    path = tmp_path / "Bestandsbeschrijving_Dec-bestanden.txt"
+    path.write_bytes(DEC_TXT_VOOROPL.replace("vóór", "v\ufffd\ufffdr").encode("utf-8"))
+    with pytest.raises(DescriptionEncodingError, match="Bestandsbeschrijving_Dec-bestanden.txt") as exc_info:
+        parse_dec_mapping(path)
+    assert exc_info.value.line_numbers == [7]
+
+
+def test_accented_column_resolves_via_normalize_name(tmp_path):
+    path = tmp_path / "Bestandsbeschrijving_Dec-bestanden.txt"
+    path.write_bytes(DEC_TXT_VOOROPL.encode("latin-1"))
+    mapping = parse_dec_mapping(path)
+    (tmp_path / "Dec_vooropl.csv").write_text(
+        "code_vooropleiding;omschrijving\n10000;Havo\n", encoding="utf-8"
+    )
+    main_csv = tmp_path / "EV.csv"
+    main_csv.write_text("Hoogste vooropleiding vóór het HO\n10000\n99999\n", encoding="utf-8")
+    success, results = validate_with_dec_files(main_csv, tmp_path, mapping)
+    assert results["columns_checked"] == 1
+    assert success is False
+    assert results["column_results"][0]["column"] == "Hoogste vooropleiding vóór het HO"
+    assert results["column_results"][0]["invalid_values"] == ["99999"]

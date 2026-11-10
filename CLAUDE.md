@@ -1,5 +1,7 @@
 # Claude Configuration - 1CijferHO
 
+@AGENTS.md
+
 ## ⚠️ IMPORTANT: Repository Location
 
 **Work on this project at: https://github.com/cedanl/1cijferho**

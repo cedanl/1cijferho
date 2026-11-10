@@ -56,6 +56,23 @@ eencijferho validate --input data/01-input --output data/02-output
     options:
       show_signature: false
 
+#### Bestandsbeschrijving per jaargang
+
+`validate` en `pipeline` koppelen elk EV-bestand aan precies één bestandsbeschrijving met `1cyferho` in de naam, en elk VAKHAVW-bestand aan precies één met `Vakgegevens`. Het jaar in de bestandsnaam bepaalt welke:
+
+- invoerbestand: `XXjj` geeft 20jj (`EV299XX24.asc` → 2024), anders een los jaartal van vier cijfers (`EV2023.asc` → 2023);
+- bestandsbeschrijving: het jaartal na `1cyferho_` (`Bestandsbeschrijving_1cyferho_2024_v1.1.txt` → 2024), anders een los jaartal van vier cijfers in de naam.
+
+Is er maar één bestandsbeschrijving zonder jaartal, dan wordt die gebruikt. In alle andere twijfelgevallen stopt de CLI met exitcode 1 en een melding op stderr, nog vóór er iets wordt omgezet: geen bestandsbeschrijving, meerdere voor hetzelfde jaar, geen jaar in de bestandsnaam bij meerdere bestandsbeschrijvingen, of een jaar waarvoor geen bestandsbeschrijving is. De melding noemt per bestand de reden en alle kandidaten; de koppelingslog `(4)_file_matching_log_latest.json` krijgt status `failed` en wordt daarna door `convert` geweigerd.
+
+| Optie | Effect |
+|-------|--------|
+| `--layout-year JJJJ` | Gebruik voor EV- en VAKHAVW-bestanden de bestandsbeschrijving van dit jaar, ongeacht het jaar in de bestandsnaam. De CLI toont een waarschuwing en de koppelingslog vermeldt de geforceerde keuze. Alleen bij `validate` en `pipeline`. |
+
+```bash
+eencijferho pipeline --input data/01-input --output data/02-output --layout-year 2023
+```
+
 ---
 
 ### `convert`

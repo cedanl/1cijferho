@@ -1,0 +1,11 @@
+[project]
+language = "nl"
+code_language = "en"
+
+[forge]
+kind = "github"
+repo = "cedanl/1cijferho"
+
+[test_gate]
+command = "uv run pytest -q"
+unchecked_exit_codes = [3, 4, 5]

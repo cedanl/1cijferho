@@ -136,13 +136,16 @@ def run_turbo_convert_pipeline(
         skip_prefixes.append("VAKHAVW")
         log += "[pipeline] VAKHAVW-omzetting overgeslagen.\n"
     skip_prefixes = skip_prefixes or None
-    converter.run_conversions_from_matches(
+    summary = converter.run_conversions_from_matches(
         input_dir,
         metadata_folder=metadata_dir,
         match_log_file=match_log_file,
         output_folder=output_dir,
         skip_prefixes=skip_prefixes,
     )
+    # A match log with layout errors must stop the run, not yield output without EV files.
+    if isinstance(summary, dict) and summary.get("match_log_status", "completed") != "completed":
+        raise converter.MatchLogNotCompletedError(summary["reason"])
     converter.convert_dec_files(input_dir, metadata_folder=metadata_dir, output_folder=output_dir)
     log += "[pipeline] Omzetting voltooid.\n"
     if progress_callback:

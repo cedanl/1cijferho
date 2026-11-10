@@ -10,6 +10,7 @@ import re
 from typing import Any
 
 from eencijferho.io.decorators import with_storage
+from eencijferho.io.text_encoding import read_description_text
 from eencijferho.config import validate_safe_path
 
 
@@ -210,8 +211,13 @@ def _scan_for_variable_header(lines: list[str], i: int, n: int) -> tuple[int, st
 
 @with_storage
 def parse_metadata_file(storage, path: str) -> list[dict[str, Any]]:
-    """Parse metadata text file for variable descriptions and possible values."""
-    text = storage.read_text(path, encoding="latin-1")
+    """Parse metadata text file for variable descriptions and possible values.
+
+    Raises:
+        DescriptionEncodingError: When the file contains U+FFFD replacement
+            characters (see eencijferho.io.text_encoding).
+    """
+    text = read_description_text(storage, path)
     lines = text.split("\n")
     n = len(lines)
 

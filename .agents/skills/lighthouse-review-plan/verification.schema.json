@@ -1,0 +1,73 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "review_markdown",
+    "status",
+    "verified",
+    "findings",
+    "top3",
+    "verdict",
+    "could_not_verify"
+  ],
+  "properties": {
+    "review_markdown": {
+      "type": "string",
+      "description": "Write this FIRST and in full: the complete free-form verification in the markdown format given in the prompt. Reason here without any structural constraint. Every field below is a restructuring of what you wrote here, never a substitute for it."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["Blockers found", "Majors only", "Clean"]
+    },
+    "verified": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Finding IDs from the previous round (decision accept or spec) that this diff fully resolves."
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "severity",
+          "cat",
+          "plan_section",
+          "problem",
+          "evidence",
+          "failure_scenario",
+          "proposed_fix",
+          "verifies"
+        ],
+        "properties": {
+          "severity": { "type": "string", "enum": ["BLOCKER", "MAJOR"] },
+          "cat": {
+            "type": "string",
+            "enum": [
+              "spec_mismatch",
+              "dependency_order",
+              "repo_falsehood",
+              "missing_artifact",
+              "verification_gap",
+              "unverified_external_assumption",
+              "likely_runtime_failure",
+              "fix_incomplete"
+            ]
+          },
+          "plan_section": { "type": "string" },
+          "problem": { "type": "string" },
+          "evidence": { "type": "string" },
+          "failure_scenario": { "type": "string" },
+          "proposed_fix": { "type": "string" },
+          "verifies": {
+            "type": "string",
+            "description": "The previous round's finding ID this verifies (decision accept or spec), or the literal string \"regression\" for a new BLOCKER/MAJOR that the fix itself introduces."
+          }
+        }
+      }
+    },
+    "top3": { "type": "array", "items": { "type": "string" } },
+    "verdict": { "type": "string" },
+    "could_not_verify": { "type": "array", "items": { "type": "string" } }
+  }
+}
