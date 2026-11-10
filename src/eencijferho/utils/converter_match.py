@@ -198,7 +198,6 @@ def load_input_files(storage, input_folder: str) -> pl.DataFrame:
     and count the number of rows in each file."""
     files = []
     row_counts = []
-    console = Console()
 
     all_files = storage.list_files(f"{input_folder}/*")
     for filepath in all_files:

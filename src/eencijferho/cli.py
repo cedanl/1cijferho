@@ -102,7 +102,7 @@ def _run_log_dir(output_dir: str) -> str | None:
         return None
     _, _, logs_dir = _resolve_dirs(output_dir)
     # os.path.join keeps an absolute logs_dir as it is.
-    return os.path.join(str(backend.base_path), logs_dir)
+    return os.path.normpath(os.path.join(str(backend.base_path), logs_dir))
 
 
 def _setup_run_log(args: argparse.Namespace) -> None:
