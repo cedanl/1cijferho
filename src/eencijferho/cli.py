@@ -25,10 +25,15 @@ Usage:
     eencijferho convert          --input data/01-input  --output data/02-output
     eencijferho pipeline         --input data/01-input  --output data/02-output
     eencijferho validate-output  --input data/01-input  --output data/02-output
+
+Every command writes a run log, ``<output>/metadata/logs/(8)_run_log_latest.log``
+(local disk only), with what was skipped, what failed and what was unexpected.
+``--debug`` adds full tracebacks to the console and to that log.
 """
 
 import argparse
 import datetime
+import logging
 import os
 import sys
 
@@ -70,8 +75,12 @@ from eencijferho.io.decorators import with_storage
 from eencijferho.io.text_encoding import DescriptionEncodingError
 import eencijferho.utils.value_validation as vv
 import eencijferho.utils.dec_validation as dv
+from eencijferho.io import get_backend
+from eencijferho.io.backends.disk import DiskBackend
+from eencijferho.utils import run_log
 
 _console = Console()
+_logger = logging.getLogger(__name__)
 
 
 def _resolve_dirs(output_dir: str) -> tuple[str, str, str]:
@@ -80,6 +89,31 @@ def _resolve_dirs(output_dir: str) -> tuple[str, str, str]:
     json_dir = os.path.join(metadata_dir, "json")
     logs_dir = os.path.join(metadata_dir, "logs")
     return metadata_dir, json_dir, logs_dir
+
+
+def _run_log_dir(output_dir: str) -> str | None:
+    """Folder for the run log: ``<output>/metadata/logs`` on local disk, else None.
+
+    A non-local storage backend has no local file to append to; the run then
+    logs to the console only.
+    """
+    backend = get_backend()
+    if not isinstance(backend, DiskBackend):
+        return None
+    _, _, logs_dir = _resolve_dirs(output_dir)
+    # os.path.join keeps an absolute logs_dir as it is.
+    return os.path.join(str(backend.base_path), logs_dir)
+
+
+def _setup_run_log(args: argparse.Namespace) -> None:
+    """Attach the run log handlers for this command (after the path checks)."""
+    _validate_safe_path(args.input)
+    _validate_safe_path(args.output)
+    debug = getattr(args, "debug", False)
+    path = run_log.setup_logging(_run_log_dir(args.output), debug=debug)
+    _logger.info("eencijferho %s gestart (debug=%s)", args.command, debug)
+    if path is not None:
+        print(f"[eencijferho] Run log: {path}")
 
 
 def cmd_extract(args: argparse.Namespace) -> None:
@@ -469,6 +503,11 @@ def main() -> None:
     _common = argparse.ArgumentParser(add_help=False)
     _common.add_argument("--input", required=True, help="Path to input directory")
     _common.add_argument("--output", required=True, help="Path to output directory")
+    _common.add_argument(
+        "--debug", action="store_true",
+        help="Toon de volledige traceback van afgevangen fouten (console en "
+             "metadata/logs/(8)_run_log_latest.log). Standaard: één leesbare regel per probleem.",
+    )
 
     _output_opts = argparse.ArgumentParser(add_help=False)
     _output_opts.add_argument(
@@ -585,6 +624,7 @@ def main() -> None:
         "pipeline": cmd_pipeline,
         "validate-output": cmd_validate_output,
     }
+    _setup_run_log(args)
     try:
         dispatch[args.command](args)
     except DescriptionEncodingError as e:
@@ -592,6 +632,8 @@ def main() -> None:
         # not a traceback (the message says how to repair the file).
         _console.print(f"[red]Fout: {escape(str(e))}[/red]", soft_wrap=True)
         sys.exit(1)
+    finally:
+        run_log.teardown_logging()
 
 
 if __name__ == "__main__":
