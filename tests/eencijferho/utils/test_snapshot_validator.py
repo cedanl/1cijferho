@@ -196,3 +196,100 @@ def test_cli_passes_strict_files_through(snapshot_case, monkeypatch, strict, exi
         with pytest.raises(SystemExit) as exc_info:
             snapshot_validator.main()
         assert exc_info.value.code == exit_code
+
+
+# ---------------------------------------------------------------------------
+# Platform- and library-independent hashes
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def parquet_case(tmp_path):
+    output = tmp_path / "output"
+    output.mkdir()
+    parquet = output / "EV-test.parquet"
+    frame = pl.DataFrame({
+        "code": ["0001", "0002", None, "0004"],
+        "label": ["Een", "", "Drie", None],
+    })
+    frame.write_parquet(parquet, compression="zstd")
+    snapshot = tmp_path / "snapshot.json"
+    generate_snapshot(str(output), str(snapshot))
+    return output, parquet, frame, snapshot
+
+
+def test_parquet_entry_has_data_hash_and_no_file_hash(parquet_case):
+    _, parquet, _, snapshot = parquet_case
+    entry = json.loads(snapshot.read_text())["files"][parquet.name]
+    assert "file_hash" not in entry
+    assert len(entry["data_hash"]) == 64
+    assert entry["dtypes"] == {"code": "String", "label": "String"}
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"compression": "snappy"},
+    {"compression": "uncompressed"},
+    {"compression": "zstd", "row_group_size": 1},
+    {"compression": "gzip", "statistics": False},
+])
+def test_parquet_layout_does_not_change_data_hash(parquet_case, tmp_path, kwargs):
+    output, parquet, frame, snapshot = parquet_case
+    before = parquet.read_bytes()
+    frame.write_parquet(parquet, **kwargs)
+    assert parquet.read_bytes() != before
+    assert validate_snapshot(str(output), str(snapshot), strict_files=True) == (True, [], [])
+    regenerated = tmp_path / "regenerated.json"
+    generate_snapshot(str(output), str(regenerated))
+    assert (
+        json.loads(regenerated.read_text())["files"]
+        == json.loads(snapshot.read_text())["files"]
+    )
+
+
+@pytest.mark.parametrize("column, values", [
+    ("code", ["0001", "0002", None, "9999"]),   # changed value
+    ("code", ["0001", "0002", "", "0004"]),     # null became empty string
+    ("label", ["Een", None, "Drie", None]),     # empty string became null
+    ("label", ["Ee", "n", "Drie", None]),       # same concatenation, other split
+])
+def test_one_changed_cell_fails_without_echoing_values(parquet_case, column, values):
+    output, parquet, frame, snapshot = parquet_case
+    frame.with_columns(pl.Series(column, values)).write_parquet(parquet)
+    passed, errors, _ = validate_snapshot(str(output), str(snapshot))
+    assert not passed
+    assert errors == [f"{parquet.name}: inhoud gewijzigd (data-hash verschilt)"]
+    for value in ("0001", "0002", "0004", "9999", "Een", "Drie"):
+        assert not any(value in error for error in errors)
+
+
+def test_parquet_column_order_is_part_of_data_hash(parquet_case):
+    output, parquet, frame, snapshot = parquet_case
+    frame.select(["label", "code"]).write_parquet(parquet)
+    passed, errors, _ = validate_snapshot(str(output), str(snapshot))
+    assert not passed
+    assert errors == [f"{parquet.name}: inhoud gewijzigd (data-hash verschilt)"]
+
+
+def test_v2_snapshot_cannot_omit_parquet_data_hash(parquet_case):
+    output, parquet, _, snapshot = parquet_case
+    data = json.loads(snapshot.read_text())
+    del data["files"][parquet.name]["data_hash"]
+    # A raw-bytes hash does not stand in for the data hash.
+    data["files"][parquet.name]["file_hash"] = hashlib.sha256(parquet.read_bytes()).hexdigest()
+    snapshot.write_text(json.dumps(data))
+    passed, errors, _ = validate_snapshot(str(output), str(snapshot))
+    assert not passed
+    assert errors == [f"{parquet.name}: data-hash ontbreekt in de snapshot"]
+
+
+def test_csv_with_crlf_line_endings_validates(snapshot_case):
+    output, csv, snapshot = snapshot_case
+    csv.write_bytes(csv.read_bytes().replace(b"\n", b"\r\n"))
+    assert validate_snapshot(str(output), str(snapshot), strict_files=True) == (True, [], [])
+
+
+def test_csv_with_crlf_and_changed_value_still_fails(snapshot_case):
+    output, csv, snapshot = snapshot_case
+    csv.write_bytes(b"code;label\r\n0002;Een\r\n")
+    passed, errors, _ = validate_snapshot(str(output), str(snapshot))
+    assert not passed
+    assert errors == [f"{csv.name}: inhoud gewijzigd (SHA256 verschilt)"]
