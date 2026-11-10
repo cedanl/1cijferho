@@ -258,7 +258,7 @@
     },
     "EV299XX24_DEMO_decoded.csv": {
       "row_count": 43663,
-      "column_count": 186,
+      "column_count": 182,
       "columns": [
         "Actuele instelling",
         "Actuele instelling vóór besturenfusies",
@@ -393,11 +393,7 @@
         "geboorteland_ouder_2__naam_migratieachtergrond_lang",
         "hoogste_vooropleiding__omschrijving_vooropleiding",
         "hoogste_vooropleiding_binnen_het_ho__omschrijving_vooropleiding",
-        "hoogste_vooropleiding_binnen_het_ho_oorspronkelijke_code__omschrijving_vooropleiding_oorspr_code",
-        "hoogste_vooropleiding_binnen_het_ho_oorspronkelijke_code__onderwijssector",
         "hoogste_vooropleiding_voor_het_ho__omschrijving_vooropleiding",
-        "hoogste_vooropleiding_voor_het_ho_oorspronkelijke_code__omschrijving_vooropleiding_oorspr_code",
-        "hoogste_vooropleiding_voor_het_ho_oorspronkelijke_code__onderwijssector",
         "instelling_van_de_hoogste_vooropl_binnen_het_ho__naam_instelling",
         "instelling_van_de_hoogste_vooropl_voor_het_ho__code_denominatie_richting",
         "instelling_van_de_hoogste_vooropl_voor_het_ho__datum_opheffing",
@@ -450,7 +446,7 @@
     },
     "EV299XX24_DEMO_enriched.csv": {
       "row_count": 43663,
-      "column_count": 186,
+      "column_count": 182,
       "columns": [
         "Actuele instelling",
         "Actuele instelling vóór besturenfusies",
@@ -585,11 +581,7 @@
         "geboorteland_ouder_2__naam_migratieachtergrond_lang",
         "hoogste_vooropleiding__omschrijving_vooropleiding",
         "hoogste_vooropleiding_binnen_het_ho__omschrijving_vooropleiding",
-        "hoogste_vooropleiding_binnen_het_ho_oorspronkelijke_code__omschrijving_vooropleiding_oorspr_code",
-        "hoogste_vooropleiding_binnen_het_ho_oorspronkelijke_code__onderwijssector",
         "hoogste_vooropleiding_voor_het_ho__omschrijving_vooropleiding",
-        "hoogste_vooropleiding_voor_het_ho_oorspronkelijke_code__omschrijving_vooropleiding_oorspr_code",
-        "hoogste_vooropleiding_voor_het_ho_oorspronkelijke_code__onderwijssector",
         "instelling_van_de_hoogste_vooropl_binnen_het_ho__naam_instelling",
         "instelling_van_de_hoogste_vooropl_voor_het_ho__code_denominatie_richting",
         "instelling_van_de_hoogste_vooropl_voor_het_ho__datum_opheffing",
