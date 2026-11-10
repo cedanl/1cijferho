@@ -31,6 +31,20 @@ _NAME_REPAIRS: tuple[tuple[_re.Pattern[str], str], ...] = (
 )
 
 
+# Dec tables whose decoding variable is a combination rather than a data column
+# ("Instellingscode + Vestigingsnummer van de hoogste vooropleiding binnen HO").
+# Keyed by lower-case Dec table title; the value names the two data columns in
+# the order of the table's "}" key rows: the first key row pairs with the first
+# column, the second with the second. Labels are named after the second column.
+# No name search: a table not listed here is decoded through its own variables.
+_COMPOSITE_DEC_SOURCES: dict[str, tuple[str, str]] = {
+    "dec_vestnr_ho_compleet.asc": (
+        "Instelling van de hoogste vooropl. binnen het HO",
+        "Vestigingsnummer van de hoogste vooropl. binnen het HO",
+    ),
+}
+
+
 def _repair_name(raw: str) -> str:
     """Apply the explicit repair table ``_NAME_REPAIRS`` to a metadata name."""
     for pattern, replacement in _NAME_REPAIRS:
@@ -363,6 +377,10 @@ def _join_key(expr: pl.Expr, width: int | None) -> pl.Expr:
     return code
 
 
+class DuplicateDecKeyError(ValueError):
+    """A Dec table that must have unique keys holds a key more than once."""
+
+
 def _keyed_lookup(
     result_df: pl.DataFrame,
     join_df: pl.DataFrame,
@@ -370,12 +388,16 @@ def _keyed_lookup(
     dec_cols: list[str],
     log_name: str,
     log_prefix: str = "[decoder]",
+    require_unique: bool = False,
 ) -> tuple[pl.DataFrame, list[str]]:
     """Left-join the Dec label columns onto result_df through temporary keys.
 
     Args:
         pairs: ``(data_col, dec_col, meta_width)`` per key column.
         dec_cols: Dec label columns to fetch.
+        require_unique: Raise :class:`DuplicateDecKeyError` when a key occurs
+            more than once in the Dec table, instead of keeping the first row.
+            Composite joins use it: which row is "first" would be arbitrary.
 
     Returns:
         ``(joined, label_cols)``: a frame with result_df's height and order,
@@ -398,6 +420,27 @@ def _keyed_lookup(
         )
         .drop_nulls(subset=key_cols)
     )
+    if require_unique:
+        # Uniqueness is checked on the whole key only. In Dec_vest_ho and
+        # Dec_vestnr_ho_compleet the institution code alone repeats (in the
+        # DEMO Dec_vestnr_ho_compleet 143 codes occur more than once, 83 in
+        # Dec_vest_ho): an institution has several vestigingen. That is not a
+        # leading-zero artefact; the pair (instellingscode, vestigingsnummer)
+        # is unique, also after zero-padding.
+        dupes = (
+            right.group_by(key_cols, maintain_order=True).len()
+            .filter(pl.col("len") > 1)
+        )
+        if dupes.height:
+            sample = [
+                "|".join(row)
+                for row in dupes.select(key_cols).head(5).iter_rows()
+            ]
+            raise DuplicateDecKeyError(
+                f"Dubbele sleutels in Dec-tabel voor {log_name}: "
+                f"{dupes.height} sleutel(s) komen meer dan eens voor, bijv. {sample}; "
+                "join niet toegepast"
+            )
     deduped = right.unique(subset=key_cols, keep="first", maintain_order=True)
     if deduped.height < right.height:
         print(
@@ -420,18 +463,25 @@ def _apply_single_dec_join(
     code2_width: int | None = None,
     report: DecodeReport | None = None,
     dec_table_title: str | None = None,
+    anchor_col: str | None = None,
 ) -> pl.DataFrame:
     """Apply one Dec table join (simple or composite key) to result_df.
 
     The data column is matched through a temporary key and never rewritten:
     a code is an identifier, and DUO writes it fixed width (00411 is not 411).
 
+    A composite join refuses a Dec table whose key pair is not unique: no
+    label column is added and the error is logged (see ``_keyed_lookup``).
+
     Args:
         code_width: Width of ``code_col_norm`` from the file description.
         code2_width: Width of ``code_col2_norm`` (composite key only).
         report: Optional collector for the decode log.
         dec_table_title: Dec table title, used in the decode log.
+        anchor_col: Composite key only: the data column matched to the first
+            Dec key ``code_col_norm``. Defaults to ``code_col_norm`` itself.
     """
+    anchor = anchor_col or code_col_norm
     try:
         if is_composite:
             if code_col2_norm is None:
@@ -443,14 +493,18 @@ def _apply_single_dec_join(
                 if c != code_col_norm and c != code_col2_norm
             ]
             pairs = [
-                (code_col_norm, code_col_norm, code_width),
+                (anchor, code_col_norm, code_width),
                 (var_norm, code_col2_norm, code2_width),
             ]
+            log_name = f"{var_norm} ({dec_table_title})" if dec_table_title else var_norm
         else:
             dec_cols = [c for c in join_df.columns if c != code_col_norm]
             pairs = [(var_norm, code_col_norm, code_width)]
+            log_name = var_norm
 
-        joined, label_cols = _keyed_lookup(result_df, join_df, pairs, dec_cols, var_norm)
+        joined, label_cols = _keyed_lookup(
+            result_df, join_df, pairs, dec_cols, log_name, require_unique=is_composite,
+        )
 
         result_df = result_df.with_columns(
             joined[label].alias(
@@ -467,7 +521,7 @@ def _apply_single_dec_join(
                 sample = unmatched[var_norm].unique().to_list()[:5]
                 print(f"[decoder] Niet-gematchte codes voor {var_norm}: {sample}")
                 if report is not None:
-                    keys = [code_col_norm, var_norm] if is_composite else [var_norm]
+                    keys = [anchor, var_norm] if is_composite else [var_norm]
                     report.record_unmatched(keys, dec_table_title or "", unmatched)
         elif report is not None:
             report.record_skip(var_norm, NO_LABEL_COLUMNS)
@@ -562,6 +616,14 @@ def _apply_dec_tables(
             ):
                 is_composite = True
 
+        source = _COMPOSITE_DEC_SOURCES.get(title_lower)
+        if source is not None:
+            result_df = _apply_composite_source(
+                result_df, join_df, table, dec_vars[0], source, code_col_norm,
+                code_col2_norm, naming_func, report=report,
+            )
+            continue
+
         for var in dec_vars:
             var_norm = _canonical_name(var, naming_func)
             if var_norm not in result_df.columns:
@@ -584,6 +646,66 @@ def _apply_dec_tables(
             )
 
     return result_df
+
+
+def _apply_composite_source(
+    result_df: pl.DataFrame,
+    join_df: pl.DataFrame,
+    table: dict,
+    dec_var: str,
+    source: tuple[str, str],
+    code_col_norm: str,
+    code_col2_norm: str | None,
+    naming_func: Callable | None = None,
+    report: DecodeReport | None = None,
+) -> pl.DataFrame:
+    """Join a Dec table listed in ``_COMPOSITE_DEC_SOURCES``.
+
+    Its decoding variable (``dec_var``) names a combination, not a column; the
+    key is built from the two data columns in ``source`` instead. A missing
+    data column or a layout without two ``}`` key rows skips the table, and
+    the decode log says why.
+    """
+    title = table["table_title"]
+    content = table.get("content", [])
+    anchor_col, var_norm = (_canonical_name(c, naming_func) for c in source)
+
+    missing = [
+        (raw, col) for raw, col in zip(source, (anchor_col, var_norm))
+        if col not in result_df.columns
+    ]
+    if missing:
+        names = [col for _, col in missing]
+        print(f"[decoder] Sla '{dec_var}' over — kolom(men) {names} niet gevonden in DataFrame.")
+        if report is not None:
+            for raw, _ in missing:
+                report.record_not_found(raw, title)
+        return result_df
+
+    if (
+        len(content) < 3
+        or "}" not in content[1]
+        or "}" not in content[2]
+        or code_col_norm not in join_df.columns
+        or code_col2_norm not in join_df.columns
+    ):
+        error = ValueError(
+            f"{title} heeft geen samengestelde sleutel van twee kolommen in de lay-out"
+        )
+        print(f"[decoder] Sla '{dec_var}' over — {error}")
+        if report is not None:
+            report.record_error(var_norm, "dec_join", error)
+        return result_df
+
+    return _apply_single_dec_join(
+        result_df, join_df, var_norm, code_col_norm,
+        True, code_col2_norm, naming_func,
+        code_width=_code_width(content[1]),
+        code2_width=_code_width(content[2]),
+        report=report,
+        dec_table_title=title,
+        anchor_col=anchor_col,
+    )
 
 
 # A layout row: name, start position, width and an optional remark, e.g.
@@ -865,7 +987,8 @@ def _apply_vakken_composite(
     second. Label columns are named after ``var_norm``.
 
     Matches through temporary keys (see ``_join_key``); the data columns are
-    left as they are.
+    left as they are. A Dec table whose key pair is not unique is refused:
+    no label column is added and the error is logged.
     """
     composite_norm = _canonical_name(composite, naming_func)
     if len(dec_content) <= 2:
@@ -905,7 +1028,8 @@ def _apply_vakken_composite(
             if c not in (dec_code_col_norm, dec_code_col2_norm)
         ]
         joined, label_cols = _keyed_lookup(
-            result_df, join_df, pairs, dec_cols, var_norm, log_prefix="[decoder][vakken]",
+            result_df, join_df, pairs, dec_cols, f"{var_norm} ({dec_table_title})",
+            log_prefix="[decoder][vakken]", require_unique=True,
         )
         result_df = result_df.with_columns(
             joined[label].alias(f"{var_norm}__{col}")

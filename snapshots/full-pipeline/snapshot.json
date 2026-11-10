@@ -1,7 +1,7 @@
 {
   "snapshot_version": 2,
-  "generated_at": "2026-11-10T20:38:50.043083",
-  "output_dir": "data/test-output/full-pipeline",
+  "generated_at": "2026-11-10T23:23:33.254038",
+  "output_dir": "data/02-output/factory-cmp/sync1/full-pipeline",
   "file_count": 25,
   "files": {
     "Dec_actuele_instelling.csv": {
@@ -542,9 +542,9 @@
       }
     },
     "EV299XX24_DEMO_decoded.csv": {
-      "file_hash": "997fc8c365489ffe869632c45facbf59c91d0d2523e3d4cf2c9e0f030b700766",
+      "file_hash": "c3f5db9c0b6c34ab61bd8b5c9bed4e7cdb81d5cec7add0d8f55b95d5ff03b122",
       "row_count": 43663,
-      "column_count": 186,
+      "column_count": 189,
       "columns": [
         "actuele_instelling",
         "actuele_instelling_naam_actuele_instelling",
@@ -730,14 +730,17 @@
         "vestigingsnummer_gemeentenaam_per_1_januari_2025",
         "vestigingsnummer_gemeentenaam_volgens_rio",
         "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentecode_per_1_januari_2025",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentenaam_per_1_januari_2025",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentenaam_volgens_rio",
         "vestigingsnummer_van_de_hoogste_vooropl_voor_het_ho",
         "vestigingsnummer_van_de_hoogste_vooropleiding"
       ]
     },
     "EV299XX24_DEMO_decoded.parquet": {
-      "data_hash": "2c77210d52b588411bded05333f0936d87ddf50e4538e2927692a4d281aaf4cc",
+      "data_hash": "96cd76acf2156f6854cafead4a1d53c8ea63021987aa92e0b2f6245e4b3a194b",
       "row_count": 43663,
-      "column_count": 186,
+      "column_count": 189,
       "columns": [
         "actuele_instelling",
         "actuele_instelling_naam_actuele_instelling",
@@ -923,6 +926,9 @@
         "vestigingsnummer_gemeentenaam_per_1_januari_2025",
         "vestigingsnummer_gemeentenaam_volgens_rio",
         "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentecode_per_1_januari_2025",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentenaam_per_1_januari_2025",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentenaam_volgens_rio",
         "vestigingsnummer_van_de_hoogste_vooropl_voor_het_ho",
         "vestigingsnummer_van_de_hoogste_vooropleiding"
       ],
@@ -1103,6 +1109,9 @@
         "vestigingsnummer_diploma_gemeentenaam_volgens_rio": "String",
         "vestigingsnummer_diploma_gemeentecode_per_1_januari_2025": "String",
         "vestigingsnummer_diploma_gemeentenaam_per_1_januari_2025": "String",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentenaam_volgens_rio": "String",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentecode_per_1_januari_2025": "String",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentenaam_per_1_januari_2025": "String",
         "postcodecijfers_student_op_1_oktober_postbus_j_n": "String",
         "postcodecijfers_student_op_1_oktober_gemeentecode_per_1_januari_2024": "String",
         "postcodecijfers_student_op_1_oktober_gemeentenaam_per_1_januari_2024": "String",
@@ -1116,9 +1125,9 @@
       }
     },
     "EV299XX24_DEMO_enriched.csv": {
-      "file_hash": "8f8e6407c923e5a15f9edacf51653881c933eee18f96d439f13762255c24b552",
+      "file_hash": "61307ab05d6a7e3b46ba04d807a1ef20d93c61fbf21c8fb72ea3914c4a75f824",
       "row_count": 43663,
-      "column_count": 186,
+      "column_count": 189,
       "columns": [
         "actuele_instelling",
         "actuele_instelling_naam_actuele_instelling",
@@ -1304,14 +1313,17 @@
         "vestigingsnummer_gemeentenaam_per_1_januari_2025",
         "vestigingsnummer_gemeentenaam_volgens_rio",
         "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentecode_per_1_januari_2025",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentenaam_per_1_januari_2025",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentenaam_volgens_rio",
         "vestigingsnummer_van_de_hoogste_vooropl_voor_het_ho",
         "vestigingsnummer_van_de_hoogste_vooropleiding"
       ]
     },
     "EV299XX24_DEMO_enriched.parquet": {
-      "data_hash": "d4482cff8ca97e28801c736b9c15dd9e81b2b0df8af94330499b35721f6c3de7",
+      "data_hash": "73094479663912c5d91d2091bc8df38e460807661636948d0f29d35f277669b4",
       "row_count": 43663,
-      "column_count": 186,
+      "column_count": 189,
       "columns": [
         "actuele_instelling",
         "actuele_instelling_naam_actuele_instelling",
@@ -1497,6 +1509,9 @@
         "vestigingsnummer_gemeentenaam_per_1_januari_2025",
         "vestigingsnummer_gemeentenaam_volgens_rio",
         "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentecode_per_1_januari_2025",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentenaam_per_1_januari_2025",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentenaam_volgens_rio",
         "vestigingsnummer_van_de_hoogste_vooropl_voor_het_ho",
         "vestigingsnummer_van_de_hoogste_vooropleiding"
       ],
@@ -1677,6 +1692,9 @@
         "vestigingsnummer_diploma_gemeentenaam_volgens_rio": "String",
         "vestigingsnummer_diploma_gemeentecode_per_1_januari_2025": "String",
         "vestigingsnummer_diploma_gemeentenaam_per_1_januari_2025": "String",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentenaam_volgens_rio": "String",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentecode_per_1_januari_2025": "String",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho_gemeentenaam_per_1_januari_2025": "String",
         "postcodecijfers_student_op_1_oktober_postbus_j_n": "String",
         "postcodecijfers_student_op_1_oktober_gemeentecode_per_1_januari_2024": "String",
         "postcodecijfers_student_op_1_oktober_gemeentenaam_per_1_januari_2024": "String",

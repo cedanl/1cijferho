@@ -273,6 +273,23 @@ def test_composite_dec_join_logs_key_pairs():
     assert entry["sample"] == ["A1|99"]
 
 
+def test_join_error_fails_strict():
+    report = DecodeReport()
+    report.begin_file("EV_TEST.csv", ["vakcode"])
+    df = pl.DataFrame({"instcode": ["A1"], "vakcode": ["10"]})
+    dec = pl.DataFrame(
+        {"instcode": ["A1", "A1"], "vakcode": ["10", "10"], "omschrijving": ["X", "Y"]}
+    )
+    _apply_single_dec_join(
+        df, dec, "vakcode", "instcode", True, "vakcode",
+        report=report, dec_table_title="Dec_vak.asc",
+    )
+    summary = report.summary()
+    assert summary["errors"] == 1
+    assert summary["total_unmatched_distinct_codes"] == 0
+    assert summary["strict_violations"] == ["1 fout(en) bij decoderen"]
+
+
 def test_vakken_simple_unmatched_is_logged():
     report = DecodeReport()
     df = pl.DataFrame({"vak": ["1", "2", "2"]})
