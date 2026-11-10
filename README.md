@@ -130,6 +130,8 @@ Bevat de gelezen tekst vervangingstekens (U+FFFD, `�`), dan stopt `extract` (e
 
 De databestanden zelf (`.asc` met de gegevens) worden nog steeds als latin-1 gelezen. Achtergrond: #203, als afronding van #93, #98 en #99 (zie ook #54 en #208).
 
+> **⚠️ Let op bij Parquet:** een Parquet-bestand bevat alleen tekstkolommen (`String`) en dezelfde kolomnamen als de CSV. Zo blijven voorloopnullen in identifiers zoals het BSN behouden. Lees je de Parquet-output direct in (en niet de CSV), cast numerieke velden dan zelf, en houd identifiers als tekst. Zie de [migratiegids](docs/outputcontract-migratie.md) en [CHANGELOG.md](CHANGELOG.md).
+
 ---
 
 ## 🫂 Bijdragers

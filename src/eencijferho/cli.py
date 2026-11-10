@@ -58,11 +58,12 @@ from eencijferho.core.extractor import (
     process_json_folder,
 )
 from eencijferho.config import DECODED_SUFFIX, ENRICHED_SUFFIX
+from eencijferho.core.converter import MatchLogNotCompletedError
 from eencijferho.core.pipeline import run_turbo_convert_pipeline
 from eencijferho.config import OutputConfig
 from eencijferho.presets import PRESET_CONFIGS
 from eencijferho.utils.converter_headers import clean_header_name, normalize_name
-from eencijferho.utils.converter_match import match_files
+from eencijferho.utils.converter_match import LayoutMatchError, match_files
 from eencijferho.utils.extractor_validation import validate_metadata_folder
 from eencijferho.io.decorators import with_storage
 from eencijferho.io.text_encoding import DescriptionEncodingError
@@ -93,6 +94,19 @@ def cmd_extract(args: argparse.Namespace) -> None:
     print("[eencijferho] Extraction complete.")
 
 
+def _match_files_or_exit(args: argparse.Namespace, validation_log: str) -> None:
+    """Match input files to layouts; exit 1 with the reason on stderr on a layout error."""
+    try:
+        match_files(
+            args.input,
+            log_path=validation_log,
+            layout_year=getattr(args, "layout_year", None),
+        )
+    except LayoutMatchError as e:
+        print(f"[eencijferho] Fout: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def cmd_validate(args: argparse.Namespace) -> None:
     """Validate extracted metadata and match input files."""
     _validate_safe_path(args.input)
@@ -101,7 +115,7 @@ def cmd_validate(args: argparse.Namespace) -> None:
     validation_log = os.path.join(logs_dir, "(3)_xlsx_validation_log_latest.json")
     print(f"[eencijferho] Validating metadata in: {metadata_dir}")
     validate_metadata_folder(metadata_folder=metadata_dir)
-    match_files(args.input, log_path=validation_log)
+    _match_files_or_exit(args, validation_log)
     print("[eencijferho] Validation complete.")
 
 
@@ -342,12 +356,16 @@ def cmd_convert(args: argparse.Namespace) -> None:
     """Run the full turbo convert pipeline."""
     metadata_dir, _, _ = _resolve_dirs(args.output)
     print(f"[eencijferho] Running turbo convert pipeline: {args.input} → {args.output}")
-    log, output_files = run_turbo_convert_pipeline(
-        input_dir=args.input,
-        output_dir=args.output,
-        metadata_dir=metadata_dir,
-        output_config=_build_output_config(args),
-    )
+    try:
+        log, output_files = run_turbo_convert_pipeline(
+            input_dir=args.input,
+            output_dir=args.output,
+            metadata_dir=metadata_dir,
+            output_config=_build_output_config(args),
+        )
+    except MatchLogNotCompletedError as e:
+        print(f"[eencijferho] Fout: {e}", file=sys.stderr)
+        sys.exit(1)
     print(log)
     print(f"[eencijferho] Output files: {len(output_files)}")
     for f in output_files:
@@ -376,7 +394,7 @@ def cmd_pipeline(args: argparse.Namespace) -> None:
     # Step 2: Validate
     print("[eencijferho] Step 2/3: Validating metadata...")
     validate_metadata_folder(metadata_folder=metadata_dir)
-    match_files(args.input, log_path=validation_log)
+    _match_files_or_exit(args, validation_log)
 
     # Step 3: Convert
     print("[eencijferho] Step 3/3: Converting files...")
@@ -462,6 +480,13 @@ def main() -> None:
         help="Exit met code 1 als geen outputs worden geleverd (standaard: exit 0)",
     )
 
+    _layout_opts = argparse.ArgumentParser(add_help=False)
+    _layout_opts.add_argument(
+        "--layout-year", type=int, metavar="JJJJ", default=None,
+        help="Gebruik voor EV- en VAKHAVW-bestanden de bestandsbeschrijving van dit jaar, "
+             "ongeacht het jaar in de bestandsnaam (standaard: jaar uit de bestandsnaam).",
+    )
+
     subparsers.add_parser(
         "extract",
         parents=[_common],
@@ -469,7 +494,7 @@ def main() -> None:
     )
     subparsers.add_parser(
         "validate",
-        parents=[_common],
+        parents=[_common, _layout_opts],
         help="Validate extracted metadata and match input files",
     )
     subparsers.add_parser(
@@ -489,7 +514,7 @@ def main() -> None:
     )
     subparsers.add_parser(
         "pipeline",
-        parents=[_common, _output_opts],
+        parents=[_common, _output_opts, _layout_opts],
         help="Run complete end-to-end pipeline (extract → validate → convert)",
     )
     subparsers.add_parser(

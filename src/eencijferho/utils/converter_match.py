@@ -12,15 +12,180 @@ Functions:
         - Get all files from the input folder, excluding certain extensions
     [x] load_validation_log(log_path)
         - Load processed bestandbeschrijvingen validation log into a Polars dataframe
-    [M] match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validation_log_latest.json") -> Main function
+    [x] select_layout(input_file, candidates, keyword, layout_year=None)
+        - Pick the one layout (bestandsbeschrijving) for an EV/VAKHAVW file by year
+    [M] match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validation_log_latest.json", layout_year=None) -> Main function
         - Matches input files with metadata files and logs the results
 """
 import os
+import re
+from typing import NamedTuple
+
 import polars as pl
 from rich.console import Console
 import datetime
 
 from eencijferho.io.decorators import with_storage
+
+
+# Input files whose layout is chosen by year: name test -> keyword in the layout name.
+_LAYOUT_FAMILIES = (
+    (lambda name: name.startswith("EV"), "1cyferho"),
+    (lambda name: "VAKHAVW" in name, "Vakgegevens"),
+)
+
+# "EV299XX24" -> 24: DUO puts the two-digit year after the XX placeholder.
+_INPUT_TWO_DIGIT_YEAR = re.compile(r"XX(\d{2})(?!\d)")
+# A four-digit year that is not part of a longer number ("EV2023.asc").
+_FOUR_DIGIT_YEAR = re.compile(r"(?<!\d)((?:19|20)\d{2})(?!\d)")
+
+_LAYOUT_YEAR_HINT = "Kies de bestandsbeschrijving met --layout-year JJJJ."
+
+
+class LayoutMatchError(ValueError):
+    """An EV/VAKHAVW input file cannot be tied to exactly one layout.
+
+    ``errors`` holds one dict per failed input file with the keys
+    ``input_file``, ``reason`` and ``candidates``.
+    """
+
+    def __init__(self, errors: list[dict]):
+        self.errors = errors
+        header = (
+            f"{len(errors)} invoerbestand(en) kunnen niet eenduidig aan een "
+            f"bestandsbeschrijving worden gekoppeld:"
+        )
+        lines = [header]
+        for err in errors:
+            candidates = ", ".join(err["candidates"]) or "geen"
+            lines.append(f"- {err['input_file']}: {err['reason']} Kandidaten: {candidates}.")
+        super().__init__("\n".join(lines))
+
+
+class LayoutChoice(NamedTuple):
+    """Outcome of :func:`select_layout`. ``chosen`` is None when there is no valid choice."""
+
+    chosen: str | None
+    kind: str  # "ok", "forced", "no_candidates", "ambiguous", "year_mismatch", "not_success"
+    reason: str
+    candidates: list[str]
+
+
+def _layout_keyword(input_file: str) -> str | None:
+    """Return the layout keyword for files whose layout is chosen by year, else None."""
+    for applies, keyword in _LAYOUT_FAMILIES:
+        if applies(input_file):
+            return keyword
+    return None
+
+
+def _year_from_input_name(name: str) -> int | None:
+    """Year in an input file name: ``XXyy`` (2000 + yy), else a loose four-digit year."""
+    match = _INPUT_TWO_DIGIT_YEAR.search(name)
+    if match:
+        return 2000 + int(match.group(1))
+    match = _FOUR_DIGIT_YEAR.search(name)
+    return int(match.group(1)) if match else None
+
+
+def _year_from_layout_name(name: str, keyword: str) -> int | None:
+    """Year in a layout name: four digits after ``<keyword>_``, else a loose four-digit year."""
+    match = re.search(re.escape(keyword) + r"_((?:19|20)\d{2})(?!\d)", name)
+    if match:
+        return int(match.group(1))
+    match = _FOUR_DIGIT_YEAR.search(name)
+    return int(match.group(1)) if match else None
+
+
+def select_layout(
+    input_file: str,
+    candidates: list[tuple[str, str]],
+    keyword: str,
+    layout_year: int | None = None,
+) -> LayoutChoice:
+    """Pick the one layout for an input file among ``candidates`` (file, validation status).
+
+    The year in the input name, or ``layout_year`` when given, must point to exactly
+    one candidate. A single candidate without a year is accepted as is. Anything else
+    is an error: no candidates, several candidates for the same year, no year to
+    choose between several candidates, or a year that no candidate has. The chosen
+    layout must have validation status ``success``.
+    """
+    names = [name for name, _ in candidates]
+    statuses = dict(candidates)
+
+    def choose(name: str, kind: str, reason: str) -> LayoutChoice:
+        if statuses[name] != "success":
+            return LayoutChoice(
+                None, "not_success",
+                f"De gekozen bestandsbeschrijving {name} heeft validatiestatus "
+                f"'{statuses[name]}'; herstel deze en valideer opnieuw.",
+                names,
+            )
+        return LayoutChoice(name, kind, reason, names)
+
+    if not candidates:
+        return LayoutChoice(
+            None, "no_candidates",
+            f"Geen bestandsbeschrijving met '{keyword}' in de naam gevonden.", names,
+        )
+
+    years = {name: _year_from_layout_name(name, keyword) for name in names}
+    input_year = _year_from_input_name(input_file)
+    target = layout_year if layout_year is not None else input_year
+
+    if target is None:
+        if len(candidates) == 1:
+            return choose(names[0], "ok", "Enige bestandsbeschrijving.")
+        return LayoutChoice(
+            None, "ambiguous",
+            f"Geen jaar in de bestandsnaam en {len(candidates)} bestandsbeschrijvingen. "
+            f"{_LAYOUT_YEAR_HINT}",
+            names,
+        )
+
+    picked = [name for name in names if years[name] == target]
+    if len(picked) == 1:
+        if layout_year is not None:
+            shown_year = input_year if input_year is not None else "onbekend"
+            return choose(
+                picked[0], "forced",
+                f"Bestandsbeschrijving geforceerd op jaar {layout_year} via --layout-year "
+                f"(jaar in bestandsnaam: {shown_year}).",
+            )
+        return choose(picked[0], "ok", f"Jaar {target} uit de bestandsnaam.")
+    if len(picked) > 1:
+        return LayoutChoice(
+            None, "ambiguous",
+            f"{len(picked)} bestandsbeschrijvingen voor jaar {target}; verwijder de overbodige.",
+            names,
+        )
+
+    if len(candidates) == 1 and years[names[0]] is None:
+        return choose(names[0], "ok", "Enige bestandsbeschrijving, zonder jaar.")
+
+    known_years = sorted({year for year in years.values() if year is not None})
+    available = ", ".join(str(year) for year in known_years) or "geen"
+    if layout_year is not None:
+        return LayoutChoice(
+            None, "year_mismatch",
+            f"Geen bestandsbeschrijving voor --layout-year {layout_year} "
+            f"(beschikbare jaren: {available}).",
+            names,
+        )
+    if all(year is not None for year in years.values()):
+        return LayoutChoice(
+            None, "year_mismatch",
+            f"Jaar {input_year} in de bestandsnaam komt niet overeen met de "
+            f"bestandsbeschrijving(en) voor {available}. {_LAYOUT_YEAR_HINT}",
+            names,
+        )
+    return LayoutChoice(
+        None, "ambiguous",
+        f"Geen bestandsbeschrijving voor jaar {input_year} en {len(candidates)} kandidaten. "
+        f"{_LAYOUT_YEAR_HINT}",
+        names,
+    )
 
 
 @with_storage
@@ -67,12 +232,23 @@ def load_validation_log(storage, log_path: str) -> pl.DataFrame:
 
 
 @with_storage
-def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/logs/(3)_xlsx_validation_log_latest.json") -> dict[str, pl.DataFrame]:
+def match_files(
+    storage,
+    input_folder: str,
+    log_path: str = "data/00-metadata/logs/(3)_xlsx_validation_log_latest.json",
+    layout_year: int | None = None,
+) -> dict[str, pl.DataFrame]:
     """Match input files with metadata files and log the results.
 
     Special matching rules:
-    - Files starting with "EV" match with files containing "1cyferho"
-    - Files containing "VAKHAVW" match with files containing "Vakgegevens"
+    - Files starting with "EV" match with exactly one file containing "1cyferho"
+    - Files containing "VAKHAVW" match with exactly one file containing "Vakgegevens"
+    For these two the year in the input name picks the layout (see
+    :func:`select_layout`); ``layout_year`` forces the layout year instead.
+
+    Raises:
+        LayoutMatchError: when an EV/VAKHAVW file has no layout or no single one.
+            The match log is written first, with status ``failed``.
     """
 
     log_folder = os.path.dirname(log_path)
@@ -99,6 +275,9 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
         "total_validation_files": len(validation_df),
         "matched_validation_files": 0,
         "unmatched_validation_files": 0,
+        "layout_year": layout_year,
+        "warnings": [],
+        "errors": [],
     }
 
     results = []
@@ -110,21 +289,44 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
         input_file = row[0]  # Filename
         row_count = row[1]   # Row count
 
-        matches = None
-
-        if input_file.startswith("EV"):
-            matches = validation_df.filter(pl.col("file").str.contains("1cyferho", literal=True))
-        elif "VAKHAVW" in input_file:
-            matches = validation_df.filter(pl.col("file").str.contains("Vakgegevens", literal=True))
-        else:
-            matches = validation_df.filter(pl.col("file").str.contains(input_file, literal=True))
-
         file_log = {
             "input_file": input_file,
             "row_count": row_count,
             "status": "unmatched",
             "matches": []
         }
+
+        keyword = _layout_keyword(input_file)
+        if keyword is not None:
+            candidates = validation_df.filter(pl.col("file").str.contains(keyword, literal=True))
+            choice = select_layout(input_file, candidates.rows(), keyword, layout_year)
+            file_log["candidates"] = choice.candidates
+            file_log["reason"] = choice.reason
+            if choice.chosen is None:
+                file_log["status"] = "failed"
+                file_log["error"] = choice.reason
+                log_data["errors"].append({
+                    "input_file": input_file,
+                    "reason": choice.reason,
+                    "candidates": choice.candidates,
+                })
+                log_data["processed_files"].append(file_log)
+                results.append({
+                    "input_file": input_file,
+                    "row_count": row_count,
+                    "validation_file": None,
+                    "status": None,
+                    "matched": False
+                })
+                continue
+            if choice.kind == "forced":
+                file_log["forced_layout_year"] = layout_year
+                warning = f"{input_file}: {choice.reason} Gekozen: {choice.chosen}."
+                log_data["warnings"].append(warning)
+                console.print(f"[yellow]Waarschuwing: {warning}[/yellow]")
+            matches = candidates.filter(pl.col("file") == choice.chosen)
+        else:
+            matches = validation_df.filter(pl.col("file").str.contains(input_file, literal=True))
 
         if len(matches) > 0:
             file_log["status"] = "matched"
@@ -172,7 +374,8 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
     unmatched_validation_df = pl.DataFrame(unmatched_validation)
 
 
-    log_data["status"] = "completed"
+    log_data["status"] = "failed" if log_data["errors"] else "completed"
+    log_data["failed_files"] = len(log_data["errors"])
     log_data["matched_files"] = result_df.filter(pl.col('matched')).height
     log_data["unmatched_files"] = result_df.filter(~pl.col('matched')).height
     log_data["matched_validation_files"] = len(matched_validation_files)
@@ -205,6 +408,11 @@ def match_files(storage, input_folder: str, log_path: str = "data/00-metadata/lo
             console.print(f"[yellow]{validation_file}[/yellow]")
 
     console.print(f"\n[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}[/blue]")
+
+    if log_data["errors"]:
+        error = LayoutMatchError(log_data["errors"])
+        console.print(f"\n{error}", markup=False, style="red")
+        raise error
 
     return {
         "input_matches": result_df,

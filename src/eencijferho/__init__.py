@@ -24,7 +24,7 @@ from eencijferho.utils.converter_validation import converter_validation
 from eencijferho.utils.compressor import convert_csv_to_parquet
 from eencijferho.utils.converter_headers import convert_csv_headers_to_snake_case
 from eencijferho.utils.extractor_validation import validate_metadata_folder
-from eencijferho.utils.converter_match import match_files
+from eencijferho.utils.converter_match import LayoutMatchError, match_files
 from eencijferho.utils.translator import translate_bsn_to_local_id
 
 __all__ = [
@@ -38,6 +38,7 @@ __all__ = [
     "convert_csv_headers_to_snake_case",
     "validate_metadata_folder",
     "match_files",
+    "LayoutMatchError",
     "get_fwf_params",
     "list_fwf_tables",
     "translate_bsn_to_local_id",

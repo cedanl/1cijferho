@@ -70,6 +70,9 @@ def convert_csv_headers_to_snake_case(
     """
     Convert all CSV file headers in the input directory to snake_case.
 
+    Only the column names change; cell values are written back unchanged
+    (UTF-8). Files whose headers are already in snake_case are left untouched.
+
     Args:
         input_dir: Path to directory containing CSV files
         delimiter: CSV delimiter (default: ";")
@@ -119,13 +122,6 @@ def convert_csv_headers_to_snake_case(
             original_columns = df.columns
 
             df_cleaned = normalize_polars_columns(df)
-
-            # --- Clean all string columns for latin-1 compatibility ---
-            try:
-                from eencijferho.core.decoder import clean_for_latin1
-                df_cleaned = clean_for_latin1(df_cleaned)
-            except Exception as e:
-                console.print(f"  [yellow]Warning: Could not apply clean_for_latin1: {e}[/yellow]")
 
             new_columns = df_cleaned.columns
 
