@@ -116,6 +116,8 @@ eencijferho enrich           --input data/01-input --output data/02-output
 eencijferho validate-output  --input data/01-input --output data/02-output
 ```
 
+> **⚠️ Let op bij Parquet:** een Parquet-bestand bevat alleen tekstkolommen (`String`) en dezelfde kolomnamen als de CSV. Zo blijven voorloopnullen in identifiers zoals het BSN behouden. Lees je de Parquet-output direct in (en niet de CSV), cast numerieke velden dan zelf, en houd identifiers als tekst. Zie de [migratiegids](docs/outputcontract-migratie.md) en [CHANGELOG.md](CHANGELOG.md).
+
 ---
 
 ## 🫂 Bijdragers
