@@ -26,7 +26,7 @@ def logger():
 @pytest.fixture
 def run_log_file(tmp_path):
     """A non-debug run log in tmp_path; handlers removed afterwards."""
-    path = setup_logging(str(tmp_path / "logs"), debug=False)
+    path = setup_logging(str(tmp_path / "logs"), debug=False, allowed_root=str(tmp_path))
     yield tmp_path / "logs" / RUN_LOG_FILENAME
     teardown_logging()
     assert path is not None
@@ -96,7 +96,7 @@ def test_message_only_with_show_message(caplog, logger):
 
 
 def test_debug_writes_tracebacks_to_console_and_file(tmp_path, logger, capsys):
-    setup_logging(str(tmp_path), debug=True)
+    setup_logging(str(tmp_path), debug=True, allowed_root=str(tmp_path))
     try:
         log_failed(logger, "dec_join", _raise(KeyError("k")), detail="[decoder] Fout")
     finally:
@@ -109,7 +109,7 @@ def test_debug_writes_tracebacks_to_console_and_file(tmp_path, logger, capsys):
 
 
 def test_console_without_debug_shows_one_line_and_hides_info(tmp_path, logger, capsys):
-    setup_logging(str(tmp_path), debug=False)
+    setup_logging(str(tmp_path), debug=False, allowed_root=str(tmp_path))
     try:
         log_skipped(logger, "s", "benign")
         log_unexpected(logger, "s", _raise(KeyError("k")), detail="[decoder] Onverwacht")
@@ -130,8 +130,8 @@ def test_setup_without_logs_dir_has_no_file_handler(tmp_path):
 
 
 def test_setup_twice_keeps_one_set_of_handlers_and_teardown_resets(tmp_path):
-    setup_logging(str(tmp_path), debug=True)
-    setup_logging(str(tmp_path), debug=False)
+    setup_logging(str(tmp_path), debug=True, allowed_root=str(tmp_path))
+    setup_logging(str(tmp_path), debug=False, allowed_root=str(tmp_path))
     eencijferho_logger = logging.getLogger(run_log.LOGGER_NAME)
     try:
         assert len(eencijferho_logger.handlers) == 2
@@ -145,3 +145,49 @@ def test_setup_twice_keeps_one_set_of_handlers_and_teardown_resets(tmp_path):
 def test_values_with_spaces_are_quoted(caplog, logger):
     log_failed(logger, "s", _raise(OSError("x")), file="a b.csv", column="naam land")
     assert 'file="a b.csv" column="naam land"' in caplog.records[0].run_log_fields
+
+
+@pytest.mark.parametrize(
+    "logs_dir",
+    [
+        "elsewhere/logs",  # a folder next to the output folder
+        "out/../elsewhere/logs",  # '..' that leaves the output folder
+        "out2/logs",  # shares the prefix "out" but is another folder
+    ],
+)
+def test_setup_refuses_a_logs_dir_outside_the_allowed_root(tmp_path, logs_dir):
+    root = tmp_path / "out"
+    root.mkdir()
+    with pytest.raises(ValueError, match="outside the output folder"):
+        setup_logging(str(tmp_path / logs_dir), allowed_root=str(root))
+
+    # Refused before anything happens: no folder, no file, no handlers.
+    assert not (tmp_path / "elsewhere").exists()
+    assert not (tmp_path / "out2").exists()
+    assert logging.getLogger(run_log.LOGGER_NAME).handlers == []
+
+
+def test_setup_refuses_a_symlink_that_leaves_the_allowed_root(tmp_path):
+    root = tmp_path / "out"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    try:
+        (root / "metadata").symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlinks not available")
+
+    with pytest.raises(ValueError, match="outside the output folder"):
+        setup_logging(str(root / "metadata" / "logs"), allowed_root=str(root))
+    assert list(outside.iterdir()) == []
+
+
+def test_setup_accepts_the_allowed_root_and_folders_inside_it(tmp_path):
+    root = tmp_path / "out"
+    try:
+        assert setup_logging(str(root), allowed_root=str(root)) == str(root / RUN_LOG_FILENAME)
+        nested = root / "metadata" / "logs"
+        assert setup_logging(str(nested), allowed_root=str(root)) == str(nested / RUN_LOG_FILENAME)
+    finally:
+        teardown_logging()
+    assert (nested / RUN_LOG_FILENAME).is_file()

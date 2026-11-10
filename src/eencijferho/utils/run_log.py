@@ -247,14 +247,17 @@ def _mark(handler: logging.Handler) -> logging.Handler:
 def teardown_logging() -> None:
     """Remove (and close) the handlers that :func:`setup_logging` added; reset the level."""
     logger = logging.getLogger(LOGGER_NAME)
-    for handler in list(logger.handlers):
-        if getattr(handler, _HANDLER_MARK, False):
-            logger.removeHandler(handler)
-            handler.close()
+    # Collect first: removeHandler changes logger.handlers during the loop.
+    ours = [h for h in logger.handlers if getattr(h, _HANDLER_MARK, False)]
+    for handler in ours:
+        logger.removeHandler(handler)
+        handler.close()
     logger.setLevel(logging.NOTSET)
 
 
-def setup_logging(logs_dir: str | None, debug: bool = False) -> str | None:
+def setup_logging(
+    logs_dir: str | None, debug: bool = False, *, allowed_root: str = "."
+) -> str | None:
     """Send the ``eencijferho`` log to the console and to the run log file.
 
     Args:
@@ -264,10 +267,30 @@ def setup_logging(logs_dir: str | None, debug: bool = False) -> str | None:
         debug: Console and file get DEBUG and up, with full tracebacks.
             Otherwise the console gets WARNING and up, one line per problem,
             and the file INFO and up; no tracebacks in either.
+        allowed_root: Folder the run log must stay in (the CLI passes the
+            output folder it already checked). ``logs_dir`` is resolved,
+            symlinks included, and must be this folder or lie inside it.
 
     Returns:
         The path of the run log file, or None without one.
+
+    Raises:
+        ValueError: ``logs_dir`` resolves to a folder outside ``allowed_root``.
     """
+    real_logs_dir: str | None = None
+    if logs_dir is not None:
+        # The folder comes from a CLI argument: resolve it and refuse a folder
+        # outside allowed_root before any handler or folder is created.
+        real_root = os.path.realpath(allowed_root)
+        real_logs_dir = os.path.realpath(logs_dir)
+        if real_logs_dir != real_root and not real_logs_dir.startswith(
+            os.path.join(real_root, "")
+        ):
+            raise ValueError(
+                f"Run log folder is outside the output folder: {logs_dir} "
+                f"(allowed: {allowed_root})"
+            )
+
     teardown_logging()
     logger = logging.getLogger(LOGGER_NAME)
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
@@ -277,12 +300,14 @@ def setup_logging(logs_dir: str | None, debug: bool = False) -> str | None:
     console.setFormatter(_RunLogFormatter("%(message)s", show_traceback=debug))
     logger.addHandler(_mark(console))
 
-    if logs_dir is None:
+    if logs_dir is None or real_logs_dir is None:
         return None
-    os.makedirs(logs_dir, exist_ok=True)
-    path = os.path.join(logs_dir, RUN_LOG_FILENAME)
-    file_handler = logging.FileHandler(path, mode="w", encoding="utf-8")
+    os.makedirs(real_logs_dir, exist_ok=True)
+    # The file name is fixed; only the checked folder comes from the caller.
+    file_handler = logging.FileHandler(
+        os.path.join(real_logs_dir, RUN_LOG_FILENAME), mode="w", encoding="utf-8"
+    )
     file_handler.setLevel(logging.DEBUG if debug else logging.INFO)
     file_handler.setFormatter(_FileFormatter(show_traceback=debug))
     logger.addHandler(_mark(file_handler))
-    return path
+    return os.path.join(logs_dir, RUN_LOG_FILENAME)

@@ -26,7 +26,7 @@ FAKE_BSN = "123456782"
 @pytest.fixture
 def run_log_text(tmp_path):
     """Non-debug run log in tmp_path/logs; call the returned function to read it."""
-    setup_logging(str(tmp_path / "logs"), debug=False)
+    setup_logging(str(tmp_path / "logs"), debug=False, allowed_root=str(tmp_path))
     path = tmp_path / "logs" / RUN_LOG_FILENAME
 
     def read() -> str:
@@ -276,3 +276,23 @@ def test_debug_flag_on_every_command(monkeypatch, capsys, command):
 def test_cli_without_local_disk_skips_the_file_handler(monkeypatch):
     monkeypatch.setattr(cli, "get_backend", lambda: object())
     assert cli._run_log_dir("out") is None
+
+
+def test_cli_refuses_a_run_log_folder_outside_the_output(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("STORAGE_BACKEND", "disk")
+    monkeypatch.setenv("STORAGE_DISK_BASE_PATH", ".")
+    (tmp_path / "in").mkdir()
+    (tmp_path / "out").mkdir()
+    (tmp_path / "outside").mkdir()
+    try:
+        (tmp_path / "out" / "metadata").symlink_to(tmp_path / "outside", target_is_directory=True)
+    except OSError:
+        pytest.skip("symlinks not available")
+
+    with pytest.raises(SystemExit) as exc:
+        _run_cli(monkeypatch)
+
+    assert exc.value.code == 1
+    assert "outside the output folder" in capsys.readouterr().out
+    assert list((tmp_path / "outside").iterdir()) == []

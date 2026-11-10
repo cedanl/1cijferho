@@ -91,18 +91,26 @@ def _resolve_dirs(output_dir: str) -> tuple[str, str, str]:
     return metadata_dir, json_dir, logs_dir
 
 
+def _disk_output_dir(output_dir: str) -> str | None:
+    """The output folder as the local disk backend resolves it, else None."""
+    backend = get_backend()
+    if not isinstance(backend, DiskBackend):
+        return None
+    # os.path.join keeps an absolute output_dir as it is.
+    return os.path.normpath(os.path.join(str(backend.base_path), output_dir))
+
+
 def _run_log_dir(output_dir: str) -> str | None:
     """Folder for the run log: ``<output>/metadata/logs`` on local disk, else None.
 
     A non-local storage backend has no local file to append to; the run then
     logs to the console only.
     """
-    backend = get_backend()
-    if not isinstance(backend, DiskBackend):
+    disk_output_dir = _disk_output_dir(output_dir)
+    if disk_output_dir is None:
         return None
-    _, _, logs_dir = _resolve_dirs(output_dir)
-    # os.path.join keeps an absolute logs_dir as it is.
-    return os.path.normpath(os.path.join(str(backend.base_path), logs_dir))
+    _, _, logs_dir = _resolve_dirs(disk_output_dir)
+    return logs_dir
 
 
 def _setup_run_log(args: argparse.Namespace) -> None:
@@ -110,7 +118,15 @@ def _setup_run_log(args: argparse.Namespace) -> None:
     _validate_safe_path(args.input)
     _validate_safe_path(args.output)
     debug = getattr(args, "debug", False)
-    path = run_log.setup_logging(_run_log_dir(args.output), debug=debug)
+    try:
+        path = run_log.setup_logging(
+            _run_log_dir(args.output),
+            debug=debug,
+            allowed_root=_disk_output_dir(args.output) or ".",
+        )
+    except ValueError as e:
+        _console.print(f"[red]Error: {escape(str(e))}[/red]")
+        sys.exit(1)
     _logger.info("eencijferho %s gestart (debug=%s)", args.command, debug)
     if path is not None:
         print(f"[eencijferho] Run log: {path}")
