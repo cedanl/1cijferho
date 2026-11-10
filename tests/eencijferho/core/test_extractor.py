@@ -1,6 +1,7 @@
 # Tests for eencijferho.core.extractor — encoding correctheid
 
 import json
+import sys
 from pathlib import Path
 
 import openpyxl
@@ -16,7 +17,10 @@ from eencijferho.core.extractor import (
     _parse_data_line,
     _build_table_rows,
     _write_table_excel,
+    write_variable_metadata,
 )
+from eencijferho.cli import main as cli_main
+from eencijferho.io.text_encoding import DescriptionEncodingError
 
 
 # ---------------------------------------------------------------------------
@@ -434,3 +438,113 @@ def test_list_fwf_tables_returns_empty_for_no_tables(tmp_path):
     txt.write_text("Geen tabellen\n", encoding="latin-1")
     result = list_fwf_tables(str(txt))
     assert result == []
+
+
+# ---------------------------------------------------------------------------
+# Tekencodering van bestandsbeschrijvingen (#203)
+# ---------------------------------------------------------------------------
+
+DEMO_DIR = Path(__file__).resolve().parents[3] / "data" / "01-input" / "DEMO"
+VOOROPLEIDING = "Hoogste vooropleiding vóór het HO"
+
+
+def _dec_description(name: str) -> str:
+    """Minimale Dec-bestandsbeschrijving met één decodeervariabele."""
+    return (
+        "Dec_vooropl.asc\n"
+        "===============\n"
+        "Code vooropleiding    Startpositie  Aantal posities\n"
+        "Code                  1             5\n"
+        "\n"
+        "Ten behoeve van de decodering van de velden:\n"
+        f"* {name}\n"
+        "\n"
+    )
+
+
+def _decoding_variables(json_path: str) -> list[str]:
+    with open(json_path, encoding="utf-8") as f:
+        data = json.load(f)
+    return [v for t in data["tables"] for v in t["decoding_variables"]]
+
+
+def test_mixed_encodings_give_same_name(tmp_path):
+    """Latin-1, UTF-8 en UTF-8 met BOM leveren dezelfde naam in de JSON."""
+    inp = tmp_path / "in"
+    inp.mkdir()
+    content = _dec_description(VOOROPLEIDING)
+    (inp / "Bestandsbeschrijving_A.txt").write_bytes(content.encode("latin-1"))
+    (inp / "Bestandsbeschrijving_B.txt").write_bytes(content.encode("utf-8"))
+    (inp / "Bestandsbeschrijving_C.txt").write_bytes(content.encode("utf-8-sig"))
+    result = process_txt_folder(str(inp), json_output_folder=str(tmp_path / "json"))
+    assert len(result) == 3
+    for json_path in result:
+        assert _decoding_variables(json_path) == [VOOROPLEIDING]
+
+
+def test_replacement_char_stops_process_txt_folder(tmp_path):
+    """U+FFFD in een bestandsbeschrijving geeft een fout, geen 'no tables found'."""
+    inp = tmp_path / "in"
+    inp.mkdir()
+    bad = inp / "Bestandsbeschrijving_Dec-bestanden.txt"
+    bad.write_bytes(_dec_description("Hoogste vooropleiding v\ufffd\ufffdr het HO").encode("utf-8"))
+    with pytest.raises(DescriptionEncodingError, match="Bestandsbeschrijving_Dec-bestanden.txt") as exc_info:
+        process_txt_folder(str(inp), json_output_folder=str(tmp_path / "json"))
+    assert exc_info.value.line_numbers == [7]
+
+
+def test_replacement_char_stops_write_variable_metadata(tmp_path):
+    """De fout wordt niet ingeslikt door de except in write_variable_metadata."""
+    inp = tmp_path / "in"
+    inp.mkdir()
+    (inp / "Bestandsbeschrijving_x.txt").write_bytes("Naam\n----\nv\ufffdr\n".encode("utf-8"))
+    with pytest.raises(DescriptionEncodingError):
+        write_variable_metadata(input_dir=str(inp), json_folder=str(tmp_path / "json"))
+
+
+def test_replacement_char_in_get_fwf_params_and_list_fwf_tables(tmp_path):
+    txt = tmp_path / "Bestandsbeschrijving_x.txt"
+    txt.write_bytes(_dec_description("v\ufffdr").encode("utf-8"))
+    with pytest.raises(DescriptionEncodingError):
+        get_fwf_params(str(txt))
+    with pytest.raises(DescriptionEncodingError):
+        list_fwf_tables(str(txt))
+
+
+def test_cli_extract_exits_nonzero_on_replacement_char(tmp_path, monkeypatch, capsys):
+    """'eencijferho extract' stopt met exitcode 1 en noemt het bestand."""
+    inp = tmp_path / "in"
+    inp.mkdir()
+    (inp / "Bestandsbeschrijving_Dec-bestanden.txt").write_bytes(
+        _dec_description("v\ufffd\ufffdr").encode("utf-8")
+    )
+    monkeypatch.chdir(tmp_path)  # CLI accepteert alleen paden binnen de werkmap
+    monkeypatch.setattr(sys, "argv", ["eencijferho", "extract", "--input", "in", "--output", "out"])
+    with pytest.raises(SystemExit) as exc_info:
+        cli_main()
+    assert exc_info.value.code == 1
+    out = capsys.readouterr().out
+    assert "Bestandsbeschrijving_Dec-bestanden.txt" in out
+    assert "U+FFFD" in out
+
+
+def test_demo_descriptions_keep_vooropleiding_name(tmp_path):
+    """Regressie: de naam blijft gelijk uit de latin-1 1cyferho-DEMO en de UTF-8 Dec-bestanden-DEMO."""
+    inp = tmp_path / "in"
+    inp.mkdir()
+    latin1_name = "Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.txt"
+    utf8_name = "Bestandsbeschrijving_Dec-bestanden.txt"
+    for name in (latin1_name, utf8_name):
+        (inp / name).write_bytes((DEMO_DIR / name).read_bytes())
+    json_dir = tmp_path / "json"
+    result = process_txt_folder(str(inp), json_output_folder=str(json_dir))
+    assert len(result) == 2
+
+    latin1_json = (json_dir / latin1_name.replace(".txt", ".json")).read_text(encoding="utf-8")
+    assert VOOROPLEIDING in latin1_json
+    dec_json = json_dir / utf8_name.replace(".txt", ".json")
+    assert VOOROPLEIDING in _decoding_variables(str(dec_json))
+    for path in json_dir.glob("*.json"):
+        text = path.read_text(encoding="utf-8")
+        assert "\ufffd" not in text
+        assert "ï¿½" not in text

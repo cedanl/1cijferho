@@ -34,6 +34,8 @@ from typing import Any
 
 import polars as pl
 
+from eencijferho.io.backends.disk import DiskBackend
+from eencijferho.io.text_encoding import read_description_text
 from eencijferho.utils.converter_headers import normalize_name
 
 
@@ -51,9 +53,18 @@ def parse_dec_mapping(dec_txt_path: str | Path) -> dict[str, dict[str, Any]]:
     Simple mappings come from "Ten behoeve van de decodering van de veld(en):"
     Composite mappings come from "Ten behoeve van de decodering van <X>
         in combinatie met het veld"
+
+    The file is read from the local filesystem through the shared reader
+    (eencijferho.io.text_encoding), so latin-1 and UTF-8 (with or without
+    BOM) give the same names.
+
+    Raises:
+        DescriptionEncodingError: When the file contains U+FFFD replacement
+            characters.
     """
-    with open(dec_txt_path, encoding="utf-8", errors="replace") as f:
-        lines = [ln.rstrip("\n") for ln in f]
+    text = read_description_text(DiskBackend(), str(dec_txt_path))
+    # Same line splitting as text-mode open(): only \r\n, \r and \n end a line.
+    lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
 
     mapping: dict[str, dict[str, Any]] = {}
     current_dec: str | None = None
@@ -131,29 +142,8 @@ def _resolve_col(
     col_name: str,
     csv_cols: dict[str, str],
 ) -> str | None:
-    """
-    Look up the original CSV column for a DEC txt column name.
-
-    Handles normal snake_case conversion and falls back to a wildcard regex
-    match for names that contain U+FFFD replacement characters (encoding
-    artefacts in the DEC txt file where e.g. "ó" in "vóór" was lost).
-    """
-    norm = normalize_name(col_name)
-    if norm in csv_cols:
-        return csv_cols[norm]
-
-    # Fallback for U+FFFD corruption
-    if "\ufffd" in col_name:
-        parts = re.split(r"\ufffd+", col_name)
-        snake_parts = [normalize_name(p) for p in parts if p.strip()]
-        snake_parts = [p for p in snake_parts if p]
-        if snake_parts:
-            pattern = re.compile(r".+".join(re.escape(p) for p in snake_parts))
-            for csv_snake, csv_original in csv_cols.items():
-                if pattern.fullmatch(csv_snake):
-                    return csv_original
-
-    return None
+    """Look up the original CSV column for a DEC txt column name via normalize_name."""
+    return csv_cols.get(normalize_name(col_name))
 
 
 def validate_with_dec_files(
