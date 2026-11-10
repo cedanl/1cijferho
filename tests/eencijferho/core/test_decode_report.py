@@ -40,8 +40,7 @@ def _dec_meta() -> dict:
         "tables": [
             {
                 "table_title": "Dec_landcode.asc",
-                # Spelled slightly differently from the data column: fuzzy match.
-                "decoding_variables": ["Geboortelanden"],
+                "decoding_variables": ["Geboorteland"],
                 "content": ["Startpositie  Naam", "Code land     1     4", "Omschrijving"],
             },
             {
@@ -166,7 +165,7 @@ def test_columns_decoded_and_not_decoded_cover_all_input_columns(decode_setup):
 
 def test_decode_columns_filter_gives_not_in_decode_scope(decode_setup):
     report = DecodeReport()
-    _decode_both_passes(decode_setup, report, decode_columns=["Geboortelanden"])
+    _decode_both_passes(decode_setup, report, decode_columns=["Geboorteland"])
     reasons = {c["column"]: c["reason"] for c in _detail(report)["columns_not_decoded"]}
     assert reasons["Soort opleiding"] == "not_in_decode_scope"
     assert reasons["Nationaliteit"] == "not_in_decode_scope"
@@ -191,14 +190,17 @@ def test_unmatched_codes_are_aggregated_with_capped_sample(decode_setup):
     assert report.summary()["total_unmatched_rows"] == 7
 
 
-def test_fuzzy_dec_variable_match_is_logged(decode_setup):
+def test_dec_variable_with_different_name_is_not_found_not_guessed(decode_setup):
+    meta = _dec_meta()
+    meta["tables"][0]["decoding_variables"] = ["Geboortelanden"]
+    with open(decode_setup["meta"], "w", encoding="utf-8") as f:
+        json.dump(meta, f)
     report = DecodeReport()
     _decode_both_passes(decode_setup, report)
-    assert {
-        "requested": "Geboortelanden",
-        "used": "Geboorteland",
-        "kind": "dec_variable",
-    } in _detail(report)["fuzzy_matches"]
+    detail = _detail(report)
+    assert "Geboorteland" not in detail["columns_decoded"]
+    assert "Geboortelanden" in detail["variables_not_found"]["Dec_landcode.asc"]
+    assert "fuzzy_matches" not in detail
 
 
 def test_variable_mapping_with_unmapped_value_is_logged(decode_setup):

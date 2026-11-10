@@ -70,7 +70,6 @@ class _FileEntry:
         self.reasons: dict[str, str] = {}
         self.unmatched: dict[tuple[str, str], dict[str, Any]] = {}
         self.mappings: dict[tuple[str, str], dict[str, Any]] = {}
-        self.fuzzy: dict[tuple[str, str, str], dict[str, str]] = {}
         self.not_found: dict[str, set[str]] = {}
         self.errors: dict[tuple[str, str], dict[str, str]] = {}
         self.status: dict[str, str] = {}
@@ -91,7 +90,6 @@ class _FileEntry:
             "decoded_via": {c: self.decoded_via[c] for c in decoded},
             "unmatched_codes": [self.unmatched[k] for k in sorted(self.unmatched)],
             "variable_mappings": [self.mappings[k] for k in sorted(self.mappings)],
-            "fuzzy_matches": [self.fuzzy[k] for k in sorted(self.fuzzy)],
             # Variables named in the metadata but absent from this file: usually
             # variables of another file type, so grouped and compact.
             "variables_not_found_count": sum(len(v) for v in self.not_found.values()),
@@ -275,14 +273,6 @@ class DecodeReport:
         else:
             self.record_skip(column_norm, NO_VALUES_MAPPED)
 
-    def record_fuzzy(self, requested: str, used_norm: str, kind: str) -> None:
-        used = self._name(used_norm)
-        self._file().fuzzy[(kind, requested, used)] = {
-            "requested": requested,
-            "used": used,
-            "kind": kind,
-        }
-
     def record_not_found(self, variable: str, source: str) -> None:
         """A variable from the metadata (``source``) that is not in the file."""
         self._file().not_found.setdefault(source, set()).add(variable)
@@ -312,7 +302,6 @@ class DecodeReport:
             "total_unmatched_rows": sum(u["rows_unmatched"] for u in unmatched),
             "total_unmapped_distinct_values": sum(m["unmapped_distinct"] for m in mappings),
             "total_int_fallback_rows": sum(m["int_fallback_rows"] for m in mappings),
-            "fuzzy_matches": sum(len(d["fuzzy_matches"]) for d in details),
             "variables_not_found": sum(d["variables_not_found_count"] for d in details),
             "errors": sum(len(d["errors"]) for d in details),
         }

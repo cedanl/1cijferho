@@ -19,9 +19,9 @@ PRESET_CONFIGS: dict[str, dict] = {
             "opt_enriched": True,
             "opt_parquet": True,
             "opt_snake_case": True,
-            # De decode-filter matcht op genormaliseerde naam. Bestandsbeschrijvingen
-            # met vervangingstekens stoppen 'extract' met een foutmelding (#203),
-            # dus een beschadigde spelling hoeft hier niet meer bij.
+            # Eén spelling volstaat: de decoder herstelt de beschadigde vorm van
+            # "vóór" (replacement-tekens) in Dec-metadata zelf, via een vaste
+            # tabel in decoder.py (_NAME_REPAIRS).
             "decode_columns": [
                 "Hoogste vooropleiding vóór het HO",
                 "Hoogste vooropleiding",

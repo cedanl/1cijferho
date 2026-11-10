@@ -160,6 +160,6 @@ data/02-output/
 └── EV_2023.parquet
 ```
 
-Het decodeerlog `(7)_decoding_log_latest.json` (plus een kopie `decoding_log_<tijdstempel>.json`) legt per gedecodeerd bestand vast welke kolommen gedecodeerd zijn en welke niet (met reden), welke Dec-tabellen niet geladen konden worden, welke codes geen match hadden (geteld, met hooguit 5 voorbeeldcodes; nooit uit BSN-, PGN- of onderwijsnummerkolommen), welke `variable_metadata`-waarden zijn toegepast en welke fuzzy matches er waren.
+Het decodeerlog `(7)_decoding_log_latest.json` (plus een kopie `decoding_log_<tijdstempel>.json`) legt per gedecodeerd bestand vast welke kolommen gedecodeerd zijn en welke niet (met reden), welke Dec-tabellen niet geladen konden worden, welke codes geen match hadden (geteld, met hooguit 5 voorbeeldcodes; nooit uit BSN-, PGN- of onderwijsnummerkolommen), welke `variable_metadata`-waarden zijn toegepast en welke variabelen uit de metadata niet in het bestand voorkomen.
 
 Het Parquet-bestand bevat dezelfde data als de CSV waar het uit voortkomt: dezelfde kolomnamen in dezelfde volgorde (standaard snake_case, met `--skip-snake-case` de originele DUO-namen) en alle kolommen als tekst (`String`), zodat nummers zoals het BSN hun voorloopnullen houden.
