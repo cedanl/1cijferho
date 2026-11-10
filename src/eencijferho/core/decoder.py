@@ -396,7 +396,8 @@ def _apply_single_dec_join(
         if is_composite:
             if code_col2_norm is None:
                 # The caller sets is_composite only with a second code column.
-                raise ValueError("samengestelde sleutel zonder tweede codekolom")
+                # TypeError: what join_df[None] raised here before.
+                raise TypeError("samengestelde sleutel zonder tweede codekolom")
             dec_cols = [
                 c for c in join_df.columns
                 if c != code_col_norm and c != code_col2_norm

@@ -183,8 +183,9 @@ def run_turbo_convert_pipeline(
 
     if do_decode or do_enrich:
         if dec_metadata_json is None:
-            # Not reached: load_dec_tables_from_metadata above already fails without it.
-            raise FileNotFoundError("Geen Bestandsbeschrijving_Dec-bestanden JSON gevonden")
+            # Not reached: load_dec_tables_from_metadata above already fails
+            # without it (a TypeError from the disk backend).
+            raise TypeError("Geen Bestandsbeschrijving_Dec-bestanden JSON gevonden")
         csv_files = storage.list_files(f"{dec_dir}/*.csv")
         for filepath in csv_files:
             filename = os.path.basename(filepath)
