@@ -34,6 +34,7 @@ from eencijferho.core.decoder_info import (
     get_decode_column_info,
     get_enrich_variable_info,
 )
+from eencijferho.core.decode_report import DecodeReport
 from eencijferho.presets import PRESET_CONFIGS
 
 
@@ -855,6 +856,195 @@ def test_apply_dec_tables_composite_uses_metadata_width_and_keeps_data():
     assert not [c for c in result.columns if c.startswith("__")]
 
 
+# ---------------------------------------------------------------------------
+# Dec_vestnr_ho_compleet: composite key from two named data columns (#205)
+# ---------------------------------------------------------------------------
+
+VESTNR_TITLE = "Dec_vestnr_ho_compleet.asc"
+VESTNR_VAR = "Instellingscode + Vestigingsnummer van de hoogste vooropleiding binnen HO"
+INST_HO = "Instelling van de hoogste vooropl. binnen het HO"
+VEST_HO = "Vestigingsnummer van de hoogste vooropl. binnen het HO"
+VEST_HO_NORM = "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho"
+VESTNR_CONTENT = [
+    "                                             Startpositie  Aantal posities",
+    "Instellingscode                                     1             4      } sleutel",
+    "Vestigingsnummer                                    5             2      }",
+    "Gemeentenaam volgens RIO                            7            24",
+    "Gemeentecode per 1 januari 2025                    31             4",
+    "Gemeentenaam per 1 januari 2025                    35            36",
+]
+
+
+def _vestnr_meta(content=VESTNR_CONTENT):
+    return {
+        "tables": [
+            {"table_title": VESTNR_TITLE, "decoding_variables": [VESTNR_VAR], "content": content}
+        ]
+    }
+
+
+def _vestnr_dec(rows):
+    """Dec table from (instellingscode, vestigingsnummer, gemeente) rows; synthetic codes."""
+    inst, vest, gem = zip(*rows)
+    return pl.DataFrame({
+        "Instellingscode": list(inst),
+        "Vestigingsnummer": list(vest),
+        "Gemeentenaam volgens RIO": list(gem),
+        "Gemeentecode per 1 januari 2025": [f"G{g}" for g in gem],
+        "Gemeentenaam per 1 januari 2025": [f"{g} 2025" for g in gem],
+    })
+
+
+# 9XA1 has two vestigingen (the institution code alone repeats); 9XB2 shares
+# vestigingsnummer 01 with 9XA1. Every pair is unique.
+VESTNR_ROWS = [("9XA1", "01", "Aa"), ("9XA1", "02", "Bb"), ("9XB2", "01", "Cc")]
+
+
+@pytest.fixture
+def vestnr_metadata_json(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)  # no default variable_metadata.json is picked up
+    p = tmp_path / "Bestandsbeschrijving_Dec-bestanden.json"
+    p.write_text(json.dumps(_vestnr_meta()), encoding="utf-8")
+    return str(p)
+
+
+@pytest.mark.parametrize("decode", [decode_fields_dec_only, decode_fields])
+def test_dec_vestnr_ho_compleet_decodes_on_the_institution_vestiging_pair(
+    vestnr_metadata_json, decode, capsys,
+):
+    df = pl.DataFrame({
+        INST_HO: ["9XA1", "9XA1", "9XB2", "9XB2", ""],
+        VEST_HO: ["01", "02", "01", "02", ""],
+    })
+    report = DecodeReport()
+    report.begin_file("EV_TEST.csv", df.columns)
+    result = decode(df, vestnr_metadata_json, {VESTNR_TITLE: _vestnr_dec(VESTNR_ROWS)}, report=report)
+
+    assert result.height == df.height
+    assert result[INST_HO].to_list() == df[INST_HO].to_list()
+    assert result[VEST_HO].to_list() == df[VEST_HO].to_list()
+    assert result[f"{VEST_HO_NORM}__gemeentenaam_volgens_rio"].to_list() == [
+        "Aa", "Bb", "Cc", None, None,
+    ]
+    assert result[f"{VEST_HO_NORM}__gemeentecode_per_1_januari_2025"].to_list() == [
+        "GAa", "GBb", "GCc", None, None,
+    ]
+    assert result[f"{VEST_HO_NORM}__gemeentenaam_per_1_januari_2025"].to_list() == [
+        "Aa 2025", "Bb 2025", "Cc 2025", None, None,
+    ]
+    assert not [c for c in result.columns if c.startswith("__")]
+    out = capsys.readouterr().out
+    assert "Sla 'Instellingscode + Vestigingsnummer" not in out
+    assert "Dubbele" not in out
+    detail = report.to_dict()["details"][0]
+    assert detail["errors"] == []
+    assert VEST_HO in detail["columns_decoded"]
+    (unmatched,) = detail["unmatched_codes"]
+    assert unmatched["key_columns"] == [INST_HO, VEST_HO]
+    assert unmatched["sample"] == ["9XB2|02"]
+
+
+def test_dec_vestnr_ho_compleet_pads_both_keys_to_layout_width():
+    df = pl.DataFrame({INST_HO: ["9XA1"], VEST_HO: ["2"]})
+    result = _apply_dec_tables(
+        _normalize_df(df)[0], _vestnr_meta(), {VESTNR_TITLE: _vestnr_dec(VESTNR_ROWS)},
+    )
+    assert result[VEST_HO_NORM].to_list() == ["2"]
+    assert result[f"{VEST_HO_NORM}__gemeentenaam_volgens_rio"].to_list() == ["Bb"]
+
+
+@pytest.mark.parametrize("present,missing", [(INST_HO, VEST_HO), (VEST_HO, INST_HO)])
+def test_dec_vestnr_ho_compleet_missing_data_column_is_skipped_and_logged(present, missing, capsys):
+    df = pl.DataFrame({present: ["9XA1"]})
+    report = DecodeReport()
+    report.begin_file("EV_TEST.csv", df.columns)
+    report.start_pass({_canonical_name(present): present}, df.columns)
+    norm_df = _normalize_df(df)[0]
+    result = _apply_dec_tables(
+        norm_df, _vestnr_meta(), {VESTNR_TITLE: _vestnr_dec(VESTNR_ROWS)}, report=report,
+    )
+
+    assert result.equals(norm_df)
+    assert _canonical_name(missing) in capsys.readouterr().out
+    detail = report.to_dict()["details"][0]
+    assert detail["variables_not_found"] == {VESTNR_TITLE: [missing]}
+
+
+def test_dec_vestnr_ho_compleet_without_two_key_rows_is_an_error(capsys):
+    content = [row.replace("}", "") for row in VESTNR_CONTENT]
+    df = pl.DataFrame({INST_HO: ["9XA1"], VEST_HO: ["01"]})
+    report = DecodeReport()
+    report.begin_file("EV_TEST.csv", df.columns)
+    norm_df = _normalize_df(df)[0]
+    result = _apply_dec_tables(
+        norm_df, _vestnr_meta(content), {VESTNR_TITLE: _vestnr_dec(VESTNR_ROWS)}, report=report,
+    )
+    assert result.equals(norm_df)
+    assert VESTNR_TITLE in capsys.readouterr().out
+    assert report.summary()["errors"] == 1
+
+
+def test_dec_vestnr_ho_compleet_respects_decode_columns():
+    df = pl.DataFrame({INST_HO: ["9XA1"], VEST_HO: ["01"]})
+    norm_df = _normalize_df(df)[0]
+    tables = {VESTNR_TITLE: _vestnr_dec(VESTNR_ROWS)}
+    skipped = _apply_dec_tables(norm_df, _vestnr_meta(), tables, decode_columns=["Geslacht"])
+    assert skipped.equals(norm_df)
+    chosen = _apply_dec_tables(norm_df, _vestnr_meta(), tables, decode_columns=[VESTNR_VAR])
+    assert chosen[f"{VEST_HO_NORM}__gemeentenaam_volgens_rio"].to_list() == ["Aa"]
+
+
+def test_composite_dec_join_refuses_duplicate_pair_keys(capsys):
+    """9XA1/1 and 9XA1/01 are one key at width 2: no join, an error instead."""
+    rows = VESTNR_ROWS + [("9XA1", "1", "Dd")]
+    df = pl.DataFrame({INST_HO: ["9XB2", "9XA1"], VEST_HO: ["01", "01"]})
+    report = DecodeReport()
+    report.begin_file("EV_TEST.csv", df.columns)
+    report.start_pass({_canonical_name(c): c for c in df.columns}, df.columns)
+    norm_df = _normalize_df(df)[0]
+    result = _apply_dec_tables(norm_df, _vestnr_meta(), {VESTNR_TITLE: _vestnr_dec(rows)}, report=report)
+
+    assert result.equals(norm_df)
+    out = capsys.readouterr().out
+    assert VESTNR_TITLE in out
+    assert "9XA1|01" in out
+    summary = report.summary()
+    assert summary["errors"] == 1
+    assert summary["strict_violations"]
+    detail = report.to_dict()["details"][0]
+    assert detail["errors"][0]["error_type"] == "DuplicateDecKeyError"
+    assert {"column": VEST_HO, "reason": "join_error"} in detail["columns_not_decoded"]
+
+
+def test_composite_dec_join_via_dec_vest_ho_refuses_duplicate_pair_keys(capsys):
+    data = pl.DataFrame({"instellingscode": ["02UC"], "vestigingsnummer": ["01"]})
+    dec = pl.DataFrame({
+        "instellingscode": ["02UC", "2UC"], "vestigingsnummer": ["01", "1"], "naam": ["A", "B"],
+    })
+    result = _apply_single_dec_join(
+        data, dec, "vestigingsnummer", "instellingscode",
+        is_composite=True, code_col2_norm="vestigingsnummer",
+        code_width=4, code2_width=2, dec_table_title="Dec_vest_ho.asc",
+    )
+    assert result.equals(data)
+    out = capsys.readouterr().out
+    assert "Dec_vest_ho.asc" in out and "02UC|01" in out
+
+
+def test_composite_dec_join_ignores_duplicates_with_an_empty_key():
+    data = pl.DataFrame({"instellingscode": ["02UC"], "vestigingsnummer": ["01"]})
+    dec = pl.DataFrame({
+        "instellingscode": ["02UC", "02UC", "02UC"],
+        "vestigingsnummer": ["01", "", ""],
+        "naam": ["A", "leeg1", "leeg2"],
+    })
+    result = _apply_single_dec_join(
+        data, dec, "vestigingsnummer", "instellingscode",
+        is_composite=True, code_col2_norm="vestigingsnummer", code_width=4, code2_width=2,
+    )
+    assert result["vestigingsnummer__naam"].to_list() == ["A"]
+
+
 @pytest.fixture
 def padded_dec_metadata_json(tmp_path):
     """Dec JSON with real code widths, as the extractor writes it."""
@@ -1016,6 +1206,31 @@ def test_apply_vakken_composite_keeps_data_columns_and_fills_labels():
     assert result["vestigingsnummer"].to_list() == ["1", "00"]
     assert result["brinnummer__naam_vestiging"].to_list() == ["Zeist", "Utrecht"]
     assert not [c for c in result.columns if c.startswith("__")]
+
+
+def test_apply_vakken_composite_refuses_duplicate_pair_keys(capsys):
+    content = [
+        "                    Startpositie  Aantal posities",
+        "Brinnummer          1             4      }",
+        "Vestigingsnummer    5             2      }",
+        "Naam vestiging      7            30",
+    ]
+    data = pl.DataFrame({"brinnummer": ["02UC", "02UC"], "vestigingsnummer": ["01", "02"]})
+    dec = pl.DataFrame({
+        "brinnummer": ["02UC", "2UC", "02UC"],
+        "vestigingsnummer": ["01", "1", "02"],
+        "naam_vestiging": ["Zeist", "Utrecht", "Bilt"],
+    })
+    report = DecodeReport()
+    report.begin_file("VAKHAVW_TEST.csv", data.columns)
+    result = _apply_vakken_composite(
+        data, dec, "brinnummer", "Vestigingsnummer", "brinnummer", content,
+        "Dec_brinvestigingsnummer.asc", report=report,
+    )
+    assert result.equals(data)
+    out = capsys.readouterr().out
+    assert "Dec_brinvestigingsnummer.asc" in out and "02UC|01" in out
+    assert report.summary()["errors"] == 1
 
 
 # ---------------------------------------------------------------------------
