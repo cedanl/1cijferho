@@ -354,6 +354,70 @@ def test_apply_variable_mappings_unmapped_value_kept(tmp_path):
     assert vals[1] == "99"  # unmapped value kept as-is
 
 
+def _apply_from_file(tmp_path, values: dict, column_values: list):
+    path = tmp_path / "variable_metadata.json"
+    path.write_text(json.dumps([{"name": "Code", "values": values}]), encoding="utf-8")
+    df = pl.DataFrame({"code": column_values})
+    _, norm_map, orig = _normalize_df(df)
+    return _apply_variable_mappings(df, str(path), None, norm_map, orig)["code"].to_list()
+
+
+def test_leeg_of_zero_key_maps_empty_and_zero(tmp_path):
+    vals = _apply_from_file(
+        tmp_path, {"1": "Een", "[leeg] of 0": "geen waarde"}, ["", "0", "1", "2"],
+    )
+    assert vals == ["geen waarde", "geen waarde", "Een", "2"]
+
+
+@pytest.mark.parametrize("explicit_first", [True, False])
+def test_explicit_zero_key_wins_over_leeg_of_zero(tmp_path, explicit_first):
+    items = [("0", "nul"), ("[leeg] of 0", "geen waarde")]
+    if not explicit_first:
+        items.reverse()
+    vals = _apply_from_file(tmp_path, dict(items), ["", "0"])
+    assert vals == ["geen waarde", "nul"]
+
+
+@pytest.mark.parametrize(
+    "mapping",
+    [
+        {"[leeg] of 0": "geen waarde", "[leeg]": "onbekend", "1": "Een"},
+        {"1": "Een", "[leeg]": "onbekend", "[leeg] of 0": "geen waarde"},
+        {"[LEEG]": "onbekend", "[leeg] of 0": "geen waarde", "1": "Een"},
+    ],
+)
+def test_empty_label_prefers_exact_leeg_key_in_any_order(mapping):
+    df = pl.DataFrame({"code": ["", "1"]})
+    result = _apply_single_mapping(df, "code", mapping, "code", "Code")
+    assert result["code"].to_list() == ["onbekend", "Een"]
+
+
+def test_empty_label_without_exact_key_uses_sorted_order():
+    first = {"zz leeg": "B", "aa leeg": "A"}
+    second = dict(reversed(list(first.items())))
+    df = pl.DataFrame({"code": [""]})
+    assert _apply_single_mapping(df, "code", first, "code", "Code")["code"].to_list() == ["A"]
+    assert _apply_single_mapping(df, "code", second, "code", "Code")["code"].to_list() == ["A"]
+
+
+def test_long_label_mapping_leaves_column_untouched(capsys):
+    from eencijferho.core.decoder import MAX_LABEL_LENGTH
+
+    df = pl.DataFrame({"code": ["1", "8", "0", " "]})
+    mapping = {"1": "x" * (MAX_LABEL_LENGTH + 1), "8": "overleden", "[leeg] of 0": "geen waarde"}
+    result = _apply_single_mapping(df, "code", mapping, "code", "Code")
+    assert result.equals(df)
+    assert "mapping niet toegepast" in capsys.readouterr().out
+
+
+def test_console_line_names_unmapped_row_count(capsys):
+    df = pl.DataFrame({"code": ["1", "9", "9"]})
+    _apply_single_mapping(df, "code", {"1": "Een"}, "code", "Code")
+    out = capsys.readouterr().out
+    assert "1/3 gemapt, 2 rij(en) niet-gemapt" in out
+    assert "['9']" in out
+
+
 # ---------------------------------------------------------------------------
 # decode_fields_dec_only — public API
 # ---------------------------------------------------------------------------
