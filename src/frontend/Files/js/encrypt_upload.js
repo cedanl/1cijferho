@@ -6,7 +6,7 @@ const payload = JSON.parse(atob("__PAYLOAD_B64__"));
 // __PYODIDE_BOOTSTRAP__
 // atob() returns one character per byte. Decode those bytes as UTF-8, otherwise
 // text outside ASCII (names with diacritics) reaches Python garbled.
-const csvBytes = Uint8Array.from(atob(payload.csv_b64), (ch) => ch.charCodeAt(0));
+const csvBytes = Uint8Array.from(atob(payload.csv_b64), (ch) => ch.codePointAt(0));
 py.globals.set("csv_data_input", new TextDecoder("utf-8", { fatal: true }).decode(csvBytes));
 py.globals.set("password_input", payload.password);
 py.globals.set("column_name_input", payload.column);
