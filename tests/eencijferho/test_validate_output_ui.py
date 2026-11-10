@@ -10,6 +10,10 @@ import json
 from pathlib import Path
 
 import pytest
+
+# streamlit is in the optional "frontend" extra; CI's unit job does not install it.
+pytest.importorskip("streamlit")
+
 from streamlit.testing.v1 import AppTest
 
 import eencijferho.utils.dec_validation as dv
