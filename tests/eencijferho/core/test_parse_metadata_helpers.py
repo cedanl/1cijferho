@@ -98,16 +98,16 @@ class TestParseMetadataHelpers:
 
     def test_process_key_value_line_simple_kv(self):
         values = {}
-        last_key = _process_key_value_line("key = value", "key = value", "TestVar", None, values)
+        last_key = _process_key_value_line("key = value", "key = value", None, values)
         assert last_key == "key"
         assert values["key"] == "value"
 
-    def test_process_key_value_line_special_case_indicatie_geboren(self):
-        """Handle special case for 'Indicatie geboren' variable."""
+    def test_process_key_value_line_keeps_duo_spelling(self):
+        """'99 = onbekend' (DUO, 'Indicatie geboren') is stored as DUO writes it."""
         values = {}
-        last_key = _process_key_value_line("99 = something", "99 = something", "Indicatie geboren", None, values)
-        assert last_key is None
-        assert values["99"] == "Onbekend"
+        last_key = _process_key_value_line("99 = onbekend", "99 = onbekend", None, values)
+        assert last_key == "99"
+        assert values["99"] == "onbekend"
 
     def test_process_key_value_line_continuation_append(self):
         """Append to existing key in continuation."""
@@ -115,7 +115,6 @@ class TestParseMetadataHelpers:
         last_key = _process_key_value_line(
             "key1 = continuation",
             "key1 = continuation",
-            "TestVar",
             "key1",
             values
         )
@@ -125,7 +124,7 @@ class TestParseMetadataHelpers:
     def test_process_key_value_line_no_match(self):
         """Return last_key unchanged when no key=value pattern."""
         values = {"existing": "value"}
-        last_key = _process_key_value_line("no equals here", "no equals here", "TestVar", "existing", values)
+        last_key = _process_key_value_line("no equals here", "no equals here", "existing", values)
         assert last_key == "existing"
         assert values == {"existing": "value"}
 

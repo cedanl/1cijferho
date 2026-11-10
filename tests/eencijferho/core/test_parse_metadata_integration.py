@@ -178,24 +178,6 @@ A = Value A
             assert 'Line 1' in result[0]['description']
             assert 'Line 2' in result[0]['description']
 
-    def test_parse_special_case_indicatie_geboren(self):
-        """Test special handling for 'Indicatie geboren' variable with code 99."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            metadata_file = os.path.join(tmpdir, "test.txt")
-            with open(metadata_file, 'w', encoding='latin-1') as f:
-                f.write("""Indicatie geboren
----
-Birth date indicator.
-
-Mogelijke waarden:
-1 = Known
-99 = Unknown code
-""")
-            result = parse_metadata_file(metadata_file)
-            assert len(result) == 1
-            assert result[0]['name'] == 'Indicatie geboren'
-            assert result[0]['values']['99'] == 'Onbekend'
-
     def test_parse_variable_without_mogelijke_waarden(self):
         """Skip variable when there's no 'Mogelijke waarden:' section."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -336,3 +318,241 @@ Another Short Key = separate value
             # Another Short Key should be separate
             assert 'Another Short Key' in values
             assert values['Another Short Key'] == 'separate value'
+
+
+class TestParseMetadataContinuationMarker:
+    """DUO's '>' marker: the same code, in a different case.
+
+    Text fragments below are copied verbatim from
+    Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.txt, which has 16 of them.
+    """
+
+    # BB lines 979-980
+    SIMPLE = """Diplomajaar
+---
+De jaaraanduiding van de periode waarin het diploma is behaald.
+
+Mogelijke waarden:
+0000 = geen examen geregistreerd
+> 0000 voor overige inschrijvingen
+
+"""
+
+    # BB lines 1181-1184: the note wraps onto a second line
+    WRAPPED = """Vooropleiding hoogste vooropleiding
+---
+Vooropleiding zoals geregistreerd.
+
+Mogelijke waarden:
+0000 = vooropleiding onbekend of geregistreerd diplomajaar is ongeldig
+> 0000 voor overige inschrijvingen. NB wanneer het diplomajaar 2003 is, dan
+betreft het een diploma behaald in het schooljaar 2003/2004.
+
+"""
+
+    # BB lines 2136-2138: a plain wrapped value, no '>' involved
+    PLAIN_WRAP = """Aantal actieve inschrijvingen HO
+---
+Aantal actieve inschrijvingen.
+
+Mogelijke waarden:
+00 = inschrijving heeft soort inschrijving actuele instelling-type HO binnen soort HO van 3 of 5
+     (of 8 of C)
+
+"""
+
+    def _parse(self, tmp_path, text):
+        metadata_file = tmp_path / "test.txt"
+        metadata_file.write_text(text, encoding="latin-1")
+        return parse_metadata_file(str(metadata_file))
+
+    def test_marker_does_not_end_up_in_the_value(self, tmp_path):
+        """The marker is documentation about a code, not part of what the code means."""
+        result = self._parse(tmp_path, self.SIMPLE)
+        assert result[0]["values"]["0000"] == "geen examen geregistreerd"
+
+    def test_no_value_description_contains_the_marker(self, tmp_path):
+        result = self._parse(tmp_path, self.SIMPLE)
+        assert not any(">" in str(v) for v in result[0]["values"].values())
+
+    def test_marker_marks_the_list_as_non_exhaustive(self, tmp_path):
+        """'… voor overige inschrijvingen' means the list does not cover every case.
+
+        value_validation skips these lists; it needs to know this without
+        grepping the value text for ' > '.
+        """
+        result = self._parse(tmp_path, self.SIMPLE)
+        assert result[0]["non_exhaustive_values"] is True
+
+    def test_wrapped_marker_block_is_swallowed_whole(self, tmp_path):
+        """The NB note wraps. Half of it leaking in is worse than none of it."""
+        result = self._parse(tmp_path, self.WRAPPED)
+        assert result[0]["values"]["0000"] == "vooropleiding onbekend of geregistreerd diplomajaar is ongeldig"
+
+    def test_list_without_marker_is_not_flagged(self, tmp_path):
+        result = self._parse(tmp_path, "Geslacht\n---\nGeslacht.\n\nMogelijke waarden:\n1 = Man\n2 = Vrouw\n\n")
+        assert not result[0].get("non_exhaustive_values")
+
+    def test_plain_wrapped_value_is_still_appended(self, tmp_path):
+        """Guard: only '>' starts a note. Ordinary wrapping keeps working."""
+        result = self._parse(tmp_path, self.PLAIN_WRAP)
+        assert result[0]["values"]["00"].endswith("(of 8 of C)")
+        assert not result[0].get("non_exhaustive_values")
+
+    def test_note_is_kept_in_the_description(self, tmp_path):
+        """The note is documentation about the field, so it moves to the description.
+
+        It must not be dropped: a data tool that silently discards what the
+        source says is exactly the failure mode this parser had elsewhere.
+        """
+        result = self._parse(tmp_path, self.WRAPPED)
+        assert "> 0000 voor overige inschrijvingen" in result[0]["description"]
+        assert "betreft het een diploma behaald in het schooljaar 2003/2004" in result[0]["description"]
+
+    def test_code_after_the_block_is_still_parsed(self, tmp_path):
+        """The block must not swallow the rest of the list."""
+        text = (
+            "Diplomajaar\n---\nBeschrijving.\n\nMogelijke waarden:\n"
+            "0000 = geen examen geregistreerd\n"
+            "> 0000 voor overige inschrijvingen\n\n"
+            "2015 = diploma behaald in 2015\n\n"
+        )
+        result = self._parse(tmp_path, text)
+        assert result[0]["values"]["2015"] == "diploma behaald in 2015"
+        assert result[0]["values"]["0000"] == "geen examen geregistreerd"
+
+
+class TestParseMetadataNoteAfterValues:
+    """Free text after a blank line below the list is a note, not part of the last value.
+
+    The value lists and notes below come from
+    Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.txt (BB). Headers and
+    descriptions are shortened; accented letters are written in ASCII.
+    """
+
+    # BB lines 2253-2275, verbatim
+    INDICATIE_GEBOREN = """Indicatie geboren
+-----------------
+Indicatie die aangeeft of de persoon zelf geboren is in Nederland of niet
+en of een of beide ouders geboren zijn in Nederland.
+
+Mogelijke waarden:
+11 = geboren in Nederland en beide ouders geboren in Nederland
+12 = geboren in Nederland en een ouder geboren in Nederland, een in het buitenland
+13 = geboren in Nederland en beide ouders geboren in het buitenland
+21 = geboren in het buitenland en beide ouders geboren in Nederland
+22 = geboren in het buitenland en een ouder geboren in Nederland, een in het buitenland
+23 = geboren in het buitenland en beide ouders geboren in het buitenland
+99 = onbekend
+
+Het CBS dikt de waarden als volgt in:
+* Nederlandse herkomst = 11
+* Migranten = 21, 22 en 23
+* Kinderen van migranten = 12 en 13
+
+OCW dikt de waarden als volgt in:
+* Nederlandse herkomst = 11, 21
+* Migranten = 22 en 23
+* Kinderen van migranten = 12 en 13
+
+"""
+
+    # BB lines 1015-1019: the note wraps onto an indented line
+    WRAPPED_NOTE = """Indicatie eerste einddiploma instelling
+---------------------------------------
+Indicatie eerste einddiploma.
+
+Mogelijke waarden:
+[leeg] = geen einddiplomarecord
+01 = Eerste einddiploma in het hoger onderwijs
+02 = Niet eerste einddiploma in het hoger onderwijs
+
+Einddiploma HBO: associate degree, bachelor, initieel, master, vervolg en
+                 postinitiele master.
+Einddiploma WO:  bachelor, initieel, master, beroeps, vervolg en postinitiele master.
+
+NB: Eerste/Niet eerste wordt bepaald over het hele bestand.
+
+"""
+
+    # BB lines 512-515 (values shortened): the note's second line holds '= 5', which is not a code
+    NOTE_WITH_EQUALS = """Croho subonderdeel
+------------------
+Het croho-subonderdeel.
+
+Mogelijke waarden:
+XX = opleiding telt niet mee
+
+NB Records van postinitiele masters zijn wel opgenomen in 1 cijfer HO, maar worden
+beschouwd als opleidingen die niet meetellen (soort inschrijving = 5).
+
+"""
+
+    # BB lines 254-263 (one bullet left out): an indented paragraph after a blank line is still the value
+    INDENTED_PARAGRAPH = """Reden uitschrijving
+-------------------
+Code, die aangeeft om welke reden de inschrijving is beeindigd.
+
+Mogelijke waarden:
+1 = De student waarvan:
+    inschrijvingen t/m studiejaar 1992-1993:
+    - de inschrijving aan een HBO-instelling tussentijds wordt beeindigd nadat
+      het afsluitend examen (hoofdfase) is behaald.
+
+    inschrijvingen met ingang van studiejaar 1993-1994:
+    - de inschrijving aan een WO- of HBO-instelling wordt beeindigd nadat het
+      afsluitend examen is behaald.
+
+2 = De student, waarvan de inschrijving tussentijds wordt beeindigd
+
+"""
+
+    def _parse(self, tmp_path, text):
+        metadata_file = tmp_path / "test.txt"
+        metadata_file.write_text(text, encoding="latin-1")
+        return parse_metadata_file(str(metadata_file))
+
+    def test_indicatie_geboren_keeps_duo_spelling(self, tmp_path):
+        """DUO writes '99 = onbekend'; the parser must not overwrite it."""
+        result = self._parse(tmp_path, self.INDICATIE_GEBOREN)
+        assert result[0]["values"]["99"] == "onbekend"
+
+    def test_indicatie_geboren_note_goes_to_the_description(self, tmp_path):
+        result = self._parse(tmp_path, self.INDICATIE_GEBOREN)
+        desc = result[0]["description"]
+        assert "Het CBS dikt de waarden als volgt in:" in desc
+        assert "OCW dikt de waarden als volgt in:" in desc
+        assert set(result[0]["values"]) == {"11", "12", "13", "21", "22", "23", "99"}
+
+    def test_wrapped_note_leaves_the_last_value_alone(self, tmp_path):
+        result = self._parse(tmp_path, self.WRAPPED_NOTE)
+        values = result[0]["values"]
+        assert values["02"] == "Niet eerste einddiploma in het hoger onderwijs"
+        desc = result[0]["description"]
+        assert "Einddiploma HBO: associate degree, bachelor, initieel, master, vervolg en postinitiele master." in desc
+        assert "NB: Eerste/Niet eerste wordt bepaald over het hele bestand." in desc
+
+    def test_equals_sign_inside_a_note_is_not_a_code(self, tmp_path):
+        result = self._parse(tmp_path, self.NOTE_WITH_EQUALS)
+        assert result[0]["values"] == {"XX": "opleiding telt niet mee"}
+        assert "(soort inschrijving = 5)." in result[0]["description"]
+
+    def test_indented_paragraph_after_blank_line_stays_in_the_value(self, tmp_path):
+        result = self._parse(tmp_path, self.INDENTED_PARAGRAPH)
+        values = result[0]["values"]
+        assert "inschrijvingen met ingang van studiejaar 1993-1994:" in values["1"]
+        assert values["1"].endswith("afsluitend examen is behaald.")
+        assert values["2"] == "De student, waarvan de inschrijving tussentijds wordt beeindigd"
+        assert "1993-1994" not in result[0]["description"]
+
+    def test_key_after_a_note_is_still_parsed(self, tmp_path):
+        """A note does not swallow a key=value line that follows it."""
+        text = (
+            "Code bekostiging\n---\nBeschrijving.\n\nMogelijke waarden:\n"
+            "[leeg] = onbekend, wordt behandeld als N\n\n"
+            "Vanaf 2009 betekent dit veld iets anders.\n"
+            "J = Ja\n\n"
+        )
+        result = self._parse(tmp_path, text)
+        assert result[0]["values"] == {"[leeg]": "onbekend, wordt behandeld als N", "J": "Ja"}
+        assert "Vanaf 2009 betekent dit veld iets anders." in result[0]["description"]
