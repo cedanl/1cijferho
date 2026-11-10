@@ -53,22 +53,23 @@ def test_compressor_preserves_utf8_characters(tmp_path, make_csv):
 # Parquet must be the same data as the CSV
 # ---------------------------------------------------------------------------
 
-# Identifiers as DUO delivers them: fixed width, zero padded. Read as numbers
-# they lose the padding and stop being the identifier they are.
+# Identifiers shaped as DUO delivers them: fixed width, zero padded. Read as
+# numbers they lose the padding and stop being the identifier they are.
+# Synthetic values only.
 IDENTIFIER_ROWS = [
-    {"burgerservicenummer": "000186662", "onderwijsnummer": "100000000", "opleidingscode": "041305"},
-    {"burgerservicenummer": "000186199", "onderwijsnummer": "100000012", "opleidingscode": "041307"},
+    {"burgerservicenummer": "000000012", "onderwijsnummer": "000000036", "opleidingscode": "000123"},
+    {"burgerservicenummer": "000000048", "onderwijsnummer": "000000063", "opleidingscode": "000456"},
 ]
 
 
 def test_compressor_keeps_leading_zeros_in_identifiers(tmp_path, make_csv):
-    """A BSN is 9 digits wide. Read as an int, 000186662 and 186662 collide."""
+    """A BSN is 9 digits wide. Read as an int, 000000012 and 12 collide."""
     make_csv(tmp_path / "EV2023.csv", IDENTIFIER_ROWS)
     convert_csv_to_parquet(str(tmp_path))
     df = pl.read_parquet(tmp_path / "EV2023.parquet")
-    assert df["burgerservicenummer"].to_list() == ["000186662", "000186199"]
-    assert df["onderwijsnummer"].to_list() == ["100000000", "100000012"]
-    assert df["opleidingscode"].to_list() == ["041305", "041307"]
+    assert df["burgerservicenummer"].to_list() == ["000000012", "000000048"]
+    assert df["onderwijsnummer"].to_list() == ["000000036", "000000063"]
+    assert df["opleidingscode"].to_list() == ["000123", "000456"]
 
 
 def test_compressor_keeps_every_column_as_string(tmp_path, make_csv):

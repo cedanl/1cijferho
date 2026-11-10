@@ -26,7 +26,7 @@ def convert_csv_to_parquet(storage, input_dir: str | None = None) -> None:
         try:
             # infer_schema_length=0: every column stays a String, so identifiers
             # keep their fixed width and their leading zeros. DUO writes a BSN as
-            # 9 digits; read as an int, 000186662 and 186662 are the same number.
+            # 9 digits; read as an int, 000000012 and 12 are the same number.
             df = storage.read_dataframe(csv_file, infer_schema_length=0)
             storage.write_dataframe(df, parquet_file, format="parquet")
             console.print(f"[green]✓[/] {filename}")
