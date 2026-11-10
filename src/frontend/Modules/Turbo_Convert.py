@@ -284,9 +284,11 @@ else:
     dec_json_matches = _glob.glob(os.path.join(json_dir, "Bestandsbeschrijving_Dec-bestanden*.json"))
     variable_metadata_path = os.path.join(json_dir, "variable_metadata.json")
     dec_json = dec_json_matches[0] if dec_json_matches else ""
-    available_decode = get_available_decode_columns(dec_json)
+    vakken_json_matches = sorted(_glob.glob(os.path.join(json_dir, "Bestandsbeschrijving_Vakkenbestanden*.json")))
+    vakken_json = vakken_json_matches[0] if vakken_json_matches else None
+    available_decode = get_available_decode_columns(dec_json, vakken_json)
     available_enrich = get_available_enrich_variables(variable_metadata_path)
-    decode_info = get_decode_column_info(dec_json)
+    decode_info = get_decode_column_info(dec_json, vakken_json)
     enrich_info = get_enrich_variable_info(variable_metadata_path)
 
     opt_decode_columns = None

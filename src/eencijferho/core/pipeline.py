@@ -28,6 +28,7 @@ def _process_enriched_file(
     storage, main_df: pl.DataFrame, filepath: str, filename: str, log: str,
     dec_metadata_json: str, dec_tables: dict, variable_metadata_json: str,
     var_maps: dict, output_config: OutputConfig, dec_only_df: pl.DataFrame | None,
+    vakken_metadata_json: str | None = None,
     report: DecodeReport | None = None,
 ) -> str:
     """Process and write enriched file; return updated log."""
@@ -44,6 +45,7 @@ def _process_enriched_file(
         variable_metadata_path=variable_metadata_json,
         decode_columns=output_config.decode_columns,
         enrich_variables=output_config.enrich_variables,
+        vakken_metadata_json=vakken_metadata_json,
         report=report,
     )
 
@@ -120,6 +122,11 @@ def run_turbo_convert_pipeline(
         matches = storage.list_files(f"{json_dir}/Bestandsbeschrijving_Dec-bestanden*.json")
         dec_metadata_json = matches[0] if matches else None
     logs_dir = os.path.join(metadata_dir, "logs")
+    # The Vakkenbestanden JSON sits next to the Dec JSON (both from the extract step).
+    vakken_metadata_json = decoder.find_vakken_metadata_json(
+        os.path.dirname(dec_metadata_json) if dec_metadata_json
+        else os.path.join(metadata_dir, "json")
+    )
 
     variable_metadata_json = os.path.join(metadata_dir, "json", "variable_metadata.json")
     log = ""
@@ -146,6 +153,8 @@ def run_turbo_convert_pipeline(
     # A match log with layout errors must stop the run, not yield output without EV files.
     if isinstance(summary, dict) and summary.get("match_log_status", "completed") != "completed":
         raise converter.MatchLogNotCompletedError(summary["reason"])
+    for item in summary.get("unsupported_files", []) if isinstance(summary, dict) else []:
+        log += f"[pipeline] {item['input_file']}: {item['reason']}\n"
     converter.convert_dec_files(input_dir, metadata_folder=metadata_dir, output_folder=output_dir)
     log += "[pipeline] Omzetting voltooid.\n"
     if progress_callback:
@@ -167,7 +176,9 @@ def run_turbo_convert_pipeline(
     step_report = report if (do_decode or do_enrich) else None
 
     # Load dec_tables and variable_mappings once — shared across all files
-    dec_tables = decoder.load_dec_tables_from_metadata(dec_metadata_json, dec_dir, report=step_report)
+    dec_tables = decoder.load_dec_tables_from_metadata(
+        dec_metadata_json, dec_dir, vakken_metadata_json=vakken_metadata_json, report=step_report,
+    )
     var_maps = decoder.load_variable_mappings(variable_metadata_json, report=step_report)
 
     if do_decode or do_enrich:
@@ -188,6 +199,7 @@ def run_turbo_convert_pipeline(
                 dec_only_df = decoder.decode_fields_dec_only(
                     main_df, dec_metadata_json, dec_tables,
                     decode_columns=output_config.decode_columns,
+                    vakken_metadata_json=vakken_metadata_json,
                     report=report,
                 )
                 dec_only_file = filepath.replace(".csv", DECODED_SUFFIX)
@@ -199,7 +211,8 @@ def run_turbo_convert_pipeline(
                 log = _process_enriched_file(
                     storage, main_df, filepath, filename, log,
                     dec_metadata_json, dec_tables, variable_metadata_json,
-                    var_maps, output_config, dec_only_df, report=report,
+                    var_maps, output_config, dec_only_df,
+                    vakken_metadata_json=vakken_metadata_json, report=report,
                 )
 
             decoded_count += 1

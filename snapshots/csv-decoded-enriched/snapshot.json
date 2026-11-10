@@ -1,8 +1,8 @@
 {
   "snapshot_version": 2,
-  "generated_at": "2026-11-10T16:50:47.250035",
-  "output_dir": "data/02-output/snapshot-baselines/csv-decoded-enriched",
-  "file_count": 18,
+  "generated_at": "2026-11-10T17:46:34.961118",
+  "output_dir": "data/02-output/factory-ci/sync1/csv-decoded-enriched",
+  "file_count": 20,
   "files": {
     "Dec_actuele_instelling.csv": {
       "file_hash": "e869a55e0d1cfae1d9966fd0eeaae16453b46c5942d66598c0bfa3261aa56b9b",
@@ -11,6 +11,37 @@
       "columns": [
         "Actuele instelling",
         "Naam actuele instelling"
+      ]
+    },
+    "Dec_brinnummer.csv": {
+      "file_hash": "18217c513d62544f0809e79d04c87c17a6ce6adb3750f9008a456c3202bea85e",
+      "row_count": 19210,
+      "column_count": 8,
+      "columns": [
+        "Brinnummer",
+        "Code denominatie (= richting)",
+        "Datum opheffing",
+        "Datum oprichting",
+        "Naam",
+        "Naam denominatie (= richting)",
+        "Plaats",
+        "Postcodecijfers"
+      ]
+    },
+    "Dec_brinvestigingsnummer.csv": {
+      "file_hash": "507f5038a4db00e7bf9d305abc5885da280ef584eebd0c2da925b3b5056499b5",
+      "row_count": 26991,
+      "column_count": 9,
+      "columns": [
+        "Brinnummer",
+        "Code denominatie (= richting)",
+        "Datum opheffing",
+        "Datum oprichting",
+        "Naam",
+        "Naam denominatie (= richting)",
+        "Plaats",
+        "Postcodecijfers",
+        "Vestigingsnummer"
       ]
     },
     "Dec_ho-inst.csv": {
@@ -678,9 +709,9 @@
       ]
     },
     "VAKHAVW_99XX_DEMO_decoded.csv": {
-      "file_hash": "d6ec6fc6f2a70589234720c36e2d9f406d537356065d6aa3c08d40aa561d27c0",
+      "file_hash": "97730ef5eee8d76a103bb36e33fe0bca614891c9afc7d3ee842f594b28ffcce3",
       "row_count": 222637,
-      "column_count": 24,
+      "column_count": 40,
       "columns": [
         "Afkorting vak",
         "Ander niveau",
@@ -703,9 +734,25 @@
         "Vakcode",
         "Vestigingsnummer VO-vestiging",
         "Vooropleiding oorspronkelijke code",
+        "brinnummer_vo_instelling__code_denominatie_richting",
+        "brinnummer_vo_instelling__datum_opheffing",
+        "brinnummer_vo_instelling__datum_oprichting",
+        "brinnummer_vo_instelling__naam",
+        "brinnummer_vo_instelling__naam_denominatie_richting",
+        "brinnummer_vo_instelling__plaats",
+        "brinnummer_vo_instelling__postcodecijfers",
         "vakcode__afkorting_vak",
         "vakcode__omschrijving_vak",
-        "vakcode__roepnaam_vak"
+        "vakcode__roepnaam_vak",
+        "vestigingsnummer_vo_vestiging__code_denominatie_richting",
+        "vestigingsnummer_vo_vestiging__datum_opheffing",
+        "vestigingsnummer_vo_vestiging__datum_oprichting",
+        "vestigingsnummer_vo_vestiging__naam",
+        "vestigingsnummer_vo_vestiging__naam_denominatie_richting",
+        "vestigingsnummer_vo_vestiging__plaats",
+        "vestigingsnummer_vo_vestiging__postcodecijfers",
+        "vooropleiding_oorspronkelijke_code__omschrijving_vooropleiding_oorspr_code",
+        "vooropleiding_oorspronkelijke_code__onderwijssector"
       ]
     }
   }

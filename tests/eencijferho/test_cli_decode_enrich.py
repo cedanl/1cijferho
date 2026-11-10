@@ -103,3 +103,58 @@ def test_enrich_skips_when_identical_to_decoded(output_dir, make_csv, capsys):
 
     assert not (output_dir / "EV2023_enriched.csv").exists()
     assert "identiek aan decoded" in capsys.readouterr().out
+
+
+def _vakken_json(output_dir):
+    """Write an (empty) Vakkenbestanden JSON next to the Dec JSON."""
+    path = output_dir / "metadata" / "json" / "Bestandsbeschrijving_Vakkenbestanden_test.json"
+    path.write_text("{}", encoding="utf-8")
+    return path.name
+
+
+def test_decode_passes_the_vakken_json_on(output_dir):
+    """cmd_decode finds the Vakkenbestanden JSON and hands it to the decoder (#204)."""
+    name = _vakken_json(output_dir)
+
+    with (
+        patch("eencijferho.core.decoder.load_dec_tables_from_metadata", return_value={}) as load,
+        patch(
+            "eencijferho.core.decoder.decode_fields_dec_only", side_effect=lambda df, *a, **k: df,
+        ) as decode,
+    ):
+        cmd_decode(_args())
+
+    assert load.call_args.kwargs["vakken_metadata_json"].endswith(name)
+    assert decode.call_args.kwargs["vakken_metadata_json"].endswith(name)
+
+
+def test_enrich_passes_the_vakken_json_on(output_dir, make_csv):
+    """cmd_enrich finds the Vakkenbestanden JSON and hands it to the decoder (#204)."""
+    name = _vakken_json(output_dir)
+    make_csv(output_dir / "EV2023_decoded.csv", ROWS)
+
+    with (
+        patch("eencijferho.core.decoder.load_dec_tables_from_metadata", return_value={}) as load,
+        patch(
+            "eencijferho.core.decoder.load_variable_mappings",
+            return_value={"geslacht": {"orig_name": "Geslacht", "mapping": {}}},
+        ),
+        patch(
+            "eencijferho.core.decoder.decode_fields", side_effect=lambda df, *a, **k: df,
+        ) as enrich,
+    ):
+        cmd_enrich(_args())
+
+    assert load.call_args.kwargs["vakken_metadata_json"].endswith(name)
+    assert enrich.call_args.kwargs["vakken_metadata_json"].endswith(name)
+
+
+def test_decode_without_vakken_json_passes_none(output_dir):
+    """Without a Vakkenbestanden JSON the decoder gets None, as before (#204)."""
+    with (
+        patch("eencijferho.core.decoder.load_dec_tables_from_metadata", return_value={}) as load,
+        patch("eencijferho.core.decoder.decode_fields_dec_only", side_effect=lambda df, *a, **k: df),
+    ):
+        cmd_decode(_args())
+
+    assert load.call_args.kwargs["vakken_metadata_json"] is None

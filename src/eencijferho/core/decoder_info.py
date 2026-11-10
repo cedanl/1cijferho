@@ -11,8 +11,41 @@ def _has_real_mappings(values: dict) -> bool:
     return any(str(k).strip() not in _PLACEHOLDER_KEYS for k in values)
 
 
+def _vakken_decode_fields(storage, dec_meta: dict, vakken_metadata_json_path: str | None) -> dict[str, list[str]]:
+    """Vakken fields with a decode rule -> label columns of their Dec table.
+
+    Returns an empty dict when no Vakken JSON is given. Read errors propagate
+    to the caller, which treats them like an unreadable Dec JSON.
+    """
+    if not vakken_metadata_json_path or not storage.exists(vakken_metadata_json_path):
+        return {}
+    from eencijferho.core.decoder import (
+        _parse_layout_rows,
+        build_dec_layouts,
+        parse_vakken_layout,
+    )
+    vakken_meta = storage.read_json(vakken_metadata_json_path)
+    dec_layouts = build_dec_layouts(dec_meta, vakken_meta)
+    result: dict[str, list[str]] = {}
+    for table in vakken_meta.get("tables", []):
+        content = table.get("content", [])
+        if not content or "opmerking" not in content[0].lower():
+            continue
+        for field in parse_vakken_layout(content):
+            if not field["dec_table"]:
+                continue
+            dec_rows = _parse_layout_rows(dec_layouts.get(field["dec_table"], []))
+            n_keys = 2 if field["composite"] else 1
+            result.setdefault(field["name"], [r["name"] for r in dec_rows[n_keys:]])
+    return result
+
+
 @with_storage
-def get_available_decode_columns(storage, dec_metadata_json_path: str) -> list[str]:
+def get_available_decode_columns(
+    storage,
+    dec_metadata_json_path: str,
+    vakken_metadata_json_path: str | None = None,
+) -> list[str]:
     """Return all column names that can be decoded via Dec_* lookup tables.
 
     Reads the decoding_variables from each table in the Dec bestandsbeschrijving
@@ -21,6 +54,8 @@ def get_available_decode_columns(storage, dec_metadata_json_path: str) -> list[s
 
     Args:
         dec_metadata_json_path: Path to Bestandsbeschrijving_Dec-bestanden*.json.
+        vakken_metadata_json_path: Optional path to the Vakkenbestanden JSON;
+            its fields with a decode rule (e.g. Vakcode) are added.
 
     Returns:
         Sorted list of unique column names available for Dec decoding.
@@ -34,18 +69,24 @@ def get_available_decode_columns(storage, dec_metadata_json_path: str) -> list[s
             for var in table.get("decoding_variables", []):
                 if var and var not in seen:
                     seen.add(var)
+        seen.update(_vakken_decode_fields(storage, meta, vakken_metadata_json_path))
         return sorted(seen)
     except Exception:
         return []
 
 
 @with_storage
-def get_decode_column_info(storage, dec_metadata_json_path: str) -> dict[str, list[str]]:
+def get_decode_column_info(
+    storage,
+    dec_metadata_json_path: str,
+    vakken_metadata_json_path: str | None = None,
+) -> dict[str, list[str]]:
     """Return what label columns each decodable column adds.
 
     Returns a dict mapping each decoding variable name to the list of label
     column names that the corresponding Dec table adds.  Used in the UI to
-    show users what they get when they select a column.
+    show users what they get when they select a column. With
+    ``vakken_metadata_json_path`` the Vakkenbestanden fields are included.
 
     Returns an empty dict when the file is absent or unreadable.
     """
@@ -69,6 +110,8 @@ def get_decode_column_info(storage, dec_metadata_json_path: str) -> dict[str, li
             for var in dec_vars:
                 if var:
                     result.setdefault(var, label_cols)
+        for var, label_cols in _vakken_decode_fields(storage, meta, vakken_metadata_json_path).items():
+            result.setdefault(var, label_cols)
         return result
     except Exception:
         return {}

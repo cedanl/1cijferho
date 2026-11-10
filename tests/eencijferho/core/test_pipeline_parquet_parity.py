@@ -126,3 +126,20 @@ def test_header_step_runs_before_parquet_step_between_progress_marks(tmp_path, s
         )
 
     assert events[events.index(75):] == [75, "snake_case", 90, "parquet", 100]
+
+
+def test_unsupported_files_end_up_in_the_returned_log(tmp_path, make_csv, stub_pipeline_steps):
+    """#204: files no description covers are named in the log the UI shows."""
+    reason = "Bestand niet ondersteund: geen bestandsbeschrijving in de invoer beschrijft dit bestand."
+    stub_pipeline_steps["converter"].run_conversions_from_matches.return_value = {
+        "unsupported_files": [{"input_file": "Croho.asc", "reason": reason}],
+    }
+    out = tmp_path / "out"
+    out.mkdir()
+    log, _ = run_turbo_convert_pipeline(
+        input_dir=str(tmp_path / "in"),
+        output_dir=str(out),
+        metadata_dir=str(tmp_path / "metadata"),
+        output_config=OutputConfig(variants=[], formats=[]),
+    )
+    assert f"Croho.asc: {reason}" in log

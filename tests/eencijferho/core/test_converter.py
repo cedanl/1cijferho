@@ -14,7 +14,10 @@ from eencijferho.core.converter import (
     _run_serial,
     _load_match_log,
     _convert_one,
+    _unsupported_reason,
+    run_conversions_from_matches,
 )
+from eencijferho.core.dec_layouts import INFERRED_LAYOUT_NOTE, SUPPLEMENTARY_LAYOUT_FILENAME
 
 
 @pytest.mark.parametrize(
@@ -318,3 +321,94 @@ def test_load_metadata_all_zero_width_field_is_not_a_gap(tmp_path):
     path = _write_layout(tmp_path / "layout.xlsx", ["A", "B", "C"], [3, 0, 2], starts=[1, 4, 4])
     _, positions = _load_metadata(str(path))
     assert positions == [(0, 3), (3, 3), (3, 5)]
+
+
+# ---------------------------------------------------------------------------
+# run_conversions_from_matches: files without a layout are reported (#204)
+# ---------------------------------------------------------------------------
+
+
+def _match_log(tmp_path, processed_files):
+    logs = tmp_path / "meta" / "logs"
+    logs.mkdir(parents=True)
+    path = logs / "(4)_file_matching_log_latest.json"
+    path.write_text(
+        json.dumps({"status": "completed", "processed_files": processed_files}), encoding="utf-8",
+    )
+    return path
+
+
+def _unmatched(name):
+    return {"input_file": name, "status": "unmatched", "matches": []}
+
+
+def test_unsupported_reason_says_niet_ondersteund():
+    reason = _unsupported_reason("Croho.asc", [])
+    assert "niet ondersteund" in reason
+    assert "geen bestandsbeschrijving" in reason
+
+
+def test_unsupported_reason_names_the_described_years():
+    layouts = [
+        "Bestandsbeschrijving_Dec-bestanden_12_Dec_postcodecijfers_2024.asc.xlsx",
+        "Bestandsbeschrijving_Dec-bestanden_13_Dec_postcodecijfers_2025.asc.xlsx",
+        "Bestandsbeschrijving_Dec-bestanden_1_Dec_landcode.asc.xlsx",
+    ]
+    reason = _unsupported_reason("Dec_postcodecijfers_2021.asc", layouts)
+    assert "niet ondersteund" in reason
+    assert "2024, 2025" in reason
+    assert "Dec_postcodecijfers" in reason
+
+
+def test_run_conversions_reports_unmatched_files_as_unsupported(tmp_path, capsys):
+    meta = tmp_path / "meta"
+    log = _match_log(tmp_path, [
+        _unmatched("Croho.asc"),
+        _unmatched("Dec_postcodecijfers_2021.asc"),
+    ])
+    (meta / "Bestandsbeschrijving_Dec-bestanden_12_Dec_postcodecijfers_2024.asc.xlsx").write_bytes(b"")
+
+    results = run_conversions_from_matches(
+        str(tmp_path / "in"), metadata_folder=str(meta),
+        match_log_file=str(log), output_folder=str(tmp_path / "out"),
+    )
+
+    unsupported = {u["input_file"]: u["reason"] for u in results["unsupported_files"]}
+    assert set(unsupported) == {"Croho.asc", "Dec_postcodecijfers_2021.asc"}
+    assert all("niet ondersteund" in r for r in unsupported.values())
+    assert "2024" in unsupported["Dec_postcodecijfers_2021.asc"]
+    # Not counted as converted, failed or skipped.
+    assert results["successful_conversions"] == 0
+    assert results["failed_conversions"] == 0
+    assert results["skipped_files"] == 0
+    assert results["unsupported_count"] == 2
+
+    written = json.loads((log.parent / "(5)_conversion_log_latest.json").read_text(encoding="utf-8"))
+    statuses = {d["input_file"]: d["status"] for d in written["details"]}
+    assert statuses == {"Croho.asc": "unsupported", "Dec_postcodecijfers_2021.asc": "unsupported"}
+    assert written["unsupported_files"] == results["unsupported_files"]
+    out = capsys.readouterr().out
+    assert "Niet ondersteund" in out
+    assert "Croho.asc" in out
+
+
+def test_run_conversions_marks_an_inferred_layout(tmp_path, fixed_width_file):
+    meta = tmp_path / "meta"
+    log = _match_log(tmp_path, [])
+    layout = meta / f"{SUPPLEMENTARY_LAYOUT_FILENAME}_1_{fixed_width_file.name}.xlsx"
+    pl.DataFrame({
+        "ID": [1, 2], "Naam": ["Naam", "Waarde"],
+        "Startpositie": [1, 11], "Aantal posities": [10, 5], "Opmerking": ["", ""],
+    }).write_excel(layout)
+    log.write_text(json.dumps({"status": "completed", "processed_files": [{
+        "input_file": fixed_width_file.name, "status": "matched",
+        "matches": [{"validation_file": layout.name, "validation_status": "success"}],
+    }]}), encoding="utf-8")
+
+    results = run_conversions_from_matches(
+        str(fixed_width_file.parent), metadata_folder=str(meta),
+        match_log_file=str(log), output_folder=str(tmp_path / "out"),
+    )
+    (detail,) = results["details"]
+    assert detail["status"] == "success"
+    assert detail["layout_note"] == INFERRED_LAYOUT_NOTE

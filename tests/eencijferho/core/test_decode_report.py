@@ -14,7 +14,7 @@ from eencijferho.core.decode_report import DecodeReport, is_personal_id_column
 from eencijferho.core.decoder import (
     _apply_single_dec_join,
     _apply_single_mapping,
-    _apply_vakken_patch,
+    _apply_vakken_layout,
     _apply_vakken_simple,
     decode_fields,
     decode_fields_dec_only,
@@ -120,11 +120,14 @@ def test_missing_dec_csv_is_listed_as_not_loaded(decode_setup):
 
 
 def test_vakken_dec_table_not_loaded_is_recorded():
-    meta = {
+    vakken_meta = {
         "tables": [
             {
                 "table_title": "Vakken",
-                "content": ["Naam  Opmerking", "Vak   te decoderen met Dec_vak.asc"],
+                "content": [
+                    "Naam   Startpositie   Aantal posities   Opmerking",
+                    "Vak    1              2                 te decoderen met Dec_vak.asc",
+                ],
             }
         ]
     }
@@ -132,7 +135,7 @@ def test_vakken_dec_table_not_loaded_is_recorded():
     report.begin_file("VAKHAVW_TEST.csv", ["Vak"])
     report.start_pass({"vak": "Vak"}, ["Vak"])
 
-    _apply_vakken_patch(pl.DataFrame({"vak": ["1"]}), meta, {}, report=report)
+    _apply_vakken_layout(pl.DataFrame({"vak": ["1"]}), vakken_meta, {}, {}, report=report)
 
     data = report.to_dict()
     assert data["dec_tables_not_loaded"][0]["table_title"] == "Dec_vak.asc"

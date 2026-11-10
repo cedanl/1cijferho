@@ -19,6 +19,10 @@ from eencijferho.core.decoder import (
     _code_width,
     _join_key,
     _key_width,
+    _dec_title,
+    find_vakken_metadata_json,
+    build_dec_layouts,
+    parse_vakken_layout,
     decode_fields_dec_only,
     decode_fields,
     load_dec_tables_from_metadata,
@@ -970,6 +974,283 @@ def test_apply_single_mapping_direct_match_does_not_log_int_fallback(capsys):
     result = _apply_single_mapping(df, "vopl", {"00411": "HBO", "07": "X", 411: "HBO"}, "vopl", "Vopl")
     assert result["vopl"].to_list() == ["HBO", "X"]
     assert "numerieke sleutel" not in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# Vakkenbestanden layout (#204): parse the DUO rows, decode all four fields
+# ---------------------------------------------------------------------------
+
+# The Vakgegevens table as DUO writes it (Bestandsbeschrijving_Vakkenbestanden.txt).
+VAKGEGEVENS_CONTENT = [
+    "                                             Startpositie  Aantal posities  Opmerking",
+    "Persoonsgebonden nummer                             1            12         BSN voorafgegaan door 000",
+    "Brinnummer VO-instelling                           13             4         te decoderen met Dec_brinnummer.asc",
+    "Vestigingsnummer VO-vestiging                      17             2         in combinatie met Brinnummer te decoderen met Dec_brinvestigingsnummer.asc",
+    "Vooropleiding oorspronkelijke code                 19             5         te decoderen met Dec_vooropl.asc",
+    "Diplomajaar                                        24             4         Diplomajaar = VO-examenjaar - 1",
+    "Gemiddeld cijfer cijferlijst                       28             3",
+    "Vakcode                                            31             4         te decoderen met Dec_vakcode.asc",
+]
+
+DEC_VAKCODE_CONTENT = [
+    "                                             Startpositie  Aantal posities",
+    "Vakcode                                             1             4",
+    "Omschrijving vak                                    5           112",
+]
+
+DEC_VOOROPL_CONTENT = [
+    "                                             Startpositie  Aantal posities",
+    "Code vooropleiding oorspr. code                     1             5",
+    "Onderwijssector                                     6             3",
+    "Omschrijving vooropleiding oorspr. code             9           180",
+]
+
+
+def _by_name(fields):
+    return {f["name"]: f for f in fields}
+
+
+def test_parse_vakken_layout_keeps_full_names_positions_and_widths():
+    fields = _by_name(parse_vakken_layout(VAKGEGEVENS_CONTENT))
+    expected = {
+        "Brinnummer VO-instelling": (13, 4),
+        "Vestigingsnummer VO-vestiging": (17, 2),
+        "Vooropleiding oorspronkelijke code": (19, 5),
+        "Vakcode": (31, 4),
+        "Gemiddeld cijfer cijferlijst": (28, 3),
+    }
+    for name, (start, width) in expected.items():
+        assert (fields[name]["start"], fields[name]["width"]) == (start, width)
+
+
+def test_parse_vakken_layout_reads_the_decode_rule_per_row():
+    fields = _by_name(parse_vakken_layout(VAKGEGEVENS_CONTENT))
+    assert fields["Brinnummer VO-instelling"]["dec_table"] == "Dec_brinnummer.asc"
+    assert fields["Brinnummer VO-instelling"]["composite"] is None
+    assert fields["Vestigingsnummer VO-vestiging"]["dec_table"] == "Dec_brinvestigingsnummer.asc"
+    # "in combinatie met Brinnummer" points to the full field name.
+    assert fields["Vestigingsnummer VO-vestiging"]["composite"] == "Brinnummer VO-instelling"
+    assert fields["Vooropleiding oorspronkelijke code"]["dec_table"] == "Dec_vooropl.asc"
+    assert fields["Vakcode"]["dec_table"] == "Dec_vakcode.asc"
+    # A remark without a decode rule is no rule.
+    assert fields["Diplomajaar"]["dec_table"] is None
+    assert fields["Persoonsgebonden nummer"]["dec_table"] is None
+
+
+def test_parse_vakken_layout_unresolvable_reference_is_reported(capsys):
+    content = VAKGEGEVENS_CONTENT[:1] + [
+        "Vestigingsnummer VO-vestiging                      17             2         in combinatie met Onbekend te decoderen met Dec_brinvestigingsnummer.asc",
+    ]
+    (field,) = parse_vakken_layout(content)
+    assert field["composite"] is None
+    assert "Onbekend" in capsys.readouterr().out
+
+
+def test_dec_title_from_vakken_table_title():
+    assert _dec_title("Decodeertabel vakcode (Dec_vakcode.asc)") == "Dec_vakcode.asc"
+    assert _dec_title("Dec_ho-inst.asc") == "Dec_ho-inst.asc"
+    assert _dec_title("Vakgegevens") is None
+
+
+def test_build_dec_layouts_combines_dec_vakken_and_inferred_layouts():
+    dec_meta = {"tables": [{"table_title": "Dec_vooropl.asc", "content": DEC_VOOROPL_CONTENT}]}
+    vakken_meta = {"tables": [
+        {"table_title": "Decodeertabel vakcode (Dec_vakcode.asc)", "content": DEC_VAKCODE_CONTENT},
+        {"table_title": "Vakgegevens", "content": VAKGEGEVENS_CONTENT},
+    ]}
+    layouts = build_dec_layouts(dec_meta, vakken_meta)
+    assert set(layouts) == {
+        "Dec_vooropl.asc", "Dec_vakcode.asc",
+        "Dec_brinnummer.asc", "Dec_brinvestigingsnummer.asc",
+    }
+
+
+@pytest.fixture
+def vakken_setup(tmp_path):
+    """Dec + Vakken JSON as the extract step writes them, plus small Dec CSVs.
+
+    Synthetic codes only. Two schools share vestigingsnummer 01, so the
+    composite join must use both keys.
+    """
+    dec_json = tmp_path / "Bestandsbeschrijving_Dec-bestanden.json"
+    dec_json.write_text(json.dumps({"tables": [
+        {"table_number": 1, "table_title": "Dec_vooropl.asc",
+         "content": DEC_VOOROPL_CONTENT, "decoding_variables": ["Hoogste vooropleiding"]},
+    ]}), encoding="utf-8")
+    vakken_json = tmp_path / "Bestandsbeschrijving_Vakkenbestanden.json"
+    vakken_json.write_text(json.dumps({"tables": [
+        {"table_number": 1, "table_title": "Decodeertabel vakcode (Dec_vakcode.asc)",
+         "content": DEC_VAKCODE_CONTENT, "decoding_variables": []},
+        {"table_number": 2, "table_title": "Vakgegevens",
+         "content": VAKGEGEVENS_CONTENT, "decoding_variables": []},
+    ]}), encoding="utf-8")
+
+    pl.DataFrame({
+        "Code vooropleiding oorspr. code": ["V0652", "00411"],
+        "Onderwijssector": ["VO", "HO"],
+        "Omschrijving vooropleiding oorspr. code": ["vwo", "propedeuse"],
+    }).write_csv(tmp_path / "Dec_vooropl.csv", separator=";")
+    pl.DataFrame({
+        "Vakcode": ["0012", "0099"],
+        "Omschrijving vak": ["Wiskunde A", "Engels"],
+    }).write_csv(tmp_path / "Dec_vakcode.csv", separator=";")
+    pl.DataFrame({
+        "Brinnummer": ["00AA", "01BB"],
+        "Naam": ["School Een", "School Twee"],
+    }).write_csv(tmp_path / "Dec_brinnummer.csv", separator=";")
+    pl.DataFrame({
+        "Brinnummer": ["00AA", "01BB"],
+        "Vestigingsnummer": ["01", "01"],
+        "Naam": ["Vestiging Een", "Vestiging Twee"],
+    }).write_csv(tmp_path / "Dec_brinvestigingsnummer.csv", separator=";")
+    return str(dec_json), str(vakken_json), str(tmp_path)
+
+
+VAKHAVW_FRAME = pl.DataFrame({
+    "Brinnummer VO-instelling": ["00AA", "01BB", "00AA"],
+    "Vestigingsnummer VO-vestiging": ["01", "01", "07"],
+    "Vooropleiding oorspronkelijke code": ["V0652", "00411", "V0652"],
+    "Vakcode": ["0012", "0099", "0012"],
+})
+
+
+def test_load_dec_tables_loads_tables_named_by_vakken_layout(vakken_setup):
+    dec_json, vakken_json, dec_dir = vakken_setup
+    without = load_dec_tables_from_metadata(dec_json, dec_dir)
+    assert set(without) == {"Dec_vooropl.asc"}
+    tables = load_dec_tables_from_metadata(dec_json, dec_dir, vakken_metadata_json=vakken_json)
+    assert set(tables) == {
+        "Dec_vooropl.asc", "Dec_vakcode.asc",
+        "Dec_brinnummer.asc", "Dec_brinvestigingsnummer.asc",
+    }
+    assert tables["Dec_brinnummer.asc"]["Brinnummer"].to_list() == ["00AA", "01BB"]
+
+
+def test_decode_vakken_layout_adds_labels_for_all_four_fields(vakken_setup):
+    dec_json, vakken_json, dec_dir = vakken_setup
+    dec_tables = load_dec_tables_from_metadata(dec_json, dec_dir, vakken_metadata_json=vakken_json)
+    result = decode_fields_dec_only(
+        VAKHAVW_FRAME, dec_json, dec_tables, vakken_metadata_json=vakken_json,
+    )
+    assert result["vakcode__omschrijving_vak"].to_list() == ["Wiskunde A", "Engels", "Wiskunde A"]
+    assert result["brinnummer_vo_instelling__naam"].to_list() == ["School Een", "School Twee", "School Een"]
+    assert result["vooropleiding_oorspronkelijke_code__onderwijssector"].to_list() == ["VO", "HO", "VO"]
+    assert result[
+        "vooropleiding_oorspronkelijke_code__omschrijving_vooropleiding_oorspr_code"
+    ].to_list() == ["vwo", "propedeuse", "vwo"]
+    # Composite: Brinnummer resolves to the brinnummer_vo_instelling column, so
+    # vestiging 01 gets the label of its own school; 00AA+07 does not exist.
+    assert result["vestigingsnummer_vo_vestiging__naam"].to_list() == [
+        "Vestiging Een", "Vestiging Twee", None,
+    ]
+    # The key columns of the Dec tables are not copied as labels.
+    assert "vestigingsnummer_vo_vestiging__brinnummer" not in result.columns
+    assert "vestigingsnummer_vo_vestiging__vestigingsnummer" not in result.columns
+
+
+def test_decode_vakken_layout_keeps_data_columns_raw(vakken_setup):
+    dec_json, vakken_json, dec_dir = vakken_setup
+    dec_tables = load_dec_tables_from_metadata(dec_json, dec_dir, vakken_metadata_json=vakken_json)
+    result = decode_fields(
+        VAKHAVW_FRAME, dec_json, dec_tables,
+        variable_metadata_path=str(Path(dec_dir) / "geen.json"),
+        vakken_metadata_json=vakken_json,
+    )
+    for col in VAKHAVW_FRAME.columns:
+        assert result[col].to_list() == VAKHAVW_FRAME[col].to_list()
+    assert not [c for c in result.columns if c.startswith("__")]
+
+
+def test_decode_without_vakken_json_behaves_as_before(vakken_setup):
+    dec_json, vakken_json, dec_dir = vakken_setup
+    dec_tables = load_dec_tables_from_metadata(dec_json, dec_dir, vakken_metadata_json=vakken_json)
+    result = decode_fields_dec_only(VAKHAVW_FRAME, dec_json, dec_tables)
+    assert result.columns == VAKHAVW_FRAME.columns
+
+
+def test_decode_vakken_layout_leaves_a_non_vakken_frame_alone(vakken_setup, capsys):
+    dec_json, vakken_json, dec_dir = vakken_setup
+    dec_tables = load_dec_tables_from_metadata(dec_json, dec_dir, vakken_metadata_json=vakken_json)
+    ev = pl.DataFrame({"Burgerservicenummer": ["000000012"], "Inschrijvingsjaar": ["2024"]})
+    result = decode_fields_dec_only(ev, dec_json, dec_tables, vakken_metadata_json=vakken_json)
+    assert result.columns == ev.columns
+    assert "[vakken]" not in capsys.readouterr().out
+
+
+def test_decode_vakken_layout_respects_decode_columns(vakken_setup):
+    dec_json, vakken_json, dec_dir = vakken_setup
+    dec_tables = load_dec_tables_from_metadata(dec_json, dec_dir, vakken_metadata_json=vakken_json)
+    result = decode_fields_dec_only(
+        VAKHAVW_FRAME, dec_json, dec_tables,
+        decode_columns=["Vakcode"], vakken_metadata_json=vakken_json,
+    )
+    added = [c for c in result.columns if c not in VAKHAVW_FRAME.columns]
+    assert added == ["vakcode__omschrijving_vak"]
+
+
+def test_decode_vakken_missing_dec_table_is_logged_not_raised(vakken_setup, capsys):
+    dec_json, vakken_json, dec_dir = vakken_setup
+    dec_tables = load_dec_tables_from_metadata(dec_json, dec_dir, vakken_metadata_json=vakken_json)
+    del dec_tables["Dec_brinnummer.asc"]
+    result = decode_fields_dec_only(VAKHAVW_FRAME, dec_json, dec_tables, vakken_metadata_json=vakken_json)
+    assert "brinnummer_vo_instelling__naam" not in result.columns
+    assert "vakcode__omschrijving_vak" in result.columns
+    assert "Dec_brinnummer.asc" in capsys.readouterr().out
+
+
+def test_get_available_decode_columns_includes_vakken_fields(vakken_setup):
+    dec_json, vakken_json, _ = vakken_setup
+    assert "Vakcode" not in get_available_decode_columns(dec_json)
+    result = get_available_decode_columns(dec_json, vakken_json)
+    for name in (
+        "Brinnummer VO-instelling", "Vestigingsnummer VO-vestiging",
+        "Vooropleiding oorspronkelijke code", "Vakcode",
+    ):
+        assert name in result
+    assert "Diplomajaar" not in result
+
+
+def test_get_decode_column_info_includes_vakken_labels(vakken_setup):
+    dec_json, vakken_json, _ = vakken_setup
+    info = get_decode_column_info(dec_json, vakken_json)
+    assert info["Vakcode"] == ["Omschrijving vak"]
+    # Composite: both key columns are left out of the labels.
+    assert "Brinnummer" not in info["Vestigingsnummer VO-vestiging"]
+    assert "Vestigingsnummer" not in info["Vestigingsnummer VO-vestiging"]
+    assert "Naam" in info["Vestigingsnummer VO-vestiging"]
+
+
+def test_apply_vakken_composite_pairs_keys_by_name():
+    """The decoded field is the second key; its partner the first."""
+    content = [
+        "                    Startpositie  Aantal posities",
+        "Brinnummer          1             4      }",
+        "Vestigingsnummer    5             2      }",
+        "Naam                7            30",
+    ]
+    data = pl.DataFrame({
+        "brinnummer_vo_instelling": ["00AA", "01BB"],
+        "vestigingsnummer_vo_vestiging": ["1", "01"],
+    })
+    dec = pl.DataFrame({
+        "brinnummer": ["00AA", "01BB"],
+        "vestigingsnummer": ["01", "01"],
+        "naam": ["Een", "Twee"],
+    })
+    result = _apply_vakken_composite(
+        data, dec, "vestigingsnummer_vo_vestiging", "Brinnummer VO-instelling",
+        "brinnummer", content, "Dec_brinvestigingsnummer.asc",
+    )
+    assert result["vestigingsnummer_vo_vestiging__naam"].to_list() == ["Een", "Twee"]
+    assert result["vestigingsnummer_vo_vestiging"].to_list() == ["1", "01"]
+
+
+def test_find_vakken_metadata_json(tmp_path):
+    assert find_vakken_metadata_json(str(tmp_path)) is None
+    (tmp_path / "Bestandsbeschrijving_Dec-bestanden.json").write_text("{}")
+    target = tmp_path / "Bestandsbeschrijving_Vakkenbestanden.json"
+    target.write_text("{}")
+    assert find_vakken_metadata_json(str(tmp_path)) == str(target)
 
 
 # ---------------------------------------------------------------------------
