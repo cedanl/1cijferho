@@ -1,6 +1,10 @@
+import logging
 import re as _re
 
 from eencijferho.io.decorators import with_storage
+from eencijferho.utils.run_log import log_failed
+
+logger = logging.getLogger(__name__)
 
 
 _PLACEHOLDER_KEYS = frozenset({"[leeg]", "[gevuld]"})
@@ -71,7 +75,11 @@ def get_available_decode_columns(
                     seen.add(var)
         seen.update(_vakken_decode_fields(storage, meta, vakken_metadata_json_path))
         return sorted(seen)
-    except Exception:
+    except Exception as e:  # catch-all: unreadable or malformed metadata; the UI shows no choices
+        log_failed(
+            logger, "decode_columns", e, file=dec_metadata_json_path, show_message=True,
+            detail=f"[decoder_info] {dec_metadata_json_path} niet leesbaar, geen keuzes",
+        )
         return []
 
 
@@ -113,7 +121,11 @@ def get_decode_column_info(
         for var, label_cols in _vakken_decode_fields(storage, meta, vakken_metadata_json_path).items():
             result.setdefault(var, label_cols)
         return result
-    except Exception:
+    except Exception as e:  # catch-all: unreadable or malformed metadata; the UI shows no choices
+        log_failed(
+            logger, "decode_column_info", e, file=dec_metadata_json_path, show_message=True,
+            detail=f"[decoder_info] {dec_metadata_json_path} niet leesbaar, geen keuzes",
+        )
         return {}
 
 
@@ -143,7 +155,11 @@ def get_enrich_variable_info(storage, variable_metadata_json_path: str) -> dict[
             sample = {str(k): str(v) for k, v in real_items[:3]}
             result[name] = sample
         return result
-    except Exception:
+    except Exception as e:  # catch-all: unreadable or malformed metadata; the UI shows no choices
+        log_failed(
+            logger, "enrich_variable_info", e, file=variable_metadata_json_path, show_message=True,
+            detail=f"[decoder_info] {variable_metadata_json_path} niet leesbaar, geen keuzes",
+        )
         return {}
 
 
@@ -171,5 +187,9 @@ def get_available_enrich_variables(storage, variable_metadata_json_path: str) ->
             for item in items
             if item.get("name") and _has_real_mappings(item.get("values") or {})
         )
-    except Exception:
+    except Exception as e:  # catch-all: unreadable or malformed metadata; the UI shows no choices
+        log_failed(
+            logger, "enrich_variables", e, file=variable_metadata_json_path, show_message=True,
+            detail=f"[decoder_info] {variable_metadata_json_path} niet leesbaar, geen keuzes",
+        )
         return []
