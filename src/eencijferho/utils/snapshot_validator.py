@@ -38,6 +38,7 @@ so no row content ends up in a snapshot or a CI log.
 import hashlib
 import io
 import json
+import logging
 import os
 from datetime import datetime
 
@@ -46,8 +47,10 @@ from rich.console import Console
 from rich.table import Table
 
 from eencijferho.io.decorators import with_storage
+from eencijferho.utils.run_log import log_failed
 
 _console = Console()
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -116,13 +119,15 @@ def _scan_file(storage, filepath: str) -> dict:
             entry["column_count"] = len(df.columns)
             entry["columns"] = sorted(df.columns)
             entry["dtypes"] = {col: str(dt) for col, dt in zip(df.columns, df.dtypes)}
-        except Exception as exc:
+        except Exception as exc:  # catch-all: an unreadable file is a read_error, which fails validation
+            log_failed(logger, "snapshot_scan", exc, file=fname)
             entry = {"read_error": _read_error(exc)}
         return entry
 
     try:
         raw = storage.read_bytes(filepath)
-    except Exception as exc:
+    except Exception as exc:  # catch-all: an unreadable file is a read_error, which fails validation
+        log_failed(logger, "snapshot_scan", exc, file=fname)
         entry["read_error"] = _read_error(exc)
         return entry
 
@@ -137,14 +142,15 @@ def _scan_file(storage, filepath: str) -> dict:
     try:
         try:
             df = _read_csv(data)
-        except Exception:
+        except pl.exceptions.PolarsError:
             # The converter does not escape quotes in values (yet), so a Dec table
             # value like '"de Bontekoe" NTC-VO' is only readable without quote parsing.
             df = _read_csv(data, quote_char=None)
         entry["row_count"] = len(df)
         entry["column_count"] = len(df.columns)
         entry["columns"] = sorted(df.columns)
-    except Exception as exc:
+    except Exception as exc:  # catch-all: an unreadable file is a read_error, which fails validation
+        log_failed(logger, "snapshot_scan", exc, file=fname)
         entry["read_error"] = _read_error(exc)
 
     return entry

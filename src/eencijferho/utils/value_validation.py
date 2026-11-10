@@ -9,6 +9,7 @@ defined in the bestandsbeschrijving (variable_metadata.json).
 """
 
 import json
+import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,9 @@ from typing import Any
 import polars as pl
 
 from eencijferho.utils.converter_headers import normalize_name
+from eencijferho.utils.run_log import log_failed
+
+logger = logging.getLogger(__name__)
 
 
 def _build_lookup(variables: list[dict[str, Any]]) -> dict[str, set]:
@@ -109,7 +113,11 @@ def validate_column_values(
     try:
         with open(variable_metadata_path, encoding="utf-8") as f:
             variables = json.load(f)
-    except Exception as e:
+    except (OSError, ValueError) as e:  # ValueError: JSONDecodeError, UnicodeDecodeError
+        log_failed(
+            logger, "value_validation", e, file=str(variable_metadata_path), show_message=True,
+            detail=f"Kolomwaarden validatie: {Path(variable_metadata_path).name} niet leesbaar",
+        )
         results["load_error"] = str(e)
         results["total_issues"] += 1
         return False, results
@@ -121,7 +129,12 @@ def validate_column_values(
 
     try:
         df = pl.read_csv(data_file_path, separator=";", encoding="utf-8", infer_schema_length=0)
-    except Exception as e:
+    except (OSError, ValueError, pl.exceptions.PolarsError) as e:
+        # A CSV read error can quote cell values: the run log gets the type only.
+        log_failed(
+            logger, "value_validation", e, file=str(data_file_path),
+            detail=f"Kolomwaarden validatie: {Path(data_file_path).name} niet leesbaar",
+        )
         results["load_error"] = str(e)
         results["total_issues"] += 1
         return False, results

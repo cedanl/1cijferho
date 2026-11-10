@@ -810,13 +810,13 @@ def test_dec_join_duplicate_codes_after_padding_keep_row_count_and_labels(capsys
     assert "Dubbele codes" in capsys.readouterr().out
 
 
-def test_dec_join_leaves_no_temporary_column_when_join_raises(capsys):
+def test_dec_join_leaves_no_temporary_column_when_join_raises(caplog):
     data = pl.DataFrame({"code": ["00411"]})
     dec_without_code_col = pl.DataFrame({"other": ["411"], "naam": ["HBO"]})
     result = _apply_single_dec_join(
         data, dec_without_code_col, "code", "code", is_composite=False, code_col2_norm=None,
     )
-    assert "Fout bij Dec-join" in capsys.readouterr().out
+    assert "Fout bij Dec-join" in caplog.text
     assert result.columns == ["code"]
     assert result["code"].to_list() == ["00411"]
 
@@ -994,7 +994,7 @@ def test_dec_vestnr_ho_compleet_respects_decode_columns():
     assert chosen[f"{VEST_HO_NORM}__gemeentenaam_volgens_rio"].to_list() == ["Aa"]
 
 
-def test_composite_dec_join_refuses_duplicate_pair_keys(capsys):
+def test_composite_dec_join_refuses_duplicate_pair_keys(caplog):
     """9XA1/1 and 9XA1/01 are one key at width 2: no join, an error instead."""
     rows = VESTNR_ROWS + [("9XA1", "1", "Dd")]
     df = pl.DataFrame({INST_HO: ["9XB2", "9XA1"], VEST_HO: ["01", "01"]})
@@ -1005,7 +1005,7 @@ def test_composite_dec_join_refuses_duplicate_pair_keys(capsys):
     result = _apply_dec_tables(norm_df, _vestnr_meta(), {VESTNR_TITLE: _vestnr_dec(rows)}, report=report)
 
     assert result.equals(norm_df)
-    out = capsys.readouterr().out
+    out = caplog.text
     assert VESTNR_TITLE in out
     assert "9XA1|01" in out
     summary = report.summary()
@@ -1016,7 +1016,7 @@ def test_composite_dec_join_refuses_duplicate_pair_keys(capsys):
     assert {"column": VEST_HO, "reason": "join_error"} in detail["columns_not_decoded"]
 
 
-def test_composite_dec_join_via_dec_vest_ho_refuses_duplicate_pair_keys(capsys):
+def test_composite_dec_join_via_dec_vest_ho_refuses_duplicate_pair_keys(caplog):
     data = pl.DataFrame({"instellingscode": ["02UC"], "vestigingsnummer": ["01"]})
     dec = pl.DataFrame({
         "instellingscode": ["02UC", "2UC"], "vestigingsnummer": ["01", "1"], "naam": ["A", "B"],
@@ -1027,7 +1027,7 @@ def test_composite_dec_join_via_dec_vest_ho_refuses_duplicate_pair_keys(capsys):
         code_width=4, code2_width=2, dec_table_title="Dec_vest_ho.asc",
     )
     assert result.equals(data)
-    out = capsys.readouterr().out
+    out = caplog.text
     assert "Dec_vest_ho.asc" in out and "02UC|01" in out
 
 
@@ -1208,7 +1208,7 @@ def test_apply_vakken_composite_keeps_data_columns_and_fills_labels():
     assert not [c for c in result.columns if c.startswith("__")]
 
 
-def test_apply_vakken_composite_refuses_duplicate_pair_keys(capsys):
+def test_apply_vakken_composite_refuses_duplicate_pair_keys(caplog):
     content = [
         "                    Startpositie  Aantal posities",
         "Brinnummer          1             4      }",
@@ -1228,7 +1228,7 @@ def test_apply_vakken_composite_refuses_duplicate_pair_keys(capsys):
         "Dec_brinvestigingsnummer.asc", report=report,
     )
     assert result.equals(data)
-    out = capsys.readouterr().out
+    out = caplog.text
     assert "Dec_brinvestigingsnummer.asc" in out and "02UC|01" in out
     assert report.summary()["errors"] == 1
 

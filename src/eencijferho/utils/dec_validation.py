@@ -28,6 +28,7 @@ Two mapping types are supported:
 """
 
 import json
+import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -37,6 +38,9 @@ import polars as pl
 from eencijferho.io.backends.disk import DiskBackend
 from eencijferho.io.text_encoding import read_description_text
 from eencijferho.utils.converter_headers import normalize_name
+from eencijferho.utils.run_log import log_failed
+
+logger = logging.getLogger(__name__)
 
 
 def parse_dec_mapping(dec_txt_path: str | Path) -> dict[str, dict[str, Any]]:
@@ -171,7 +175,12 @@ def validate_with_dec_files(
 
     try:
         df = pl.read_csv(main_csv_path, separator=";", encoding="utf-8", infer_schema_length=0)
-    except Exception as e:
+    except (OSError, ValueError, pl.exceptions.PolarsError) as e:
+        # A CSV read error can quote cell values: the run log gets the type only.
+        log_failed(
+            logger, "dec_validation", e, file=str(main_csv_path),
+            detail=f"DEC validatie: {Path(main_csv_path).name} niet leesbaar",
+        )
         results["load_error"] = str(e)
         results["total_issues"] += 1
         return False, results
@@ -192,7 +201,14 @@ def validate_with_dec_files(
 
         try:
             dec_df = pl.read_csv(dec_csv, separator=";", encoding="utf-8", infer_schema_length=0)
-        except Exception:
+        except (OSError, ValueError, pl.exceptions.PolarsError) as e:
+            log_failed(
+                logger, "dec_validation", e, file=dec_csv.name,
+                detail=(
+                    f"DEC validatie: {dec_csv.name} niet leesbaar, "
+                    f"kolommen van {Path(main_csv_path).name} via deze tabel niet gecontroleerd"
+                ),
+            )
             continue
 
         if spec["type"] == "simple":
