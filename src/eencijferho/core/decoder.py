@@ -100,7 +100,8 @@ def load_dec_tables_from_metadata(
         naming_func: Optional column name normalizer.
 
     Returns:
-        Mapping of table titles to DataFrames. Missing files are skipped.
+        Mapping of table titles to DataFrames with all columns as strings.
+        Missing files are skipped.
 
     Example:
         >>> dec_tables = load_dec_tables_from_metadata(
@@ -115,22 +116,15 @@ def load_dec_tables_from_metadata(
         dec_file = table["table_title"].replace(".asc", ".csv")
         dec_path = os.path.join(dec_output_dir, dec_file)
 
-        schema_overrides: dict[str, Any] = {}
-        content = table.get("content", [])
-        if len(content) >= 2:
-            code_col = content[1].split("  ")[0].strip()
-            schema_overrides[code_col] = pl.String
-            if len(content) > 2:
-                code_col2 = content[2].split("  ")[0].strip()
-                schema_overrides[code_col2] = pl.String
-
+        # Read every column as a string: Dec labels can be codes too (an
+        # ISCED rubriek such as 031103) and must keep their leading zeros.
         try:
-            df = storage.read_dataframe(dec_path, schema_overrides=schema_overrides)
+            df = storage.read_dataframe(dec_path, infer_schema_length=0)
             dec_tables[table["table_title"]] = df
         except Exception:
             try:
                 df = storage.read_dataframe(
-                    dec_path, schema_overrides=schema_overrides, quote_char=None,
+                    dec_path, infer_schema_length=0, quote_char=None,
                 )
                 dec_tables[table["table_title"]] = df
             except Exception as e:

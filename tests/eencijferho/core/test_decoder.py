@@ -35,6 +35,7 @@ from eencijferho.core.decoder import (
     _apply_vakken_composite,
     _code_width,
     _join_key,
+    _key_width,
     decode_fields_dec_only,
     decode_fields,
     load_dec_tables_from_metadata,
@@ -698,6 +699,24 @@ def test_code_width_reads_aantal_posities(row, expected):
     assert _code_width(row) == expected
 
 
+def test_key_width_metadata_width_wins_over_longest_code():
+    data, dec = pl.Series(["001"]), pl.Series(["1"])
+    assert _key_width(2, dec, data) == 2
+    assert _key_width(None, dec, data) == 3
+    assert _key_width(None, pl.Series([None, ""], dtype=pl.Utf8)) is None
+
+
+def test_join_on_narrower_metadata_width_does_not_fall_back_to_longest_code():
+    """A code wider than its field is out of spec: the metadata width decides."""
+    data = pl.DataFrame({"code": ["001", "01"]})
+    dec = pl.DataFrame({"code": ["1"], "naam": ["Een"]})
+    result = _apply_single_dec_join(
+        data, dec, "code", "code", is_composite=False, code_col2_norm=None, code_width=2,
+    )
+    assert result["code"].to_list() == ["001", "01"]
+    assert result["code__naam"].to_list() == [None, "Een"]
+
+
 # ---------------------------------------------------------------------------
 # Sentinel rows and temporary keys
 # ---------------------------------------------------------------------------
@@ -848,6 +867,59 @@ def test_decode_fields_dec_only_keeps_data_columns_byte_identical(padded_dec_met
     assert result["nationaliteit__naam_land"].to_list() == ["Nederland", "Onbekend", None]
     assert result["instelling__naam"].to_list() == ["Inst UC", "Inst DZ", "Inst UC"]
     assert not [c for c in result.columns if c.startswith("__")]
+
+
+@pytest.fixture
+def isced_dec_dir(tmp_path):
+    """Dec_ho_ISCED-like table whose label columns hold codes with leading zeros."""
+    meta = {
+        "tables": [
+            {
+                "table_title": "Dec_ho_ISCED.asc",
+                "decoding_variables": ["Opleidingscode"],
+                "content": [
+                    "                         Startpositie  Aantal posities",
+                    "Opleidingscode           1             5",
+                    "ISCEDF2013-detailgroep   6             4",
+                    "ISCEDF2013-rubriek      10             6",
+                    "Omschrijving            16            40",
+                ],
+            }
+        ]
+    }
+    meta_path = tmp_path / "Bestandsbeschrijving_Dec-bestanden.json"
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+    (tmp_path / "Dec_ho_ISCED.csv").write_text(
+        "Opleidingscode;ISCEDF2013-detailgroep;ISCEDF2013-rubriek;Omschrijving\n"
+        "00123;0311;031103;Economie\n"
+        "34567;0414;041401;Bedrijfskunde\n",
+        encoding="utf-8",
+    )
+    return str(meta_path), str(tmp_path)
+
+
+def test_load_dec_tables_from_metadata_reads_all_columns_as_strings(isced_dec_dir):
+    meta_path, dec_dir = isced_dec_dir
+    dec = load_dec_tables_from_metadata(meta_path, dec_dir)["Dec_ho_ISCED.asc"]
+    assert set(dec.dtypes) == {pl.String}
+    assert dec["Opleidingscode"].to_list() == ["00123", "34567"]
+    assert dec["ISCEDF2013-detailgroep"].to_list() == ["0311", "0414"]
+    assert dec["ISCEDF2013-rubriek"].to_list() == ["031103", "041401"]
+
+
+def test_dec_label_that_is_a_code_keeps_leading_zero_in_output(isced_dec_dir):
+    """The label comes from the Dec table, not from a data column of the same name."""
+    meta_path, dec_dir = isced_dec_dir
+    dec_tables = load_dec_tables_from_metadata(meta_path, dec_dir)
+    df = pl.DataFrame({
+        "Opleidingscode": ["00123", "34567", "99999"],
+        "ISCEDF2013-rubriek": ["999999", "999999", "999999"],
+    })
+    result = decode_fields_dec_only(df, meta_path, dec_tables)
+    assert result["Opleidingscode"].to_list() == ["00123", "34567", "99999"]
+    assert result["ISCEDF2013-rubriek"].to_list() == ["999999"] * 3
+    assert result["opleidingscode__iscedf2013_rubriek"].to_list() == ["031103", "041401", None]
+    assert result["opleidingscode__omschrijving"].to_list() == ["Economie", "Bedrijfskunde", None]
 
 
 # ---------------------------------------------------------------------------
