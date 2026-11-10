@@ -227,7 +227,7 @@ def cmd_decode(storage, args: argparse.Namespace) -> None:
             and not fname.endswith(DECODED_SUFFIX)
         ):
             continue
-        df = storage.read_dataframe(filepath, format="csv")
+        df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
         decoded_df = decode_fields_dec_only(df, dec_metadata_json, dec_tables)
         out_path = filepath.replace(".csv", DECODED_SUFFIX)
         storage.write_text(decoded_df.write_csv(separator=";"), out_path)
@@ -267,13 +267,13 @@ def cmd_enrich(storage, args: argparse.Namespace) -> None:
         base = filepath.replace(DECODED_SUFFIX, ".csv")
         if not storage.exists(base):
             continue
-        main_df = storage.read_dataframe(base, format="csv")
+        main_df = storage.read_dataframe(base, format="csv", infer_schema_length=0)
         normalized_cols = {normalize_name(clean_header_name(c)) for c in main_df.columns}
         if not (var_maps and normalized_cols & set(var_maps.keys())):
             print(f"[eencijferho] Overgeslagen (geen mappings): {fname}")
             skipped += 1
             continue
-        decoded_df = storage.read_dataframe(filepath, format="csv")
+        decoded_df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
         enriched_df = decode_fields(
             main_df, dec_metadata_json, dec_tables,
             variable_metadata_path=variable_metadata_json,

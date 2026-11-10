@@ -140,3 +140,5 @@ data/02-output/
 ├── EV_2023_enriched.csv
 └── EV_2023.parquet
 ```
+
+Het Parquet-bestand bevat dezelfde data als de CSV waar het uit voortkomt: dezelfde kolomnamen in dezelfde volgorde (standaard snake_case, met `--skip-snake-case` de originele DUO-namen) en alle kolommen als tekst (`String`), zodat nummers zoals het BSN hun voorloopnullen houden.
