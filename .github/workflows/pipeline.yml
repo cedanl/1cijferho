@@ -50,4 +50,5 @@ jobs:
           uv run python -m eencijferho.utils.snapshot_validator \
             --output data/test-output/${{ matrix.config.name }} \
             --snapshot snapshots/${{ matrix.config.name }}/snapshot.json \
-            --validate
+            --validate \
+            --strict-files

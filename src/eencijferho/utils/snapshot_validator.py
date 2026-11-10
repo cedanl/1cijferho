@@ -6,14 +6,29 @@ future runs against it. Intended for use with fixed DEMO input data
 where the pipeline is fully deterministic.
 
 Snapshot contents per file:
-  - file_hash      : SHA256 of raw file bytes (version 2 only; catches any change)
+  - file_hash      : SHA256 of the file bytes (version 2; not for Parquet). For CSV
+                     the bytes are normalised from CRLF to LF and then both hashed
+                     and parsed for the counts and column names, so a checkout or
+                     editor that rewrites line endings does not count as a change.
+                     The pipeline itself only writes LF.
+  - data_hash      : SHA256 over schema and cell values (version 2; Parquet only)
   - row_count      : number of data rows (CSV/Parquet)
   - column_count   : number of columns
   - columns        : sorted list of column names
   - dtypes         : Polars dtype per column (Parquet only)
 
-``generate_snapshot`` writes ``snapshot_version: 2``. A legacy snapshot without
-``snapshot_version`` (version 1) has no ``file_hash``; it is still accepted, but
+Parquet is not hashed on its raw bytes: the footer records the writer and
+library version, and compression or row-group layout may change between
+Polars releases and platforms without any change in the data. ``data_hash``
+covers the column names and dtypes in order plus every cell value, through a
+length-prefixed serialization in which null and the empty string differ.
+Values are hashed through their String cast; the pipeline writes String-only
+Parquet, so no float formatting is involved.
+
+``generate_snapshot`` writes ``snapshot_version: 2``. In a version 2 snapshot
+every CSV entry must carry ``file_hash`` and every Parquet entry ``data_hash``;
+a missing hash fails validation. A legacy snapshot without
+``snapshot_version`` (version 1) has no hashes; it is still accepted, but
 only the schema is checked and every file gets a warning.
 
 An unreadable file is recorded as ``read_error`` with only the exception type,
@@ -21,10 +36,12 @@ so no row content ends up in a snapshot or a CI log.
 """
 
 import hashlib
+import io
 import json
 import os
 from datetime import datetime
 
+import polars as pl
 from rich.console import Console
 from rich.table import Table
 
@@ -42,42 +59,93 @@ def _read_error(exc: Exception) -> str:
     return f"{type(exc).__name__} bij het lezen"
 
 
+def _update_framed(digest, data: bytes) -> None:
+    """Feed *data* into *digest* with a length prefix, so field boundaries are unambiguous."""
+    digest.update(len(data).to_bytes(8, "big"))
+    digest.update(data)
+
+
+def _normalise_csv(raw: bytes) -> bytes:
+    """CSV bytes with CRLF normalised to LF."""
+    return raw.replace(b"\r\n", b"\n")
+
+
+def _read_csv(data: bytes, **kwargs) -> pl.DataFrame:
+    """Parse ``;``-separated CSV bytes with every column as String."""
+    return pl.read_csv(io.BytesIO(data), separator=";", infer_schema_length=0, **kwargs)
+
+
+def _data_hash(df: pl.DataFrame) -> str:
+    """SHA256 over schema and cell values, independent of the Parquet file layout.
+
+    Per column, in order: the null mask, the byte length of each value and the
+    concatenated values, each length-prefixed. Null and "" therefore differ
+    (mask), and so do ``["ab", ""]`` and ``["a", "b"]`` (lengths).
+    """
+    digest = hashlib.sha256()
+    schema = [[name, str(dtype)] for name, dtype in df.schema.items()]
+    _update_framed(digest, json.dumps(schema, ensure_ascii=False).encode("utf-8"))
+    _update_framed(digest, str(df.height).encode("ascii"))
+    for name in df.columns:
+        col = df.get_column(name).cast(pl.String)
+        nulls = col.is_null().cast(pl.UInt8).cast(pl.String).str.join("").item()
+        lengths = col.str.len_bytes().fill_null(0).cast(pl.String).str.join(",").item()
+        values = col.fill_null("").str.join("").item()
+        _update_framed(digest, nulls.encode("ascii"))
+        _update_framed(digest, lengths.encode("ascii"))
+        _update_framed(digest, values.encode("utf-8"))
+    return digest.hexdigest()
+
+
+def _hash_key(fname: str) -> str:
+    """Name of the content hash a snapshot entry for *fname* carries."""
+    return "data_hash" if fname.lower().endswith(".parquet") else "file_hash"
+
+
 def _scan_file(storage, filepath: str) -> dict:
     """Return snapshot metadata for a single file."""
     fname = os.path.basename(filepath)
     ext = fname.rsplit(".", 1)[-1].lower() if "." in fname else ""
     entry: dict = {}
-    try:
-        entry["file_hash"] = hashlib.sha256(storage.read_bytes(filepath)).hexdigest()
-    except Exception as exc:
-        entry["read_error"] = _read_error(exc)
-        return entry
 
-    if ext == "csv":
-        try:
-            try:
-                df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
-            except Exception:
-                # The converter does not escape quotes in values (yet), so a Dec table
-                # value like '"de Bontekoe" NTC-VO' is only readable without quote parsing.
-                df = storage.read_dataframe(
-                    filepath, format="csv", infer_schema_length=0, quote_char=None
-                )
-            entry["row_count"] = len(df)
-            entry["column_count"] = len(df.columns)
-            entry["columns"] = sorted(df.columns)
-        except Exception as exc:
-            entry["read_error"] = _read_error(exc)
-
-    elif ext == "parquet":
+    if ext == "parquet":
         try:
             df = storage.read_dataframe(filepath, format="parquet")
+            entry["data_hash"] = _data_hash(df)
             entry["row_count"] = len(df)
             entry["column_count"] = len(df.columns)
             entry["columns"] = sorted(df.columns)
             entry["dtypes"] = {col: str(dt) for col, dt in zip(df.columns, df.dtypes)}
         except Exception as exc:
-            entry["read_error"] = _read_error(exc)
+            entry = {"read_error": _read_error(exc)}
+        return entry
+
+    try:
+        raw = storage.read_bytes(filepath)
+    except Exception as exc:
+        entry["read_error"] = _read_error(exc)
+        return entry
+
+    if ext != "csv":
+        entry["file_hash"] = hashlib.sha256(raw).hexdigest()
+        return entry
+
+    # Hash and parse the same normalised bytes, so a CRLF copy of a file yields
+    # the same hash and the same column names (no trailing "\r") as the LF original.
+    data = _normalise_csv(raw)
+    entry["file_hash"] = hashlib.sha256(data).hexdigest()
+    try:
+        try:
+            df = _read_csv(data)
+        except Exception:
+            # The converter does not escape quotes in values (yet), so a Dec table
+            # value like '"de Bontekoe" NTC-VO' is only readable without quote parsing.
+            df = _read_csv(data, quote_char=None)
+        entry["row_count"] = len(df)
+        entry["column_count"] = len(df.columns)
+        entry["columns"] = sorted(df.columns)
+    except Exception as exc:
+        entry["read_error"] = _read_error(exc)
 
     return entry
 
@@ -131,7 +199,7 @@ def validate_snapshot(
     Returns ``(passed, errors, warnings)``.
     *passed* is True only when *errors* is empty. Unreadable files always fail.
     With ``strict_files=True`` an unexpected file fails instead of warning; the
-    default stays lenient until the baselines are regenerated as version 2.
+    CI workflows pass ``--strict-files`` against the version 2 baselines.
     A legacy snapshot without hashes still checks schema, with a warning.
     """
     with open(snapshot_path, encoding="utf-8") as fh:
@@ -166,11 +234,13 @@ def validate_snapshot(
         if "read_error" in cur:
             errors.append(f"{fname}: bestand onleesbaar: {cur['read_error']}")
             continue
-        if "file_hash" in exp:
-            if cur.get("file_hash") != exp["file_hash"]:
-                errors.append(f"{fname}: inhoud gewijzigd (SHA256 verschilt)")
+        hash_key = _hash_key(fname)
+        hash_label = "data-hash" if hash_key == "data_hash" else "SHA256"
+        if hash_key in exp:
+            if cur.get(hash_key) != exp[hash_key]:
+                errors.append(f"{fname}: inhoud gewijzigd ({hash_label} verschilt)")
         elif expected.get("snapshot_version", 1) >= 2:
-            errors.append(f"{fname}: SHA256 ontbreekt in de snapshot")
+            errors.append(f"{fname}: {hash_label} ontbreekt in de snapshot")
         else:
             warnings.append(f"{fname}: oude snapshot zonder inhoudhash; alleen schema wordt gecontroleerd")
 

@@ -49,13 +49,21 @@ DUO-PGN, onderwijsnummer en lokaal studentnummer zijn niet vanzelf dezelfde sleu
   in plaats van stil te slagen.
 - De converter levert een reproduceerbare rijvolgorde (de invoervolgorde), zodat twee runs op
   dezelfde invoer dezelfde bestanden opleveren.
-- De snapshotvalidator ondersteunt SHA256-inhoudhashes (snapshotversie 2), weigert een
-  baseline te maken van onleesbare bestanden, en meldt een onleesbaar outputbestand als fout.
-  De huidige baselines zijn nog versie 1 (alleen schema); de validator meldt dat expliciet
-  als waarschuwing.
+- De snapshotbaselines in `snapshots/` (csv-raw, csv-decoded-enriched, full-pipeline) zijn
+  versie 2 en opnieuw gegenereerd na #219/#221/#222. Elke baseline bevat alle bestanden die de
+  configuratie buiten `metadata/` schrijft, voor full-pipeline dus ook de EV- en
+  VAKHAVW-bestanden en de Parquet-output.
+- Een CSV wordt vergeleken op een SHA256 over de bestandsinhoud, na het omzetten van CRLF
+  naar LF; een Parquet-bestand op een `data_hash` over schema en celwaarden, niet op de ruwe
+  bytes, omdat de Parquet-footer de schrijver- en bibliotheekversie bevat. Een v2-baseline
+  zonder hash voor een bestand faalt.
+- De validatie is strikt (`--strict-files`): een ontbrekend, gewijzigd of onverwacht extra
+  bestand laat de controle falen. De validator weigert een baseline te maken van onleesbare
+  bestanden en meldt een onleesbaar outputbestand als fout, zonder celwaarden te tonen.
+- `.gitattributes` houdt de DEMO-invoer op Windows byte-gelijk (`-text`), zodat de
+  hashes op de ubuntu- en windows-runner gelijk zijn. Twee runs op dezelfde invoer, ook op
+  één CPU, geven dezelfde snapshot.
 
-**Bij de release met #219/#221/#222 horen de baselines opnieuw gegenereerd te worden als
-versie 2** (met hashes) en gaat de validatie strikt (`--strict-files`), zodat ook een
-onverwacht extra bestand de controle laat falen. Volledige hash-stabiliteit van de
-decoded/enriched-bestanden vraagt daarnaast een deterministische join-volgorde in de decoder
-(`maintain_order="left"`), zoals voorgesteld bij #222.
+Een wijziging in de output die bedoeld is, vraagt dus een nieuwe baseline:
+`python -m eencijferho.utils.snapshot_validator --output <dir> --snapshot <baseline> --generate`
+na een pipeline-run met dezelfde vlaggen als `.github/workflows/pipeline.yml`.

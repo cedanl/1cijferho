@@ -27,6 +27,10 @@ from eencijferho.core.dec_layouts import INFERRED_LAYOUT_NOTE, SUPPLEMENTARY_LAY
 _console = Console()
 
 
+class MatchLogNotCompletedError(RuntimeError):
+    """The match log has a status other than ``completed``; nothing may be converted."""
+
+
 def process_chunk(chunk_data: tuple[list[tuple[int, int]], list[str | bytes]]) -> list[str]:
     """
     Processes a chunk of lines from a fixed-width file and returns the converted output as CSV lines.
@@ -218,17 +222,50 @@ def _unsupported_reason(input_file: str, layout_files: list[str]) -> str:
 
 
 @with_storage
-def _load_match_log(storage, match_log_file: str) -> list[dict] | None:
-    """Load processed_files from a match log JSON. Returns None on failure."""
+def _read_match_log(storage, match_log_file: str) -> dict | None:
+    """Load a match log JSON with a ``processed_files`` list. Returns None on failure."""
     if not storage.exists(match_log_file):
         _console.print(f"[red]Match log niet gevonden: {match_log_file}")
         return None
     try:
         data = storage.read_json(match_log_file)
-        return data["processed_files"]
     except Exception as e:
         _console.print(f"[red]Fout bij laden match log: {e}")
         return None
+    if not isinstance(data, dict) or not isinstance(data.get("processed_files"), list):
+        _console.print("[red]Fout bij laden match log: processed_files ontbreekt")
+        return None
+    return data
+
+
+def _load_match_log(match_log_file: str) -> list[dict] | None:
+    """Load processed_files from a match log JSON. Returns None on failure."""
+    data = _read_match_log(match_log_file)
+    return None if data is None else data["processed_files"]
+
+
+def _single_layout(valid_matches: list[dict], metadata_folder: str) -> str | None:
+    """Return the one layout file to use for a set of valid matches, or None.
+
+    Several matches are only accepted when they describe the same layout (the
+    same field names and positions), e.g. Dec_vakcode.asc, which DUO describes
+    both in the Dec-bestanden and in the Vakkenbestanden. Anything else would
+    mean picking one layout at random.
+    """
+    if len(valid_matches) == 1:
+        return valid_matches[0]["validation_file"]
+    if not valid_matches:
+        return None
+    try:
+        layouts = [
+            _load_metadata(os.path.join(metadata_folder, m["validation_file"]))
+            for m in valid_matches
+        ]
+    except Exception:  # noqa: BLE001 - an unreadable layout is no single layout
+        return None
+    if all(layout == layouts[0] for layout in layouts[1:]):
+        return valid_matches[0]["validation_file"]
+    return None
 
 
 @with_storage
@@ -248,12 +285,22 @@ def _convert_one(
         return result
 
     valid_matches = [m for m in file_info["matches"] if m["validation_status"] == "success"]
-    if not valid_matches:
-        result["reason"] = "Geen geldige validatiebestanden gevonden"
+    layout_file = _single_layout(valid_matches, metadata_folder)
+    if layout_file is None:
+        candidates = [m["validation_file"] for m in file_info["matches"]]
+        result["status"] = "failed"
+        result["candidates"] = candidates
+        result["reason"] = (
+            f"Niet precies één geldige bestandsbeschrijving ({len(valid_matches)} met "
+            f"status success, met verschillende of onleesbare layouts); kandidaten: {', '.join(candidates) or 'geen'}"
+            if valid_matches
+            else f"Geen geldige bestandsbeschrijving; kandidaten: {', '.join(candidates) or 'geen'}"
+        )
+        _console.print(f"{input_file_name}: {result['reason']}", markup=False, style="red")
         return result
 
     input_path = os.path.join(input_folder, input_file_name)
-    metadata_path = os.path.join(metadata_folder, valid_matches[0]["validation_file"])
+    metadata_path = os.path.join(metadata_folder, layout_file)
 
     if not storage.exists(input_path):
         _console.print(f"[red]Invoerbestand niet gevonden: {input_path}")
@@ -305,6 +352,10 @@ def run_conversions_from_matches(
 
     Edge Cases:
         - Handles missing or corrupt log files.
+        - Refuses (status ``failed``, nothing converted) a match log whose status
+          is not ``completed``, e.g. one that match_files wrote for a layout error.
+        - A file is only converted with exactly one valid layout; otherwise its
+          status is ``failed`` with the list of candidates.
         - Logs and skips files that fail conversion.
 
     Example:
@@ -318,9 +369,18 @@ def run_conversions_from_matches(
     timestamped_log_file = os.path.join(log_folder, f"conversion_log_{timestamp}.json")
     latest_log_file = os.path.join(log_folder, "(5)_conversion_log_latest.json")
 
-    processed_files = _load_match_log(match_log_file)
-    if processed_files is None:
+    match_log = _read_match_log(match_log_file)
+    if match_log is None:
         return {"status": "failed", "reason": "Log file not found or invalid"}
+    match_log_status = match_log.get("status")
+    if match_log_status != "completed":
+        reason = (
+            f"Koppelingslog heeft status '{match_log_status}' in plaats van 'completed'; "
+            f"er wordt niets omgezet. Los de koppelfouten op en valideer opnieuw."
+        )
+        _console.print(reason, markup=False, style="red")
+        return {"status": "failed", "reason": reason, "match_log_status": match_log_status}
+    processed_files = match_log["processed_files"]
 
     results: dict[str, Any] = {
         "timestamp": timestamp,

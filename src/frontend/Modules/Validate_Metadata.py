@@ -64,6 +64,13 @@ def load_validation_logs() -> tuple[list[dict[str, Any]], list[dict[str, Any]]] 
                         'file': file_info['input_file'],
                         'details': f"Geen bijpassende metadata gevonden ({file_info.get('row_count', 0)} rijen)"
                     })
+                elif file_info.get('status') == 'failed':
+                    candidates = ", ".join(file_info.get('candidates', [])) or "geen"
+                    matching_failures.append({
+                        'type': 'Niet eenduidig gekoppeld invoerbestand',
+                        'file': file_info['input_file'],
+                        'details': f"{file_info.get('error', '')} Kandidaten: {candidates}."
+                    })
                 elif file_info.get('status') == 'matched':
                     for match in file_info.get('matches', []):
                         if match.get('validation_status') == 'failed':

@@ -1,8 +1,8 @@
 {
   "snapshot_version": 2,
-  "generated_at": "2026-11-10T16:48:15.558470",
-  "output_dir": "data/02-output/snapshot-gen/full-pipeline",
-  "file_count": 25,
+  "generated_at": "2026-11-10T12:13:30.943024",
+  "output_dir": "data/02-output/snapshot-baselines/full-pipeline",
+  "file_count": 23,
   "files": {
     "Dec_actuele_instelling.csv": {
       "file_hash": "168a8464fab818c42321eba36dc65c5fe80f905d74fe2359112a2b7ab6d94c37",
@@ -11,37 +11,6 @@
       "columns": [
         "actuele_instelling",
         "naam_actuele_instelling"
-      ]
-    },
-    "Dec_brinnummer.csv": {
-      "file_hash": "96614ad736ad342d54b37f91d51641c3a4982a4374f9b63be7ef9dafd0f4865d",
-      "row_count": 19210,
-      "column_count": 8,
-      "columns": [
-        "brinnummer",
-        "code_denominatie_richting",
-        "datum_opheffing",
-        "datum_oprichting",
-        "naam",
-        "naam_denominatie_richting",
-        "plaats",
-        "postcodecijfers"
-      ]
-    },
-    "Dec_brinvestigingsnummer.csv": {
-      "file_hash": "854e8f925791aeba9e96ba9b339870a45db451b75dbc3ac020cd350d0f4d2bc1",
-      "row_count": 26991,
-      "column_count": 9,
-      "columns": [
-        "brinnummer",
-        "code_denominatie_richting",
-        "datum_opheffing",
-        "datum_oprichting",
-        "naam",
-        "naam_denominatie_richting",
-        "plaats",
-        "postcodecijfers",
-        "vestigingsnummer"
       ]
     },
     "Dec_ho-inst.csv": {
@@ -303,7 +272,7 @@
       ]
     },
     "EV299XX24_DEMO.parquet": {
-      "file_hash": "9f3d678dbf88fd5b16a8e585bd6190255982fb67c93f1acfa06f2eb9dcc35225",
+      "data_hash": "e111f01ba99f09f5b0a7892003ca9c2bc2fffe14c3aa49e3104ab2fc5077e70d",
       "row_count": 43663,
       "column_count": 115,
       "columns": [
@@ -735,7 +704,7 @@
       ]
     },
     "EV299XX24_DEMO_decoded.parquet": {
-      "file_hash": "768e721954fdce0d99c77952eb1b8bb8d3d51ca62d18a77c6809a1d3b5daa43e",
+      "data_hash": "2c77210d52b588411bded05333f0936d87ddf50e4538e2927692a4d281aaf4cc",
       "row_count": 43663,
       "column_count": 186,
       "columns": [
@@ -1309,7 +1278,7 @@
       ]
     },
     "EV299XX24_DEMO_enriched.parquet": {
-      "file_hash": "0583275fb316b3f23eb5e30613130ea8eeea3f2977f6d410ecf873e5ab6aa670",
+      "data_hash": "d4482cff8ca97e28801c736b9c15dd9e81b2b0df8af94330499b35721f6c3de7",
       "row_count": 43663,
       "column_count": 186,
       "columns": [
@@ -1718,7 +1687,7 @@
       ]
     },
     "VAKHAVW_99XX_DEMO.parquet": {
-      "file_hash": "91caa2b85c43b634e5c3816ca9ccfb05a98e80934a5a1a770bfef677c25484c7",
+      "data_hash": "e80731b34a18012d922b3a2c222ff40bf2ec0a77c06b824134451629dce6e149",
       "row_count": 222637,
       "column_count": 21,
       "columns": [
@@ -1769,21 +1738,14 @@
       }
     },
     "VAKHAVW_99XX_DEMO_decoded.csv": {
-      "file_hash": "a240624d069a882e8cc1077bae7b8548629571d5154a0ce963a3289d9a813705",
+      "file_hash": "9d9af6ddc9b53e1d993e75d89db81b1d2bc2b62b4e952fe4a985043042aeb6ec",
       "row_count": 222637,
-      "column_count": 40,
+      "column_count": 24,
       "columns": [
         "afkorting_vak",
         "ander_niveau",
         "beoordeling_schoolexamen",
         "brinnummer_vo_instelling",
-        "brinnummer_vo_instelling_code_denominatie_richting",
-        "brinnummer_vo_instelling_datum_opheffing",
-        "brinnummer_vo_instelling_datum_oprichting",
-        "brinnummer_vo_instelling_naam",
-        "brinnummer_vo_instelling_naam_denominatie_richting",
-        "brinnummer_vo_instelling_plaats",
-        "brinnummer_vo_instelling_postcodecijfers",
         "burgerservicenummer",
         "cijfer_cijferlijst",
         "cijfer_derde_centraal_examen",
@@ -1803,34 +1765,18 @@
         "vakcode_omschrijving_vak",
         "vakcode_roepnaam_vak",
         "vestigingsnummer_vo_vestiging",
-        "vestigingsnummer_vo_vestiging_code_denominatie_richting",
-        "vestigingsnummer_vo_vestiging_datum_opheffing",
-        "vestigingsnummer_vo_vestiging_datum_oprichting",
-        "vestigingsnummer_vo_vestiging_naam",
-        "vestigingsnummer_vo_vestiging_naam_denominatie_richting",
-        "vestigingsnummer_vo_vestiging_plaats",
-        "vestigingsnummer_vo_vestiging_postcodecijfers",
-        "vooropleiding_oorspronkelijke_code",
-        "vooropleiding_oorspronkelijke_code_omschrijving_vooropleiding_oorspr_code",
-        "vooropleiding_oorspronkelijke_code_onderwijssector"
+        "vooropleiding_oorspronkelijke_code"
       ]
     },
     "VAKHAVW_99XX_DEMO_decoded.parquet": {
-      "file_hash": "9cf069c0a8be4ec77171c1a5f7456419de45074940ad139442b66aabcd320620",
+      "data_hash": "a9454a4fe4e7f69963016f83ca23ee579f14d8b4cee7e1d2ddfff1ba99495271",
       "row_count": 222637,
-      "column_count": 40,
+      "column_count": 24,
       "columns": [
         "afkorting_vak",
         "ander_niveau",
         "beoordeling_schoolexamen",
         "brinnummer_vo_instelling",
-        "brinnummer_vo_instelling_code_denominatie_richting",
-        "brinnummer_vo_instelling_datum_opheffing",
-        "brinnummer_vo_instelling_datum_oprichting",
-        "brinnummer_vo_instelling_naam",
-        "brinnummer_vo_instelling_naam_denominatie_richting",
-        "brinnummer_vo_instelling_plaats",
-        "brinnummer_vo_instelling_postcodecijfers",
         "burgerservicenummer",
         "cijfer_cijferlijst",
         "cijfer_derde_centraal_examen",
@@ -1850,16 +1796,7 @@
         "vakcode_omschrijving_vak",
         "vakcode_roepnaam_vak",
         "vestigingsnummer_vo_vestiging",
-        "vestigingsnummer_vo_vestiging_code_denominatie_richting",
-        "vestigingsnummer_vo_vestiging_datum_opheffing",
-        "vestigingsnummer_vo_vestiging_datum_oprichting",
-        "vestigingsnummer_vo_vestiging_naam",
-        "vestigingsnummer_vo_vestiging_naam_denominatie_richting",
-        "vestigingsnummer_vo_vestiging_plaats",
-        "vestigingsnummer_vo_vestiging_postcodecijfers",
-        "vooropleiding_oorspronkelijke_code",
-        "vooropleiding_oorspronkelijke_code_omschrijving_vooropleiding_oorspr_code",
-        "vooropleiding_oorspronkelijke_code_onderwijssector"
+        "vooropleiding_oorspronkelijke_code"
       ],
       "dtypes": {
         "persoonsgebonden_nummer": "String",
@@ -1883,22 +1820,6 @@
         "cijfer_cijferlijst": "String",
         "burgerservicenummer": "String",
         "onderwijsnummer": "String",
-        "brinnummer_vo_instelling_naam": "String",
-        "brinnummer_vo_instelling_postcodecijfers": "String",
-        "brinnummer_vo_instelling_plaats": "String",
-        "brinnummer_vo_instelling_datum_oprichting": "String",
-        "brinnummer_vo_instelling_datum_opheffing": "String",
-        "brinnummer_vo_instelling_code_denominatie_richting": "String",
-        "brinnummer_vo_instelling_naam_denominatie_richting": "String",
-        "vestigingsnummer_vo_vestiging_naam": "String",
-        "vestigingsnummer_vo_vestiging_postcodecijfers": "String",
-        "vestigingsnummer_vo_vestiging_plaats": "String",
-        "vestigingsnummer_vo_vestiging_datum_oprichting": "String",
-        "vestigingsnummer_vo_vestiging_datum_opheffing": "String",
-        "vestigingsnummer_vo_vestiging_code_denominatie_richting": "String",
-        "vestigingsnummer_vo_vestiging_naam_denominatie_richting": "String",
-        "vooropleiding_oorspronkelijke_code_onderwijssector": "String",
-        "vooropleiding_oorspronkelijke_code_omschrijving_vooropleiding_oorspr_code": "String",
         "vakcode_omschrijving_vak": "String",
         "vakcode_roepnaam_vak": "String",
         "vakcode_afkorting_vak": "String"
