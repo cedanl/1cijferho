@@ -412,6 +412,15 @@ class DuplicateDecKeyError(ValueError):
     """A Dec table that must have unique keys holds a key more than once."""
 
 
+def _is_dec_key_error(error: BaseException) -> bool:
+    """True for a failure whose message names Dec table keys, never row values.
+
+    Such a message is safe to show next to the exception type in the run log;
+    the message of any other join failure may quote cell values.
+    """
+    return isinstance(error, DuplicateDecKeyError)
+
+
 def _keyed_lookup(
     result_df: pl.DataFrame,
     join_df: pl.DataFrame,
@@ -560,6 +569,7 @@ def _apply_single_dec_join(
         log_failed(
             logger, "dec_join", e, file=_report_file(report), column=var_norm,
             detail=f"[decoder] Fout bij Dec-join voor {var_norm}",
+            show_message=_is_dec_key_error(e),
         )
         if report is not None:
             report.record_error(var_norm, "dec_join", e)
@@ -1092,6 +1102,7 @@ def _apply_vakken_composite(
         log_failed(
             logger, "dec_join", e, file=_report_file(report), column=var_norm,
             detail=f"[decoder][vakken] Fout bij samengestelde join voor {var_norm}",
+            show_message=_is_dec_key_error(e),
         )
         if report is not None:
             report.record_error(var_norm, "dec_join", e)
