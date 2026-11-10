@@ -32,6 +32,7 @@ import datetime
 import os
 import sys
 
+import polars as pl
 from rich.console import Console
 from rich.markup import escape
 from rich.panel import Panel
@@ -60,10 +61,14 @@ from eencijferho.core.extractor import (
 from eencijferho.config import DECODED_SUFFIX, ENRICHED_SUFFIX
 from eencijferho.core.converter import MatchLogNotCompletedError
 from eencijferho.core.decode_report import DecodeReport
-from eencijferho.core.pipeline import run_turbo_convert_pipeline
+from eencijferho.core.pipeline import _is_main_csv_file, run_turbo_convert_pipeline
 from eencijferho.config import OutputConfig
 from eencijferho.presets import PRESET_CONFIGS
-from eencijferho.utils.converter_headers import clean_header_name, normalize_name
+from eencijferho.utils.converter_headers import (
+    clean_header_name,
+    normalize_name,
+    normalize_polars_columns,
+)
 from eencijferho.utils.converter_match import LayoutMatchError, match_files
 from eencijferho.utils.extractor_validation import validate_metadata_folder
 from eencijferho.io.decorators import with_storage
@@ -217,6 +222,22 @@ def cmd_validate_output(storage, args: argparse.Namespace) -> None:
             _console.print(Panel("\n".join(lines), title="⚠️  DEC validatie", border_style="yellow"))
 
 
+def _match_source_casing(source_df: pl.DataFrame, result_df: pl.DataFrame) -> pl.DataFrame:
+    """Name the decoder's result the way the pipeline would have.
+
+    The decoder adds columns as ``{var}__{col}``. The pipeline's snake_case
+    step (``convert_csv_headers_to_snake_case``) collapses those to
+    ``{var}_{col}``. When the source file already carries snake_case headers
+    (output of a default ``pipeline`` run), apply that same renaming, so a
+    second run over pipeline output gives the same header row. Source files
+    with original headers (``--skip-snake-case``) keep the decoder's names.
+    A rename that would produce duplicate names raises, as in the pipeline.
+    """
+    if all(normalize_name(c) == c for c in source_df.columns):
+        return normalize_polars_columns(result_df)
+    return result_df
+
+
 @with_storage
 def cmd_decode(storage, args: argparse.Namespace) -> None:
     _validate_safe_path(args.input)
@@ -245,16 +266,14 @@ def cmd_decode(storage, args: argparse.Namespace) -> None:
     count = 0
     for filepath in storage.list_files(f"{args.output}/*.csv"):
         fname = os.path.basename(filepath)
-        if not (
-            (fname.startswith("EV") or fname.startswith("VAKHAVW"))
-            and fname.endswith(".csv")
-            and not fname.endswith(DECODED_SUFFIX)
-        ):
+        # Same rule as the pipeline: never decode a _decoded or _enriched file.
+        if not _is_main_csv_file(fname):
             continue
         df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
         decoded_df = decode_fields_dec_only(
             df, dec_metadata_json, dec_tables, vakken_metadata_json=vakken_metadata_json,
         )
+        decoded_df = _match_source_casing(df, decoded_df)
         out_path = filepath.replace(".csv", DECODED_SUFFIX)
         storage.write_text(decoded_df.write_csv(separator=";"), out_path)
         print(f"[eencijferho] Gedecodeerd: {fname} → {os.path.basename(out_path)}")
@@ -299,7 +318,8 @@ def cmd_enrich(storage, args: argparse.Namespace) -> None:
     for filepath in storage.list_files(f"{args.output}/*_decoded.csv"):
         fname = os.path.basename(filepath)
         base = filepath.replace(DECODED_SUFFIX, ".csv")
-        if not storage.exists(base):
+        # Only X_decoded.csv of a main file X.csv (not e.g. X_enriched_decoded.csv).
+        if not _is_main_csv_file(os.path.basename(base)) or not storage.exists(base):
             continue
         main_df = storage.read_dataframe(base, format="csv", infer_schema_length=0)
         normalized_cols = {normalize_name(clean_header_name(c)) for c in main_df.columns}
@@ -313,6 +333,8 @@ def cmd_enrich(storage, args: argparse.Namespace) -> None:
             variable_metadata_path=variable_metadata_json,
             vakken_metadata_json=vakken_metadata_json,
         )
+        # The decoded file on disk is the reference form of the names.
+        enriched_df = _match_source_casing(main_df, enriched_df)
         if enriched_df.equals(decoded_df):
             print(f"[eencijferho] Overgeslagen (identiek aan decoded): {fname}")
             skipped += 1
