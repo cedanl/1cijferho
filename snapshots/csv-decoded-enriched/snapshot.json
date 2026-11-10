@@ -1,7 +1,7 @@
 {
   "snapshot_version": 2,
-  "generated_at": "2026-11-10T17:46:34.961118",
-  "output_dir": "data/02-output/factory-ci/sync1/csv-decoded-enriched",
+  "generated_at": "2026-11-10T22:08:37.565699",
+  "output_dir": "data/02-output/factory-cmp/branch/csv-decoded-enriched",
   "file_count": 20,
   "files": {
     "Dec_actuele_instelling.csv": {
@@ -303,9 +303,9 @@
       ]
     },
     "EV299XX24_DEMO_decoded.csv": {
-      "file_hash": "26bcde0faec26f701fb8405b052a77549280bfd9f1bcb3d929e7236b839e28ec",
+      "file_hash": "2716bed40899d9b97c3e04e3a1995358d8e210879381cab7c89be062353ec74d",
       "row_count": 43663,
-      "column_count": 182,
+      "column_count": 185,
       "columns": [
         "Actuele instelling",
         "Actuele instelling vóór besturenfusies",
@@ -488,13 +488,16 @@
         "vestigingsnummer__gemeentenaam_volgens_rio",
         "vestigingsnummer_diploma__gemeentecode_per_1_januari_2025",
         "vestigingsnummer_diploma__gemeentenaam_per_1_januari_2025",
-        "vestigingsnummer_diploma__gemeentenaam_volgens_rio"
+        "vestigingsnummer_diploma__gemeentenaam_volgens_rio",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho__gemeentecode_per_1_januari_2025",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho__gemeentenaam_per_1_januari_2025",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho__gemeentenaam_volgens_rio"
       ]
     },
     "EV299XX24_DEMO_enriched.csv": {
-      "file_hash": "d9db9aad114212ec401fb0076c2120bf76d18de816f9e6632e491b9dfd326965",
+      "file_hash": "0f02df62f90d0e85e8d3f734780c4bdcecb83e47e4af30fb26627f282c79e870",
       "row_count": 43663,
-      "column_count": 182,
+      "column_count": 185,
       "columns": [
         "Actuele instelling",
         "Actuele instelling vóór besturenfusies",
@@ -677,7 +680,10 @@
         "vestigingsnummer__gemeentenaam_volgens_rio",
         "vestigingsnummer_diploma__gemeentecode_per_1_januari_2025",
         "vestigingsnummer_diploma__gemeentenaam_per_1_januari_2025",
-        "vestigingsnummer_diploma__gemeentenaam_volgens_rio"
+        "vestigingsnummer_diploma__gemeentenaam_volgens_rio",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho__gemeentecode_per_1_januari_2025",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho__gemeentenaam_per_1_januari_2025",
+        "vestigingsnummer_van_de_hoogste_vooropl_binnen_het_ho__gemeentenaam_volgens_rio"
       ]
     },
     "VAKHAVW_99XX_DEMO.csv": {
