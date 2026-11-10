@@ -57,6 +57,87 @@ sleutelkolommen (Brinnummer, Vestigingsnummer) zijn nodig voor de koppeling.
 
 **Issue:** #204
 
+## Waarden uit `variable_metadata` (_enriched)
+
+Naast de Dec-tabellen vervangt de `_enriched`-variant codes door de labels uit
+`metadata/json/variable_metadata.json` (de waardenlijsten uit de
+bestandsbeschrijving). Die lijsten zijn vaak niet volledig: soms staan alleen
+`[leeg]` en `[gevuld]` erin, soms een bereik als `1000 t/m 9999`.
+
+### Niet-gemapte waarden blijven een code
+
+Een waarde zonder label in de lijst blijft staan zoals hij in het bestand staat
+(de code). Er komt geen extra kolom bij. Een kolom kan dus labels en codes door
+elkaar bevatten. Welke kolommen dat zijn, staat in het decodeerlog
+`metadata/logs/(7)_decoding_log_latest.json`, onder `details[].variable_mappings`,
+één regel per kolom:
+
+| Veld | Betekenis |
+|------|-----------|
+| `semantics` | `label`: elke gevulde waarde is een label. `mixed`: een deel is een label, de rest is de code gebleven. `code`: geen enkele waarde is vervangen, of de mapping is niet toegepast (zie `skip_reason`). |
+| `mapped_rows` | Aantal rijen dat een label kreeg (gelijk aan het oudere veld `mapped`). |
+| `unmapped_rows` | Aantal gevulde rijen dat de code hield, omdat de lijst er geen label voor heeft. Een lege waarde zonder `[leeg]`-sleutel telt mee. |
+| `unmapped_distinct`, `sample` | Aantal verschillende niet-gemapte waarden en hooguit 5 voorbeelden. Nooit voorbeelden uit BSN-, PGN- of onderwijsnummerkolommen (`sample_withheld`). |
+| `skip_reason`, `skipped_rows` | Alleen als de mapping niet is toegepast: de reden (`labels_too_long`) en het aantal rijen dat zijn code hield. |
+
+In `summary` telt `total_unmapped_rows` de niet-gemapte rijen van alle kolommen
+op en `variable_mappings_skipped` het aantal niet-toegepaste mappings. De console
+meldt per kolom bijvoorbeeld `'geslacht' (orig: 'Geslacht'): 9/10 gemapt, 1 rij(en)
+niet-gemapt (code behouden): ['X']`. Niet-gemapte waarden laten `--strict` niet
+falen: de lijsten zijn vaak bewust onvolledig.
+
+### Lege waarden
+
+Een lege waarde krijgt het label van de sleutel `[leeg]` (hoofdletters en spaties
+tellen niet). Is die er niet, dan geldt de eerste andere sleutel met `leeg` erin,
+op alfabetische volgorde. De volgorde in het bestand maakt dus niet uit. Hebben
+meerdere van die sleutels een verschillend label, dan meldt de console welke
+gekozen is en staat de keuze in het log (`empty_label_choice`). Een sleutel als
+`[leeg] of 0` geldt voor de lege waarde én voor code `0`, tenzij `0` ook als
+aparte sleutel in de lijst staat.
+
+Let op: in de pipeline komt een leeg DUO-veld als lege cel (null) binnen. Een
+lege cel blijft leeg en telt niet mee in `total_non_null` of `unmapped_rows`; de
+`[leeg]`-regel geldt alleen voor een waarde die een lege tekst is, bijvoorbeeld
+als je `decode_fields` op een eigen DataFrame aanroept.
+
+### Lange labels worden niet ingevuld
+
+Bij sommige variabelen is het "label" een hele alinea uitleg van DUO. Een mapping
+met een label langer dan 300 tekens (`MAX_LABEL_LENGTH` in
+`src/eencijferho/core/decoder.py`) wordt voor die kolom helemaal niet toegepast:
+de kolom houdt al zijn codes, ook `0` en lege waarden, zodat hij niet half codes
+en half alinea's bevat. Het log noteert de kolom met `skip_reason:
+"labels_too_long"`, `skipped_rows` en `max_label_length`. De betekenis van de
+codes staat in de bestandsbeschrijving.
+
+In de DEMO-data geldt dit alleen voor **Code beëindiging** (labels tot 468
+tekens). De langste labels van andere variabelen zijn korter (tot 288 tekens bij
+Code examenresultaat); die kolommen houden hun labels.
+
+### Postcodecijfers
+
+Voor `Postcodecijfers student op 1 oktober` en `Postcodecijfers van de hoogste
+vooropl. vóór het HO` geeft `variable_metadata` deze waarden:
+
+| Waarde in de kolom | Betekenis |
+|--------------------|-----------|
+| `1000` t/m `9999` | De eerste vier cijfers van een Nederlandse postcode. De lijst geeft alleen het bereik, dus deze waarden blijven als code staan. |
+| `0010` | woonachtig in België |
+| `0020` | woonachtig in Duitsland |
+| `0030` | woonachtig elders in het buitenland |
+| `0040` | geen vaste woon- of verblijfplaats |
+| leeg | onbekend (de cel blijft in de pipeline leeg, zie hierboven) |
+
+In `_enriched` staat bij `0010` t/m `0040` dus het label, bij een Nederlandse
+postcode de vier cijfers: `semantics` is `mixed`. `Dec_postcodecijfers_YYYY.asc`
+geeft bij een Nederlandse postcode de gemeentecode en gemeentenaam per 1 januari
+van dat jaar, en bij `0010` t/m `0040` gemeentecode `9910` t/m `9940` met
+dezelfde omschrijving als gemeentenaam. Die staan in aparte kolommen naast de
+postcodekolom.
+
+**Issue:** #207
+
 ## Niet Geïmplementeerde Regels
 
 ### Niet-ondersteunde bestanden
@@ -81,7 +162,7 @@ in `details`), in de console en in het log van Turbo Convert. Bij
 
 ## Bekende Risico's
 
-1. **Niet-gemapte codes blijven staan** (#207) — kolom bevat deels codes, deels labels
+1. **Niet-gemapte codes blijven staan** (#207) — een `_enriched`-kolom kan deels codes, deels labels bevatten; het decodeerlog telt ze per kolom (`unmapped_rows`, `semantics`), zie [Niet-gemapte waarden](#niet-gemapte-waarden-blijven-een-code)
 2. **Voorloopnullen gestript** (gefixed in #199) — codes als `0001` kunnen niet gematcht worden
 3. **Afgeleide lay-out voor `Dec_brinnummer` / `Dec_brinvestigingsnummer`** (#204) — DUO publiceert er geen; de labelkolommen naast de sleutel zijn een beste schatting
 4. **Samengestelde sleutels niet ondersteund** (#205) — multi-kolom combinaties in het 1CijferHO-bestand werken niet
