@@ -1,7 +1,7 @@
 {
   "snapshot_version": 2,
-  "generated_at": "2026-11-10T17:02:52.195275",
-  "output_dir": "data/02-output/snapshot-baselines/csv-raw",
+  "generated_at": "2026-11-10T17:46:24.875056",
+  "output_dir": "data/02-output/factory-ci/sync1/csv-raw",
   "file_count": 17,
   "files": {
     "Dec_actuele_instelling.csv": {

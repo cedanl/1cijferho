@@ -125,6 +125,28 @@ def test_process_txt_folder_empty_dir_returns_empty_list(tmp_path):
     assert result == []
 
 
+def test_process_txt_folder_counts_no_tables_found(tmp_path, capsys):
+    """Bestanden zonder tabellen worden geteld, niet als losse log-entry opgenomen (#210)."""
+    _make_bestandsbeschrijving(tmp_path / "Bestandsbeschrijving_A.txt")
+    (tmp_path / "Dec_test.asc").write_text("01Een\n02Twee\n", encoding="latin-1")
+    (tmp_path / "EV_DEMO.asc").write_text("0000000012023\n", encoding="latin-1")
+
+    process_txt_folder(str(tmp_path), json_output_folder=str(tmp_path / "meta" / "json"))
+
+    log_path = tmp_path / "meta" / "logs" / "(1)_json_processing_log_latest.json"
+    log = json.loads(log_path.read_text(encoding="utf-8"))
+    assert log["no_tables_found_count"] == 2
+    assert sorted(log["no_tables_found_files"]) == ["Dec_test.asc", "EV_DEMO.asc"]
+    assert [f["file"] for f in log["processed_files"]] == ["Bestandsbeschrijving_A.txt"]
+    assert all(f["status"] != "no_tables_found" for f in log["processed_files"])
+    assert log["total_files_processed"] == 3
+    assert log["total_files_extracted"] == 1
+
+    out = capsys.readouterr().out
+    assert "No tables found in 2 files" in out
+    assert "Dec_test.asc" not in out
+
+
 # ---------------------------------------------------------------------------
 # _find_title_above
 # ---------------------------------------------------------------------------

@@ -59,6 +59,7 @@ from eencijferho.core.extractor import (
 )
 from eencijferho.config import DECODED_SUFFIX, ENRICHED_SUFFIX
 from eencijferho.core.converter import MatchLogNotCompletedError
+from eencijferho.core.decode_report import DecodeReport
 from eencijferho.core.pipeline import run_turbo_convert_pipeline
 from eencijferho.config import OutputConfig
 from eencijferho.presets import PRESET_CONFIGS
@@ -368,18 +369,39 @@ def _build_output_config(args: argparse.Namespace) -> OutputConfig:
     )
 
 
+def _enforce_strict(args: argparse.Namespace, report: DecodeReport) -> None:
+    """With --strict, exit 1 when the decode log holds findings.
+
+    Runs after the pipeline, so the log and the output files exist.
+    """
+    if not getattr(args, "strict", False):
+        return
+    violations = report.summary()["strict_violations"]
+    if not violations:
+        print("[eencijferho] --strict: geen bevindingen in het decodeerlog.")
+        return
+    print(
+        f"[eencijferho] --strict: run afgekeurd: {'; '.join(violations)}. "
+        f"Zie {report.log_path or '(7)_decoding_log_latest.json'}",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
 def cmd_convert(args: argparse.Namespace) -> None:
     _validate_safe_path(args.input)
     _validate_safe_path(args.output)
     """Run the full turbo convert pipeline."""
     metadata_dir, _, _ = _resolve_dirs(args.output)
     print(f"[eencijferho] Running turbo convert pipeline: {args.input} → {args.output}")
+    report = DecodeReport()
     try:
         log, output_files = run_turbo_convert_pipeline(
             input_dir=args.input,
             output_dir=args.output,
             metadata_dir=metadata_dir,
             output_config=_build_output_config(args),
+            decode_report=report,
         )
     except MatchLogNotCompletedError as e:
         print(f"[eencijferho] Fout: {e}", file=sys.stderr)
@@ -391,6 +413,7 @@ def cmd_convert(args: argparse.Namespace) -> None:
 
     if getattr(args, "fail_on_empty_output", False) and len(output_files) == 0:
         sys.exit(1)
+    _enforce_strict(args, report)
 
 
 def cmd_pipeline(args: argparse.Namespace) -> None:
@@ -416,17 +439,20 @@ def cmd_pipeline(args: argparse.Namespace) -> None:
 
     # Step 3: Convert
     print("[eencijferho] Step 3/3: Converting files...")
+    report = DecodeReport()
     log, output_files = run_turbo_convert_pipeline(
         input_dir=args.input,
         output_dir=args.output,
         metadata_dir=metadata_dir,
         output_config=_build_output_config(args),
+        decode_report=report,
     )
     print(log)
     print(f"[eencijferho] Pipeline complete. Output files: {len(output_files)}")
 
     if getattr(args, "fail_on_empty_output", False) and len(output_files) == 0:
         sys.exit(1)
+    _enforce_strict(args, report)
 
 
 def main() -> None:
@@ -496,6 +522,12 @@ def main() -> None:
     _output_opts.add_argument(
         "--fail-on-empty-output", action="store_true",
         help="Exit met code 1 als geen outputs worden geleverd (standaard: exit 0)",
+    )
+    _output_opts.add_argument(
+        "--strict", action="store_true",
+        help="Exit met code 1 als het decodeerlog (metadata/logs/(7)_decoding_log_latest.json) "
+             "niet-geladen Dec-tabellen of niet-gematchte Dec-codes bevat. Log en "
+             "outputbestanden worden eerst geschreven (standaard: exit 0)",
     )
 
     _layout_opts = argparse.ArgumentParser(add_help=False)

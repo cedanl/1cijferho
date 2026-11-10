@@ -98,6 +98,7 @@ eencijferho convert --input data/01-input --output data/02-output [opties]
 | `--decode-columns KOLOM ...` | Alleen opgegeven kolommen decoderen |
 | `--enrich-variables VAR ...` | Alleen opgegeven variabelen verrijken |
 | `--bsn-mapping-file PAD` | Koppelbestand (CSV/Parquet) om een lokaal studentnummer toe te voegen aan EV/VAKHAVW-bestanden. Verwacht kolommen `burgerservicenummer` en `studentnummer`. Voor afwijkende kolomnamen: gebruik de [Python API](api/index.md) (`OutputConfig`). |
+| `--strict` | Exit-code 1 als het decodeerlog niet-geladen Dec-tabellen of niet-gematchte Dec-codes bevat. Log en outputbestanden worden eerst geschreven. |
 
 ---
 
@@ -150,12 +151,15 @@ data/02-output/
 │   ├── logs/
 │   │   ├── (3)_xlsx_validation_log_latest.json
 │   │   ├── (4)_file_matching_log_latest.json
-│   │   └── (5)_conversion_log_latest.json
+│   │   ├── (5)_conversion_log_latest.json
+│   │   └── (7)_decoding_log_latest.json
 │   └── EV_2023.xlsx
 ├── EV_2023.csv
 ├── EV_2023_decoded.csv
 ├── EV_2023_enriched.csv
 └── EV_2023.parquet
 ```
+
+Het decodeerlog `(7)_decoding_log_latest.json` (plus een kopie `decoding_log_<tijdstempel>.json`) legt per gedecodeerd bestand vast welke kolommen gedecodeerd zijn en welke niet (met reden), welke Dec-tabellen niet geladen konden worden, welke codes geen match hadden (geteld, met hooguit 5 voorbeeldcodes; nooit uit BSN-, PGN- of onderwijsnummerkolommen), welke `variable_metadata`-waarden zijn toegepast en welke variabelen uit de metadata niet in het bestand voorkomen.
 
 Het Parquet-bestand bevat dezelfde data als de CSV waar het uit voortkomt: dezelfde kolomnamen in dezelfde volgorde (standaard snake_case, met `--skip-snake-case` de originele DUO-namen) en alle kolommen als tekst (`String`), zodat nummers zoals het BSN hun voorloopnullen houden.
