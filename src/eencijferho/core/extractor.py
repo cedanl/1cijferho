@@ -269,10 +269,13 @@ def process_txt_folder(
         "processed_files": [],
         "total_files_processed": 0,
         "total_files_extracted": 0,
+        "no_tables_found_count": 0,
+        "no_tables_found_files": [],
     }
 
     filter_keyword = "Bestandsbeschrijving"
     extracted_files = []
+    total_processed = 0
 
     all_files = storage.list_files(f"{input_folder}/*")
     for filepath in all_files:
@@ -283,15 +286,21 @@ def process_txt_folder(
         if file_is_txt or file_is_asc:
             file_log = {"file": filename, "status": "processing", "output": None}
             json_path = extract_tables_from_txt(filepath, json_output_folder)
-            file_log["status"] = "success" if json_path else "no_tables_found"
-            if json_path:
-                extracted_files.append(json_path)
-                file_log["output"] = os.path.basename(json_path)
+            total_processed += 1
+            if not json_path:
+                # Data files and Dec_*.asc carry no tables: count them, do not list
+                # them as findings, so real errors stand out in the log.
+                log_data["no_tables_found_files"].append(filename)
+                continue
+            extracted_files.append(json_path)
+            file_log["status"] = "success"
+            file_log["output"] = os.path.basename(json_path)
             log_data["processed_files"].append(file_log)
 
     log_data["status"] = "completed"
-    log_data["total_files_processed"] = len(log_data["processed_files"])
+    log_data["total_files_processed"] = total_processed
     log_data["total_files_extracted"] = len(extracted_files)
+    log_data["no_tables_found_count"] = len(log_data["no_tables_found_files"])
 
     storage.write_json(log_data, timestamped_log_file)
     storage.write_json(log_data, latest_log_file)
@@ -299,6 +308,10 @@ def process_txt_folder(
     _console.print(f"[green]Processed {log_data['total_files_processed']} text files")
     _console.print(
         f"[green]Extracted tables to {log_data['total_files_extracted']} JSON files"
+    )
+    _console.print(
+        f"[green]No tables found in {log_data['no_tables_found_count']} files "
+        f"(data and Dec files; listed in the log)"
     )
     _console.print(
         f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}"

@@ -6,6 +6,7 @@ import os
 from eencijferho.config import OutputConfig, DECODED_SUFFIX, ENRICHED_SUFFIX
 import polars as pl
 from eencijferho.core import converter, decoder
+from eencijferho.core.decode_report import DecodeReport
 import eencijferho.utils.converter_validation as cv
 import eencijferho.utils.compressor as co
 import eencijferho.utils.converter_headers as ch
@@ -26,13 +27,16 @@ def _is_main_csv_file(filename: str) -> bool:
 def _process_enriched_file(
     storage, main_df: pl.DataFrame, filepath: str, filename: str, log: str,
     dec_metadata_json: str, dec_tables: dict, variable_metadata_json: str,
-    var_maps: dict, output_config: OutputConfig, dec_only_df: pl.DataFrame | None
+    var_maps: dict, output_config: OutputConfig, dec_only_df: pl.DataFrame | None,
+    report: DecodeReport | None = None,
 ) -> str:
     """Process and write enriched file; return updated log."""
     normalized_cols = {ch.normalize_name(ch.clean_header_name(c)) for c in main_df.columns}
 
     if not (var_maps and normalized_cols & set(var_maps.keys())):
         log += f"[pipeline] {filename}: geen variable_metadata mappings, _enriched overgeslagen.\n"
+        if report is not None:
+            report.set_file_status(enriched="skipped_no_mappings")
         return log
 
     enriched_df = decoder.decode_fields(
@@ -40,13 +44,18 @@ def _process_enriched_file(
         variable_metadata_path=variable_metadata_json,
         decode_columns=output_config.decode_columns,
         enrich_variables=output_config.enrich_variables,
+        report=report,
     )
 
     if dec_only_df is None or not enriched_df.equals(dec_only_df):
         enriched_file = filepath.replace(".csv", ENRICHED_SUFFIX)
         storage.write_text(enriched_df.write_csv(separator=";"), enriched_file)
+        status = "written"
     else:
         log += f"[pipeline] {filename}: _enriched identiek aan _decoded, overgeslagen.\n"
+        status = "skipped_identical_to_decoded"
+    if report is not None:
+        report.set_file_status(enriched=status)
 
     return log
 
@@ -80,6 +89,7 @@ def run_turbo_convert_pipeline(
     progress_callback: Callable[[int], None] | None = None,
     status_callback: Callable[[str], None] | None = None,
     output_config: OutputConfig | None = None,
+    decode_report: DecodeReport | None = None,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Run the full turbo-convert pipeline.
 
@@ -95,6 +105,10 @@ def run_turbo_convert_pipeline(
         output_config: Controls which output variants are produced.  When
             *None* the defaults from :class:`OutputConfig` are used
             (decoded + enriched + parquet + snake_case).
+        decode_report: Collector for the decode log
+            ``<metadata_dir>/logs/(7)_decoding_log_latest.json``.  When *None*
+            the pipeline uses its own; pass one to read the findings after
+            the run (e.g. for ``--strict``).
     """
     if output_config is None:
         output_config = OutputConfig()
@@ -145,10 +159,16 @@ def run_turbo_convert_pipeline(
         log += "[pipeline] Gedecodeerde bestanden aanmaken...\n"
     dec_dir = output_dir
     decoded_count = 0
+    report = decode_report if decode_report is not None else DecodeReport()
+    report.decode_enabled = do_decode
+    report.enrich_enabled = do_enrich
+    report.dec_metadata_file = os.path.basename(dec_metadata_json) if dec_metadata_json else None
+    # Only a run that decodes reports its Dec tables and mappings.
+    step_report = report if (do_decode or do_enrich) else None
 
     # Load dec_tables and variable_mappings once — shared across all files
-    dec_tables = decoder.load_dec_tables_from_metadata(dec_metadata_json, dec_dir)
-    var_maps = decoder.load_variable_mappings(variable_metadata_json)
+    dec_tables = decoder.load_dec_tables_from_metadata(dec_metadata_json, dec_dir, report=step_report)
+    var_maps = decoder.load_variable_mappings(variable_metadata_json, report=step_report)
 
     if do_decode or do_enrich:
         csv_files = storage.list_files(f"{dec_dir}/*.csv")
@@ -158,11 +178,17 @@ def run_turbo_convert_pipeline(
                 continue
 
             main_df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
+            report.begin_file(filename, main_df.columns)
+            report.set_file_status(
+                decoded="written" if do_decode else "not_requested",
+                enriched="not_requested",
+            )
 
             if do_decode:
                 dec_only_df = decoder.decode_fields_dec_only(
                     main_df, dec_metadata_json, dec_tables,
                     decode_columns=output_config.decode_columns,
+                    report=report,
                 )
                 dec_only_file = filepath.replace(".csv", DECODED_SUFFIX)
                 storage.write_text(dec_only_df.write_csv(separator=";"), dec_only_file)
@@ -173,12 +199,14 @@ def run_turbo_convert_pipeline(
                 log = _process_enriched_file(
                     storage, main_df, filepath, filename, log,
                     dec_metadata_json, dec_tables, variable_metadata_json,
-                    var_maps, output_config, dec_only_df
+                    var_maps, output_config, dec_only_df, report=report,
                 )
 
             decoded_count += 1
     if do_decode or do_enrich:
         log += f"[pipeline] {decoded_count} bestand(en) gedecodeerd.\n"
+    decode_log_file = report.write(storage, logs_dir)
+    log += f"[pipeline] Decodeerlog opgeslagen: {decode_log_file}\n"
     if progress_callback:
         progress_callback(40)
     # Step 3: Validate conversion
