@@ -17,6 +17,7 @@ Functions:
     [M] match_files(input_folder, log_path="data/00-metadata/logs/(3)_xlsx_validation_log_latest.json", layout_year=None) -> Main function
         - Matches input files with metadata files and logs the results
 """
+import logging
 import os
 import re
 from typing import NamedTuple
@@ -26,6 +27,9 @@ from rich.console import Console
 import datetime
 
 from eencijferho.io.decorators import with_storage
+from eencijferho.utils.run_log import log_failed
+
+logger = logging.getLogger(__name__)
 
 
 # Input files whose layout is chosen by year: name test -> keyword in the layout name.
@@ -208,8 +212,11 @@ def load_input_files(storage, input_folder: str) -> pl.DataFrame:
             if data and not data.endswith(b'\n'):
                 row_count += 1
             row_counts.append(row_count)
-        except Exception as e:
-            console.print(f"[red]Warning: Could not read file {filename}: {str(e)}")
+        except Exception as e:  # catch-all: any storage backend error; the file gets row_count -1
+            log_failed(
+                logger, "input_row_count", e, file=filename,
+                detail=f"Warning: Could not read file {filename}",
+            )
             row_counts.append(-1)
 
     return pl.DataFrame({

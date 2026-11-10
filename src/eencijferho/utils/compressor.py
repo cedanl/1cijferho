@@ -1,8 +1,12 @@
+import logging
 import os
 from rich.console import Console
 from rich.progress import track
 
 from eencijferho.io.decorators import with_storage
+from eencijferho.utils.run_log import log_failed
+
+logger = logging.getLogger(__name__)
 
 
 @with_storage
@@ -30,7 +34,8 @@ def convert_csv_to_parquet(storage, input_dir: str | None = None) -> None:
             df = storage.read_dataframe(csv_file, infer_schema_length=0)
             storage.write_dataframe(df, parquet_file, format="parquet")
             console.print(f"[green]✓[/] {filename}")
-        except Exception as e:
-            console.print(f"[bold red]✗[/] {filename}: {str(e)}")
+        except Exception as e:  # catch-all: one file that cannot be compressed must not stop the others
+            # A CSV read error can quote cell values: report the type only.
+            log_failed(logger, "parquet", e, file=filename, detail=f"✗ {filename}")
 
     console.print("[bold green]Conversion completed![/]")
