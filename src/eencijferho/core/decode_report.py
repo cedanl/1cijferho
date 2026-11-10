@@ -323,6 +323,8 @@ class DecodeReport:
             violations.append(
                 f"{summary['total_unmatched_distinct_codes']} niet-gematchte code(s) in Dec-tabellen"
             )
+        if summary["errors"]:
+            violations.append(f"{summary['errors']} fout(en) bij decoderen")
         return violations
 
     def to_dict(self, timestamp: str | None = None) -> dict[str, Any]:
