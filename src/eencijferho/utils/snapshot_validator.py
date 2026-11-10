@@ -6,11 +6,18 @@ future runs against it. Intended for use with fixed DEMO input data
 where the pipeline is fully deterministic.
 
 Snapshot contents per file:
-  - file_hash      : SHA256 of raw file bytes (catches any change)
+  - file_hash      : SHA256 of raw file bytes (version 2 only; catches any change)
   - row_count      : number of data rows (CSV/Parquet)
   - column_count   : number of columns
   - columns        : sorted list of column names
   - dtypes         : Polars dtype per column (Parquet only)
+
+``generate_snapshot`` writes ``snapshot_version: 2``. A legacy snapshot without
+``snapshot_version`` (version 1) has no ``file_hash``; it is still accepted, but
+only the schema is checked and every file gets a warning.
+
+An unreadable file is recorded as ``read_error`` with only the exception type,
+so no row content ends up in a snapshot or a CI log.
 """
 
 import hashlib
@@ -30,6 +37,11 @@ _console = Console()
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+def _read_error(exc: Exception) -> str:
+    """Describe a read failure without the exception text, which may echo row values."""
+    return f"{type(exc).__name__} bij het lezen"
+
+
 def _scan_file(storage, filepath: str) -> dict:
     """Return snapshot metadata for a single file."""
     fname = os.path.basename(filepath)
@@ -38,7 +50,7 @@ def _scan_file(storage, filepath: str) -> dict:
     try:
         entry["file_hash"] = hashlib.sha256(storage.read_bytes(filepath)).hexdigest()
     except Exception as exc:
-        entry["read_error"] = str(exc)
+        entry["read_error"] = _read_error(exc)
         return entry
 
     if ext == "csv":
@@ -46,8 +58,8 @@ def _scan_file(storage, filepath: str) -> dict:
             try:
                 df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
             except Exception:
-                # De converter escapet (nog) geen aanhalingstekens in waarden, dus een
-                # Dec-tabel als '"de Bontekoe" NTC-VO' is alleen zonder quote-parsing leesbaar.
+                # The converter does not escape quotes in values (yet), so a Dec table
+                # value like '"de Bontekoe" NTC-VO' is only readable without quote parsing.
                 df = storage.read_dataframe(
                     filepath, format="csv", infer_schema_length=0, quote_char=None
                 )
@@ -55,7 +67,7 @@ def _scan_file(storage, filepath: str) -> dict:
             entry["column_count"] = len(df.columns)
             entry["columns"] = sorted(df.columns)
         except Exception as exc:
-            entry["read_error"] = str(exc)
+            entry["read_error"] = _read_error(exc)
 
     elif ext == "parquet":
         try:
@@ -65,7 +77,7 @@ def _scan_file(storage, filepath: str) -> dict:
             entry["columns"] = sorted(df.columns)
             entry["dtypes"] = {col: str(dt) for col, dt in zip(df.columns, df.dtypes)}
         except Exception as exc:
-            entry["read_error"] = str(exc)
+            entry["read_error"] = _read_error(exc)
 
     return entry
 

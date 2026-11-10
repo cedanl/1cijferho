@@ -125,8 +125,8 @@ def _run_parallel(all_lines: list[str], positions: list[tuple[int, int]]) -> lis
     chunk_data = [(positions, chunk) for chunk in chunks]
     output_lines = []
     with mp.Pool(processes=num_processes) as pool:
-        # imap (niet imap_unordered): chunks komen in volgorde terug, zodat de
-        # rijvolgorde van de output de invoer volgt en runs reproduceerbaar zijn.
+        # imap (not imap_unordered): chunks come back in order, so the output row
+        # order follows the input and runs are reproducible.
         for result in pool.imap(process_chunk, chunk_data):
             if result:
                 output_lines.extend(result)
