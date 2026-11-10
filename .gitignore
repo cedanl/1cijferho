@@ -190,3 +190,7 @@ cython_debug/
 # Development reports (generated output)
 dev/reports/
 
+
+# Lighthouse: local-only escape hatch and agent worktrees (never tracked)
+/.claude/allow-main
+/.claude/worktrees/
