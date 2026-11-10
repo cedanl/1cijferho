@@ -17,6 +17,7 @@ from eencijferho.core.extractor import (
     _build_table_rows,
     _write_table_excel,
 )
+from eencijferho.core.dec_layouts import INFERRED_LAYOUT_NOTE, SUPPLEMENTARY_LAYOUT_FILENAME
 
 
 # ---------------------------------------------------------------------------
@@ -434,3 +435,100 @@ def test_list_fwf_tables_returns_empty_for_no_tables(tmp_path):
     txt.write_text("Geen tabellen\n", encoding="latin-1")
     result = list_fwf_tables(str(txt))
     assert result == []
+
+
+# ---------------------------------------------------------------------------
+# process_txt_folder: no Dec_vakcode merge, inferred Dec_brin* layouts (#204)
+# ---------------------------------------------------------------------------
+
+_DEC_BESTANDEN_TXT = (
+    "Dec_vooropl.asc\n"
+    "===============\n"
+    "                                             Startpositie  Aantal posities\n"
+    "Code vooropleiding oorspr. code                     1             5\n"
+    "Omschrijving vooropleiding oorspr. code             6           180\n"
+    "\n"
+)
+
+_VAKKEN_TXT = (
+    "Decodeertabel vakcode (Dec_vakcode.asc)\n"
+    "=======================================\n"
+    "\n"
+    "                                             Startpositie  Aantal posities\n"
+    "Vakcode                                             1             4\n"
+    "Omschrijving vak                                    5           112\n"
+    "\n"
+    "\n"
+    "Vakgegevens\n"
+    "===========\n"
+    "                                             Startpositie  Aantal posities  Opmerking\n"
+    "Brinnummer VO-instelling                            1             4         te decoderen met Dec_brinnummer.asc\n"
+    "Vakcode                                             5             4         te decoderen met Dec_vakcode.asc\n"
+    "\n"
+)
+
+
+def _input_folder(tmp_path, asc_files=("Dec_brinnummer.asc", "Dec_brinvestigingsnummer.asc")):
+    inp = tmp_path / "in"
+    inp.mkdir()
+    (inp / "Bestandsbeschrijving_Dec-bestanden.txt").write_text(_DEC_BESTANDEN_TXT, encoding="latin-1")
+    (inp / "Bestandsbeschrijving_Vakkenbestanden.txt").write_text(_VAKKEN_TXT, encoding="latin-1")
+    for name in asc_files:
+        (inp / name).write_bytes(b"00AAVoorbeeld\r\n")
+    return inp
+
+
+def _json(path):
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def test_process_txt_folder_does_not_merge_vakcode_into_dec_json(tmp_path):
+    inp = _input_folder(tmp_path)
+    json_dir = tmp_path / "meta" / "json"
+    process_txt_folder(str(inp), str(json_dir))
+    dec = _json(json_dir / "Bestandsbeschrijving_Dec-bestanden.json")
+    assert [t["table_title"] for t in dec["tables"]] == ["Dec_vooropl.asc"]
+    vakken = _json(json_dir / "Bestandsbeschrijving_Vakkenbestanden.json")
+    assert vakken["tables"][0]["table_title"] == "Decodeertabel vakcode (Dec_vakcode.asc)"
+
+
+def test_process_txt_folder_writes_inferred_layouts_for_present_dec_brin_files(tmp_path):
+    inp = _input_folder(tmp_path, asc_files=("Dec_brinnummer.asc",))
+    json_dir = tmp_path / "meta" / "json"
+    extracted = process_txt_folder(str(inp), str(json_dir))
+
+    path = json_dir / f"{SUPPLEMENTARY_LAYOUT_FILENAME}.json"
+    assert str(path) in extracted
+    data = _json(path)
+    # Only the file that is in the input folder.
+    assert [t["table_title"] for t in data["tables"]] == ["Dec_brinnummer.asc"]
+    assert data["tables"][0]["note"] == INFERRED_LAYOUT_NOTE
+
+    log = _json(tmp_path / "meta" / "logs" / "(1)_json_processing_log_latest.json")
+    entry = next(e for e in log["processed_files"] if e["file"] == "Dec_brinnummer.asc")
+    assert entry["layout_note"] == INFERRED_LAYOUT_NOTE
+
+
+def test_process_txt_folder_no_inferred_layout_without_dec_brin_files(tmp_path):
+    inp = _input_folder(tmp_path, asc_files=())
+    json_dir = tmp_path / "meta" / "json"
+    process_txt_folder(str(inp), str(json_dir))
+    assert not (json_dir / f"{SUPPLEMENTARY_LAYOUT_FILENAME}.json").exists()
+
+
+def test_process_txt_folder_prefers_a_duo_layout_over_the_inferred_one(tmp_path):
+    inp = _input_folder(tmp_path)
+    (inp / "Bestandsbeschrijving_Dec-bestanden.txt").write_text(
+        _DEC_BESTANDEN_TXT
+        + "Dec_brinnummer.asc\n"
+        "==================\n"
+        "                                             Startpositie  Aantal posities\n"
+        "Brinnummer                                          1             4\n"
+        "Naam                                                5            30\n"
+        "\n",
+        encoding="latin-1",
+    )
+    json_dir = tmp_path / "meta" / "json"
+    process_txt_folder(str(inp), str(json_dir))
+    data = _json(json_dir / f"{SUPPLEMENTARY_LAYOUT_FILENAME}.json")
+    assert [t["table_title"] for t in data["tables"]] == ["Dec_brinvestigingsnummer.asc"]

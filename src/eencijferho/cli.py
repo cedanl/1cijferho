@@ -205,7 +205,11 @@ def cmd_decode(storage, args: argparse.Namespace) -> None:
     _validate_safe_path(args.input)
     _validate_safe_path(args.output)
     """Decode CSV files using Dec_* lookup tables (Dec-only, no label substitution)."""
-    from eencijferho.core.decoder import decode_fields_dec_only, load_dec_tables_from_metadata
+    from eencijferho.core.decoder import (
+        decode_fields_dec_only,
+        find_vakken_metadata_json,
+        load_dec_tables_from_metadata,
+    )
 
     _, json_dir, _ = _resolve_dirs(args.output)
     dec_json_matches = storage.list_files(
@@ -216,7 +220,10 @@ def cmd_decode(storage, args: argparse.Namespace) -> None:
         return
 
     dec_metadata_json = dec_json_matches[0]
-    dec_tables = load_dec_tables_from_metadata(dec_metadata_json, args.output)
+    vakken_metadata_json = find_vakken_metadata_json(json_dir)
+    dec_tables = load_dec_tables_from_metadata(
+        dec_metadata_json, args.output, vakken_metadata_json=vakken_metadata_json,
+    )
 
     count = 0
     for filepath in storage.list_files(f"{args.output}/*.csv"):
@@ -228,7 +235,9 @@ def cmd_decode(storage, args: argparse.Namespace) -> None:
         ):
             continue
         df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
-        decoded_df = decode_fields_dec_only(df, dec_metadata_json, dec_tables)
+        decoded_df = decode_fields_dec_only(
+            df, dec_metadata_json, dec_tables, vakken_metadata_json=vakken_metadata_json,
+        )
         out_path = filepath.replace(".csv", DECODED_SUFFIX)
         storage.write_text(decoded_df.write_csv(separator=";"), out_path)
         print(f"[eencijferho] Gedecodeerd: {fname} → {os.path.basename(out_path)}")
@@ -245,7 +254,12 @@ def cmd_enrich(storage, args: argparse.Namespace) -> None:
     Skips decode_fields entirely when no variable_metadata mappings apply to
     the columns of a given file (avoids unnecessary computation on large files).
     """
-    from eencijferho.core.decoder import decode_fields, load_dec_tables_from_metadata, load_variable_mappings
+    from eencijferho.core.decoder import (
+        decode_fields,
+        find_vakken_metadata_json,
+        load_dec_tables_from_metadata,
+        load_variable_mappings,
+    )
     from eencijferho.utils.converter_headers import normalize_name, clean_header_name
 
     _, json_dir, _ = _resolve_dirs(args.output)
@@ -257,7 +271,10 @@ def cmd_enrich(storage, args: argparse.Namespace) -> None:
         return
 
     dec_metadata_json = dec_json_matches[0]
-    dec_tables = load_dec_tables_from_metadata(dec_metadata_json, args.output)
+    vakken_metadata_json = find_vakken_metadata_json(json_dir)
+    dec_tables = load_dec_tables_from_metadata(
+        dec_metadata_json, args.output, vakken_metadata_json=vakken_metadata_json,
+    )
     variable_metadata_json = os.path.join(json_dir, "variable_metadata.json")
     var_maps = load_variable_mappings(variable_metadata_json)
 
@@ -277,6 +294,7 @@ def cmd_enrich(storage, args: argparse.Namespace) -> None:
         enriched_df = decode_fields(
             main_df, dec_metadata_json, dec_tables,
             variable_metadata_path=variable_metadata_json,
+            vakken_metadata_json=vakken_metadata_json,
         )
         if enriched_df.equals(decoded_df):
             print(f"[eencijferho] Overgeslagen (identiek aan decoded): {fname}")

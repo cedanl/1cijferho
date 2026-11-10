@@ -7,6 +7,7 @@ import polars as pl
 
 from eencijferho.utils.converter_headers import clean_header_name, normalize_name, strip_accents
 from eencijferho.io.decorators import with_storage
+from eencijferho.core.dec_layouts import supplementary_tables
 from collections.abc import Callable
 from typing import Any
 
@@ -84,12 +85,31 @@ def load_variable_mappings(
     return maps
 
 
+def _read_dec_csv(storage, dec_path: str) -> pl.DataFrame | None:
+    """Read a Dec CSV with every column as a string; None when it cannot be read.
+
+    Dec labels can be codes too (an ISCED rubriek such as 031103) and must
+    keep their leading zeros. Falls back to reading without quote parsing.
+    """
+    try:
+        return storage.read_dataframe(dec_path, infer_schema_length=0)
+    except Exception:
+        try:
+            return storage.read_dataframe(
+                dec_path, infer_schema_length=0, quote_char=None,
+            )
+        except Exception as e:
+            print(f"[decoder] Kon {os.path.basename(dec_path)} niet laden: {e}")
+            return None
+
+
 @with_storage
 def load_dec_tables_from_metadata(
     storage,
     metadata_json_path: str,
     dec_output_dir: str,
     naming_func: Callable[[str], str] | None = None,
+    vakken_metadata_json: str | None = None,
 ) -> dict[str, pl.DataFrame]:
     """
     Loads Dec_* tables as Polars DataFrames based on metadata JSON.
@@ -98,6 +118,10 @@ def load_dec_tables_from_metadata(
         metadata_json_path: Path to the metadata JSON file.
         dec_output_dir: Directory containing Dec_* CSV files.
         naming_func: Optional column name normalizer.
+        vakken_metadata_json: Optional path to the Vakkenbestanden JSON. When
+            given, the Dec tables its layout refers to are loaded too
+            (Dec_vakcode, and Dec_brinnummer / Dec_brinvestigingsnummer from
+            the inferred layouts in ``dec_layouts``), keyed by ``Dec_X.asc``.
 
     Returns:
         Mapping of table titles to DataFrames with all columns as strings.
@@ -113,24 +137,32 @@ def load_dec_tables_from_metadata(
 
     dec_tables: dict[str, pl.DataFrame] = {}
     for table in meta["tables"]:
-        dec_file = table["table_title"].replace(".asc", ".csv")
-        dec_path = os.path.join(dec_output_dir, dec_file)
-
-        # Read every column as a string: Dec labels can be codes too (an
-        # ISCED rubriek such as 031103) and must keep their leading zeros.
-        try:
-            df = storage.read_dataframe(dec_path, infer_schema_length=0)
+        dec_path = os.path.join(dec_output_dir, table["table_title"].replace(".asc", ".csv"))
+        df = _read_dec_csv(storage, dec_path)
+        if df is not None:
             dec_tables[table["table_title"]] = df
-        except Exception:
-            try:
-                df = storage.read_dataframe(
-                    dec_path, infer_schema_length=0, quote_char=None,
-                )
-                dec_tables[table["table_title"]] = df
-            except Exception as e:
-                print(f"[decoder] Kon {dec_file} niet laden: {e}")
+
+    if vakken_metadata_json:
+        # Only the Dec files the Vakken layout names; a CSV that is not there
+        # (file not delivered) is skipped without noise.
+        for title in build_dec_layouts(storage.read_json(vakken_metadata_json)):
+            dec_path = os.path.join(dec_output_dir, title.replace(".asc", ".csv"))
+            if title in dec_tables or not storage.exists(dec_path):
+                continue
+            df = _read_dec_csv(storage, dec_path)
+            if df is not None:
+                dec_tables[title] = df
 
     return dec_tables
+
+
+@with_storage
+def find_vakken_metadata_json(storage, json_dir: str) -> str | None:
+    """Path of the Bestandsbeschrijving_Vakkenbestanden*.json in json_dir, or None."""
+    if not json_dir:
+        return None
+    matches = sorted(storage.list_files(f"{json_dir}/Bestandsbeschrijving_Vakkenbestanden*.json"))
+    return matches[0] if matches else None
 
 
 # ---------------------------------------------------------------------------
@@ -426,69 +458,181 @@ def _apply_dec_tables(
     return result_df
 
 
-def _apply_vakken_patch(
+# A layout row: name, start position, width and an optional remark, e.g.
+# "Vestigingsnummer VO-vestiging    17    2    in combinatie met Brinnummer ...".
+# The name ends at the first run of two or more spaces before the numbers, so
+# names with single spaces and digits ("Gemeentecode per 1 januari 2025") stay whole.
+_LAYOUT_ROW_RE = _re.compile(
+    r"^\s*(?P<name>\S.*?)\s{2,}(?P<start>\d+)\s+(?P<width>\d+)(?:\s+(?P<remark>\S.*?))?\s*$"
+)
+_DEC_TITLE_RE = _re.compile(r"Dec_[\w-]+\.asc", _re.IGNORECASE)
+
+
+def _dec_title(table_title: str) -> str | None:
+    """The ``Dec_X.asc`` file a table title describes, or None.
+
+    ``"Decodeertabel vakcode (Dec_vakcode.asc)"`` -> ``"Dec_vakcode.asc"``.
+    """
+    m = _DEC_TITLE_RE.search(table_title or "")
+    return m.group(0) if m else None
+
+
+def _parse_layout_rows(content: list[str]) -> list[dict[str, Any]]:
+    """Parse the field rows of a layout table (content[0] is the header).
+
+    Returns one dict per field: ``name``, ``start``, ``width``, ``remark``.
+    """
+    rows = []
+    for line in content[1:]:
+        m = _LAYOUT_ROW_RE.match(line)
+        if not m:
+            continue
+        rows.append({
+            "name": m.group("name").strip(),
+            "start": int(m.group("start")),
+            "width": int(m.group("width")),
+            "remark": (m.group("remark") or "").strip(),
+        })
+    return rows
+
+
+def _resolve_field_reference(
+    reference: str,
+    field_names: list[str],
+    exclude: str | None = None,
+    naming_func: Callable | None = None,
+) -> str | None:
+    """Find the layout field a short reference points to.
+
+    DUO writes "in combinatie met Brinnummer" where the field is called
+    "Brinnummer VO-instelling": an exact (normalised) match wins, otherwise the
+    one field whose normalised name starts with the reference. Returns None
+    when no field or more than one field fits.
+    """
+    ref = normalize_name(strip_accents(reference), naming_func)
+    names = [n for n in field_names if n != exclude]
+    norms = {n: normalize_name(strip_accents(n), naming_func) for n in names}
+    exact = [n for n in names if norms[n] == ref]
+    if len(exact) == 1:
+        return exact[0]
+    prefix = [n for n in names if norms[n].startswith(ref + "_")]
+    return prefix[0] if len(prefix) == 1 else None
+
+
+def parse_vakken_layout(
+    content: list[str],
+    naming_func: Callable | None = None,
+) -> list[dict[str, Any]]:
+    """Parse a Vakkenbestanden layout table, decode rules included.
+
+    The decode rules sit in the ``Opmerking`` column ("te decoderen met
+    Dec_X.asc", optionally "in combinatie met <veld>").
+
+    Returns one dict per field: ``name``, ``start``, ``width``, ``remark``,
+    ``dec_table`` (``Dec_X.asc`` or None) and ``composite`` (the full name of
+    the partner field of a composite key, or None).
+    """
+    rows = _parse_layout_rows(content)
+    names = [r["name"] for r in rows]
+    fields = []
+    for row in rows:
+        reference, dec_table = _parse_vakken_opmerking(row["remark"])
+        partner = None
+        if reference:
+            partner = _resolve_field_reference(reference, names, row["name"], naming_func)
+            if partner is None:
+                print(
+                    f"[decoder][vakken] Samengesteld veld '{reference}' bij "
+                    f"'{row['name']}' niet gevonden in de lay-out."
+                )
+        fields.append({**row, "dec_table": dec_table, "composite": partner})
+    return fields
+
+
+def build_dec_layouts(*metas: dict | None) -> dict[str, list[str]]:
+    """Map ``Dec_X.asc`` -> layout content, from all known descriptions.
+
+    Reads the tables of each metadata dict (Dec-bestanden, Vakkenbestanden)
+    whose title names a Dec file, then adds the inferred layouts from
+    ``dec_layouts`` for files no DUO description covers. The first
+    description of a file wins.
+    """
+    layouts: dict[str, list[str]] = {}
+    for meta in metas:
+        for table in (meta or {}).get("tables", []):
+            title = _dec_title(table.get("table_title", ""))
+            if title and title not in layouts and table.get("content"):
+                layouts[title] = table["content"]
+    for title, table in supplementary_tables().items():
+        layouts.setdefault(title, table["content"])
+    return layouts
+
+
+def _apply_vakken_layout(
     result_df: pl.DataFrame,
-    meta: dict,
+    vakken_meta: dict,
+    dec_layouts: dict[str, list[str]],
     dec_tables: dict[str, pl.DataFrame],
     naming_func: Callable | None = None,
+    decode_columns: list[str] | None = None,
 ) -> pl.DataFrame:
-    """Apply Vakkenbestanden decoding via 'te decoderen met Dec_X' in Opmerking column."""
-    for table in meta["tables"]:
-        if table.get("decoding_variables", []):
-            continue  # Already handled by _apply_dec_tables
+    """Decode the fields of a Vakkenbestanden layout (e.g. VAKHAVW).
 
+    Every field whose Opmerking says "te decoderen met Dec_X.asc" is joined
+    to that Dec table; "in combinatie met <veld>" makes it a composite key.
+    A frame that has none of the fields to decode (an EV file) is returned
+    unchanged.
+
+    Args:
+        decode_columns: When not None, only decode fields whose name appears
+            in this list (matched after normalization).
+    """
+    allowed: set[str] | None = None
+    if decode_columns is not None:
+        allowed = {normalize_name(strip_accents(c), naming_func) for c in decode_columns}
+
+    for table in vakken_meta.get("tables", []):
         content = table.get("content", [])
-        if not content or len(content) < 2:
+        if not content or "opmerking" not in content[0].lower():
             continue
+        fields = parse_vakken_layout(content, naming_func)
+        decode_cols = {
+            normalize_name(strip_accents(f["name"]), naming_func)
+            for f in fields if f["dec_table"]
+        }
+        if not decode_cols & set(result_df.columns):
+            continue  # not a Vakken file (e.g. EV): nothing to decode here
 
-        header_row = next(
-            (i for i, row in enumerate(content) if "opmerking" in row.lower()), None
-        )
-        if header_row is None:
-            continue
-
-        headers = [h.strip().lower() for h in content[header_row].split()]
-        col_idx = {h: i for i, h in enumerate(headers)}
-
-        for row in content[header_row + 1:]:
-            parts = row.split(None, len(headers) - 1)
-            if len(parts) < len(headers):
-                continue
-
-            naam = parts[col_idx.get("naam", 0)]
-            opm = parts[col_idx.get("opmerking", -1)] if "opmerking" in col_idx else ""
-
-            composite, dec_table_title = _parse_vakken_opmerking(opm)
+        for field in fields:
+            dec_table_title = field["dec_table"]
             if not dec_table_title:
+                continue
+            var_norm = normalize_name(strip_accents(field["name"]), naming_func)
+            if allowed is not None and var_norm not in allowed:
                 continue
 
             dec_table = dec_tables.get(dec_table_title)
-            if dec_table is None:
+            dec_content = dec_layouts.get(dec_table_title)
+            if dec_table is None or not dec_content or len(dec_content) < 2:
                 print(f"[decoder][vakken] Dec-tabel niet geladen: {dec_table_title}")
                 continue
 
-            dec_content = next(
-                (t.get("content", []) for t in meta["tables"] if t["table_title"] == dec_table_title),
-                None,
-            )
-            if not dec_content or len(dec_content) < 2:
+            dec_rows = _parse_layout_rows(dec_content)
+            if not dec_rows:
+                print(f"[decoder][vakken] Geen lay-out voor {dec_table_title}")
                 continue
+            dec_code_col_norm = normalize_name(strip_accents(dec_rows[0]["name"]), naming_func)
+            join_df = _normalize_dec_table(dec_table, dec_code_col_norm, naming_func)
 
-            dec_code_col_norm = normalize_name(dec_content[1].split()[0], naming_func)
-            join_df = dec_table.rename(
-                {c: normalize_name(c, naming_func) for c in dec_table.columns}
-            )
-            var_norm = normalize_name(naam, naming_func)
-
-            if composite:
+            if field["composite"]:
                 result_df = _apply_vakken_composite(
-                    result_df, join_df, var_norm, composite,
+                    result_df, join_df, var_norm, field["composite"],
                     dec_code_col_norm, dec_content, dec_table_title, naming_func,
                 )
             else:
                 result_df = _apply_vakken_simple(
-                    result_df, join_df, var_norm, dec_code_col_norm, naam, dec_table_title,
-                    dec_content,
+                    result_df, join_df, var_norm, dec_code_col_norm,
+                    field["name"], dec_table_title, dec_content,
                 )
 
     return result_df
@@ -498,17 +642,19 @@ def _parse_vakken_opmerking(opm: str) -> tuple[str | None, str | None]:
     """Parse an Opmerking value for decode instructions.
 
     Returns (composite_col, dec_table_title) or (None, None) if no instruction found.
+    ``composite_col`` is the field reference as DUO writes it ("Brinnummer");
+    ``parse_vakken_layout`` resolves it to the full field name.
     """
     opm_lower = opm.lower()
     if "in combinatie met" in opm_lower and "te decoderen met dec_" in opm_lower:
         m = _re.search(
-            r"in combinatie met ([A-Za-z0-9_]+) te decoderen met (Dec_[A-Za-z0-9_]+)\.asc",
+            r"in combinatie met (.+?) te decoderen met (Dec_[\w-]+)\.asc",
             opm, _re.IGNORECASE,
         )
         if m:
-            return m.group(1), m.group(2) + ".asc"
+            return m.group(1).strip(), m.group(2) + ".asc"
     elif "te decoderen met dec_" in opm_lower:
-        m = _re.search(r"te decoderen met (Dec_[A-Za-z0-9_]+)\.asc", opm)
+        m = _re.search(r"te decoderen met (Dec_[\w-]+)\.asc", opm, _re.IGNORECASE)
         if m:
             return None, m.group(1) + ".asc"
     return None, None
@@ -567,33 +713,53 @@ def _apply_vakken_composite(
 ) -> pl.DataFrame:
     """Apply a composite-key Vakkenbestanden join.
 
+    ``var_norm`` and ``composite`` (the partner field, as named in the layout)
+    are paired with the two key columns of the Dec table by name: a data
+    column "brinnummer_vo_instelling" belongs to key "Brinnummer". When the
+    names do not tell, ``var_norm`` takes the first key and the partner the
+    second. Label columns are named after ``var_norm``.
+
     Matches through temporary keys (see ``_join_key``); the data columns are
     left as they are.
     """
-    composite_norm = normalize_name(composite, naming_func)
+    composite_norm = normalize_name(strip_accents(composite), naming_func)
     if len(dec_content) <= 2:
         print(f"[decoder][vakken] Geen tweede sleutelkolom voor samengestelde join in {dec_table_title}")
         return result_df
 
-    dec_code_col2_norm = normalize_name(dec_content[2].split()[0], naming_func)
+    dec_rows = _parse_layout_rows(dec_content)
+    if len(dec_rows) >= 2:
+        dec_code_col2_norm = normalize_name(strip_accents(dec_rows[1]["name"]), naming_func)
+    else:
+        dec_code_col2_norm = normalize_name(dec_content[2].split()[0], naming_func)
 
     for col in [var_norm, composite_norm]:
         if col not in result_df.columns:
             closest = difflib.get_close_matches(col, result_df.columns, n=1)
             print(f"[decoder][vakken] Sla {col} over (samengesteld) — niet in DataFrame. Dichtste: {closest}")
             return result_df
+
+    def _belongs(data_col: str, key_col: str) -> bool:
+        return data_col == key_col or data_col.startswith(key_col + "_")
+
+    first_width, second_width = _code_width(dec_content[1]), _code_width(dec_content[2])
+    if _belongs(composite_norm, dec_code_col_norm) and not _belongs(var_norm, dec_code_col_norm):
+        pairs = [
+            (composite_norm, dec_code_col_norm, first_width),
+            (var_norm, dec_code_col2_norm, second_width),
+        ]
+    else:
+        pairs = [
+            (var_norm, dec_code_col_norm, first_width),
+            (composite_norm, dec_code_col2_norm, second_width),
+        ]
     try:
         dec_cols = [
             c for c in join_df.columns
             if c not in (dec_code_col_norm, dec_code_col2_norm)
         ]
         joined, label_cols = _keyed_lookup(
-            result_df, join_df,
-            [
-                (var_norm, dec_code_col_norm, _code_width(dec_content[1])),
-                (composite_norm, dec_code_col2_norm, _code_width(dec_content[2])),
-            ],
-            dec_cols, var_norm, log_prefix="[decoder][vakken]",
+            result_df, join_df, pairs, dec_cols, var_norm, log_prefix="[decoder][vakken]",
         )
         result_df = result_df.with_columns(
             joined[label].alias(f"{var_norm}__{col}")
@@ -614,6 +780,24 @@ def _apply_vakken_composite(
     except Exception as e:
         print(f"[decoder][vakken] Fout bij samengestelde join voor {var_norm}: {e}")
     return result_df
+
+
+def _apply_vakken(
+    result_df: pl.DataFrame,
+    dec_meta: dict,
+    vakken_metadata_json: str | None,
+    dec_tables: dict[str, pl.DataFrame],
+    naming_func: Callable | None = None,
+    decode_columns: list[str] | None = None,
+) -> pl.DataFrame:
+    """Decode the Vakkenbestanden fields when a Vakken JSON is given."""
+    if not vakken_metadata_json:
+        return result_df
+    vakken_meta = _load_meta(vakken_metadata_json)
+    dec_layouts = build_dec_layouts(dec_meta, vakken_meta)
+    return _apply_vakken_layout(
+        result_df, vakken_meta, dec_layouts, dec_tables, naming_func, decode_columns
+    )
 
 
 def _apply_variable_mappings(
@@ -786,6 +970,7 @@ def decode_fields_dec_only(
     dec_tables: dict[str, pl.DataFrame],
     naming_func: Callable[[str], str] | None = None,
     decode_columns: list[str] | None = None,
+    vakken_metadata_json: str | None = None,
 ) -> pl.DataFrame:
     """
     Decode fields using only Dec_* lookup tables (no variable_metadata enrichment).
@@ -801,6 +986,9 @@ def decode_fields_dec_only(
         naming_func: Optional column name normalizer.
         decode_columns: When not None, only decode these column names.
             Use decoder_info.get_available_decode_columns() to discover valid names.
+        vakken_metadata_json: Optional path to the Vakkenbestanden JSON. When
+            given, the fields of its layout that carry a decode rule
+            ("te decoderen met Dec_X.asc") are decoded as well.
 
     Returns:
         DataFrame with Dec-decoded columns appended.
@@ -808,7 +996,9 @@ def decode_fields_dec_only(
     meta = _load_meta(metadata_json_path)
     norm_df, norm_map, _orig = _normalize_df(df, naming_func)
     result_df = _apply_dec_tables(norm_df, meta, dec_tables, naming_func, decode_columns)
-    result_df = _apply_vakken_patch(result_df, meta, dec_tables, naming_func)
+    result_df = _apply_vakken(
+        result_df, meta, vakken_metadata_json, dec_tables, naming_func, decode_columns
+    )
     return result_df.rename({k: v for k, v in norm_map.items() if k in result_df.columns})
 
 
@@ -820,6 +1010,7 @@ def decode_fields(
     variable_metadata_path: str | None = None,
     decode_columns: list[str] | None = None,
     enrich_variables: list[str] | None = None,
+    vakken_metadata_json: str | None = None,
 ) -> pl.DataFrame:
     """
     Decode fields using Dec_* tables, then apply variable_metadata label substitution.
@@ -840,6 +1031,8 @@ def decode_fields(
         enrich_variables: When not None, only apply variable_metadata labels
             for these variable names.  Use decoder_info.get_available_enrich_variables() to
             discover valid names.
+        vakken_metadata_json: Optional path to the Vakkenbestanden JSON; see
+            decode_fields_dec_only.
 
     Returns:
         DataFrame with Dec-decoded columns appended and variable-level labels
@@ -848,7 +1041,9 @@ def decode_fields(
     meta = _load_meta(metadata_json_path)
     norm_df, norm_map, orig_columns = _normalize_df(df, naming_func)
     result_df = _apply_dec_tables(norm_df, meta, dec_tables, naming_func, decode_columns)
-    result_df = _apply_vakken_patch(result_df, meta, dec_tables, naming_func)
+    result_df = _apply_vakken(
+        result_df, meta, vakken_metadata_json, dec_tables, naming_func, decode_columns
+    )
     result_df = _apply_variable_mappings(
         result_df, variable_metadata_path, naming_func, norm_map, orig_columns, enrich_variables
     )

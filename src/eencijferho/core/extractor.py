@@ -31,6 +31,11 @@ import xlsxwriter
 from rich.console import Console
 from typing import Any
 
+from .dec_layouts import (
+    INFERRED_LAYOUT_NOTE,
+    SUPPLEMENTARY_LAYOUT_FILENAME,
+    supplementary_tables,
+)
 from .parse_metadata import parse_metadata_file
 from eencijferho.io.decorators import with_storage
 
@@ -211,6 +216,68 @@ def extract_tables_from_txt(txt_file: str, json_output_folder: str) -> str | Non
     return _save_tables_json(all_tables, txt_file, json_output_folder)
 
 
+
+_DEC_TITLE_RE = re.compile(r"Dec_[\w-]+\.asc", re.IGNORECASE)
+
+
+@with_storage
+def _described_dec_files(storage, json_files: list[str]) -> set[str]:
+    """Lower-cased ``Dec_X.asc`` names that a table title in json_files describes."""
+    described: set[str] = set()
+    for json_file in json_files:
+        try:
+            data = storage.read_json(json_file)
+        except (OSError, ValueError) as e:
+            print(f"Error reading {json_file}: {e}")
+            continue
+        for table in data.get("tables", []):
+            m = _DEC_TITLE_RE.search(table.get("table_title", ""))
+            if m:
+                described.add(m.group(0).lower())
+    return described
+
+
+@with_storage
+def _write_supplementary_layouts(
+    storage,
+    input_files: list[str],
+    extracted_files: list[str],
+    json_output_folder: str,
+    log_data: dict,
+) -> str | None:
+    """Write the inferred Dec layouts (see ``dec_layouts``) as an extra JSON.
+
+    Only for Dec files that are in the input folder and that no DUO
+    bestandsbeschrijving describes: a layout from DUO always wins. Each layout
+    is logged in ``log_data`` with a note that it is inferred, not from DUO.
+
+    Returns the JSON path, or None when no layout was needed.
+    """
+    present = {os.path.basename(f).lower(): os.path.basename(f) for f in input_files}
+    described = _described_dec_files(extracted_files)
+    tables = []
+    for title, table in supplementary_tables().items():
+        if title.lower() not in present or title.lower() in described:
+            continue
+        tables.append({"table_number": len(tables) + 1, **table})
+        file_name = present[title.lower()]
+        file_log = next(
+            (e for e in log_data["processed_files"] if e.get("file") == file_name), None
+        )
+        if file_log is None:
+            file_log = {"file": file_name, "status": "no_tables_found", "output": None}
+            log_data["processed_files"].append(file_log)
+        file_log["layout"] = f"{SUPPLEMENTARY_LAYOUT_FILENAME}.json"
+        file_log["layout_note"] = INFERRED_LAYOUT_NOTE
+        _console.print(f"[yellow]{file_name}: {INFERRED_LAYOUT_NOTE}")
+
+    if not tables:
+        return None
+    json_path = os.path.join(json_output_folder, f"{SUPPLEMENTARY_LAYOUT_FILENAME}.json")
+    storage.write_json({"filename": SUPPLEMENTARY_LAYOUT_FILENAME, "tables": tables}, json_path)
+    return json_path
+
+
 @with_storage
 def process_txt_folder(
     storage,
@@ -274,6 +341,12 @@ def process_txt_folder(
                 file_log["output"] = os.path.basename(json_path)
             log_data["processed_files"].append(file_log)
 
+    supplementary_json = _write_supplementary_layouts(
+        all_files, extracted_files, json_output_folder, log_data
+    )
+    if supplementary_json:
+        extracted_files.append(supplementary_json)
+
     log_data["status"] = "completed"
     log_data["total_files_processed"] = len(log_data["processed_files"])
     log_data["total_files_extracted"] = len(extracted_files)
@@ -288,44 +361,6 @@ def process_txt_folder(
     _console.print(
         f"[blue]Log saved to: {os.path.basename(latest_log_file)} and {os.path.basename(timestamped_log_file)} in {log_folder}"
     )
-
-    # --- PATCH: Merge Dec_vakcode table from Vakkenbestanden JSON into Dec-bestanden JSON ---
-    vakken_json = next((f for f in extracted_files if "Vakkenbestanden" in f), None)
-    dec_json = next((f for f in extracted_files if "Dec-bestanden" in f), None)
-    if vakken_json and dec_json and storage.exists(vakken_json) and storage.exists(dec_json):
-        try:
-            vak_data = storage.read_json(vakken_json)
-            dec_data = storage.read_json(dec_json)
-            vakcode_tables = [
-                t
-                for t in vak_data.get("tables", [])
-                if "vakcode" in t.get("table_title", "").lower()
-            ]
-            if vakcode_tables:
-                existing_titles = [
-                    t.get("table_title", "").lower() for t in dec_data.get("tables", [])
-                ]
-                max_table_number = max(
-                    [t.get("table_number", 0) for t in dec_data.get("tables", [])]
-                    or [0]
-                )
-                for t in vakcode_tables:
-                    t["table_title"] = "Dec_vakcode.asc"
-                    max_table_number += 1
-                    t["table_number"] = max_table_number
-                    if not t.get("decoding_variables"):
-                        t["decoding_variables"] = ["Vakcode"]
-                    if t["table_title"].lower() not in existing_titles:
-                        dec_data["tables"].append(t)
-                        existing_titles.append(t["table_title"].lower())
-                storage.write_json(dec_data, dec_json)
-                _console.print(
-                    f"[cyan]Patched: Added Dec_vakcode table(s) from Vakkenbestanden JSON to Dec-bestanden JSON with correct title and table_number."
-                )
-        except Exception as e:
-            _console.print(
-                f"[red]Error patching Dec_vakcode into Dec-bestanden JSON: {e}"
-            )
 
     return extracted_files
 
