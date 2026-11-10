@@ -11,13 +11,16 @@ import pytest
 from eencijferho.utils import snapshot_validator
 from eencijferho.utils.snapshot_validator import generate_snapshot, validate_snapshot
 
+# Fixtures are written as bytes: write_text would translate "\n" to "\r\n" on Windows.
+LF_CSV = b"code;label\n0001;Een\n"
+
 
 @pytest.fixture
 def snapshot_case(tmp_path):
     output = tmp_path / "output"
     output.mkdir()
     csv = output / "EV-test.csv"
-    csv.write_text("code;label\n0001;Een\n", encoding="utf-8")
+    csv.write_bytes(LF_CSV)
     snapshot = tmp_path / "snapshot.json"
     generate_snapshot(str(output), str(snapshot))
     return output, csv, snapshot
@@ -26,7 +29,7 @@ def snapshot_case(tmp_path):
 def test_snapshot_records_hash_and_preserves_string_schema(snapshot_case):
     output, csv, snapshot = snapshot_case
     entry = json.loads(snapshot.read_text())["files"][csv.name]
-    assert entry["file_hash"] == hashlib.sha256(csv.read_bytes()).hexdigest()
+    assert entry["file_hash"] == hashlib.sha256(LF_CSV).hexdigest()
     assert entry["row_count"] == 1
     assert entry["columns"] == ["code", "label"]
     assert validate_snapshot(str(output), str(snapshot)) == (True, [], [])
@@ -34,7 +37,7 @@ def test_snapshot_records_hash_and_preserves_string_schema(snapshot_case):
 
 def test_changed_values_fail_even_when_shape_matches(snapshot_case):
     output, csv, snapshot = snapshot_case
-    csv.write_text("code;label\n9999;Anders\n", encoding="utf-8")
+    csv.write_bytes(b"code;label\n9999;Anders\n")
     passed, errors, _ = validate_snapshot(str(output), str(snapshot))
     assert not passed
     # Same row count, columns and dtypes: the hash is the only thing that differs.
@@ -86,7 +89,7 @@ def test_missing_counts_in_current_file_fail(tmp_path):
     """A file whose scan yields no counts must not pass a snapshot that expects them."""
     output = tmp_path / "output"
     output.mkdir()
-    (output / "EV-test.txt").write_text("code;label\n0001;Een\n", encoding="utf-8")
+    (output / "EV-test.txt").write_bytes(LF_CSV)
     snapshot = tmp_path / "snapshot.json"
     snapshot.write_text(json.dumps(
         {"files": {"EV-test.txt": {"row_count": 1, "column_count": 2}}}
@@ -100,7 +103,7 @@ def test_missing_counts_in_current_file_fail(tmp_path):
 def test_unescaped_quotes_still_read_via_fallback(snapshot_case):
     """The converter does not escape quotes (yet); the fallback keeps such output readable."""
     output, csv, snapshot = snapshot_case
-    csv.write_text('code;label\n0001;"de Bontekoe" NTC-VO\n', encoding="utf-8")
+    csv.write_bytes(b'code;label\n0001;"de Bontekoe" NTC-VO\n')
     generate_snapshot(str(output), str(snapshot))
     assert validate_snapshot(str(output), str(snapshot)) == (True, [], [])
 
@@ -116,7 +119,7 @@ def test_missing_file_fails(snapshot_case):
 def test_unexpected_file_warns_by_default_and_fails_when_strict(snapshot_case):
     """Lenient while the baselines are v1; strict becomes the default once they are v2."""
     output, _, snapshot = snapshot_case
-    (output / "EV-old.csv").write_text("code\n1\n", encoding="utf-8")
+    (output / "EV-old.csv").write_bytes(b"code\n1\n")
     passed, errors, warnings = validate_snapshot(str(output), str(snapshot))
     assert passed and not errors
     assert any("Onverwacht bestand" in warning for warning in warnings)
@@ -187,7 +190,7 @@ def test_metadata_is_not_an_output_product(snapshot_case):
 @pytest.mark.parametrize("strict, exit_code", [(False, None), (True, 1)])
 def test_cli_passes_strict_files_through(snapshot_case, monkeypatch, strict, exit_code):
     output, _, snapshot = snapshot_case
-    (output / "EV-old.csv").write_text("code\n1\n", encoding="utf-8")
+    (output / "EV-old.csv").write_bytes(b"code\n1\n")
     argv = ["snapshot_validator", "--output", str(output), "--snapshot", str(snapshot), "--validate"]
     monkeypatch.setattr(sys, "argv", argv + (["--strict-files"] if strict else []))
     if exit_code is None:
@@ -196,3 +199,125 @@ def test_cli_passes_strict_files_through(snapshot_case, monkeypatch, strict, exi
         with pytest.raises(SystemExit) as exc_info:
             snapshot_validator.main()
         assert exc_info.value.code == exit_code
+
+
+# ---------------------------------------------------------------------------
+# Platform- and library-independent hashes
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def parquet_case(tmp_path):
+    output = tmp_path / "output"
+    output.mkdir()
+    parquet = output / "EV-test.parquet"
+    frame = pl.DataFrame({
+        "code": ["0001", "0002", None, "0004"],
+        "label": ["Een", "", "Drie", None],
+    })
+    frame.write_parquet(parquet, compression="zstd")
+    snapshot = tmp_path / "snapshot.json"
+    generate_snapshot(str(output), str(snapshot))
+    return output, parquet, frame, snapshot
+
+
+def test_parquet_entry_has_data_hash_and_no_file_hash(parquet_case):
+    _, parquet, _, snapshot = parquet_case
+    entry = json.loads(snapshot.read_text())["files"][parquet.name]
+    assert "file_hash" not in entry
+    assert len(entry["data_hash"]) == 64
+    assert entry["dtypes"] == {"code": "String", "label": "String"}
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"compression": "snappy"},
+    {"compression": "uncompressed"},
+    {"compression": "zstd", "row_group_size": 1},
+    {"compression": "gzip", "statistics": False},
+])
+def test_parquet_layout_does_not_change_data_hash(parquet_case, tmp_path, kwargs):
+    output, parquet, frame, snapshot = parquet_case
+    before = parquet.read_bytes()
+    frame.write_parquet(parquet, **kwargs)
+    assert parquet.read_bytes() != before
+    assert validate_snapshot(str(output), str(snapshot), strict_files=True) == (True, [], [])
+    regenerated = tmp_path / "regenerated.json"
+    generate_snapshot(str(output), str(regenerated))
+    assert (
+        json.loads(regenerated.read_text())["files"]
+        == json.loads(snapshot.read_text())["files"]
+    )
+
+
+@pytest.mark.parametrize("column, values", [
+    ("code", ["0001", "0002", None, "9999"]),   # changed value
+    ("code", ["0001", "0002", "", "0004"]),     # null became empty string
+    ("label", ["Een", None, "Drie", None]),     # empty string became null
+    ("label", ["Ee", "n", "Drie", None]),       # same concatenation, other split
+])
+def test_one_changed_cell_fails_without_echoing_values(parquet_case, column, values):
+    output, parquet, frame, snapshot = parquet_case
+    frame.with_columns(pl.Series(column, values)).write_parquet(parquet)
+    passed, errors, _ = validate_snapshot(str(output), str(snapshot))
+    assert not passed
+    assert errors == [f"{parquet.name}: inhoud gewijzigd (data-hash verschilt)"]
+    for value in ("0001", "0002", "0004", "9999", "Een", "Drie"):
+        assert not any(value in error for error in errors)
+
+
+def test_parquet_column_order_is_part_of_data_hash(parquet_case):
+    output, parquet, frame, snapshot = parquet_case
+    frame.select(["label", "code"]).write_parquet(parquet)
+    passed, errors, _ = validate_snapshot(str(output), str(snapshot))
+    assert not passed
+    assert errors == [f"{parquet.name}: inhoud gewijzigd (data-hash verschilt)"]
+
+
+def test_v2_snapshot_cannot_omit_parquet_data_hash(parquet_case):
+    output, parquet, _, snapshot = parquet_case
+    data = json.loads(snapshot.read_text())
+    del data["files"][parquet.name]["data_hash"]
+    # A raw-bytes hash does not stand in for the data hash.
+    data["files"][parquet.name]["file_hash"] = hashlib.sha256(parquet.read_bytes()).hexdigest()
+    snapshot.write_text(json.dumps(data))
+    passed, errors, _ = validate_snapshot(str(output), str(snapshot))
+    assert not passed
+    assert errors == [f"{parquet.name}: data-hash ontbreekt in de snapshot"]
+
+
+def test_csv_with_crlf_line_endings_validates(snapshot_case):
+    output, csv, snapshot = snapshot_case
+    csv.write_bytes(LF_CSV.replace(b"\n", b"\r\n"))
+    assert validate_snapshot(str(output), str(snapshot), strict_files=True) == (True, [], [])
+
+
+@pytest.mark.parametrize("baseline_eol, current_eol", [
+    (b"\n", b"\r\n"),
+    (b"\r\n", b"\n"),
+    (b"\r\n", b"\r\n"),
+])
+def test_crlf_and_lf_csv_give_identical_entries(tmp_path, baseline_eol, current_eol):
+    """A CRLF header must not leave a trailing "\r" in the last column name."""
+    output = tmp_path / "output"
+    output.mkdir()
+    csv = output / "EV-test.csv"
+    csv.write_bytes(LF_CSV.replace(b"\n", baseline_eol))
+    snapshot = tmp_path / "snapshot.json"
+    generate_snapshot(str(output), str(snapshot))
+    entry = json.loads(snapshot.read_text(encoding="utf-8"))["files"][csv.name]
+    assert entry == {
+        "file_hash": hashlib.sha256(LF_CSV).hexdigest(),
+        "row_count": 1,
+        "column_count": 2,
+        "columns": ["code", "label"],
+    }
+
+    csv.write_bytes(LF_CSV.replace(b"\n", current_eol))
+    assert validate_snapshot(str(output), str(snapshot), strict_files=True) == (True, [], [])
+
+
+def test_csv_with_crlf_and_changed_value_still_fails(snapshot_case):
+    output, csv, snapshot = snapshot_case
+    csv.write_bytes(b"code;label\r\n0002;Een\r\n")
+    passed, errors, _ = validate_snapshot(str(output), str(snapshot))
+    assert not passed
+    assert errors == [f"{csv.name}: inhoud gewijzigd (SHA256 verschilt)"]

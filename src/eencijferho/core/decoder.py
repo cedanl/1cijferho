@@ -877,33 +877,3 @@ def decode_fields(
         result_df, variable_metadata_path, naming_func, norm_map, orig_columns, enrich_variables
     )
     return result_df.rename({k: v for k, v in norm_map.items() if k in result_df.columns})
-
-
-# ---------------------------------------------------------------------------
-# Utility
-# ---------------------------------------------------------------------------
-
-
-def clean_for_latin1(df: pl.DataFrame) -> pl.DataFrame:
-    """
-    Replace characters outside latin-1 range in all string columns.
-
-    Replaces fraction slash (U+2044) with '/' and all other non-latin-1
-    characters with '?'.
-
-    Args:
-        df: Input DataFrame to sanitize.
-
-    Returns:
-        DataFrame with non-latin-1 characters replaced.
-    """
-    non_latin1_regex = r"[^\x00-\xFF]"
-    for col in df.columns:
-        if df[col].dtype == pl.Utf8:
-            df = df.with_columns(
-                pl.col(col)
-                .str.replace_all("⁄", "/")
-                .str.replace_all(non_latin1_regex, "?")
-                .alias(col)
-            )
-    return df

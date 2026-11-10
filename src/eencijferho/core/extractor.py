@@ -33,6 +33,7 @@ from typing import Any
 
 from .parse_metadata import parse_metadata_file
 from eencijferho.io.decorators import with_storage
+from eencijferho.io.text_encoding import DescriptionEncodingError, read_description_text
 
 _console = Console()
 
@@ -109,10 +110,16 @@ def _extract_decoding_variables(lines: list[str], start_index: int) -> list[str]
 
 
 @with_storage
-def _read_txt_latin1(storage, path: str) -> str | None:
-    """Read a text file using latin-1 encoding via storage. Returns None on error."""
+def _read_description(storage, path: str) -> str | None:
+    """Read a file description via the shared reader. Returns None on IO errors.
+
+    A DescriptionEncodingError (U+FFFD in the decoded text) is not an IO error:
+    it propagates so the caller stops instead of reporting "no tables found".
+    """
     try:
-        return storage.read_text(path, encoding="latin-1")
+        return read_description_text(storage, path)
+    except DescriptionEncodingError:
+        raise
     except Exception as e:
         print(f"Error reading {path}: {e}")
         return None
@@ -195,6 +202,10 @@ def extract_tables_from_txt(txt_file: str, json_output_folder: str) -> str | Non
     Returns:
         str | None: Path to the saved JSON file, or None if extraction failed.
 
+    Raises:
+        DescriptionEncodingError: When the decoded file contains U+FFFD
+            replacement characters (see eencijferho.io.text_encoding).
+
     Edge Cases:
         - Handles file read errors gracefully.
         - Creates output folder if missing.
@@ -202,7 +213,7 @@ def extract_tables_from_txt(txt_file: str, json_output_folder: str) -> str | Non
     Example:
         >>> extract_tables_from_txt('Bestandsbeschrijving_1cyferho_2023_v1.1_DEMO.txt', 'data/00-metadata/json')
     """
-    text = _read_txt_latin1(txt_file)
+    text = _read_description(txt_file)
     if text is None:
         return None
     all_tables = _parse_tables(text.split("\n"))
@@ -226,6 +237,10 @@ def process_txt_folder(
 
     Returns:
         list[str]: Paths to all extracted JSON files.
+
+    Raises:
+        DescriptionEncodingError: When a file description contains U+FFFD
+            replacement characters; processing stops at that file.
 
     Edge Cases:
         - Removes any existing JSON files in the output folder.
@@ -348,6 +363,10 @@ def write_variable_metadata(
     Returns:
         None
 
+    Raises:
+        DescriptionEncodingError: When a file description contains U+FFFD
+            replacement characters (other parser errors are only printed).
+
     Edge Cases:
         - Handles missing input files or parser errors gracefully.
         - Avoids duplicate variables by name across all files.
@@ -380,6 +399,8 @@ def write_variable_metadata(
                 if name and name not in seen_names:
                     all_vars.append(variable)
                     seen_names.add(name)
+        except DescriptionEncodingError:
+            raise
         except Exception as e:
             _console.print(f"[red]Parser failed for {txt_file}: {e}")
 
@@ -729,6 +750,8 @@ def get_fwf_params(txt_file: str, table_index: int = 0) -> dict:
     Raises:
         ValueError: When the file cannot be parsed, no tables are found, or
             ``table_index`` is out of range.
+        DescriptionEncodingError: (a ValueError) When the file contains U+FFFD
+            replacement characters.
 
     Example::
 
@@ -738,7 +761,7 @@ def get_fwf_params(txt_file: str, table_index: int = 0) -> dict:
         >>> params["colspecs"][:3]
         [(0, 3), (3, 7), (7, 12)]
     """
-    text = _read_txt_latin1(txt_file)
+    text = _read_description(txt_file)
     if text is None:
         raise ValueError(f"Kan bestand niet lezen: {txt_file}")
 
@@ -800,8 +823,12 @@ def list_fwf_tables(txt_file: str) -> list[str]:
     Returns:
         List of table titles, in order.  Returns an empty list when the file
         cannot be read or contains no tables.
+
+    Raises:
+        DescriptionEncodingError: When the file contains U+FFFD replacement
+            characters.
     """
-    text = _read_txt_latin1(txt_file)
+    text = _read_description(txt_file)
     if text is None:
         return []
     tables = _parse_tables(text.split("\n"))
