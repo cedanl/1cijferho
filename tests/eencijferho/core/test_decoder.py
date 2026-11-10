@@ -967,3 +967,58 @@ def test_apply_single_mapping_direct_match_does_not_log_int_fallback(capsys):
     result = _apply_single_mapping(df, "vopl", {"00411": "HBO", "07": "X", 411: "HBO"}, "vopl", "Vopl")
     assert result["vopl"].to_list() == ["HBO", "X"]
     assert "numerieke sleutel" not in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# Decode + snake_case step keep non-latin-1 characters (#208)
+# ---------------------------------------------------------------------------
+
+
+def test_decoded_and_enriched_keep_non_latin1_chars_after_snake_case(tmp_path, dec_metadata_json):
+    """Characters outside latin-1 in data, Dec labels and variable labels survive
+    decoding and the header normalisation step unchanged. Synthetic values only."""
+    from eencijferho.utils.converter_headers import convert_csv_headers_to_snake_case
+
+    var_meta = [{"name": "Status code", "values": {"A": "Actief €", "I": "Inactief–oud"}}]
+    vm_path = tmp_path / "variable_metadata.json"
+    vm_path.write_text(json.dumps(var_meta), encoding="utf-8")
+
+    dec_tables = {
+        "Dec_test.asc": pl.DataFrame(
+            {"Code": ["1", "2"], "Omschrijving": ["Label œ", "half 1⁄2"]}
+        )
+    }
+    main_df = pl.DataFrame(
+        {
+            "Code": ["1", "2"],
+            "Naam school": ["Sint–Jan lyceum", "Havo €/school"],
+            "Status code": ["A", "I"],
+        }
+    )
+    decoded = decode_fields_dec_only(main_df, dec_metadata_json, dec_tables)
+    enriched = decode_fields(main_df, dec_metadata_json, dec_tables, variable_metadata_path=str(vm_path))
+
+    out = tmp_path / "out"
+    out.mkdir()
+    # Written the way the pipeline writes them (core/pipeline.py, step 2).
+    (out / "EV2023_decoded.csv").write_text(decoded.write_csv(separator=";"), encoding="utf-8")
+    (out / "EV2023_enriched.csv").write_text(enriched.write_csv(separator=";"), encoding="utf-8")
+
+    convert_csv_headers_to_snake_case(input_dir=str(out))
+
+    for name, expected in [("EV2023_decoded.csv", decoded), ("EV2023_enriched.csv", enriched)]:
+        result = pl.read_csv(out / name, separator=";", infer_schema_length=0, encoding="utf8")
+        assert "naam_school" in result.columns
+        assert result.width == expected.width
+        # Header names changed, so compare column by column in order.
+        assert [result[c].to_list() for c in result.columns] == [
+            expected[c].to_list() for c in expected.columns
+        ]
+        text = (out / name).read_text(encoding="utf-8")
+        for chars in ["Sint–Jan lyceum", "Havo €/school", "Label œ", "half 1⁄2"]:
+            assert chars in text
+        assert "?" not in text
+
+    enriched_text = (out / "EV2023_enriched.csv").read_text(encoding="utf-8")
+    assert "Actief €" in enriched_text
+    assert "Inactief–oud" in enriched_text

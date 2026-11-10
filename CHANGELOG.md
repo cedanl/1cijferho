@@ -21,6 +21,7 @@ en dit project volgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 - **Startpositie als autoriteit**: Layout-validatie leest nu Startpositie correct (#223)
 - **Parquet in sync met CSV**: Parquet-bestanden na header-normalisatie (#219)
+- **Niet-Latin-1 tekens blijven behouden**: Header-normalisatie wijzigt alleen kolomnamen; tekens als `–`, `€`, `œ` en `⁄` in celwaarden worden niet meer vervangen door `?` of `/` (#208)
 
 ### Removed
 - `sanitize_variable_metadata.py`: Dode module (#212)
