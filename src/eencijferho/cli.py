@@ -38,7 +38,6 @@ from rich.panel import Panel
 
 from eencijferho.config import validate_safe_path as _check_safe_path
 
-
 def _validate_safe_path(path: str, base_dir: str = ".") -> None:
     """Validate that path is within base_dir to prevent path traversal."""
     try:
@@ -47,12 +46,6 @@ def _validate_safe_path(path: str, base_dir: str = ".") -> None:
         _console.print(f"[red]Error: {e}[/red]")
         sys.exit(1)
 
-
-import eencijferho.utils.dec_validation as dv
-import eencijferho.utils.value_validation as vv
-from eencijferho.config import DECODED_SUFFIX, ENRICHED_SUFFIX, OutputConfig
-from eencijferho.core.converter import MatchLogNotCompletedError
-from eencijferho.core.decode_report import DecodeReport
 from eencijferho.core.decoder import (
     decode_fields,
     decode_fields_dec_only,
@@ -60,17 +53,23 @@ from eencijferho.core.decoder import (
     load_variable_mappings,
 )
 from eencijferho.core.extractor import (
-    process_json_folder,
     process_txt_folder,
     write_variable_metadata,
+    process_json_folder,
 )
+from eencijferho.config import DECODED_SUFFIX, ENRICHED_SUFFIX
+from eencijferho.core.converter import MatchLogNotCompletedError
+from eencijferho.core.decode_report import DecodeReport
 from eencijferho.core.pipeline import run_turbo_convert_pipeline
-from eencijferho.io.decorators import with_storage
-from eencijferho.io.text_encoding import DescriptionEncodingError
+from eencijferho.config import OutputConfig
 from eencijferho.presets import PRESET_CONFIGS
 from eencijferho.utils.converter_headers import clean_header_name, normalize_name
 from eencijferho.utils.converter_match import LayoutMatchError, match_files
 from eencijferho.utils.extractor_validation import validate_metadata_folder
+from eencijferho.io.decorators import with_storage
+from eencijferho.io.text_encoding import DescriptionEncodingError
+import eencijferho.utils.value_validation as vv
+import eencijferho.utils.dec_validation as dv
 
 _console = Console()
 
@@ -133,13 +132,9 @@ def cmd_validate_output(storage, args: argparse.Namespace) -> None:
     # --- 1. Value validation (variable_metadata.json) ---
     variable_metadata_path = os.path.join(json_dir, "variable_metadata.json")
     if not storage.exists(variable_metadata_path):
-        print(
-            "[eencijferho] variable_metadata.json niet gevonden, kolomwaarden validatie overgeslagen."
-        )
+        print("[eencijferho] variable_metadata.json niet gevonden, kolomwaarden validatie overgeslagen.")
     else:
-        val_summary = vv.validate_column_values_folder(
-            args.output, variable_metadata_path
-        )
+        val_summary = vv.validate_column_values_folder(args.output, variable_metadata_path)
         failed_cols = [
             (fname, col["column"], col["invalid_values"])
             for fname, res in val_summary.items()
@@ -173,13 +168,7 @@ def cmd_validate_output(storage, args: argparse.Namespace) -> None:
                 lines.append(
                     f"  • [bold]{f['file']}[/bold] → kolom [yellow]{f['column']}[/yellow]: {vals}"
                 )
-            _console.print(
-                Panel(
-                    "\n".join(lines),
-                    title="⚠️  Kolomwaarden validatie",
-                    border_style="yellow",
-                )
-            )
+            _console.print(Panel("\n".join(lines), title="⚠️  Kolomwaarden validatie", border_style="yellow"))
 
     # --- 2. DEC validation (Bestandsbeschrijving_Dec-bestanden) ---
     dec_txt_candidates = [
@@ -187,9 +176,7 @@ def cmd_validate_output(storage, args: argparse.Namespace) -> None:
     ]
 
     if not dec_txt_candidates:
-        print(
-            "[eencijferho] Geen Bestandsbeschrijving_Dec*.txt gevonden, DEC validatie overgeslagen."
-        )
+        print("[eencijferho] Geen Bestandsbeschrijving_Dec*.txt gevonden, DEC validatie overgeslagen.")
     else:
         dec_txt_path = dec_txt_candidates[0]
         dec_summary = dv.validate_with_dec_files_folder(args.output, dec_txt_path)
@@ -227,9 +214,7 @@ def cmd_validate_output(storage, args: argparse.Namespace) -> None:
                     f"  • [bold]{f['file']}[/bold] → kolom [yellow]{f['column']}[/yellow]"
                     f" (via {f['dec_file']}): {vals}"
                 )
-            _console.print(
-                Panel("\n".join(lines), title="⚠️  DEC validatie", border_style="yellow")
-            )
+            _console.print(Panel("\n".join(lines), title="⚠️  DEC validatie", border_style="yellow"))
 
 
 @with_storage
@@ -237,15 +222,14 @@ def cmd_decode(storage, args: argparse.Namespace) -> None:
     _validate_safe_path(args.input)
     _validate_safe_path(args.output)
     """Decode CSV files using Dec_* lookup tables (Dec-only, no label substitution)."""
+    from eencijferho.core.decoder import decode_fields_dec_only, load_dec_tables_from_metadata
 
     _, json_dir, _ = _resolve_dirs(args.output)
     dec_json_matches = storage.list_files(
         f"{json_dir}/Bestandsbeschrijving_Dec-bestanden*.json"
     )
     if not dec_json_matches:
-        print(
-            "[eencijferho] Geen Bestandsbeschrijving_Dec-bestanden JSON gevonden. Eerst 'extract' uitvoeren."
-        )
+        print("[eencijferho] Geen Bestandsbeschrijving_Dec-bestanden JSON gevonden. Eerst 'extract' uitvoeren.")
         return
 
     dec_metadata_json = dec_json_matches[0]
@@ -278,15 +262,15 @@ def cmd_enrich(storage, args: argparse.Namespace) -> None:
     Skips decode_fields entirely when no variable_metadata mappings apply to
     the columns of a given file (avoids unnecessary computation on large files).
     """
+    from eencijferho.core.decoder import decode_fields, load_dec_tables_from_metadata, load_variable_mappings
+    from eencijferho.utils.converter_headers import normalize_name, clean_header_name
 
     _, json_dir, _ = _resolve_dirs(args.output)
     dec_json_matches = storage.list_files(
         f"{json_dir}/Bestandsbeschrijving_Dec-bestanden*.json"
     )
     if not dec_json_matches:
-        print(
-            "[eencijferho] Geen Bestandsbeschrijving_Dec-bestanden JSON gevonden. Eerst 'extract' uitvoeren."
-        )
+        print("[eencijferho] Geen Bestandsbeschrijving_Dec-bestanden JSON gevonden. Eerst 'extract' uitvoeren.")
         return
 
     dec_metadata_json = dec_json_matches[0]
@@ -301,20 +285,14 @@ def cmd_enrich(storage, args: argparse.Namespace) -> None:
         if not storage.exists(base):
             continue
         main_df = storage.read_dataframe(base, format="csv", infer_schema_length=0)
-        normalized_cols = {
-            normalize_name(clean_header_name(c)) for c in main_df.columns
-        }
+        normalized_cols = {normalize_name(clean_header_name(c)) for c in main_df.columns}
         if not (var_maps and normalized_cols & set(var_maps.keys())):
             print(f"[eencijferho] Overgeslagen (geen mappings): {fname}")
             skipped += 1
             continue
-        decoded_df = storage.read_dataframe(
-            filepath, format="csv", infer_schema_length=0
-        )
+        decoded_df = storage.read_dataframe(filepath, format="csv", infer_schema_length=0)
         enriched_df = decode_fields(
-            main_df,
-            dec_metadata_json,
-            dec_tables,
+            main_df, dec_metadata_json, dec_tables,
             variable_metadata_path=variable_metadata_json,
         )
         if enriched_df.equals(decoded_df):
@@ -334,12 +312,8 @@ def _build_output_config(args: argparse.Namespace) -> OutputConfig:
     if preset_name:
         cfg = PRESET_CONFIGS.get(preset_name)
         if cfg is None:
-            available = [
-                k for k, v in PRESET_CONFIGS.items() if v["available"] and k != "custom"
-            ]
-            raise SystemExit(
-                f"Onbekende preset '{preset_name}'. Beschikbaar: {', '.join(available)}"
-            )
+            available = [k for k, v in PRESET_CONFIGS.items() if v["available"] and k != "custom"]
+            raise SystemExit(f"Onbekende preset '{preset_name}'. Beschikbaar: {', '.join(available)}")
         if not cfg["available"]:
             raise SystemExit(f"Preset '{preset_name}' is nog niet beschikbaar.")
         s = cfg["settings"]
@@ -479,93 +453,70 @@ def main() -> None:
 
     _output_opts = argparse.ArgumentParser(add_help=False)
     _output_opts.add_argument(
-        "--skip-decode",
-        action="store_true",
+        "--skip-decode", action="store_true",
         help="Do not create _decoded CSV variants",
     )
     _output_opts.add_argument(
-        "--skip-enrich",
-        action="store_true",
+        "--skip-enrich", action="store_true",
         help="Do not create _enriched CSV variants",
     )
     _output_opts.add_argument(
-        "--skip-parquet",
-        action="store_true",
+        "--skip-parquet", action="store_true",
         help="Do not compress output to Parquet",
     )
     _output_opts.add_argument(
-        "--skip-snake-case",
-        action="store_true",
+        "--skip-snake-case", action="store_true",
         help="Keep original column names (do not convert to snake_case)",
     )
     _output_opts.add_argument(
-        "--skip-ev",
-        action="store_true",
+        "--skip-ev", action="store_true",
         help="Do not convert EV main data files",
     )
     _output_opts.add_argument(
-        "--skip-vakhavw",
-        action="store_true",
+        "--skip-vakhavw", action="store_true",
         help="Do not convert VAKHAVW main data files",
     )
     _output_opts.add_argument(
-        "--decode-columns",
-        nargs="*",
-        metavar="KOLOM",
-        default=None,
+        "--decode-columns", nargs="*", metavar="KOLOM", default=None,
         help="Alleen deze kolommen decoderen via Dec_*-opzoekbestanden (standaard: alle). "
-        "Gebruik get_available_decode_columns() om geldige namen te achterhalen.",
+             "Gebruik get_available_decode_columns() om geldige namen te achterhalen.",
     )
     _output_opts.add_argument(
-        "--enrich-variables",
-        nargs="*",
-        metavar="VARIABELE",
-        default=None,
+        "--enrich-variables", nargs="*", metavar="VARIABELE", default=None,
         help="Alleen deze variabelen verrijken via variable_metadata (standaard: alle). "
-        "Gebruik get_available_enrich_variables() om geldige namen te achterhalen.",
+             "Gebruik get_available_enrich_variables() om geldige namen te achterhalen.",
     )
     _output_opts.add_argument(
-        "--bsn-mapping-file",
-        metavar="PAD",
-        default=None,
+        "--bsn-mapping-file", metavar="PAD", default=None,
         help=(
             "Koppelbestand (CSV of Parquet) met burgerservicenummer → studentnummer. "
             "Verwacht kolommen 'burgerservicenummer' en 'studentnummer' (standaard). "
             "Voor afwijkende kolomnamen: gebruik de Python API (OutputConfig)."
         ),
     )
-    available_presets = [
-        k for k, v in PRESET_CONFIGS.items() if v["available"] and k != "custom"
-    ]
+    available_presets = [k for k, v in PRESET_CONFIGS.items() if v["available"] and k != "custom"]
     _output_opts.add_argument(
-        "--preset",
-        metavar="NAAM",
-        default=None,
+        "--preset", metavar="NAAM", default=None,
         choices=available_presets,
         help=f"Laad een vooraf gedefinieerde configuratie. Overschrijft alle andere uitvoeropties. "
-        f"Beschikbaar: {', '.join(available_presets)}.",
+             f"Beschikbaar: {', '.join(available_presets)}.",
     )
     _output_opts.add_argument(
-        "--fail-on-empty-output",
-        action="store_true",
+        "--fail-on-empty-output", action="store_true",
         help="Exit met code 1 als geen outputs worden geleverd (standaard: exit 0)",
     )
     _output_opts.add_argument(
-        "--strict",
-        action="store_true",
+        "--strict", action="store_true",
         help="Exit met code 1 als het decodeerlog (metadata/logs/(7)_decoding_log_latest.json) "
-        "niet-geladen Dec-tabellen of niet-gematchte Dec-codes bevat. Log en "
-        "outputbestanden worden eerst geschreven (standaard: exit 0)",
+             "niet-geladen Dec-tabellen of niet-gematchte Dec-codes bevat. Log en "
+             "outputbestanden worden eerst geschreven (standaard: exit 0)",
     )
 
     _layout_opts = argparse.ArgumentParser(add_help=False)
     _layout_opts.add_argument(
-        "--layout-year",
-        type=int,
-        metavar="JJJJ",
-        default=None,
+        "--layout-year", type=int, metavar="JJJJ", default=None,
         help="Gebruik voor EV- en VAKHAVW-bestanden de bestandsbeschrijving van dit jaar, "
-        "ongeacht het jaar in de bestandsnaam (standaard: jaar uit de bestandsnaam).",
+             "ongeacht het jaar in de bestandsnaam (standaard: jaar uit de bestandsnaam).",
     )
 
     subparsers.add_parser(
