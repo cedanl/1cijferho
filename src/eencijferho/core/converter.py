@@ -17,6 +17,7 @@ import os
 import multiprocessing as mp
 import datetime
 import re
+from collections.abc import Sequence
 from typing import Any
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
@@ -31,7 +32,7 @@ class MatchLogNotCompletedError(RuntimeError):
     """The match log has a status other than ``completed``; nothing may be converted."""
 
 
-def process_chunk(chunk_data: tuple[list[tuple[int, int]], list[str | bytes]]) -> list[str]:
+def process_chunk(chunk_data: tuple[list[tuple[int, int]], Sequence[str | bytes]]) -> list[str]:
     """
     Processes a chunk of lines from a fixed-width file and returns the converted output as CSV lines.
 
@@ -136,6 +137,13 @@ def _run_parallel(all_lines: list[str], positions: list[tuple[int, int]]) -> lis
         for result in pool.imap(process_chunk, chunk_data):
             if result:
                 output_lines.extend(result)
+        # All chunks are back: let the workers stop on their own. Leaving the
+        # with-block calls terminate(), which sends SIGTERM and then waits for the
+        # workers. A forked worker inherits the SIGTERM handler of its parent, and
+        # under Streamlit that handler does not exit, so that wait never ended
+        # (Turbo Convert hung on Linux after the conversion was done).
+        pool.close()
+        pool.join()
     return output_lines
 
 

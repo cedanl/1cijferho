@@ -15,6 +15,7 @@ en dit project volgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `--fail-on-empty-output` flag voor pipeline en convert commands (#230)
 - Decodeerlog `(7)_decoding_log_latest.json` naast de bestaande logs, en `--strict` flag voor pipeline en convert (#210)
 - `--layout-year JJJJ` voor `validate` en `pipeline`: forceer de bestandsbeschrijving van een jaar voor EV- en VAKHAVW-bestanden, met een waarschuwing in console en koppelingslog (#198)
+- `data/koppeling_bsn_studentnummer_DEMO.csv`: koppelbestand met een fictief studentnummer voor elk BSN in de DEMO-data, zodat de studentnummerkoppeling op DEMO te proberen is
 
 ### Changed
 - `(1)_json_processing_log`: bestanden zonder tabellen worden geteld (`no_tables_found_count`, `no_tables_found_files`) in plaats van per bestand in `processed_files` opgenomen (#210)
@@ -27,6 +28,9 @@ en dit project volgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Eén leesstrategie voor bestandsbeschrijvingen**: extractor, metadata-parser en DEC-validatie lezen bestandsbeschrijvingen via één functie (BOM → UTF-8 → latin-1), zodat "vóór" overal dezelfde naam oplevert. Een bestandsbeschrijving met vervangingstekens (U+FFFD) laat `extract` nu stoppen met een foutmelding (bestand + regelnummers) in plaats van stil verder te werken; herstel zo'n bestand of sla het op als UTF-8 of ISO-8859-1. De regex-noodoplossing in de DEC-validatie, de beschadigde spelling in de NFWA-preset en de beschadigde regels in de DEMO-`Bestandsbeschrijving_Dec-bestanden.txt` zijn verwijderd/hersteld (#203)
 - **Niet-Latin-1 tekens blijven behouden**: Header-normalisatie wijzigt alleen kolomnamen; tekens als `–`, `€`, `œ` en `⁄` in celwaarden worden niet meer vervangen door `?` of `/` (#208)
 - **Labels terug bij zes velden met een afwijkende DUO-naam** (#202): sinds de decoder alleen op exacte naam koppelt, bleven `diplomajaar_hoogste_vooropleiding` en drie `indicatie_eerstejaars…`-kolommen codes in `_enriched.csv` en ontbraken de labelkolommen bij `hoogste_vooropleiding_…_oorspronkelijke_code`. DUO noemt deze velden in de beschrijvingen anders dan in de lay-out; een vaste naamtabel koppelt ze weer, zonder te gokken op gelijkenis. NFWA las de code `0000` als het jaar 0.
+- **Turbo Convert loopt niet meer vast op Linux** (#263): de converter sluit de procespool na de laatste chunk met `close()` en `join()`. Onder Streamlit erfden de workers een SIGTERM-handler die het proces niet beëindigt, waardoor het afsluiten van de pool eindeloos wachtte en de conversie in de UI nooit klaar was.
+- **DEC-validatie in de UI** (#264): een bestandsbeschrijving met vervangingstekens (U+FFFD) geeft op 'Output valideren' een foutmelding met bestand en regelnummers in plaats van een traceback.
+- **Versleutelen behoudt tekens buiten ASCII** (#265): 'Versleutelen & uploaden' en 'Persoonsgegevens uploaden' decoderen de CSV in de browser als UTF-8. Elke letter buiten ASCII kwam voorheen als twee tekens in het resultaat terecht (`ü` werd `Ã¼`).
 
 ### Removed
 - `sanitize_variable_metadata.py`: Dode module (#212)

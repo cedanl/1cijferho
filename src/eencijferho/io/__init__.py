@@ -102,5 +102,6 @@ def storage_context(backend_type: str | None = None):
     try:
         yield backend
     finally:
-        if hasattr(backend, "close"):
-            backend.close()
+        close = getattr(backend, "close", None)
+        if callable(close):
+            close()
