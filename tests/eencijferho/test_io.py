@@ -3,7 +3,9 @@
 import os
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
+from eencijferho.io import storage_context
 from eencijferho.io.backends.disk import DiskBackend
 from eencijferho.io.config import StorageConfig
 
@@ -91,3 +93,27 @@ class TestDataDirSingleSourceOfTruth:
 
         assert "data/data" not in str(resolved_input)
         assert "data/data" not in str(resolved_output)
+
+
+class TestStorageContextClose:
+    """storage_context closes a backend that has close() and accepts one without it."""
+
+    def test_close_is_called_on_exit(self):
+        class Closable:
+            closed = False
+
+            def close(self):
+                self.closed = True
+
+        backend = Closable()
+        with patch("eencijferho.io.get_backend", return_value=backend):
+            with storage_context() as storage:
+                assert storage is backend
+                assert not backend.closed
+        assert backend.closed
+
+    def test_backend_without_close(self):
+        backend = object()
+        with patch("eencijferho.io.get_backend", return_value=backend):
+            with storage_context() as storage:
+                assert storage is backend
