@@ -11,9 +11,11 @@ from eencijferho.io.decorators import with_storage
 from eencijferho.core.dec_layouts import supplementary_tables
 from eencijferho.core.decode_report import (
     DEC_TABLE_NOT_LOADED,
+    LABELS_TOO_LONG,
     NO_LABEL_COLUMNS,
     NOT_IN_DECODE_SCOPE,
     DecodeReport,
+    is_personal_id_column,
 )
 from collections.abc import Callable
 from typing import Any
@@ -40,6 +42,20 @@ _NAME_REPAIRS: tuple[tuple[_re.Pattern[str], str], ...] = (
 )
 
 
+# Dec tables whose decoding variable is a combination rather than a data column
+# ("Instellingscode + Vestigingsnummer van de hoogste vooropleiding binnen HO").
+# Keyed by lower-case Dec table title; the value names the two data columns in
+# the order of the table's "}" key rows: the first key row pairs with the first
+# column, the second with the second. Labels are named after the second column.
+# No name search: a table not listed here is decoded through its own variables.
+_COMPOSITE_DEC_SOURCES: dict[str, tuple[str, str]] = {
+    "dec_vestnr_ho_compleet.asc": (
+        "Instelling van de hoogste vooropl. binnen het HO",
+        "Vestigingsnummer van de hoogste vooropl. binnen het HO",
+    ),
+}
+
+
 def _repair_name(raw: str) -> str:
     """Apply the explicit repair table ``_NAME_REPAIRS`` to a metadata name."""
     for pattern, replacement in _NAME_REPAIRS:
@@ -55,6 +71,46 @@ def _canonical_name(raw: str, naming_func: Callable[[str], str] | None = None) -
     ``hoogste_vooropleiding_voor_het_ho``.
     """
     return normalize_name(strip_accents(_repair_name(raw)), naming_func)
+
+
+# DUO names some fields differently in its descriptions (the Dec description
+# and the variable description) than in the layout of the data file. A name
+# from a description is matched to a column by that name first. Only when no
+# column has it is the layout name from this table tried. Each entry is one
+# pair found in the 1CijferHO descriptions of 2023 and 2024; a name that is
+# not listed is skipped, never guessed (#202).
+_LAYOUT_NAMES: dict[str, str] = {
+    "Diplomajaar van de hoogste vooropleiding": "Diplomajaar hoogste vooropleiding",
+    "Hoogste vooropleiding vóór het HO oorspr. code": "Hoogste vooropleiding vóór het HO oorspronkelijke code",
+    "Hoogste vooropleiding binnen het HO oorspr. code": "Hoogste vooropleiding binnen het HO oorspronkelijke code",
+    "Indicatie eerstejaars opleiding actueel equivalent": "Indicatie eerstejaars opl. actueel equivalent",
+    "Indicatie eerstejaars actuele opleiding-instelling": "Indicatie eerstejaars actuele opl.-instelling",
+    "Indicatie eerstejaars act. inst - type ho binnen soort ho": "Indicatie eerstejrs act. inst - type ho binnen soort ho",
+}
+
+# Looked up by canonical name, so case, accents and the corrupt "vóór" make no
+# difference ("Hoogste Vooropleiding ..." in the Dec description).
+_LAYOUT_NAME_BY_KEY: dict[str, str] = {
+    _canonical_name(description_name): layout_name
+    for description_name, layout_name in _LAYOUT_NAMES.items()
+}
+
+
+def _layout_column(
+    description_name: str,
+    columns: list[str],
+    naming_func: Callable[[str], str] | None = None,
+) -> str | None:
+    """Column of a field that the layout names differently than the description.
+
+    Returns the column for the layout name in ``_LAYOUT_NAMES`` when ``columns``
+    has it, otherwise None.
+    """
+    layout_name = _LAYOUT_NAME_BY_KEY.get(_canonical_name(description_name))
+    if layout_name is None:
+        return None
+    column = _canonical_name(layout_name, naming_func)
+    return column if column in columns else None
 
 
 # ---------------------------------------------------------------------------
@@ -131,6 +187,17 @@ def load_variable_mappings(
                         entry[int_key] = v
                 except ValueError:
                     pass  # not a number: the string keys suffice
+            # "[leeg] of 0": the empty value and code 0 share one label. The
+            # leeg key stays (see _empty_label); every other part becomes a key
+            # of its own, unless the metadata lists that code separately.
+            if isinstance(key, str) and "leeg" in key.lower() and " of " in key:
+                for part in (p.strip() for p in key.split(" of ")):
+                    if not part or "leeg" in part.lower():
+                        continue
+                    entry.setdefault(part, v)
+                    if part.isdigit():
+                        entry.setdefault(part.zfill(2), v)
+                        entry.setdefault(int(part), v)
         if entry:
             maps[norm] = {"orig_name": name, "mapping": entry}
 
@@ -341,6 +408,10 @@ def _join_key(expr: pl.Expr, width: int | None) -> pl.Expr:
     return code
 
 
+class DuplicateDecKeyError(ValueError):
+    """A Dec table that must have unique keys holds a key more than once."""
+
+
 def _keyed_lookup(
     result_df: pl.DataFrame,
     join_df: pl.DataFrame,
@@ -348,12 +419,16 @@ def _keyed_lookup(
     dec_cols: list[str],
     log_name: str,
     log_prefix: str = "[decoder]",
+    require_unique: bool = False,
 ) -> tuple[pl.DataFrame, list[str]]:
     """Left-join the Dec label columns onto result_df through temporary keys.
 
     Args:
         pairs: ``(data_col, dec_col, meta_width)`` per key column.
         dec_cols: Dec label columns to fetch.
+        require_unique: Raise :class:`DuplicateDecKeyError` when a key occurs
+            more than once in the Dec table, instead of keeping the first row.
+            Composite joins use it: which row is "first" would be arbitrary.
 
     Returns:
         ``(joined, label_cols)``: a frame with result_df's height and order,
@@ -376,6 +451,27 @@ def _keyed_lookup(
         )
         .drop_nulls(subset=key_cols)
     )
+    if require_unique:
+        # Uniqueness is checked on the whole key only. In Dec_vest_ho and
+        # Dec_vestnr_ho_compleet the institution code alone repeats (in the
+        # DEMO Dec_vestnr_ho_compleet 143 codes occur more than once, 83 in
+        # Dec_vest_ho): an institution has several vestigingen. That is not a
+        # leading-zero artefact; the pair (instellingscode, vestigingsnummer)
+        # is unique, also after zero-padding.
+        dupes = (
+            right.group_by(key_cols, maintain_order=True).len()
+            .filter(pl.col("len") > 1)
+        )
+        if dupes.height:
+            sample = [
+                "|".join(row)
+                for row in dupes.select(key_cols).head(5).iter_rows()
+            ]
+            raise DuplicateDecKeyError(
+                f"Dubbele sleutels in Dec-tabel voor {log_name}: "
+                f"{dupes.height} sleutel(s) komen meer dan eens voor, bijv. {sample}; "
+                "join niet toegepast"
+            )
     deduped = right.unique(subset=key_cols, keep="first", maintain_order=True)
     if deduped.height < right.height:
         print(
@@ -398,18 +494,25 @@ def _apply_single_dec_join(
     code2_width: int | None = None,
     report: DecodeReport | None = None,
     dec_table_title: str | None = None,
+    anchor_col: str | None = None,
 ) -> pl.DataFrame:
     """Apply one Dec table join (simple or composite key) to result_df.
 
     The data column is matched through a temporary key and never rewritten:
     a code is an identifier, and DUO writes it fixed width (00411 is not 411).
 
+    A composite join refuses a Dec table whose key pair is not unique: no
+    label column is added and the error is logged (see ``_keyed_lookup``).
+
     Args:
         code_width: Width of ``code_col_norm`` from the file description.
         code2_width: Width of ``code_col2_norm`` (composite key only).
         report: Optional collector for the decode log.
         dec_table_title: Dec table title, used in the decode log.
+        anchor_col: Composite key only: the data column matched to the first
+            Dec key ``code_col_norm``. Defaults to ``code_col_norm`` itself.
     """
+    anchor = anchor_col or code_col_norm
     try:
         if is_composite:
             if code_col2_norm is None:
@@ -421,14 +524,18 @@ def _apply_single_dec_join(
                 if c != code_col_norm and c != code_col2_norm
             ]
             pairs = [
-                (code_col_norm, code_col_norm, code_width),
+                (anchor, code_col_norm, code_width),
                 (var_norm, code_col2_norm, code2_width),
             ]
+            log_name = f"{var_norm} ({dec_table_title})" if dec_table_title else var_norm
         else:
             dec_cols = [c for c in join_df.columns if c != code_col_norm]
             pairs = [(var_norm, code_col_norm, code_width)]
+            log_name = var_norm
 
-        joined, label_cols = _keyed_lookup(result_df, join_df, pairs, dec_cols, var_norm)
+        joined, label_cols = _keyed_lookup(
+            result_df, join_df, pairs, dec_cols, log_name, require_unique=is_composite,
+        )
 
         result_df = result_df.with_columns(
             joined[label].alias(
@@ -445,7 +552,7 @@ def _apply_single_dec_join(
                 sample = unmatched[var_norm].unique().to_list()[:5]
                 print(f"[decoder] Niet-gematchte codes voor {var_norm}: {sample}")
                 if report is not None:
-                    keys = [code_col_norm, var_norm] if is_composite else [var_norm]
+                    keys = [anchor, var_norm] if is_composite else [var_norm]
                     report.record_unmatched(keys, dec_table_title or "", unmatched)
         elif report is not None:
             report.record_skip(var_norm, NO_LABEL_COLUMNS)
@@ -543,13 +650,25 @@ def _apply_dec_tables(
             ):
                 is_composite = True
 
+        source = _COMPOSITE_DEC_SOURCES.get(title_lower)
+        if source is not None:
+            result_df = _apply_composite_source(
+                result_df, join_df, table, dec_vars[0], source, code_col_norm,
+                code_col2_norm, naming_func, report=report,
+            )
+            continue
+
         for var in dec_vars:
             var_norm = _canonical_name(var, naming_func)
             if var_norm not in result_df.columns:
-                print(f"[decoder] Sla '{var}' over — kolom '{var_norm}' niet gevonden in DataFrame.")
-                if report is not None:
-                    report.record_not_found(var, table["table_title"])
-                continue
+                layout_col = _layout_column(var, result_df.columns, naming_func)
+                if layout_col is None:
+                    print(f"[decoder] Sla '{var}' over — kolom '{var_norm}' niet gevonden in DataFrame.")
+                    if report is not None:
+                        report.record_not_found(var, table["table_title"])
+                    continue
+                print(f"[decoder] '{var}' heet in het databestand '{layout_col}' (vaste naamtabel).")
+                var_norm = layout_col
 
             result_df = _apply_single_dec_join(
                 result_df, join_df, var_norm, code_col_norm,
@@ -561,6 +680,66 @@ def _apply_dec_tables(
             )
 
     return result_df
+
+
+def _apply_composite_source(
+    result_df: pl.DataFrame,
+    join_df: pl.DataFrame,
+    table: dict,
+    dec_var: str,
+    source: tuple[str, str],
+    code_col_norm: str,
+    code_col2_norm: str | None,
+    naming_func: Callable | None = None,
+    report: DecodeReport | None = None,
+) -> pl.DataFrame:
+    """Join a Dec table listed in ``_COMPOSITE_DEC_SOURCES``.
+
+    Its decoding variable (``dec_var``) names a combination, not a column; the
+    key is built from the two data columns in ``source`` instead. A missing
+    data column or a layout without two ``}`` key rows skips the table, and
+    the decode log says why.
+    """
+    title = table["table_title"]
+    content = table.get("content", [])
+    anchor_col, var_norm = (_canonical_name(c, naming_func) for c in source)
+
+    missing = [
+        (raw, col) for raw, col in zip(source, (anchor_col, var_norm))
+        if col not in result_df.columns
+    ]
+    if missing:
+        names = [col for _, col in missing]
+        print(f"[decoder] Sla '{dec_var}' over — kolom(men) {names} niet gevonden in DataFrame.")
+        if report is not None:
+            for raw, _ in missing:
+                report.record_not_found(raw, title)
+        return result_df
+
+    if (
+        len(content) < 3
+        or "}" not in content[1]
+        or "}" not in content[2]
+        or code_col_norm not in join_df.columns
+        or code_col2_norm not in join_df.columns
+    ):
+        error = ValueError(
+            f"{title} heeft geen samengestelde sleutel van twee kolommen in de lay-out"
+        )
+        print(f"[decoder] Sla '{dec_var}' over — {error}")
+        if report is not None:
+            report.record_error(var_norm, "dec_join", error)
+        return result_df
+
+    return _apply_single_dec_join(
+        result_df, join_df, var_norm, code_col_norm,
+        True, code_col2_norm, naming_func,
+        code_width=_code_width(content[1]),
+        code2_width=_code_width(content[2]),
+        report=report,
+        dec_table_title=title,
+        anchor_col=anchor_col,
+    )
 
 
 # A layout row: name, start position, width and an optional remark, e.g.
@@ -845,7 +1024,8 @@ def _apply_vakken_composite(
     second. Label columns are named after ``var_norm``.
 
     Matches through temporary keys (see ``_join_key``); the data columns are
-    left as they are.
+    left as they are. A Dec table whose key pair is not unique is refused:
+    no label column is added and the error is logged.
     """
     composite_norm = _canonical_name(composite, naming_func)
     if len(dec_content) <= 2:
@@ -885,7 +1065,8 @@ def _apply_vakken_composite(
             if c not in (dec_code_col_norm, dec_code_col2_norm)
         ]
         joined, label_cols = _keyed_lookup(
-            result_df, join_df, pairs, dec_cols, var_norm, log_prefix="[decoder][vakken]",
+            result_df, join_df, pairs, dec_cols, f"{var_norm} ({dec_table_title})",
+            log_prefix="[decoder][vakken]", require_unique=True,
         )
         result_df = result_df.with_columns(
             joined[label].alias(f"{var_norm}__{col}")
@@ -999,9 +1180,10 @@ def _resolve_mapping_column(
 ) -> str | None:
     """Find the column in result_df that a variable mapping applies to.
 
-    Only exact matches count: ``var_norm`` itself, or the one column whose
-    original header, cleaned and normalised, equals ``var_norm``. Anything
-    else is logged and skipped, never guessed.
+    Only exact matches count: ``var_norm`` itself, the one column whose
+    original header, cleaned and normalised, equals ``var_norm``, or the
+    column that ``_LAYOUT_NAMES`` lists for this variable. Anything else is
+    logged and skipped, never guessed.
     """
     if var_norm in result_df.columns:
         return var_norm
@@ -1019,10 +1201,51 @@ def _resolve_mapping_column(
             f"meerdere kolommen passen ({matches}), overgeslagen."
         )
         return None
+
+    layout_col = _layout_column(orig_name or var_norm, result_df.columns, naming_func)
+    if layout_col is not None:
+        print(
+            f"[decoder] Mapping voor '{var_norm}' (orig: '{orig_name}') — "
+            f"heet in het databestand '{layout_col}' (vaste naamtabel)."
+        )
+        return layout_col
+
     print(f"[decoder] Mapping voor '{var_norm}' (orig: '{orig_name}') — kolom niet gevonden.")
     if report is not None:
         report.record_not_found(orig_name or var_norm, "variable_metadata")
     return None
+
+
+# A label longer than this is a DUO explanation (a paragraph per code), not a
+# label: a mapping holding one is not applied, so the column keeps its codes.
+# Measured on the DEMO variable_metadata: "Code beëindiging" has labels of
+# 300-468 characters; the longest label of every other variable is 288
+# characters ("Code examenresultaat"), and those columns also carry short
+# labels such as "Ja"/"Nee" that must not be lost.
+MAX_LABEL_LENGTH = 300
+
+
+def _empty_label(mapping: dict) -> tuple[Any, str | None, list[str]]:
+    """Label for an empty value, independent of the key order of ``mapping``.
+
+    A key that is exactly ``[leeg]`` (case-insensitive, trimmed) wins; then the
+    other keys containing ``leeg`` in sorted order.
+
+    Returns:
+        ``(label, chosen key, candidate keys)``; label and key are None when
+        the mapping has no leeg key.
+    """
+    candidates = sorted(k for k in mapping if isinstance(k, str) and "leeg" in k.lower())
+    exact = [k for k in candidates if k.strip().lower() == "[leeg]"]
+    ordered = exact + [k for k in candidates if k not in exact]
+    for key in ordered:
+        if mapping[key] is not None:
+            return mapping[key], key, ordered
+    return None, None, ordered
+
+
+def _longest_label(mapping: dict) -> int:
+    return max((len(str(v)) for v in mapping.values() if v is not None), default=0)
 
 
 def _apply_single_mapping(
@@ -1033,17 +1256,43 @@ def _apply_single_mapping(
     orig_name: str | None,
     report: DecodeReport | None = None,
 ) -> pl.DataFrame:
-    """Replace values in chosen_col using code→label mapping."""
+    """Replace values in chosen_col using code→label mapping.
+
+    Values without a label keep their code. A mapping with a label longer
+    than MAX_LABEL_LENGTH is not applied at all.
+    """
     try:
+        longest = _longest_label(mapping)
+        if longest > MAX_LABEL_LENGTH:
+            rows = result_df.height - result_df[chosen_col].null_count()
+            print(
+                f"[decoder] '{chosen_col}' (orig: '{orig_name}'): mapping niet toegepast, "
+                f"label van {longest} tekens is langer dan {MAX_LABEL_LENGTH}; "
+                f"{rows} rij(en) houden hun code."
+            )
+            if report is not None:
+                report.record_withheld_mapping(
+                    chosen_col, orig_name or var_norm, LABELS_TOO_LONG, rows, longest,
+                )
+            return result_df
+
         result_df = result_df.with_columns(
             pl.col(chosen_col).cast(pl.Utf8).str.strip_chars().alias(chosen_col)
         )
         src_vals = result_df[chosen_col].to_list()
         lower_map = {k.lower(): v for k, v in mapping.items() if isinstance(k, str)}
+        empty_label, empty_key, empty_candidates = _empty_label(mapping)
+        empty_label_choice = None
+        if len({str(mapping[k]) for k in empty_candidates}) > 1:
+            empty_label_choice = {"chosen_key": empty_key, "candidate_keys": empty_candidates}
+            print(
+                f"[decoder] '{chosen_col}': meerdere sleutels voor een lege waarde "
+                f"{empty_candidates}, gekozen: '{empty_key}'"
+            )
         mapped_vals = []
         unmapped_seen: set = set()
         int_fallback_seen: set = set()
-        total_non_null = mapped_count = int_fallback_count = 0
+        total_non_null = mapped_count = unmapped_rows = int_fallback_count = 0
 
         for v in src_vals:
             if v is None:
@@ -1053,14 +1302,12 @@ def _apply_single_mapping(
             total_non_null += 1
 
             if s == "":
-                found = next(
-                    (mapping[k] for k in mapping if isinstance(k, str) and "leeg" in k.lower()),
-                    None,
-                )
+                found = empty_label
                 mapped_vals.append(found if found is not None else s)
                 if found is not None:
                     mapped_count += 1
-                elif s not in unmapped_seen:
+                else:
+                    unmapped_rows += 1
                     unmapped_seen.add(s)
                 continue
 
@@ -1085,7 +1332,8 @@ def _apply_single_mapping(
             mapped_vals.append(found if found is not None else s)
             if found is not None:
                 mapped_count += 1
-            elif s not in unmapped_seen:
+            else:
+                unmapped_rows += 1
                 unmapped_seen.add(s)
 
         try:
@@ -1098,9 +1346,12 @@ def _apply_single_mapping(
             result_df = result_df.with_columns(
                 pl.Series(mapped_vals).cast(pl.Utf8).alias(chosen_col)
             )
+        personal_id = is_personal_id_column(chosen_col) or is_personal_id_column(orig_name)
+        examples = "(voorbeelden weggelaten)" if personal_id else sorted(unmapped_seen)[:5]
         print(
             f"[decoder] '{chosen_col}' (orig: '{orig_name}'): "
-            f"{mapped_count}/{total_non_null} gemapt, niet-gemapt: {list(unmapped_seen)[:5]}"
+            f"{mapped_count}/{total_non_null} gemapt, {unmapped_rows} rij(en) niet-gemapt "
+            f"(code behouden): {examples}"
         )
         if int_fallback_count:
             print(
@@ -1111,6 +1362,7 @@ def _apply_single_mapping(
             report.record_mapping(
                 chosen_col, orig_name or var_norm, mapped_count, total_non_null, unmapped_seen,
                 int_fallback_count, int_fallback_seen,
+                unmapped_rows=unmapped_rows, empty_label_choice=empty_label_choice,
             )
     except Exception as e:  # catch-all: one failed mapping leaves the column unmapped, not the run
         log_failed(

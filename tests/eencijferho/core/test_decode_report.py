@@ -215,7 +215,112 @@ def test_variable_mapping_with_unmapped_value_is_logged(decode_setup):
     assert mapping["total_non_null"] == 10
     assert mapping["unmapped_distinct"] == 1
     assert mapping["sample"] == ["X"]
+    assert mapping["mapped_rows"] == 9
+    assert mapping["unmapped_rows"] == 1
+    assert mapping["semantics"] == "mixed"
     assert report.summary()["total_unmapped_distinct_values"] == 1
+    assert report.summary()["total_unmapped_rows"] == 1
+
+
+def _mapping_entry(values, mapping, column="code"):
+    report = DecodeReport()
+    report.begin_file("EV_TEST.csv", [column])
+    df = pl.DataFrame({column: values})
+    result = _apply_single_mapping(df, column, mapping, column, column, report=report)
+    (entry,) = _detail(report)["variable_mappings"]
+    return result, entry, report
+
+
+def test_unmapped_code_is_kept_and_counted_per_row():
+    result, entry, report = _mapping_entry(["1", "1", "99", "99", "99"], {"1": "Een"})
+    assert result["code"].to_list() == ["Een", "Een", "99", "99", "99"]
+    assert entry["mapped_rows"] == 2
+    assert entry["unmapped_rows"] == 3
+    assert entry["unmapped_distinct"] == 1
+    assert entry["semantics"] == "mixed"
+    assert report.summary()["total_unmapped_rows"] == 3
+
+
+def test_semantics_label_when_every_value_is_mapped():
+    _, entry, _ = _mapping_entry(["1", "2", None], {"1": "Een", "2": "Twee"})
+    assert entry["semantics"] == "label"
+    assert entry["unmapped_rows"] == 0
+
+
+def test_semantics_code_when_no_value_is_mapped():
+    _, entry, report = _mapping_entry(["7", "8"], {"1": "Een"})
+    assert entry["semantics"] == "code"
+    assert entry["mapped_rows"] == 0
+    assert entry["unmapped_rows"] == 2
+    assert _detail(report)["columns_not_decoded"] == [
+        {"column": "code", "reason": "no_values_mapped"}
+    ]
+
+
+def test_empty_value_without_leeg_key_counts_as_unmapped():
+    _, entry, _ = _mapping_entry(["", "1"], {"1": "Een"})
+    assert entry["unmapped_rows"] == 1
+    assert entry["sample"] == [""]
+
+
+def test_personal_id_mapping_withholds_sample_but_keeps_counts(capsys):
+    _, entry, _ = _mapping_entry(
+        ["000000012", "000000024", "1"], {"1": "Een"}, column="Burgerservicenummer",
+    )
+    assert entry["sample"] == []
+    assert entry["sample_withheld"] == "personal_identifier"
+    assert entry["unmapped_rows"] == 2
+    assert entry["unmapped_distinct"] == 2
+    out = capsys.readouterr().out
+    assert "000000012" not in out
+    assert "2 rij(en) niet-gemapt" in out
+
+
+def test_long_label_mapping_is_withheld_and_logged(capsys):
+    from eencijferho.core.decoder import MAX_LABEL_LENGTH
+
+    values = ["1", "0", "", None, "8"]
+    mapping = {"1": "x" * (MAX_LABEL_LENGTH + 1), "8": "kort", "[leeg] of 0": "geen waarde"}
+    result, entry, report = _mapping_entry(values, mapping)
+    assert result["code"].to_list() == values
+    assert entry["skip_reason"] == "labels_too_long"
+    assert entry["semantics"] == "code"
+    assert entry["skipped_rows"] == 4
+    assert entry["max_label_length"] == MAX_LABEL_LENGTH + 1
+    assert entry["mapped_rows"] == 0
+    assert entry["unmapped_rows"] == 0
+    assert entry["sample"] == []
+    assert _detail(report)["columns_not_decoded"] == [
+        {"column": "code", "reason": "labels_too_long"}
+    ]
+    summary = report.summary()
+    assert summary["variable_mappings_skipped"] == 1
+    assert summary["total_unmapped_rows"] == 0
+    assert "mapping niet toegepast" in capsys.readouterr().out
+
+
+def test_label_of_exactly_max_length_is_applied():
+    from eencijferho.core.decoder import MAX_LABEL_LENGTH
+
+    label = "x" * MAX_LABEL_LENGTH
+    result, entry, _ = _mapping_entry(["1"], {"1": label})
+    assert result["code"].to_list() == [label]
+    assert "skip_reason" not in entry
+
+
+def test_competing_leeg_labels_are_logged_once(capsys):
+    _, entry, _ = _mapping_entry(
+        ["", ""], {"[leeg] of 0": "geen waarde", "[leeg]": "onbekend"},
+    )
+    assert entry["empty_label_choice"] == {
+        "chosen_key": "[leeg]", "candidate_keys": ["[leeg]", "[leeg] of 0"],
+    }
+    assert capsys.readouterr().out.count("meerdere sleutels voor een lege waarde") == 1
+
+
+def test_leeg_keys_with_one_label_are_not_a_conflict():
+    _, entry, _ = _mapping_entry([""], {"[leeg]": "onbekend", "[LEEG]": "onbekend"})
+    assert "empty_label_choice" not in entry
 
 
 def test_report_none_leaves_results_identical(decode_setup):
@@ -271,6 +376,23 @@ def test_composite_dec_join_logs_key_pairs():
     assert entry["key_columns"] == ["instcode", "vakcode"]
     assert entry["distinct_codes"] == 1
     assert entry["sample"] == ["A1|99"]
+
+
+def test_join_error_fails_strict():
+    report = DecodeReport()
+    report.begin_file("EV_TEST.csv", ["vakcode"])
+    df = pl.DataFrame({"instcode": ["A1"], "vakcode": ["10"]})
+    dec = pl.DataFrame(
+        {"instcode": ["A1", "A1"], "vakcode": ["10", "10"], "omschrijving": ["X", "Y"]}
+    )
+    _apply_single_dec_join(
+        df, dec, "vakcode", "instcode", True, "vakcode",
+        report=report, dec_table_title="Dec_vak.asc",
+    )
+    summary = report.summary()
+    assert summary["errors"] == 1
+    assert summary["total_unmatched_distinct_codes"] == 0
+    assert summary["strict_violations"] == ["1 fout(en) bij decoderen"]
 
 
 def test_vakken_simple_unmatched_is_logged():
