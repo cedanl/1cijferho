@@ -1,8 +1,8 @@
 {
   "snapshot_version": 2,
-  "generated_at": "2026-11-10T12:13:03.032914",
+  "generated_at": "2026-11-10T17:02:52.195275",
   "output_dir": "data/02-output/snapshot-baselines/csv-raw",
-  "file_count": 15,
+  "file_count": 17,
   "files": {
     "Dec_actuele_instelling.csv": {
       "file_hash": "e869a55e0d1cfae1d9966fd0eeaae16453b46c5942d66598c0bfa3261aa56b9b",
@@ -11,6 +11,37 @@
       "columns": [
         "Actuele instelling",
         "Naam actuele instelling"
+      ]
+    },
+    "Dec_brinnummer.csv": {
+      "file_hash": "18217c513d62544f0809e79d04c87c17a6ce6adb3750f9008a456c3202bea85e",
+      "row_count": 19210,
+      "column_count": 8,
+      "columns": [
+        "Brinnummer",
+        "Code denominatie (= richting)",
+        "Datum opheffing",
+        "Datum oprichting",
+        "Naam",
+        "Naam denominatie (= richting)",
+        "Plaats",
+        "Postcodecijfers"
+      ]
+    },
+    "Dec_brinvestigingsnummer.csv": {
+      "file_hash": "507f5038a4db00e7bf9d305abc5885da280ef584eebd0c2da925b3b5056499b5",
+      "row_count": 26991,
+      "column_count": 9,
+      "columns": [
+        "Brinnummer",
+        "Code denominatie (= richting)",
+        "Datum opheffing",
+        "Datum oprichting",
+        "Naam",
+        "Naam denominatie (= richting)",
+        "Plaats",
+        "Postcodecijfers",
+        "Vestigingsnummer"
       ]
     },
     "Dec_ho-inst.csv": {
