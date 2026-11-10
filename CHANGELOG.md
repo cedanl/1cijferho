@@ -15,6 +15,7 @@ en dit project volgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `--fail-on-empty-output` flag voor pipeline en convert commands (#230)
 - Decodeerlog `(7)_decoding_log_latest.json` naast de bestaande logs, en `--strict` flag voor pipeline en convert (#210)
 - `--layout-year JJJJ` voor `validate` en `pipeline`: forceer de bestandsbeschrijving van een jaar voor EV- en VAKHAVW-bestanden, met een waarschuwing in console en koppelingslog (#198)
+- `data/koppeling_bsn_studentnummer_DEMO.csv`: koppelbestand met een fictief studentnummer voor elk BSN in de DEMO-data, zodat de studentnummerkoppeling op DEMO te proberen is
 
 ### Changed
 - `(1)_json_processing_log`: bestanden zonder tabellen worden geteld (`no_tables_found_count`, `no_tables_found_files`) in plaats van per bestand in `processed_files` opgenomen (#210)
