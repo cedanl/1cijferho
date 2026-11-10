@@ -5,6 +5,7 @@ import polars as pl
 from pathlib import Path
 
 from eencijferho.core.decoder import (
+    _canonical_name,
     _normalize_df,
     _normalize_dec_table,
     _apply_single_dec_join,
@@ -14,6 +15,7 @@ from eencijferho.core.decoder import (
     _apply_single_mapping,
     _apply_vakken_simple,
     _apply_vakken_composite,
+    _resolve_mapping_column,
     _code_width,
     _join_key,
     _key_width,
@@ -28,6 +30,7 @@ from eencijferho.core.decoder_info import (
     get_decode_column_info,
     get_enrich_variable_info,
 )
+from eencijferho.presets import PRESET_CONFIGS
 
 
 # ---------------------------------------------------------------------------
@@ -967,3 +970,149 @@ def test_apply_single_mapping_direct_match_does_not_log_int_fallback(capsys):
     result = _apply_single_mapping(df, "vopl", {"00411": "HBO", "07": "X", 411: "HBO"}, "vopl", "Vopl")
     assert result["vopl"].to_list() == ["HBO", "X"]
     assert "numerieke sleutel" not in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# #202 — no fuzzy column choice; only exact names (plus an explicit repair)
+# ---------------------------------------------------------------------------
+
+def _dec_meta(var_name, code_name="Code"):
+    return {
+        "tables": [
+            {
+                "table_title": "Dec_x.asc",
+                "decoding_variables": [var_name],
+                "content": ["Startpositie  Naam", f"{code_name}  }}", "Omschrijving"],
+            }
+        ]
+    }
+
+
+@pytest.mark.parametrize("var_name, column", [
+    ("Landcod", "landcode"),
+    ("Hoogste vooropleiding voor het H", "hoogste_vooropleiding_voor_het_ho"),
+])
+def test_apply_dec_tables_one_char_off_name_is_skipped(var_name, column, capsys):
+    meta = _dec_meta(var_name)
+    dec_tables = {"Dec_x.asc": pl.DataFrame({"Code": ["1"], "Omschrijving": ["Een"]})}
+    df = pl.DataFrame({column: ["1", "2"]})
+    result = _apply_dec_tables(df, meta, dec_tables)
+    assert result.equals(df)
+    assert not [c for c in result.columns if "__" in c]
+    out = capsys.readouterr().out
+    assert "[decoder]" in out and "niet gevonden" in out
+
+
+def test_apply_vakken_simple_one_char_off_column_is_skipped(capsys):
+    data = pl.DataFrame({"vakcod": ["12"]})
+    dec = pl.DataFrame({"vakcode": ["12"], "omschrijving_vak": ["Wiskunde"]})
+    result = _apply_vakken_simple(
+        data, dec, "vakcode", "vakcode", "Vakcode", "Dec_vakcode.asc", VAKCODE_CONTENT,
+    )
+    assert result.equals(data)
+    out = capsys.readouterr().out
+    assert "[decoder][vakken]" in out and "niet gevonden" in out
+    assert "Dichtste" not in out
+
+
+@pytest.mark.parametrize("data", [
+    pl.DataFrame({"brinnummr": ["02UC"], "vestigingsnummer": ["1"]}),
+    pl.DataFrame({"brinnummer": ["02UC"], "vestigingsnummr": ["1"]}),
+])
+def test_apply_vakken_composite_one_char_off_column_is_skipped(data, capsys):
+    content = [
+        "                    Startpositie  Aantal posities",
+        "Brinnummer          1             4      }",
+        "Vestigingsnummer    5             2      }",
+        "Naam vestiging      7            30",
+    ]
+    dec = pl.DataFrame({
+        "brinnummer": ["02UC"], "vestigingsnummer": ["01"], "naam_vestiging": ["Zeist"],
+    })
+    result = _apply_vakken_composite(
+        data, dec, "brinnummer", "Vestigingsnummer", "brinnummer", content,
+        "Dec_brinvestigingsnummer.asc",
+    )
+    assert result.equals(data)
+    out = capsys.readouterr().out
+    assert "[decoder][vakken]" in out and "niet gevonden" in out
+    assert "Dichtste" not in out
+
+
+def test_resolve_mapping_column_exact_name():
+    df = pl.DataFrame({"geslacht": ["M"]})
+    assert _resolve_mapping_column("geslacht", "Geslacht", df, {"geslacht": "Geslacht"}, None) == "geslacht"
+
+
+def test_resolve_mapping_column_exact_cleaned_original_name():
+    # A naming function that keeps the fraction slash: only clean_header_name
+    # turns the original header into the variable name.
+    def naming(s):
+        return s.lower().replace(" ", "_")
+
+    df = pl.DataFrame({"a⁄b": ["1"]})
+    norm_map = {"a⁄b": "A⁄B"}
+    assert _resolve_mapping_column("a/b", "A/B", df, norm_map, naming) == "a⁄b"
+
+
+def test_resolve_mapping_column_near_name_returns_none(capsys):
+    df = pl.DataFrame({"vooropleiding_oorspronkelijke_code": ["1"], "indicatie_diplomavak": ["J"]})
+    norm_map = {c: c for c in df.columns}
+    for var_norm in (
+        "hoogste_vooropleiding_voor_het_ho_oorspr_code",
+        "indicatie_soort_programma",
+        "vooropleiding_oorspronkelijke_cod",
+    ):
+        assert _resolve_mapping_column(var_norm, None, df, norm_map, None) is None
+    assert capsys.readouterr().out.count("kolom niet gevonden") == 3
+
+
+def test_vakhavw_collision_mappings_leave_column_untouched(tmp_path):
+    """Two 'oorspr. code' mappings must not land on vooropleiding_oorspronkelijke_code."""
+    items = [
+        {"name": "Hoogste vooropleiding vóór het HO oorspr. code", "values": {"1": "VWO"}},
+        {"name": "Hoogste vooropleiding binnen het HO oorspr. code", "values": {"1": "HBO"}},
+    ]
+    path = tmp_path / "variable_metadata.json"
+    path.write_text(json.dumps(items), encoding="utf-8")
+    df = pl.DataFrame({"vooropleiding_oorspronkelijke_code": ["1", "2"]})
+    norm_df, norm_map, orig = _normalize_df(df)
+    result = _apply_variable_mappings(norm_df, str(path), None, norm_map, orig)
+    assert result["vooropleiding_oorspronkelijke_code"].to_list() == ["1", "2"]
+
+
+@pytest.mark.parametrize("raw", [
+    "Hoogste vooropleiding v��r het HO",
+    "Hoogste vooropleiding vï¿½ï¿½r het HO",
+    "Hoogste vooropleiding vóór het HO",
+])
+def test_canonical_name_repairs_corrupt_voor(raw):
+    assert _canonical_name(raw) == "hoogste_vooropleiding_voor_het_ho"
+
+
+def test_canonical_name_leaves_unknown_corruption_alone():
+    # One replacement char is not in the repair table: not guessed.
+    assert _canonical_name("Hoogste vooropleiding v�r het HO") == "hoogste_vooropleiding_vr_het_ho"
+
+
+@pytest.mark.parametrize("raw", [
+    "Hoogste vooropleiding v��r het HO",
+    "Hoogste vooropleiding vï¿½ï¿½r het HO",
+])
+@pytest.mark.parametrize("decode_columns", [None, ["Hoogste vooropleiding vóór het HO"]])
+def test_apply_dec_tables_repairs_corrupt_voor_without_fuzzy(raw, decode_columns):
+    meta = _dec_meta(raw, code_name="Hoogste vooropleiding")
+    dec_tables = {
+        "Dec_x.asc": pl.DataFrame({"Hoogste vooropleiding": ["1"], "Omschrijving": ["VWO"]})
+    }
+    df = pl.DataFrame({"hoogste_vooropleiding_voor_het_ho": ["1", "2"]})
+    result = _apply_dec_tables(df, meta, dec_tables, decode_columns=decode_columns)
+    assert result["hoogste_vooropleiding_voor_het_ho"].to_list() == ["1", "2"]
+    assert result["hoogste_vooropleiding_voor_het_ho__omschrijving"].to_list() == ["VWO", None]
+
+
+def test_nfwa_preset_has_no_corrupt_spelling():
+    decode_columns = PRESET_CONFIGS["nfwa"]["settings"]["decode_columns"]
+    assert not [c for c in decode_columns if "ï¿½" in c or "�" in c]
+    assert "Hoogste vooropleiding vóór het HO" in decode_columns
+    assert PRESET_CONFIGS["evaluatietool"]["settings"] is PRESET_CONFIGS["nfwa"]["settings"]

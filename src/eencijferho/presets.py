@@ -19,13 +19,11 @@ PRESET_CONFIGS: dict[str, dict] = {
             "opt_enriched": True,
             "opt_parquet": True,
             "opt_snake_case": True,
-            # Twee spellingen van dezelfde kolom: de schone Latin-1-naam (correct
-            # gecodeerde DUO-data) en de variant met replacement-tekens die in sommige
-            # Dec-bestanden zit. De decode-filter matcht op genormaliseerde naam, dus
-            # beide opnemen dekt zowel nette als beschadigde bronbestanden af.
+            # Eén spelling volstaat: de decoder herstelt de beschadigde vorm van
+            # "vóór" (replacement-tekens) in Dec-metadata zelf, via een vaste
+            # tabel in decoder.py (_NAME_REPAIRS).
             "decode_columns": [
                 "Hoogste vooropleiding vóór het HO",
-                "Hoogste vooropleiding vï¿½ï¿½r het HO",
                 "Hoogste vooropleiding",
                 "Opleidingscode",
                 "Vakcode",
