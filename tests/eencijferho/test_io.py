@@ -106,14 +106,12 @@ class TestStorageContextClose:
                 self.closed = True
 
         backend = Closable()
-        with patch("eencijferho.io.get_backend", return_value=backend):
-            with storage_context() as storage:
-                assert storage is backend
-                assert not backend.closed
+        with patch("eencijferho.io.get_backend", return_value=backend), storage_context() as storage:
+            assert storage is backend
+            assert not backend.closed
         assert backend.closed
 
     def test_backend_without_close(self):
         backend = object()
-        with patch("eencijferho.io.get_backend", return_value=backend):
-            with storage_context() as storage:
-                assert storage is backend
+        with patch("eencijferho.io.get_backend", return_value=backend), storage_context() as storage:
+            assert storage is backend
