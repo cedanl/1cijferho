@@ -138,6 +138,31 @@ postcodekolom.
 
 **Issue:** #207
 
+## Namen koppelen
+
+De decoder koppelt een naam uit een bestandsbeschrijving aan een kolom als de
+genormaliseerde namen exact gelijk zijn (#202). Er wordt niet gegokt op
+gelijkenis.
+
+DUO noemt zes velden in de Dec-beschrijving en de variabelenbeschrijving anders
+dan in de lay-out van het 1CijferHO-bestand. Die paren staan in een vaste tabel
+(`_LAYOUT_NAMES` in `core/decoder.py`). De decoder zoekt eerst een kolom met de
+naam uit de beschrijving en gebruikt de tabel alleen als die kolom ontbreekt.
+
+| Naam in de beschrijving | Naam in de lay-out |
+|---|---|
+| Diplomajaar van de hoogste vooropleiding | Diplomajaar hoogste vooropleiding |
+| Hoogste vooropleiding vóór het HO oorspr. code | Hoogste vooropleiding vóór het HO oorspronkelijke code |
+| Hoogste vooropleiding binnen het HO oorspr. code | Hoogste vooropleiding binnen het HO oorspronkelijke code |
+| Indicatie eerstejaars opleiding actueel equivalent | Indicatie eerstejaars opl. actueel equivalent |
+| Indicatie eerstejaars actuele opleiding-instelling | Indicatie eerstejaars actuele opl.-instelling |
+| Indicatie eerstejaars act. inst - type ho binnen soort ho | Indicatie eerstejrs act. inst - type ho binnen soort ho |
+
+Een naam die in geen van beide vormen als kolom voorkomt, wordt overgeslagen.
+Dat staat in de console en in `variables_not_found` van
+`(7)_decoding_log_latest.json`. Wijkt een naam in een nieuwe levering af, voeg
+het paar dan toe aan de tabel.
+
 ## Niet Geïmplementeerde Regels
 
 ### Niet-ondersteunde bestanden

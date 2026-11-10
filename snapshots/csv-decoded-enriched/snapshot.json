@@ -1,7 +1,7 @@
 {
   "snapshot_version": 2,
-  "generated_at": "2026-11-10T22:50:30.701597",
-  "output_dir": "data/02-output/factory-ci/job028/csv-decoded-enriched",
+  "generated_at": "2026-11-10T23:23:47.264862",
+  "output_dir": "data/test-output/csv-decoded-enriched",
   "file_count": 20,
   "files": {
     "Dec_actuele_instelling.csv": {
@@ -303,9 +303,9 @@
       ]
     },
     "EV299XX24_DEMO_decoded.csv": {
-      "file_hash": "26bcde0faec26f701fb8405b052a77549280bfd9f1bcb3d929e7236b839e28ec",
+      "file_hash": "3f5aac60ee1e938736ad0fd46a03ec9877b5bdaefc65aa5ed2b36bfd831f0264",
       "row_count": 43663,
-      "column_count": 182,
+      "column_count": 186,
       "columns": [
         "Actuele instelling",
         "Actuele instelling vóór besturenfusies",
@@ -440,7 +440,11 @@
         "geboorteland_ouder_2__naam_migratieachtergrond_lang",
         "hoogste_vooropleiding__omschrijving_vooropleiding",
         "hoogste_vooropleiding_binnen_het_ho__omschrijving_vooropleiding",
+        "hoogste_vooropleiding_binnen_het_ho_oorspronkelijke_code__omschrijving_vooropleiding_oorspr_code",
+        "hoogste_vooropleiding_binnen_het_ho_oorspronkelijke_code__onderwijssector",
         "hoogste_vooropleiding_voor_het_ho__omschrijving_vooropleiding",
+        "hoogste_vooropleiding_voor_het_ho_oorspronkelijke_code__omschrijving_vooropleiding_oorspr_code",
+        "hoogste_vooropleiding_voor_het_ho_oorspronkelijke_code__onderwijssector",
         "instelling_van_de_hoogste_vooropl_binnen_het_ho__naam_instelling",
         "instelling_van_de_hoogste_vooropl_voor_het_ho__code_denominatie_richting",
         "instelling_van_de_hoogste_vooropl_voor_het_ho__datum_opheffing",
@@ -492,9 +496,9 @@
       ]
     },
     "EV299XX24_DEMO_enriched.csv": {
-      "file_hash": "1485a16de8d2bc268c26d9e3854f7508498d63c3f40236412beb1bb034c69633",
+      "file_hash": "518f8b9a982f53f22182c8643d98ac4a6333ca4bc1bda313e9b0bc1dbef7e7da",
       "row_count": 43663,
-      "column_count": 182,
+      "column_count": 186,
       "columns": [
         "Actuele instelling",
         "Actuele instelling vóór besturenfusies",
@@ -629,7 +633,11 @@
         "geboorteland_ouder_2__naam_migratieachtergrond_lang",
         "hoogste_vooropleiding__omschrijving_vooropleiding",
         "hoogste_vooropleiding_binnen_het_ho__omschrijving_vooropleiding",
+        "hoogste_vooropleiding_binnen_het_ho_oorspronkelijke_code__omschrijving_vooropleiding_oorspr_code",
+        "hoogste_vooropleiding_binnen_het_ho_oorspronkelijke_code__onderwijssector",
         "hoogste_vooropleiding_voor_het_ho__omschrijving_vooropleiding",
+        "hoogste_vooropleiding_voor_het_ho_oorspronkelijke_code__omschrijving_vooropleiding_oorspr_code",
+        "hoogste_vooropleiding_voor_het_ho_oorspronkelijke_code__onderwijssector",
         "instelling_van_de_hoogste_vooropl_binnen_het_ho__naam_instelling",
         "instelling_van_de_hoogste_vooropl_voor_het_ho__code_denominatie_richting",
         "instelling_van_de_hoogste_vooropl_voor_het_ho__datum_opheffing",

@@ -29,6 +29,14 @@ geen bewijs dat ze in een eerdere release zitten.
   1CijferHO afgeleide lay-out). In `(5)_conversion_log_latest.json` staan bestanden zonder
   bestandsbeschrijving voortaan als `unsupported` (lijst `unsupported_files`) in plaats van
   als `skipped`; de EV-output verandert niet.
+- **De decoder koppelt namen exact** (#202). Een naam uit een bestandsbeschrijving hoort bij
+  een kolom als de genormaliseerde namen gelijk zijn; op gelijkenis wordt niet meer gegokt.
+  De zes velden die DUO in de beschrijvingen anders noemt dan in de lay-out staan in een
+  vaste tabel (zie [Decodering](decodering.md#namen-koppelen)), zodat de EV-output gelijk
+  blijft: `diplomajaar_hoogste_vooropleiding` en de drie `indicatie_eerstejaars…`-kolommen
+  houden hun labels in `_enriched.csv`, en de labelkolommen bij
+  `hoogste_vooropleiding_…_oorspronkelijke_code` blijven bestaan. In VAKHAVW landen
+  EV-labels niet meer op `vooropleiding_oorspronkelijke_code`.
 
 ## NFWA en Staat1cho zijn verschillende consumenten
 
