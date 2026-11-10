@@ -9,9 +9,11 @@ from eencijferho.io.decorators import with_storage
 from eencijferho.core.dec_layouts import supplementary_tables
 from eencijferho.core.decode_report import (
     DEC_TABLE_NOT_LOADED,
+    LABELS_TOO_LONG,
     NO_LABEL_COLUMNS,
     NOT_IN_DECODE_SCOPE,
     DecodeReport,
+    is_personal_id_column,
 )
 from collections.abc import Callable
 from typing import Any
@@ -173,6 +175,17 @@ def load_variable_mappings(
                         entry[int_key] = v
                 except Exception:
                     pass
+            # "[leeg] of 0": the empty value and code 0 share one label. The
+            # leeg key stays (see _empty_label); every other part becomes a key
+            # of its own, unless the metadata lists that code separately.
+            if isinstance(key, str) and "leeg" in key.lower() and " of " in key:
+                for part in (p.strip() for p in key.split(" of ")):
+                    if not part or "leeg" in part.lower():
+                        continue
+                    entry.setdefault(part, v)
+                    if part.isdigit():
+                        entry.setdefault(part.zfill(2), v)
+                        entry.setdefault(int(part), v)
         if entry:
             maps[norm] = {"orig_name": name, "mapping": entry}
 
@@ -1173,6 +1186,38 @@ def _resolve_mapping_column(
     return None
 
 
+# A label longer than this is a DUO explanation (a paragraph per code), not a
+# label: a mapping holding one is not applied, so the column keeps its codes.
+# Measured on the DEMO variable_metadata: "Code beëindiging" has labels of
+# 300-468 characters; the longest label of every other variable is 288
+# characters ("Code examenresultaat"), and those columns also carry short
+# labels such as "Ja"/"Nee" that must not be lost.
+MAX_LABEL_LENGTH = 300
+
+
+def _empty_label(mapping: dict) -> tuple[Any, str | None, list[str]]:
+    """Label for an empty value, independent of the key order of ``mapping``.
+
+    A key that is exactly ``[leeg]`` (case-insensitive, trimmed) wins; then the
+    other keys containing ``leeg`` in sorted order.
+
+    Returns:
+        ``(label, chosen key, candidate keys)``; label and key are None when
+        the mapping has no leeg key.
+    """
+    candidates = sorted(k for k in mapping if isinstance(k, str) and "leeg" in k.lower())
+    exact = [k for k in candidates if k.strip().lower() == "[leeg]"]
+    ordered = exact + [k for k in candidates if k not in exact]
+    for key in ordered:
+        if mapping[key] is not None:
+            return mapping[key], key, ordered
+    return None, None, ordered
+
+
+def _longest_label(mapping: dict) -> int:
+    return max((len(str(v)) for v in mapping.values() if v is not None), default=0)
+
+
 def _apply_single_mapping(
     result_df: pl.DataFrame,
     chosen_col: str,
@@ -1181,17 +1226,43 @@ def _apply_single_mapping(
     orig_name: str | None,
     report: DecodeReport | None = None,
 ) -> pl.DataFrame:
-    """Replace values in chosen_col using code→label mapping."""
+    """Replace values in chosen_col using code→label mapping.
+
+    Values without a label keep their code. A mapping with a label longer
+    than MAX_LABEL_LENGTH is not applied at all.
+    """
     try:
+        longest = _longest_label(mapping)
+        if longest > MAX_LABEL_LENGTH:
+            rows = result_df.height - result_df[chosen_col].null_count()
+            print(
+                f"[decoder] '{chosen_col}' (orig: '{orig_name}'): mapping niet toegepast, "
+                f"label van {longest} tekens is langer dan {MAX_LABEL_LENGTH}; "
+                f"{rows} rij(en) houden hun code."
+            )
+            if report is not None:
+                report.record_withheld_mapping(
+                    chosen_col, orig_name or var_norm, LABELS_TOO_LONG, rows, longest,
+                )
+            return result_df
+
         result_df = result_df.with_columns(
             pl.col(chosen_col).cast(pl.Utf8).str.strip_chars().alias(chosen_col)
         )
         src_vals = result_df[chosen_col].to_list()
         lower_map = {k.lower(): v for k, v in mapping.items() if isinstance(k, str)}
+        empty_label, empty_key, empty_candidates = _empty_label(mapping)
+        empty_label_choice = None
+        if len({str(mapping[k]) for k in empty_candidates}) > 1:
+            empty_label_choice = {"chosen_key": empty_key, "candidate_keys": empty_candidates}
+            print(
+                f"[decoder] '{chosen_col}': meerdere sleutels voor een lege waarde "
+                f"{empty_candidates}, gekozen: '{empty_key}'"
+            )
         mapped_vals = []
         unmapped_seen: set = set()
         int_fallback_seen: set = set()
-        total_non_null = mapped_count = int_fallback_count = 0
+        total_non_null = mapped_count = unmapped_rows = int_fallback_count = 0
 
         for v in src_vals:
             if v is None:
@@ -1201,14 +1272,12 @@ def _apply_single_mapping(
             total_non_null += 1
 
             if s == "":
-                found = next(
-                    (mapping[k] for k in mapping if isinstance(k, str) and "leeg" in k.lower()),
-                    None,
-                )
+                found = empty_label
                 mapped_vals.append(found if found is not None else s)
                 if found is not None:
                     mapped_count += 1
-                elif s not in unmapped_seen:
+                else:
+                    unmapped_rows += 1
                     unmapped_seen.add(s)
                 continue
 
@@ -1233,7 +1302,8 @@ def _apply_single_mapping(
             mapped_vals.append(found if found is not None else s)
             if found is not None:
                 mapped_count += 1
-            elif s not in unmapped_seen:
+            else:
+                unmapped_rows += 1
                 unmapped_seen.add(s)
 
         try:
@@ -1242,9 +1312,12 @@ def _apply_single_mapping(
             result_df = result_df.with_columns(
                 pl.Series(mapped_vals).cast(pl.Utf8).alias(chosen_col)
             )
+        personal_id = is_personal_id_column(chosen_col) or is_personal_id_column(orig_name)
+        examples = "(voorbeelden weggelaten)" if personal_id else sorted(unmapped_seen)[:5]
         print(
             f"[decoder] '{chosen_col}' (orig: '{orig_name}'): "
-            f"{mapped_count}/{total_non_null} gemapt, niet-gemapt: {list(unmapped_seen)[:5]}"
+            f"{mapped_count}/{total_non_null} gemapt, {unmapped_rows} rij(en) niet-gemapt "
+            f"(code behouden): {examples}"
         )
         if int_fallback_count:
             print(
@@ -1255,6 +1328,7 @@ def _apply_single_mapping(
             report.record_mapping(
                 chosen_col, orig_name or var_norm, mapped_count, total_non_null, unmapped_seen,
                 int_fallback_count, int_fallback_seen,
+                unmapped_rows=unmapped_rows, empty_label_choice=empty_label_choice,
             )
     except Exception as e:
         print(f"[decoder] Fout bij mapping voor {var_norm}: {e}")

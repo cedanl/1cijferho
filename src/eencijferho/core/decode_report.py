@@ -40,6 +40,12 @@ JOIN_ERROR = "join_error"
 NO_LABEL_COLUMNS = "no_label_columns"
 NO_VALUES_MAPPED = "no_values_mapped"
 MAPPING_ERROR = "mapping_error"
+LABELS_TOO_LONG = "labels_too_long"
+
+# What a column holds after a variable_metadata mapping.
+SEMANTICS_LABEL = "label"  # every non-null value was replaced by a label
+SEMANTICS_MIXED = "mixed"  # some values are labels, the rest kept their code
+SEMANTICS_CODE = "code"  # no value was replaced (or the mapping was withheld)
 
 _PERSONAL_ID_PARTS = tuple(
     re.sub(r"[^a-z0-9]", "", name.lower())
@@ -58,6 +64,15 @@ def is_personal_id_column(name: str | None) -> bool:
 def _sorted_sample(values: Iterable[Any]) -> list[str]:
     """At most SAMPLE_SIZE distinct values, sorted for a stable log."""
     return sorted({"" if v is None else str(v) for v in values})[:SAMPLE_SIZE]
+
+
+def mapping_semantics(mapped_rows: int, unmapped_rows: int) -> str:
+    """Verdict on a mapped column: ``label``, ``mixed`` or ``code``."""
+    if mapped_rows == 0:
+        return SEMANTICS_CODE
+    if unmapped_rows == 0:
+        return SEMANTICS_LABEL
+    return SEMANTICS_MIXED
 
 
 class _FileEntry:
@@ -252,13 +267,28 @@ class DecodeReport:
         unmapped: set,
         int_fallback_rows: int,
         int_fallback: set,
+        *,
+        unmapped_rows: int,
+        empty_label_choice: dict[str, Any] | None = None,
     ) -> None:
+        """Record one applied variable_metadata mapping.
+
+        Args:
+            mapped: rows that got a label.
+            unmapped_rows: non-null rows that kept their code.
+            empty_label_choice: set when several ``leeg`` keys with different
+                labels competed for the empty value: the chosen key and all
+                candidate keys (metadata, never row data).
+        """
         column = self._name(column_norm)
         withhold = is_personal_id_column(column)
         entry: dict[str, Any] = {
             "column": column,
             "variable": variable,
+            "semantics": mapping_semantics(mapped, unmapped_rows),
             "mapped": mapped,
+            "mapped_rows": mapped,
+            "unmapped_rows": unmapped_rows,
             "total_non_null": total_non_null,
             "unmapped_distinct": len(unmapped),
             "sample": [] if withhold else _sorted_sample(unmapped),
@@ -268,11 +298,52 @@ class DecodeReport:
         }
         if withhold:
             entry["sample_withheld"] = "personal_identifier"
+        if empty_label_choice:
+            entry["empty_label_choice"] = empty_label_choice
         self._file().mappings[(column, variable)] = entry
         if mapped > 0:
             self.record_decoded(column_norm, "variable_metadata")
         else:
             self.record_skip(column_norm, NO_VALUES_MAPPED)
+
+    def record_withheld_mapping(
+        self,
+        column_norm: str,
+        variable: str,
+        reason: str,
+        rows: int,
+        max_label_length: int,
+    ) -> None:
+        """Record a variable_metadata mapping that was not applied at all.
+
+        The column keeps its codes, so its ``semantics`` is ``code``. No value
+        of the column is looked up, so nothing counts as unmapped: the rows
+        that kept their code are in ``skipped_rows``.
+
+        Args:
+            reason: why the mapping was withheld (e.g. ``labels_too_long``).
+            rows: non-null rows of the column.
+            max_label_length: length of the longest label in the mapping.
+        """
+        column = self._name(column_norm)
+        self._file().mappings[(column, variable)] = {
+            "column": column,
+            "variable": variable,
+            "semantics": SEMANTICS_CODE,
+            "skip_reason": reason,
+            "skipped_rows": rows,
+            "max_label_length": max_label_length,
+            "mapped": 0,
+            "mapped_rows": 0,
+            "unmapped_rows": 0,
+            "total_non_null": rows,
+            "unmapped_distinct": 0,
+            "sample": [],
+            "int_fallback_rows": 0,
+            "int_fallback_distinct": 0,
+            "int_fallback_sample": [],
+        }
+        self.record_skip(column_norm, reason)
 
     def record_not_found(self, variable: str, source: str) -> None:
         """A variable from the metadata (``source``) that is not in the file."""
@@ -302,6 +373,8 @@ class DecodeReport:
             "total_unmatched_distinct_codes": sum(u["distinct_codes"] for u in unmatched),
             "total_unmatched_rows": sum(u["rows_unmatched"] for u in unmatched),
             "total_unmapped_distinct_values": sum(m["unmapped_distinct"] for m in mappings),
+            "total_unmapped_rows": sum(m["unmapped_rows"] for m in mappings),
+            "variable_mappings_skipped": sum(1 for m in mappings if "skip_reason" in m),
             "total_int_fallback_rows": sum(m["int_fallback_rows"] for m in mappings),
             "variables_not_found": sum(d["variables_not_found_count"] for d in details),
             "errors": sum(len(d["errors"]) for d in details),
