@@ -22,6 +22,13 @@ geen bewijs dat ze in een eerdere release zitten.
   verblijfsjaar- en diplomajaar-variabelen. Consumenten die lege waarden herkennen aan het
   `>`-patroon in het label moeten dat aanpassen; voor Staat1cho is dit belegd in
   cedanl/staat-van-onderwijsinstelling#50.
+- **VAKHAVW decodeert alle vier de velden uit de Vakken-lay-out** (#204). `_decoded.csv`
+  krijgt naast de `vakcode_*`-kolommen ook `brinnummer_vo_instelling_*`,
+  `vestigingsnummer_vo_vestiging_*` en `vooropleiding_oorspronkelijke_code_*`. Daarnaast
+  verschijnen `Dec_brinnummer` en `Dec_brinvestigingsnummer` als CSV/Parquet (met een door
+  1CijferHO afgeleide lay-out). In `(5)_conversion_log_latest.json` staan bestanden zonder
+  bestandsbeschrijving voortaan als `unsupported` (lijst `unsupported_files`) in plaats van
+  als `skipped`; de EV-output verandert niet.
 
 ## NFWA en Staat1cho zijn verschillende consumenten
 
