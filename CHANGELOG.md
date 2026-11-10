@@ -9,6 +9,10 @@ en dit project volgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 - `--fail-on-empty-output` flag voor pipeline en convert commands (#230)
+- Decodeerlog `(7)_decoding_log_latest.json` naast de bestaande logs, en `--strict` flag voor pipeline en convert (#210)
+
+### Changed
+- `(1)_json_processing_log`: bestanden zonder tabellen worden geteld (`no_tables_found_count`, `no_tables_found_files`) in plaats van per bestand in `processed_files` opgenomen (#210)
 
 ### Fixed
 - **Startpositie als autoriteit**: Layout-validatie leest nu Startpositie correct (#223)
