@@ -1,6 +1,6 @@
 {
   "snapshot_version": 2,
-  "generated_at": "2026-11-10T12:13:11.680832",
+  "generated_at": "2026-11-10T16:50:47.250035",
   "output_dir": "data/02-output/snapshot-baselines/csv-decoded-enriched",
   "file_count": 18,
   "files": {
@@ -272,7 +272,7 @@
       ]
     },
     "EV299XX24_DEMO_decoded.csv": {
-      "file_hash": "3f5aac60ee1e938736ad0fd46a03ec9877b5bdaefc65aa5ed2b36bfd831f0264",
+      "file_hash": "26bcde0faec26f701fb8405b052a77549280bfd9f1bcb3d929e7236b839e28ec",
       "row_count": 43663,
       "column_count": 182,
       "columns": [
@@ -461,7 +461,7 @@
       ]
     },
     "EV299XX24_DEMO_enriched.csv": {
-      "file_hash": "adf4aca6df0635dd00fac8bcc0b9388453fc21f7a51cbf45a87f9813a2adbc17",
+      "file_hash": "d9db9aad114212ec401fb0076c2120bf76d18de816f9e6632e491b9dfd326965",
       "row_count": 43663,
       "column_count": 182,
       "columns": [
