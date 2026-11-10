@@ -116,6 +116,20 @@ eencijferho enrich           --input data/01-input --output data/02-output
 eencijferho validate-output  --input data/01-input --output data/02-output
 ```
 
+## Tekencodering van de invoerbestanden
+
+De bestandsbeschrijvingen van DUO (`Bestandsbeschrijving*.txt`, en de `.asc`-bestanden die `extract` als tekst doorzoekt) mogen in **latin-1 (ISO-8859-1)** of in **UTF-8** staan, met of zonder BOM. Alle onderdelen van de tool lezen ze via één gedeelde functie (`eencijferho.io.text_encoding.read_description_text`), zodat dezelfde tekst (bijv. "vóór") overal dezelfde kolomnaam oplevert.
+
+De codering wordt in deze volgorde bepaald:
+
+1. Begint het bestand met een UTF-8-BOM, dan wordt het gelezen als UTF-8 (de BOM valt weg).
+2. Anders wordt het als UTF-8 gelezen als dat foutloos lukt (DUO levert `Bestandsbeschrijving_Dec-bestanden.txt` als UTF-8 zonder BOM).
+3. Anders wordt het gelezen als latin-1.
+
+Bevat de gelezen tekst vervangingstekens (U+FFFD, `�`), dan stopt `extract` (en `pipeline`) met een foutmelding die het bestand en de regelnummers noemt. Die tekens ontstaan als een bestand ooit met de verkeerde codering is geopend en opgeslagen; de oorspronkelijke letters zijn dan verloren. Herstel de tekst op die regels (bijv. `v��r` → `vóór`) en sla het bestand op als UTF-8 of als ISO-8859-1 zonder vervangingstekens, of gebruik het originele bestand van DUO.
+
+De databestanden zelf (`.asc` met de gegevens) worden nog steeds als latin-1 gelezen. Achtergrond: #203, als afronding van #93, #98 en #99 (zie ook #54 en #208).
+
 ---
 
 ## 🫂 Bijdragers
