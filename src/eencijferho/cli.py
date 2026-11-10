@@ -33,6 +33,7 @@ import os
 import sys
 
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 
 from eencijferho.config import validate_safe_path as _check_safe_path
@@ -65,6 +66,7 @@ from eencijferho.utils.converter_headers import clean_header_name, normalize_nam
 from eencijferho.utils.converter_match import LayoutMatchError, match_files
 from eencijferho.utils.extractor_validation import validate_metadata_folder
 from eencijferho.io.decorators import with_storage
+from eencijferho.io.text_encoding import DescriptionEncodingError
 import eencijferho.utils.value_validation as vv
 import eencijferho.utils.dec_validation as dv
 
@@ -532,7 +534,13 @@ def main() -> None:
         "pipeline": cmd_pipeline,
         "validate-output": cmd_validate_output,
     }
-    dispatch[args.command](args)
+    try:
+        dispatch[args.command](args)
+    except DescriptionEncodingError as e:
+        # A broken file description must stop the run with a clear message,
+        # not a traceback (the message says how to repair the file).
+        _console.print(f"[red]Fout: {escape(str(e))}[/red]", soft_wrap=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
