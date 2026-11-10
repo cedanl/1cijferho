@@ -153,6 +153,7 @@ class DecodeReport:
     def _file(self) -> _FileEntry:
         if self._current is None:
             self.begin_file("<dataframe>")
+            return self._files["<dataframe>"]
         return self._current
 
     def _name(self, norm: str) -> str:

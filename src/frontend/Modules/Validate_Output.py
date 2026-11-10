@@ -4,6 +4,7 @@ import datetime
 import streamlit as st
 import eencijferho.utils.value_validation as vv
 import eencijferho.utils.dec_validation as dv
+from eencijferho.io.text_encoding import DescriptionEncodingError
 from config import get_input_dir, get_output_dir, get_metadata_dir
 
 
@@ -73,7 +74,12 @@ def _run_dec_validation():
         return None, "Geen DEC-bestandsbeschrijving gevonden in de invoermap."
 
     dec_txt_path = os.path.join(input_dir, dec_txt_candidates[0])
-    dec_summary = dv.validate_with_dec_files_folder(output_dir, dec_txt_path)
+    try:
+        dec_summary = dv.validate_with_dec_files_folder(output_dir, dec_txt_path)
+    except DescriptionEncodingError as e:
+        # A damaged file description is an input problem the user can repair:
+        # show its message (file, line numbers, what to do), not a traceback.
+        return None, str(e)
     dec_failed = [
         (fname, col["column"], col["dec_file"], col["invalid_values"])
         for fname, res in dec_summary.items()

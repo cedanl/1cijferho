@@ -422,3 +422,30 @@ def test_pipeline_without_decode_writes_empty_log(pipeline_dirs):
     assert data["decode_enabled"] is False
     assert data["dec_tables_not_loaded"] == []
     assert report.summary()["strict_violations"] == []
+
+
+def test_findings_without_begin_file_go_to_a_dataframe_entry():
+    """Without begin_file, findings land in one "<dataframe>" entry."""
+    report = DecodeReport()
+    report.set_file_status(decoded="written")
+    report.record_skip("geslacht", "no_dec_table")
+
+    details = report.to_dict()["details"]
+    assert [d["file"] for d in details] == ["<dataframe>"]
+    assert details[0]["decoded"] == "written"
+
+
+def test_composite_join_without_second_code_column_logs_a_type_error():
+    """A composite join without its second code column keeps the frame and logs a TypeError."""
+    main = pl.DataFrame({"instcode": ["10"], "vakcode": ["01"]})
+    lookup = pl.DataFrame({"instcode": ["10"], "vakcode": ["1"], "vaknaam": ["Wiskunde"]})
+    report = DecodeReport()
+
+    result = _apply_single_dec_join(
+        main, lookup, "vakcode", "instcode",
+        is_composite=True, code_col2_norm=None, report=report,
+    )
+
+    assert result.equals(main)
+    errors = report.to_dict()["details"][0]["errors"]
+    assert errors == [{"column": "vakcode", "step": "dec_join", "error_type": "TypeError"}]

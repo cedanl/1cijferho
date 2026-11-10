@@ -62,6 +62,46 @@ def _canonical_name(raw: str, naming_func: Callable[[str], str] | None = None) -
     return normalize_name(strip_accents(_repair_name(raw)), naming_func)
 
 
+# DUO names some fields differently in its descriptions (the Dec description
+# and the variable description) than in the layout of the data file. A name
+# from a description is matched to a column by that name first. Only when no
+# column has it is the layout name from this table tried. Each entry is one
+# pair found in the 1CijferHO descriptions of 2023 and 2024; a name that is
+# not listed is skipped, never guessed (#202).
+_LAYOUT_NAMES: dict[str, str] = {
+    "Diplomajaar van de hoogste vooropleiding": "Diplomajaar hoogste vooropleiding",
+    "Hoogste vooropleiding vóór het HO oorspr. code": "Hoogste vooropleiding vóór het HO oorspronkelijke code",
+    "Hoogste vooropleiding binnen het HO oorspr. code": "Hoogste vooropleiding binnen het HO oorspronkelijke code",
+    "Indicatie eerstejaars opleiding actueel equivalent": "Indicatie eerstejaars opl. actueel equivalent",
+    "Indicatie eerstejaars actuele opleiding-instelling": "Indicatie eerstejaars actuele opl.-instelling",
+    "Indicatie eerstejaars act. inst - type ho binnen soort ho": "Indicatie eerstejrs act. inst - type ho binnen soort ho",
+}
+
+# Looked up by canonical name, so case, accents and the corrupt "vóór" make no
+# difference ("Hoogste Vooropleiding ..." in the Dec description).
+_LAYOUT_NAME_BY_KEY: dict[str, str] = {
+    _canonical_name(description_name): layout_name
+    for description_name, layout_name in _LAYOUT_NAMES.items()
+}
+
+
+def _layout_column(
+    description_name: str,
+    columns: list[str],
+    naming_func: Callable[[str], str] | None = None,
+) -> str | None:
+    """Column of a field that the layout names differently than the description.
+
+    Returns the column for the layout name in ``_LAYOUT_NAMES`` when ``columns``
+    has it, otherwise None.
+    """
+    layout_name = _LAYOUT_NAME_BY_KEY.get(_canonical_name(description_name))
+    if layout_name is None:
+        return None
+    column = _canonical_name(layout_name, naming_func)
+    return column if column in columns else None
+
+
 # ---------------------------------------------------------------------------
 # Public: load helpers
 # ---------------------------------------------------------------------------
@@ -114,7 +154,7 @@ def load_variable_mappings(
         if not name or not isinstance(values, dict):
             continue
         norm = _canonical_name(name, naming_func)
-        entry: dict[str, Any] = {}
+        entry: dict[str | int, Any] = {}
         for k, v in values.items():
             key = k.strip() if isinstance(k, str) else str(k)
             entry[key] = v
@@ -312,11 +352,11 @@ def _key_width(meta_width: int | None, *columns: pl.Series) -> int | None:
     """
     if meta_width:
         return meta_width
-    lengths = [
+    maxima = [
         col.cast(pl.Utf8).str.strip_chars().str.len_chars().max()
         for col in columns
     ]
-    lengths = [n for n in lengths if n]
+    lengths = [n for n in maxima if isinstance(n, int) and n]
     return max(lengths) if lengths else None
 
 
@@ -444,6 +484,10 @@ def _apply_single_dec_join(
     anchor = anchor_col or code_col_norm
     try:
         if is_composite:
+            if code_col2_norm is None:
+                # The caller sets is_composite only with a second code column.
+                # TypeError: what join_df[None] raised here before.
+                raise TypeError("samengestelde sleutel zonder tweede codekolom")
             dec_cols = [
                 c for c in join_df.columns
                 if c != code_col_norm and c != code_col2_norm
@@ -583,10 +627,14 @@ def _apply_dec_tables(
         for var in dec_vars:
             var_norm = _canonical_name(var, naming_func)
             if var_norm not in result_df.columns:
-                print(f"[decoder] Sla '{var}' over — kolom '{var_norm}' niet gevonden in DataFrame.")
-                if report is not None:
-                    report.record_not_found(var, table["table_title"])
-                continue
+                layout_col = _layout_column(var, result_df.columns, naming_func)
+                if layout_col is None:
+                    print(f"[decoder] Sla '{var}' over — kolom '{var_norm}' niet gevonden in DataFrame.")
+                    if report is not None:
+                        report.record_not_found(var, table["table_title"])
+                    continue
+                print(f"[decoder] '{var}' heet in het databestand '{layout_col}' (vaste naamtabel).")
+                var_norm = layout_col
 
             result_df = _apply_single_dec_join(
                 result_df, join_df, var_norm, code_col_norm,
@@ -1089,9 +1137,10 @@ def _resolve_mapping_column(
 ) -> str | None:
     """Find the column in result_df that a variable mapping applies to.
 
-    Only exact matches count: ``var_norm`` itself, or the one column whose
-    original header, cleaned and normalised, equals ``var_norm``. Anything
-    else is logged and skipped, never guessed.
+    Only exact matches count: ``var_norm`` itself, the one column whose
+    original header, cleaned and normalised, equals ``var_norm``, or the
+    column that ``_LAYOUT_NAMES`` lists for this variable. Anything else is
+    logged and skipped, never guessed.
     """
     if var_norm in result_df.columns:
         return var_norm
@@ -1109,6 +1158,15 @@ def _resolve_mapping_column(
             f"meerdere kolommen passen ({matches}), overgeslagen."
         )
         return None
+
+    layout_col = _layout_column(orig_name or var_norm, result_df.columns, naming_func)
+    if layout_col is not None:
+        print(
+            f"[decoder] Mapping voor '{var_norm}' (orig: '{orig_name}') — "
+            f"heet in het databestand '{layout_col}' (vaste naamtabel)."
+        )
+        return layout_col
+
     print(f"[decoder] Mapping voor '{var_norm}' (orig: '{orig_name}') — kolom niet gevonden.")
     if report is not None:
         report.record_not_found(orig_name or var_norm, "variable_metadata")

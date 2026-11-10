@@ -321,7 +321,7 @@ else:
             ):
                 st.session_state[_key] = s[_key]
 
-        if active_preset == "svo":
+        if not preset_cfg["available"]:
             st.warning("Deze preset is nog niet beschikbaar. Kies 'Eigen instellingen' om handmatig te configureren.")
 
         st.caption("Standaardinstellingen zijn geschikt voor de meeste gebruikers.")
@@ -378,7 +378,9 @@ else:
         if show_decode:
             if available_decode:
                 if is_preset:
-                    cols_label = ", ".join(preset_cfg["settings"]["decode_columns"])
+                    # None means the preset decodes every available column.
+                    preset_columns = preset_cfg["settings"]["decode_columns"]
+                    cols_label = "alle kolommen" if preset_columns is None else ", ".join(preset_columns)
                     st.button(
                         "Kolomselectie instellen →",
                         key="configure_columns_btn",

@@ -9,7 +9,8 @@ PRESET_CONFIGS: dict[str, dict] = {
         "label": "No Fairness Without Awareness",
         "description": (
             "Configuratie voor het NFWA-project (CEDA/Npuls). "
-            "Alleen EV-bestanden; geslacht en hoogste vooropleiding vóór het HO gedecodeerd en verrijkt."
+            "Alleen EV-bestanden; geslacht, hoogste vooropleiding vóór het HO en diplomajaar "
+            "van de hoogste vooropleiding gedecodeerd en verrijkt."
         ),
         "available": True,
         "settings": {
@@ -28,14 +29,35 @@ PRESET_CONFIGS: dict[str, dict] = {
                 "Opleidingscode",
                 "Vakcode",
             ],
-            "enrich_variables": ["Geslacht", "Hoogste vooropleiding vóór het HO"],
+            "enrich_variables": [
+                "Geslacht",
+                "Hoogste vooropleiding vóór het HO",
+                # NFWA does arithmetic on this year. Code 0000 (unknown or invalid)
+                # must become its label, otherwise it counts as the year 0.
+                "Diplomajaar van de hoogste vooropleiding",
+            ],
         },
     },
     "svo": {
-        "label": "Staat van het Onderwijs",
-        "description": "Binnenkort beschikbaar.",
-        "available": False,
-        "settings": None,
+        "label": "Staat van de Onderwijsinstelling",
+        "description": (
+            "Configuratie voor Staat van de Onderwijsinstelling (staat1cho, CEDA/Npuls). "
+            "EV- en VAKHAVW-bestanden met alle kolommen gedecodeerd en verrijkt, "
+            "kolomnamen in snake_case."
+        ),
+        "available": True,
+        "settings": {
+            "opt_convert_ev": True,
+            "opt_convert_vakhavw": True,
+            "opt_decoded": True,
+            "opt_enriched": True,
+            "opt_parquet": True,
+            "opt_snake_case": True,
+            # None = every available column. staat1cho reads many more columns
+            # than the other presets decode and stops when one is missing.
+            "decode_columns": None,
+            "enrich_variables": None,
+        },
     },
 }
 

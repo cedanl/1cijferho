@@ -116,7 +116,10 @@ burgerservicenummer;studentnummer
 234567890;S0002
 ```
 
-Een voorbeeldbestand staat in `data/koppeling_bsn_studentnummer_VOORBEELD.csv`.
+Een voorbeeldbestand staat in `data/koppeling_bsn_studentnummer_VOORBEELD.csv`. Het toont alleen het
+formaat: de BSN's erin komen niet voor in de DEMO-data. Om de koppeling met de DEMO-data te proberen
+gebruik je `data/koppeling_bsn_studentnummer_DEMO.csv`, met een fictief studentnummer voor elk BSN in
+de DEMO-bestanden.
 
 === "Streamlit UI"
     Vul het pad in bij **Studentnummer koppeling** op de Turbo Convert-pagina.

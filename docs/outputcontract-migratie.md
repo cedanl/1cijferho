@@ -29,6 +29,14 @@ geen bewijs dat ze in een eerdere release zitten.
   1CijferHO afgeleide lay-out). In `(5)_conversion_log_latest.json` staan bestanden zonder
   bestandsbeschrijving voortaan als `unsupported` (lijst `unsupported_files`) in plaats van
   als `skipped`; de EV-output verandert niet.
+- **De decoder koppelt namen exact** (#202). Een naam uit een bestandsbeschrijving hoort bij
+  een kolom als de genormaliseerde namen gelijk zijn; op gelijkenis wordt niet meer gegokt.
+  De zes velden die DUO in de beschrijvingen anders noemt dan in de lay-out staan in een
+  vaste tabel (zie [Decodering](decodering.md#namen-koppelen)), zodat de EV-output gelijk
+  blijft: `diplomajaar_hoogste_vooropleiding` en de drie `indicatie_eerstejaars…`-kolommen
+  houden hun labels in `_enriched.csv`, en de labelkolommen bij
+  `hoogste_vooropleiding_…_oorspronkelijke_code` blijven bestaan. In VAKHAVW landen
+  EV-labels niet meer op `vooropleiding_oorspronkelijke_code`.
 
 ## NFWA en Staat1cho zijn verschillende consumenten
 
@@ -42,6 +50,40 @@ Dit is bestaand gedrag; een consument mag die bestandsnaam dus niet onvoorwaarde
 
 Er wordt door deze wijzigingen **geen automatische pseudonimisering toegevoegd**. BSN,
 DUO-PGN, onderwijsnummer en lokaal studentnummer zijn niet vanzelf dezelfde sleutel.
+
+## EV en VAKHAVW koppelen op persoonsgebonden nummer
+
+EV en VAKHAVW koppel je op `persoonsgebonden_nummer`. Die kolom is tekst en blijft geschreven
+zoals in het bronbestand (#219, #222). De schrijfwijze hoort dus bij de sleutel:
+`000000000002` en `2` zijn als tekst verschillend.
+
+In de DEMO-bestanden staat het nummer in EV zonder voorloopnullen (`2`) en in VAKHAVW met
+voorloopnullen op twaalf posities (`000000000002`). Een join op de kolom zelf vindt daar geen
+van de 17.053 personen uit VAKHAVW; een join op een genormaliseerde sleutel vindt ze alle
+17.053. Wie de CSV inleest met type-inferentie (zoals `read.csv` in R) merkt dit niet, omdat
+de kolom dan een getal wordt. Wie de Parquet-output of de CSV als tekst inleest, merkt het
+wel.
+
+Controleer bij een eigen levering hoe beide bestanden het nummer schrijven voordat je
+koppelt. Verschilt de schrijfwijze, maak dan in beide tabellen een afgeleide sleutel en laat
+de oorspronkelijke kolom staan:
+
+```python
+import polars as pl
+
+
+def with_join_key(df: pl.DataFrame) -> pl.DataFrame:
+    return df.with_columns(
+        pl.col("persoonsgebonden_nummer").str.zfill(12).alias("koppelsleutel")
+    )
+
+
+ev = with_join_key(pl.read_parquet("data/02-output/DEMO/EV299XX24_DEMO_enriched.parquet"))
+vakhavw = with_join_key(pl.read_parquet("data/02-output/DEMO/VAKHAVW_99XX_DEMO_decoded.parquet"))
+
+# Alle vakregels van personen die ook in EV voorkomen.
+vakken_met_inschrijving = vakhavw.join(ev, on="koppelsleutel", how="semi")
+```
 
 ## Regressiecontrole (geldt vanaf nu)
 
