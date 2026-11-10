@@ -1,4 +1,3 @@
-import difflib
 import json
 import os
 import re as _re
@@ -9,6 +8,37 @@ from eencijferho.utils.converter_headers import clean_header_name, normalize_nam
 from eencijferho.io.decorators import with_storage
 from collections.abc import Callable
 from typing import Any
+
+
+# ---------------------------------------------------------------------------
+# Name canonicalisation
+# ---------------------------------------------------------------------------
+
+# Known corrupt spellings in DUO metadata names, repaired before a name is
+# normalised. Each entry is one observed corruption of one word; anything not
+# listed here is left as it is (and then simply does not match a column).
+# "vóór" arrives with each accented letter replaced by U+FFFD, either as the
+# character itself or as its UTF-8 bytes read as Latin-1 ("ï¿½").
+_NAME_REPAIRS: tuple[tuple[_re.Pattern[str], str], ...] = (
+    (_re.compile(r"\b([vV])(?:\ufffd\ufffd|\u00ef\u00bf\u00bd\u00ef\u00bf\u00bd)r\b"), r"\1óór"),
+)
+
+
+def _repair_name(raw: str) -> str:
+    """Apply the explicit repair table ``_NAME_REPAIRS`` to a metadata name."""
+    for pattern, replacement in _NAME_REPAIRS:
+        raw = pattern.sub(replacement, raw)
+    return raw
+
+
+def _canonical_name(raw: str, naming_func: Callable[[str], str] | None = None) -> str:
+    """Canonical column name of a Dec/variable-metadata name.
+
+    Repairs known corrupt words, strips accents and normalises, so that
+    "Hoogste vooropleiding vóór het HO" and its corrupt forms all become
+    ``hoogste_vooropleiding_voor_het_ho``.
+    """
+    return normalize_name(strip_accents(_repair_name(raw)), naming_func)
 
 
 # ---------------------------------------------------------------------------
@@ -56,7 +86,7 @@ def load_variable_mappings(
         values = item.get("values") or {}
         if not name or not isinstance(values, dict):
             continue
-        norm = normalize_name(name, naming_func)
+        norm = _canonical_name(name, naming_func)
         entry: dict[str, Any] = {}
         for k, v in values.items():
             key = k.strip() if isinstance(k, str) else str(k)
@@ -357,7 +387,7 @@ def _apply_dec_tables(
     """
     allowed: set[str] | None = None
     if decode_columns is not None:
-        allowed = {normalize_name(strip_accents(c), naming_func) for c in decode_columns}
+        allowed = {_canonical_name(c, naming_func) for c in decode_columns}
 
     for table in meta["tables"]:
         dec_vars = table.get("decoding_variables", [])
@@ -372,7 +402,7 @@ def _apply_dec_tables(
             continue
 
         if allowed is not None:
-            dec_vars = [v for v in dec_vars if normalize_name(strip_accents(v), naming_func) in allowed]
+            dec_vars = [v for v in dec_vars if _canonical_name(v, naming_func) in allowed]
         if not dec_vars:
             continue
 
@@ -407,14 +437,10 @@ def _apply_dec_tables(
                 is_composite = True
 
         for var in dec_vars:
-            var_norm = normalize_name(strip_accents(var), naming_func)
+            var_norm = _canonical_name(var, naming_func)
             if var_norm not in result_df.columns:
-                closest = difflib.get_close_matches(var_norm, result_df.columns, n=1, cutoff=0.8)
-                if closest:
-                    var_norm = closest[0]
-                else:
-                    print(f"[decoder] Sla '{var}' over — niet gevonden in DataFrame.")
-                    continue
+                print(f"[decoder] Sla '{var}' over — kolom '{var_norm}' niet gevonden in DataFrame.")
+                continue
 
             result_df = _apply_single_dec_join(
                 result_df, join_df, var_norm, code_col_norm,
@@ -478,7 +504,7 @@ def _apply_vakken_patch(
             join_df = dec_table.rename(
                 {c: normalize_name(c, naming_func) for c in dec_table.columns}
             )
-            var_norm = normalize_name(naam, naming_func)
+            var_norm = _canonical_name(naam, naming_func)
 
             if composite:
                 result_df = _apply_vakken_composite(
@@ -529,8 +555,7 @@ def _apply_vakken_simple(
     left as it is.
     """
     if var_norm not in result_df.columns:
-        closest = difflib.get_close_matches(var_norm, result_df.columns, n=1)
-        print(f"[decoder][vakken] Sla '{naam}' over — niet in DataFrame. Dichtste: {closest}")
+        print(f"[decoder][vakken] Sla '{naam}' over — kolom '{var_norm}' niet gevonden in DataFrame.")
         return result_df
 
     try:
@@ -579,8 +604,7 @@ def _apply_vakken_composite(
 
     for col in [var_norm, composite_norm]:
         if col not in result_df.columns:
-            closest = difflib.get_close_matches(col, result_df.columns, n=1)
-            print(f"[decoder][vakken] Sla {col} over (samengesteld) — niet in DataFrame. Dichtste: {closest}")
+            print(f"[decoder][vakken] Sla {var_norm} over (samengesteld) — kolom '{col}' niet gevonden in DataFrame.")
             return result_df
     try:
         dec_cols = [
@@ -635,7 +659,7 @@ def _apply_variable_mappings(
     """
     allowed_enrich: set[str] | None = None
     if enrich_variables is not None:
-        allowed_enrich = {normalize_name(v, naming_func) for v in enrich_variables}
+        allowed_enrich = {_canonical_name(v, naming_func) for v in enrich_variables}
 
     try:
         var_maps = load_variable_mappings(variable_metadata_path, naming_func=naming_func)
@@ -650,7 +674,7 @@ def _apply_variable_mappings(
             mapping = info.get("mapping") if isinstance(info, dict) else info
             orig_name = info.get("orig_name") if isinstance(info, dict) else None
             chosen_col = _resolve_mapping_column(
-                var_norm, orig_name, result_df, norm_map, orig_columns, naming_func
+                var_norm, orig_name, result_df, norm_map, naming_func
             )
             if chosen_col is None:
                 continue
@@ -665,32 +689,32 @@ def _resolve_mapping_column(
     orig_name: str | None,
     result_df: pl.DataFrame,
     norm_map: dict[str, str],
-    orig_columns: list[str],
     naming_func: Callable | None,
 ) -> str | None:
-    """Find the best matching column in result_df for a variable mapping."""
+    """Find the column in result_df that a variable mapping applies to.
+
+    Only exact matches count: ``var_norm`` itself, or the one column whose
+    original header, cleaned and normalised, equals ``var_norm``. Anything
+    else is logged and skipped, never guessed.
+    """
     if var_norm in result_df.columns:
         return var_norm
 
-    candidates = list(result_df.columns) + list(norm_map.keys())
-    for orig in orig_columns:
-        try:
-            candidates.append(normalize_name(clean_header_name(orig), naming_func))
-        except Exception:
-            pass
+    matches = []
+    for col, orig in norm_map.items():
+        if col in result_df.columns and normalize_name(clean_header_name(orig), naming_func) == var_norm:
+            matches.append(col)
 
-    closest = difflib.get_close_matches(var_norm, candidates, n=3)
-    if not closest:
-        print(f"[decoder] Mapping voor '{var_norm}' (orig: '{orig_name}') — kolom niet gevonden.")
+    if len(matches) == 1:
+        return matches[0]
+    if matches:
+        print(
+            f"[decoder] Mapping voor '{var_norm}' (orig: '{orig_name}') — "
+            f"meerdere kolommen passen ({matches}), overgeslagen."
+        )
         return None
-
-    pick = next((c for c in closest if c in result_df.columns), None)
-    if pick is None and closest[0] in norm_map:
-        pick = closest[0]
-    if pick is None:
-        pick = closest[0]
-    print(f"[decoder] Mapping voor '{var_norm}' → dichtste match '{pick}'")
-    return pick
+    print(f"[decoder] Mapping voor '{var_norm}' (orig: '{orig_name}') — kolom niet gevonden.")
+    return None
 
 
 def _apply_single_mapping(
