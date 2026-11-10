@@ -1,5 +1,5 @@
 """
-Modular pipeline orchestrator: conversion → decoding → validation → BSN translation (opt.) → compression → header normalization.
+Modular pipeline orchestrator: conversion → decoding → validation → BSN translation (opt.) → header normalization → compression.
 """
 
 import os
