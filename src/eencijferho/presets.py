@@ -32,10 +32,25 @@ PRESET_CONFIGS: dict[str, dict] = {
         },
     },
     "svo": {
-        "label": "Staat van het Onderwijs",
-        "description": "Binnenkort beschikbaar.",
-        "available": False,
-        "settings": None,
+        "label": "Staat van de Onderwijsinstelling",
+        "description": (
+            "Configuratie voor Staat van de Onderwijsinstelling (staat1cho, CEDA/Npuls). "
+            "EV- en VAKHAVW-bestanden met alle kolommen gedecodeerd en verrijkt, "
+            "kolomnamen in snake_case."
+        ),
+        "available": True,
+        "settings": {
+            "opt_convert_ev": True,
+            "opt_convert_vakhavw": True,
+            "opt_decoded": True,
+            "opt_enriched": True,
+            "opt_parquet": True,
+            "opt_snake_case": True,
+            # None = every available column. staat1cho reads many more columns
+            # than the other presets decode and stops when one is missing.
+            "decode_columns": None,
+            "enrich_variables": None,
+        },
     },
 }
 
