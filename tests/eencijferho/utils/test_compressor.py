@@ -1,6 +1,5 @@
-
-import pytest
 import polars as pl
+import pytest
 
 from eencijferho.utils.compressor import convert_csv_to_parquet
 
@@ -56,8 +55,16 @@ def test_compressor_preserves_utf8_characters(tmp_path, make_csv):
 # numbers they lose the padding and stop being the identifier they are.
 # Synthetic values only.
 IDENTIFIER_ROWS = [
-    {"burgerservicenummer": "000000012", "onderwijsnummer": "000000036", "opleidingscode": "000123"},
-    {"burgerservicenummer": "000000048", "onderwijsnummer": "000000063", "opleidingscode": "000456"},
+    {
+        "burgerservicenummer": "000000012",
+        "onderwijsnummer": "000000036",
+        "opleidingscode": "000123",
+    },
+    {
+        "burgerservicenummer": "000000048",
+        "onderwijsnummer": "000000063",
+        "opleidingscode": "000456",
+    },
 ]
 
 

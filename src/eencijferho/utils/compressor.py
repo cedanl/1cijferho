@@ -1,4 +1,5 @@
 import os
+
 from rich.console import Console
 from rich.progress import track
 
@@ -9,6 +10,7 @@ from eencijferho.io.decorators import with_storage
 def convert_csv_to_parquet(storage, input_dir: str | None = None) -> None:
     if input_dir is None:
         from eencijferho.config import get_output_dir
+
         input_dir = get_output_dir()
     console = Console()
     csv_files = storage.list_files(f"{input_dir}/*.csv")
@@ -31,6 +33,6 @@ def convert_csv_to_parquet(storage, input_dir: str | None = None) -> None:
             storage.write_dataframe(df, parquet_file, format="parquet")
             console.print(f"[green]✓[/] {filename}")
         except Exception as e:
-            console.print(f"[bold red]✗[/] {filename}: {str(e)}")
+            console.print(f"[bold red]✗[/] {filename}: {e!s}")
 
     console.print("[bold green]Conversion completed![/]")
