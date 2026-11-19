@@ -182,6 +182,12 @@ cython_debug/
 # All output data (ignored - always generated)
 /data/02-output/
 
+# Snapshot test output (generated)
+/data/test-output/
+
+# uv cache dir (set in pyproject.toml)
+.uv_cache/
+
 # Metadata (generated, not tracked)
 /data/00-metadata/
 
