@@ -38,6 +38,17 @@ geen bewijs dat ze in een eerdere release zitten.
   `hoogste_vooropleiding_…_oorspronkelijke_code` blijven bestaan. In VAKHAVW landen
   EV-labels niet meer op `vooropleiding_oorspronkelijke_code`.
 
+- **`_enriched` krijgt de kolom `diplomajaar_code`** (#233). Direct na `Diplomajaar` staat
+  het diplomajaar als geheel getal: `0000` wordt `0`, terwijl `Diplomajaar` het label
+  "geen examen geregistreerd" houdt. Zo kan Staat1cho rekenen met het diplomajaar
+  (`na_if(diplomajaar_code, 0)`). In Parquet is deze kolom `Int64`; alle andere kolommen
+  blijven `String`. `_decoded` verandert niet. **Let op:** de kolommen na `Diplomajaar`
+  schuiven één positie op; een consument die kolommen op positie leest, moet dat
+  aanpassen. Elk bestand met een kolom `Diplomajaar` krijgt nu altijd een `_enriched.csv`,
+  ook VAKHAVW: in de DEMO-data komen `VAKHAVW_99XX_DEMO_enriched.csv` (en `.parquet`) erbij,
+  gelijk aan `_decoded.csv` plus `diplomajaar_code`. Zie
+  [Decodering](decodering.md#diplomajaar-als-getal-diplomajaar_code).
+
 ## NFWA en Staat1cho zijn verschillende consumenten
 
 | Consument | EV | VAKHAVW |
@@ -47,6 +58,8 @@ geen bewijs dat ze in een eerdere release zitten.
 
 Een VAKHAVW `_enriched.csv` wordt niet gemaakt wanneer hij identiek is aan `_decoded.csv`.
 Dit is bestaand gedrag; een consument mag die bestandsnaam dus niet onvoorwaardelijk eisen.
+Heeft het VAKHAVW-bestand een kolom `Diplomajaar`, dan is hij door `diplomajaar_code` (#233)
+nooit meer identiek en wordt hij dus wel gemaakt.
 
 Er wordt door deze wijzigingen **geen automatische pseudonimisering toegevoegd**. BSN,
 DUO-PGN, onderwijsnummer en lokaal studentnummer zijn niet vanzelf dezelfde sleutel.

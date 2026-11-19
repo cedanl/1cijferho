@@ -1,31 +1,32 @@
-
 import json
-import pytest
-import polars as pl
 from pathlib import Path
 
+import polars as pl
+import pytest
+
+from eencijferho.core.decode_report import DecodeReport
 from eencijferho.core.decoder import (
-    _canonical_name,
-    _normalize_df,
-    _normalize_dec_table,
-    _apply_single_dec_join,
     _apply_dec_tables,
-    _parse_vakken_opmerking,
-    _apply_variable_mappings,
+    _apply_single_dec_join,
     _apply_single_mapping,
-    _apply_vakken_simple,
     _apply_vakken_composite,
-    _resolve_mapping_column,
+    _apply_vakken_simple,
+    _apply_variable_mappings,
+    _canonical_name,
     _code_width,
+    _dec_title,
     _join_key,
     _key_width,
-    _dec_title,
-    find_vakken_metadata_json,
+    _normalize_dec_table,
+    _normalize_df,
+    _parse_vakken_opmerking,
+    _resolve_mapping_column,
     build_dec_layouts,
-    parse_vakken_layout,
-    decode_fields_dec_only,
     decode_fields,
+    decode_fields_dec_only,
+    find_vakken_metadata_json,
     load_dec_tables_from_metadata,
+    parse_vakken_layout,
 )
 from eencijferho.core.decoder_info import (
     _has_real_mappings,
@@ -34,13 +35,12 @@ from eencijferho.core.decoder_info import (
     get_decode_column_info,
     get_enrich_variable_info,
 )
-from eencijferho.core.decode_report import DecodeReport
 from eencijferho.presets import PRESET_CONFIGS
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def simple_df():
@@ -50,7 +50,9 @@ def simple_df():
 @pytest.fixture
 def dec_table_df():
     """Minimal Dec table: code → label."""
-    return pl.DataFrame({"Code": ["1", "2", "3"], "Omschrijving": ["Een", "Twee", "Drie"]})
+    return pl.DataFrame(
+        {"Code": ["1", "2", "3"], "Omschrijving": ["Een", "Twee", "Drie"]}
+    )
 
 
 @pytest.fixture
@@ -150,7 +152,11 @@ def test_normalize_dec_table_keeps_codes_and_join_key_pads_to_data_width():
     dec = _normalize_dec_table(pl.DataFrame({"Code": ["1", "02", " 3 "]}), "code")
     assert dec["code"].to_list() == ["1", "02", "3"]
     dec_keys = dec.select(_join_key(pl.col("code"), 2))["code"].to_list()
-    data_keys = pl.DataFrame({"c": ["01", "02", "03"]}).select(_join_key(pl.col("c"), 2))["c"].to_list()
+    data_keys = (
+        pl.DataFrame({"c": ["01", "02", "03"]})
+        .select(_join_key(pl.col("c"), 2))["c"]
+        .to_list()
+    )
     assert dec_keys == data_keys == ["01", "02", "03"]
 
 
@@ -169,8 +175,12 @@ def test_apply_single_dec_join_adds_columns(simple_df, dec_table_df):
     norm_df, _, _ = _normalize_df(simple_df)
     join_df = _normalize_dec_table(dec_table_df, "code")
     result = _apply_single_dec_join(
-        norm_df, join_df, "code", "code",
-        is_composite=False, code_col2_norm=None,
+        norm_df,
+        join_df,
+        "code",
+        "code",
+        is_composite=False,
+        code_col2_norm=None,
     )
     assert "code__omschrijving" in result.columns
 
@@ -179,8 +189,12 @@ def test_apply_single_dec_join_correct_labels(simple_df, dec_table_df):
     norm_df, _, _ = _normalize_df(simple_df)
     join_df = _normalize_dec_table(dec_table_df, "code")
     result = _apply_single_dec_join(
-        norm_df, join_df, "code", "code",
-        is_composite=False, code_col2_norm=None,
+        norm_df,
+        join_df,
+        "code",
+        "code",
+        is_composite=False,
+        code_col2_norm=None,
     )
     labels = result["code__omschrijving"].to_list()
     assert "Een" in labels
@@ -191,8 +205,12 @@ def test_apply_single_dec_join_unknown_code_gives_null():
     main = pl.DataFrame({"code": ["99"]})
     lookup = pl.DataFrame({"code": ["1"], "label": ["Een"]})
     result = _apply_single_dec_join(
-        main, lookup, "code", "code",
-        is_composite=False, code_col2_norm=None,
+        main,
+        lookup,
+        "code",
+        "code",
+        is_composite=False,
+        code_col2_norm=None,
     )
     assert result["code__label"].to_list() == [None]
 
@@ -204,18 +222,26 @@ def test_apply_single_dec_join_unknown_code_gives_null():
 
 def test_apply_single_dec_join_composite():
     """Composite key: join on (anchor, var) → extra columns added."""
-    main = pl.DataFrame({
-        "instcode": ["10", "10", "20"],
-        "vakcode": ["01", "02", "01"],
-    })
-    lookup = pl.DataFrame({
-        "instcode": ["10", "10", "20"],
-        "vakcode": ["1", "2", "1"],
-        "vaknaam": ["Wiskunde", "Nederlands", "Aardrijkskunde"],
-    })
+    main = pl.DataFrame(
+        {
+            "instcode": ["10", "10", "20"],
+            "vakcode": ["01", "02", "01"],
+        }
+    )
+    lookup = pl.DataFrame(
+        {
+            "instcode": ["10", "10", "20"],
+            "vakcode": ["1", "2", "1"],
+            "vaknaam": ["Wiskunde", "Nederlands", "Aardrijkskunde"],
+        }
+    )
     result = _apply_single_dec_join(
-        main, lookup, "vakcode", "instcode",
-        is_composite=True, code_col2_norm="vakcode",
+        main,
+        lookup,
+        "vakcode",
+        "instcode",
+        is_composite=True,
+        code_col2_norm="vakcode",
     )
     assert "vakcode__vaknaam" in result.columns
     names = result["vakcode__vaknaam"].to_list()
@@ -239,7 +265,9 @@ def test_apply_dec_tables_integrates_lookup(tmp_path):
         ]
     }
     dec_tables = {
-        "Dec_geslacht.asc": pl.DataFrame({"Geslacht": ["1", "2"], "Omschrijving": ["Man", "Vrouw"]})
+        "Dec_geslacht.asc": pl.DataFrame(
+            {"Geslacht": ["1", "2"], "Omschrijving": ["Man", "Vrouw"]}
+        )
     }
     df = pl.DataFrame({"geslacht": ["1", "2", "1"]})
     result = _apply_dec_tables(df, meta, dec_tables)
@@ -299,18 +327,23 @@ def test_apply_dec_tables_no_duplicate_columns_from_shadow_bug_fix():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("opm,expected_composite,expected_title", [
-    (
-        "te decoderen met Dec_vakcode.asc",
-        None, "Dec_vakcode.asc",
-    ),
-    (
-        "in combinatie met InstCode te decoderen met Dec_vest_ho.asc",
-        "InstCode", "Dec_vest_ho.asc",
-    ),
-    ("geen instructie hier", None, None),
-    ("", None, None),
-])
+@pytest.mark.parametrize(
+    "opm,expected_composite,expected_title",
+    [
+        (
+            "te decoderen met Dec_vakcode.asc",
+            None,
+            "Dec_vakcode.asc",
+        ),
+        (
+            "in combinatie met InstCode te decoderen met Dec_vest_ho.asc",
+            "InstCode",
+            "Dec_vest_ho.asc",
+        ),
+        ("geen instructie hier", None, None),
+        ("", None, None),
+    ],
+)
 def test_parse_vakken_opmerking(opm, expected_composite, expected_title):
     composite, title = _parse_vakken_opmerking(opm)
     assert composite == expected_composite
@@ -323,9 +356,7 @@ def test_parse_vakken_opmerking(opm, expected_composite, expected_title):
 
 
 def test_apply_variable_mappings_replaces_codes(tmp_path):
-    var_meta = [
-        {"name": "Geslacht", "values": {"1": "Man", "2": "Vrouw"}}
-    ]
+    var_meta = [{"name": "Geslacht", "values": {"1": "Man", "2": "Vrouw"}}]
     path = tmp_path / "variable_metadata.json"
     path.write_text(json.dumps(var_meta), encoding="utf-8")
 
@@ -338,7 +369,9 @@ def test_apply_variable_mappings_replaces_codes(tmp_path):
 def test_apply_variable_mappings_no_file_returns_unchanged(tmp_path):
     df = pl.DataFrame({"code": ["1", "2"]})
     _, norm_map, orig = _normalize_df(df)
-    result = _apply_variable_mappings(df, str(tmp_path / "nonexistent.json"), None, norm_map, orig)
+    result = _apply_variable_mappings(
+        df, str(tmp_path / "nonexistent.json"), None, norm_map, orig
+    )
     assert result.equals(df)
 
 
@@ -360,12 +393,16 @@ def _apply_from_file(tmp_path, values: dict, column_values: list):
     path.write_text(json.dumps([{"name": "Code", "values": values}]), encoding="utf-8")
     df = pl.DataFrame({"code": column_values})
     _, norm_map, orig = _normalize_df(df)
-    return _apply_variable_mappings(df, str(path), None, norm_map, orig)["code"].to_list()
+    return _apply_variable_mappings(df, str(path), None, norm_map, orig)[
+        "code"
+    ].to_list()
 
 
 def test_leeg_of_zero_key_maps_empty_and_zero(tmp_path):
     vals = _apply_from_file(
-        tmp_path, {"1": "Een", "[leeg] of 0": "geen waarde"}, ["", "0", "1", "2"],
+        tmp_path,
+        {"1": "Een", "[leeg] of 0": "geen waarde"},
+        ["", "0", "1", "2"],
     )
     assert vals == ["geen waarde", "geen waarde", "Een", "2"]
 
@@ -397,15 +434,23 @@ def test_empty_label_without_exact_key_uses_sorted_order():
     first = {"zz leeg": "B", "aa leeg": "A"}
     second = dict(reversed(list(first.items())))
     df = pl.DataFrame({"code": [""]})
-    assert _apply_single_mapping(df, "code", first, "code", "Code")["code"].to_list() == ["A"]
-    assert _apply_single_mapping(df, "code", second, "code", "Code")["code"].to_list() == ["A"]
+    assert _apply_single_mapping(df, "code", first, "code", "Code")[
+        "code"
+    ].to_list() == ["A"]
+    assert _apply_single_mapping(df, "code", second, "code", "Code")[
+        "code"
+    ].to_list() == ["A"]
 
 
 def test_long_label_mapping_leaves_column_untouched(capsys):
     from eencijferho.core.decoder import MAX_LABEL_LENGTH
 
     df = pl.DataFrame({"code": ["1", "8", "0", " "]})
-    mapping = {"1": "x" * (MAX_LABEL_LENGTH + 1), "8": "overleden", "[leeg] of 0": "geen waarde"}
+    mapping = {
+        "1": "x" * (MAX_LABEL_LENGTH + 1),
+        "8": "overleden",
+        "[leeg] of 0": "geen waarde",
+    }
     result = _apply_single_mapping(df, "code", mapping, "code", "Code")
     assert result.equals(df)
     assert "mapping niet toegepast" in capsys.readouterr().out
@@ -425,13 +470,17 @@ def test_console_line_names_unmapped_row_count(capsys):
 
 
 def test_decode_fields_dec_only_returns_dataframe(tmp_path, dec_metadata_json):
-    dec_tables = {"Dec_test.asc": pl.DataFrame({"Code": ["1", "2"], "Omschrijving": ["A", "B"]})}
+    dec_tables = {
+        "Dec_test.asc": pl.DataFrame({"Code": ["1", "2"], "Omschrijving": ["A", "B"]})
+    }
     df = pl.DataFrame({"Code": ["1", "2"]})
     result = decode_fields_dec_only(df, dec_metadata_json, dec_tables)
     assert isinstance(result, pl.DataFrame)
 
 
-def test_decode_fields_dec_only_preserves_original_column_names(tmp_path, dec_metadata_json):
+def test_decode_fields_dec_only_preserves_original_column_names(
+    tmp_path, dec_metadata_json
+):
     dec_tables = {"Dec_test.asc": pl.DataFrame({"Code": ["1"], "Omschrijving": ["A"]})}
     df = pl.DataFrame({"Code": ["1"], "Naam": ["Jan"]})
     result = decode_fields_dec_only(df, dec_metadata_json, dec_tables)
@@ -440,7 +489,9 @@ def test_decode_fields_dec_only_preserves_original_column_names(tmp_path, dec_me
 
 
 def test_decode_fields_dec_only_row_count_unchanged(tmp_path, dec_metadata_json):
-    dec_tables = {"Dec_test.asc": pl.DataFrame({"Code": ["1", "2"], "Omschrijving": ["A", "B"]})}
+    dec_tables = {
+        "Dec_test.asc": pl.DataFrame({"Code": ["1", "2"], "Omschrijving": ["A", "B"]})
+    }
     df = pl.DataFrame({"Code": ["1", "2", "1"]})
     result = decode_fields_dec_only(df, dec_metadata_json, dec_tables)
     assert result.height == 3
@@ -458,31 +509,47 @@ def test_decode_fields_applies_variable_metadata(tmp_path, dec_metadata_json):
 
     dec_tables = {"Dec_test.asc": pl.DataFrame({"Code": ["1"], "Omschrijving": ["A"]})}
     df = pl.DataFrame({"Code": ["1", "1", "1"], "Status": ["A", "I", "A"]})
-    result = decode_fields(df, dec_metadata_json, dec_tables, variable_metadata_path=str(vm_path))
+    result = decode_fields(
+        df, dec_metadata_json, dec_tables, variable_metadata_path=str(vm_path)
+    )
     assert result["Status"].to_list() == ["Actief", "Inactief", "Actief"]
 
 
-def test_decode_fields_without_variable_metadata_equals_dec_only(tmp_path, dec_metadata_json):
+def test_decode_fields_without_variable_metadata_equals_dec_only(
+    tmp_path, dec_metadata_json
+):
     """When no variable_metadata exists, decode_fields == decode_fields_dec_only."""
-    dec_tables = {"Dec_test.asc": pl.DataFrame({"Code": ["1", "2"], "Omschrijving": ["A", "B"]})}
+    dec_tables = {
+        "Dec_test.asc": pl.DataFrame({"Code": ["1", "2"], "Omschrijving": ["A", "B"]})
+    }
     df = pl.DataFrame({"Code": ["1", "2", "1"]})
-    result_full = decode_fields(df, dec_metadata_json, dec_tables, variable_metadata_path=str(tmp_path / "nonexistent.json"))
+    result_full = decode_fields(
+        df,
+        dec_metadata_json,
+        dec_tables,
+        variable_metadata_path=str(tmp_path / "nonexistent.json"),
+    )
     result_dec_only = decode_fields_dec_only(df, dec_metadata_json, dec_tables)
     assert result_full.equals(result_dec_only)
 
 
 def test_decode_fields_vakhavw_scenario(tmp_path, dec_metadata_json):
     """VAKHAVW without variable_metadata: enriched identical to decoded → safe to skip _enriched."""
-    dec_tables = {"Dec_test.asc": pl.DataFrame({"Code": ["1", "2"], "Omschrijving": ["A", "B"]})}
+    dec_tables = {
+        "Dec_test.asc": pl.DataFrame({"Code": ["1", "2"], "Omschrijving": ["A", "B"]})
+    }
     df = pl.DataFrame({"Code": ["1", "2"], "Vak": ["NL", "WI"]})
     decoded = decode_fields_dec_only(df, dec_metadata_json, dec_tables)
     enriched = decode_fields(df, dec_metadata_json, dec_tables)
-    assert enriched.equals(decoded), "VAKHAVW zonder variable_metadata: enriched moet identiek zijn aan decoded"
+    assert enriched.equals(decoded), (
+        "VAKHAVW zonder variable_metadata: enriched moet identiek zijn aan decoded"
+    )
 
 
 # ---------------------------------------------------------------------------
 # _has_real_mappings
 # ---------------------------------------------------------------------------
+
 
 def test_has_real_mappings_true_for_code_label():
     assert _has_real_mappings({"1": "Man", "2": "Vrouw"}) is True
@@ -512,12 +579,16 @@ def test_has_real_mappings_false_for_empty_dict():
 # get_available_enrich_variables
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def variable_metadata_json(tmp_path):
     data = [
         {"name": "Geslacht", "values": {"1": "Man", "2": "Vrouw"}},
         {"name": "Geboorteland", "values": {"[leeg]": "onbekend"}},
-        {"name": "Instelling van de hoogste vooropl.", "values": {"[leeg]": "onbekend", "[gevuld]": "brinnummer"}},
+        {
+            "name": "Instelling van de hoogste vooropl.",
+            "values": {"[leeg]": "onbekend", "[gevuld]": "brinnummer"},
+        },
         {"name": "Opleidingsvorm", "values": {"1": "voltijd", "2": "deeltijd"}},
     ]
     path = tmp_path / "variable_metadata.json"
@@ -525,7 +596,9 @@ def variable_metadata_json(tmp_path):
     return str(path)
 
 
-def test_get_available_enrich_variables_excludes_placeholder_only(variable_metadata_json):
+def test_get_available_enrich_variables_excludes_placeholder_only(
+    variable_metadata_json,
+):
     result = get_available_enrich_variables(variable_metadata_json)
     assert "Geboorteland" not in result
     assert "Instelling van de hoogste vooropl." not in result
@@ -550,6 +623,7 @@ def test_get_available_enrich_variables_missing_file():
 # get_enrich_variable_info
 # ---------------------------------------------------------------------------
 
+
 def test_get_enrich_variable_info_excludes_placeholder_only(variable_metadata_json):
     result = get_enrich_variable_info(variable_metadata_json)
     assert "Geboorteland" not in result
@@ -562,7 +636,9 @@ def test_get_enrich_variable_info_sample_contains_real_codes(variable_metadata_j
     assert result["Geslacht"]["1"] == "Man"
 
 
-def test_get_enrich_variable_info_sample_excludes_placeholder_keys(variable_metadata_json):
+def test_get_enrich_variable_info_sample_excludes_placeholder_keys(
+    variable_metadata_json,
+):
     data = [{"name": "Mix", "values": {"[leeg]": "leeg", "1": "Man"}}]
     path = Path(variable_metadata_json).parent / "mix.json"
     path.write_text(json.dumps(data), encoding="utf-8")
@@ -574,6 +650,7 @@ def test_get_enrich_variable_info_sample_excludes_placeholder_keys(variable_meta
 # ---------------------------------------------------------------------------
 # get_available_decode_columns
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def dec_metadata_json_path(tmp_path):
@@ -589,7 +666,11 @@ def dec_metadata_json_path(tmp_path):
             {
                 "table_number": 2,
                 "table_title": "Dec_opleidingscode.asc",
-                "content": ["Startpositie  Lengte", "Code  2  2", "Omschrijving  4  60"],
+                "content": [
+                    "Startpositie  Lengte",
+                    "Code  2  2",
+                    "Omschrijving  4  60",
+                ],
                 "decoding_variables": ["Opleiding"],
             },
         ],
@@ -623,6 +704,7 @@ def test_get_available_decode_columns_missing_file():
 # ---------------------------------------------------------------------------
 # get_decode_column_info
 # ---------------------------------------------------------------------------
+
 
 def test_get_decode_column_info_maps_variable_to_label_cols(dec_metadata_json_path):
     result = get_decode_column_info(dec_metadata_json_path)
@@ -664,8 +746,12 @@ def test_apply_single_dec_join_preserves_leading_zeros_in_the_data():
         "code",
     )
     result = _apply_single_dec_join(
-        _normalize_df(PADDED_DF)[0], join_df, "vooropleiding", "code",
-        is_composite=False, code_col2_norm=None,
+        _normalize_df(PADDED_DF)[0],
+        join_df,
+        "vooropleiding",
+        "code",
+        is_composite=False,
+        code_col2_norm=None,
     )
     assert result["vooropleiding"].to_list() == ["00411", "0411", "0000"]
 
@@ -677,8 +763,12 @@ def test_apply_single_dec_join_still_matches_padded_codes():
         "code",
     )
     result = _apply_single_dec_join(
-        _normalize_df(PADDED_DF)[0], join_df, "vooropleiding", "code",
-        is_composite=False, code_col2_norm=None,
+        _normalize_df(PADDED_DF)[0],
+        join_df,
+        "vooropleiding",
+        "code",
+        is_composite=False,
+        code_col2_norm=None,
     )
     assert result["vooropleiding__omschrijving"].to_list() == ["HBO", "HBO", "onbekend"]
 
@@ -688,10 +778,18 @@ def test_apply_single_dec_join_leaves_no_temporary_column_behind():
         pl.DataFrame({"Code": ["411"], "Omschrijving": ["HBO"]}), "code"
     )
     result = _apply_single_dec_join(
-        _normalize_df(PADDED_DF)[0], join_df, "vooropleiding", "code",
-        is_composite=False, code_col2_norm=None,
+        _normalize_df(PADDED_DF)[0],
+        join_df,
+        "vooropleiding",
+        "code",
+        is_composite=False,
+        code_col2_norm=None,
     )
-    assert set(result.columns) == {"vooropleiding", "instelling", "vooropleiding__omschrijving"}
+    assert set(result.columns) == {
+        "vooropleiding",
+        "instelling",
+        "vooropleiding__omschrijving",
+    }
 
 
 def test_apply_single_dec_join_composite_preserves_leading_zeros():
@@ -701,11 +799,16 @@ def test_apply_single_dec_join_composite_preserves_leading_zeros():
     """
     data = pl.DataFrame({"Code1": ["2"], "Code2": ["00411"]})
     join_df = _normalize_dec_table(
-        pl.DataFrame({"Code1": ["2"], "Code2": ["411"], "Omschrijving": ["HBO"]}), "code1"
+        pl.DataFrame({"Code1": ["2"], "Code2": ["411"], "Omschrijving": ["HBO"]}),
+        "code1",
     )
     result = _apply_single_dec_join(
-        _normalize_df(data)[0], join_df, "code2", "code1",
-        is_composite=True, code_col2_norm="code2",
+        _normalize_df(data)[0],
+        join_df,
+        "code2",
+        "code1",
+        is_composite=True,
+        code_col2_norm="code2",
     )
     assert result["code2"].to_list() == ["00411"]
     assert result["code2__omschrijving"].to_list() == ["HBO"]
@@ -717,9 +820,11 @@ def test_apply_single_dec_join_composite_preserves_leading_zeros():
 
 
 def _keys(values, width):
-    return pl.DataFrame({"c": values}, schema={"c": pl.Utf8}).select(
-        _join_key(pl.col("c"), width)
-    )["c"].to_list()
+    return (
+        pl.DataFrame({"c": values}, schema={"c": pl.Utf8})
+        .select(_join_key(pl.col("c"), width))["c"]
+        .to_list()
+    )
 
 
 def test_join_key_pads_numeric_and_alphanumeric_codes_to_width():
@@ -736,16 +841,25 @@ def test_join_key_accepts_integer_codes():
     assert df.select(_join_key(pl.col("c"), 5))["c"].to_list() == ["00411", "00007"]
 
 
-@pytest.mark.parametrize("row,expected", [
-    ("Code land                                           1             4", 4),
-    ("Code vooropleiding                                  1             5", 5),
-    ("Instellingscode                                     1             4      } sleutel", 4),
-    ("Vestigingsnummer                                    5             2      }", 2),
-    ("Code          }", None),
-    ("Omschrijving", None),
-    ("", None),
-    (None, None),
-])
+@pytest.mark.parametrize(
+    "row,expected",
+    [
+        ("Code land                                           1             4", 4),
+        ("Code vooropleiding                                  1             5", 5),
+        (
+            "Instellingscode                                     1             4      } sleutel",
+            4,
+        ),
+        (
+            "Vestigingsnummer                                    5             2      }",
+            2,
+        ),
+        ("Code          }", None),
+        ("Omschrijving", None),
+        ("", None),
+        (None, None),
+    ],
+)
 def test_code_width_reads_aantal_posities(row, expected):
     assert _code_width(row) == expected
 
@@ -762,7 +876,13 @@ def test_join_on_narrower_metadata_width_does_not_fall_back_to_longest_code():
     data = pl.DataFrame({"code": ["001", "01"]})
     dec = pl.DataFrame({"code": ["1"], "naam": ["Een"]})
     result = _apply_single_dec_join(
-        data, dec, "code", "code", is_composite=False, code_col2_norm=None, code_width=2,
+        data,
+        dec,
+        "code",
+        "code",
+        is_composite=False,
+        code_col2_norm=None,
+        code_width=2,
     )
     assert result["code"].to_list() == ["001", "01"]
     assert result["code__naam"].to_list() == [None, "Een"]
@@ -778,11 +898,20 @@ def test_dec_join_empty_sentinel_does_not_match_real_zero_code(sentinel):
     """Dec_landcode has an empty-code row next to 0000: they are different codes."""
     data = pl.DataFrame({"land": ["0000", "0001", ""]})
     dec = pl.DataFrame(
-        {"land": [sentinel, "0000", "0001"], "naam": ["SENTINEL", "Onbekend", "Nederland"]},
+        {
+            "land": [sentinel, "0000", "0001"],
+            "naam": ["SENTINEL", "Onbekend", "Nederland"],
+        },
         schema={"land": pl.Utf8, "naam": pl.Utf8},
     )
     result = _apply_single_dec_join(
-        data, dec, "land", "land", is_composite=False, code_col2_norm=None, code_width=4,
+        data,
+        dec,
+        "land",
+        "land",
+        is_composite=False,
+        code_col2_norm=None,
+        code_width=4,
     )
     assert result.height == 3
     assert result["land"].to_list() == ["0000", "0001", ""]
@@ -793,7 +922,13 @@ def test_dec_join_without_real_zero_code_gives_null_not_sentinel():
     data = pl.DataFrame({"land": ["0000"]})
     dec = pl.DataFrame({"land": ["", "0001"], "naam": ["SENTINEL", "Nederland"]})
     result = _apply_single_dec_join(
-        data, dec, "land", "land", is_composite=False, code_col2_norm=None, code_width=4,
+        data,
+        dec,
+        "land",
+        "land",
+        is_composite=False,
+        code_col2_norm=None,
+        code_width=4,
     )
     assert result["land__naam"].to_list() == [None]
 
@@ -803,7 +938,13 @@ def test_dec_join_duplicate_codes_after_padding_keep_row_count_and_labels(capsys
     data = pl.DataFrame({"code": ["00411", "00412"]})
     dec = pl.DataFrame({"code": ["411", "00411", "412"], "naam": ["A", "B", "C"]})
     result = _apply_single_dec_join(
-        data, dec, "code", "code", is_composite=False, code_col2_norm=None, code_width=5,
+        data,
+        dec,
+        "code",
+        "code",
+        is_composite=False,
+        code_col2_norm=None,
+        code_width=5,
     )
     assert result.height == 2
     assert result["code__naam"].to_list() == ["A", "C"]
@@ -814,7 +955,12 @@ def test_dec_join_leaves_no_temporary_column_when_join_raises(capsys):
     data = pl.DataFrame({"code": ["00411"]})
     dec_without_code_col = pl.DataFrame({"other": ["411"], "naam": ["HBO"]})
     result = _apply_single_dec_join(
-        data, dec_without_code_col, "code", "code", is_composite=False, code_col2_norm=None,
+        data,
+        dec_without_code_col,
+        "code",
+        "code",
+        is_composite=False,
+        code_col2_norm=None,
     )
     assert "Fout bij Dec-join" in capsys.readouterr().out
     assert result.columns == ["code"]
@@ -842,13 +988,17 @@ def test_apply_dec_tables_composite_uses_metadata_width_and_keeps_data():
         ]
     }
     dec_tables = {
-        "Dec_vest_ho.asc": pl.DataFrame({
-            "Instellingscode": ["2UC", "2UC"],
-            "Vestigingsnummer": ["0", "1"],
-            "Gemeentenaam": ["Utrecht", "Zeist"],
-        })
+        "Dec_vest_ho.asc": pl.DataFrame(
+            {
+                "Instellingscode": ["2UC", "2UC"],
+                "Vestigingsnummer": ["0", "1"],
+                "Gemeentenaam": ["Utrecht", "Zeist"],
+            }
+        )
     }
-    df = pl.DataFrame({"instellingscode": ["02UC", "02UC"], "vestigingsnummer": ["01", "00"]})
+    df = pl.DataFrame(
+        {"instellingscode": ["02UC", "02UC"], "vestigingsnummer": ["01", "00"]}
+    )
     result = _apply_dec_tables(df, meta, dec_tables)
     assert result["instellingscode"].to_list() == ["02UC", "02UC"]
     assert result["vestigingsnummer"].to_list() == ["01", "00"]
@@ -878,7 +1028,11 @@ VESTNR_CONTENT = [
 def _vestnr_meta(content=VESTNR_CONTENT):
     return {
         "tables": [
-            {"table_title": VESTNR_TITLE, "decoding_variables": [VESTNR_VAR], "content": content}
+            {
+                "table_title": VESTNR_TITLE,
+                "decoding_variables": [VESTNR_VAR],
+                "content": content,
+            }
         ]
     }
 
@@ -886,13 +1040,15 @@ def _vestnr_meta(content=VESTNR_CONTENT):
 def _vestnr_dec(rows):
     """Dec table from (instellingscode, vestigingsnummer, gemeente) rows; synthetic codes."""
     inst, vest, gem = zip(*rows)
-    return pl.DataFrame({
-        "Instellingscode": list(inst),
-        "Vestigingsnummer": list(vest),
-        "Gemeentenaam volgens RIO": list(gem),
-        "Gemeentecode per 1 januari 2025": [f"G{g}" for g in gem],
-        "Gemeentenaam per 1 januari 2025": [f"{g} 2025" for g in gem],
-    })
+    return pl.DataFrame(
+        {
+            "Instellingscode": list(inst),
+            "Vestigingsnummer": list(vest),
+            "Gemeentenaam volgens RIO": list(gem),
+            "Gemeentecode per 1 januari 2025": [f"G{g}" for g in gem],
+            "Gemeentenaam per 1 januari 2025": [f"{g} 2025" for g in gem],
+        }
+    )
 
 
 # 9XA1 has two vestigingen (the institution code alone repeats); 9XB2 shares
@@ -910,27 +1066,48 @@ def vestnr_metadata_json(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("decode", [decode_fields_dec_only, decode_fields])
 def test_dec_vestnr_ho_compleet_decodes_on_the_institution_vestiging_pair(
-    vestnr_metadata_json, decode, capsys,
+    vestnr_metadata_json,
+    decode,
+    capsys,
 ):
-    df = pl.DataFrame({
-        INST_HO: ["9XA1", "9XA1", "9XB2", "9XB2", ""],
-        VEST_HO: ["01", "02", "01", "02", ""],
-    })
+    df = pl.DataFrame(
+        {
+            INST_HO: ["9XA1", "9XA1", "9XB2", "9XB2", ""],
+            VEST_HO: ["01", "02", "01", "02", ""],
+        }
+    )
     report = DecodeReport()
     report.begin_file("EV_TEST.csv", df.columns)
-    result = decode(df, vestnr_metadata_json, {VESTNR_TITLE: _vestnr_dec(VESTNR_ROWS)}, report=report)
+    result = decode(
+        df,
+        vestnr_metadata_json,
+        {VESTNR_TITLE: _vestnr_dec(VESTNR_ROWS)},
+        report=report,
+    )
 
     assert result.height == df.height
     assert result[INST_HO].to_list() == df[INST_HO].to_list()
     assert result[VEST_HO].to_list() == df[VEST_HO].to_list()
     assert result[f"{VEST_HO_NORM}__gemeentenaam_volgens_rio"].to_list() == [
-        "Aa", "Bb", "Cc", None, None,
+        "Aa",
+        "Bb",
+        "Cc",
+        None,
+        None,
     ]
     assert result[f"{VEST_HO_NORM}__gemeentecode_per_1_januari_2025"].to_list() == [
-        "GAa", "GBb", "GCc", None, None,
+        "GAa",
+        "GBb",
+        "GCc",
+        None,
+        None,
     ]
     assert result[f"{VEST_HO_NORM}__gemeentenaam_per_1_januari_2025"].to_list() == [
-        "Aa 2025", "Bb 2025", "Cc 2025", None, None,
+        "Aa 2025",
+        "Bb 2025",
+        "Cc 2025",
+        None,
+        None,
     ]
     assert not [c for c in result.columns if c.startswith("__")]
     out = capsys.readouterr().out
@@ -947,21 +1124,28 @@ def test_dec_vestnr_ho_compleet_decodes_on_the_institution_vestiging_pair(
 def test_dec_vestnr_ho_compleet_pads_both_keys_to_layout_width():
     df = pl.DataFrame({INST_HO: ["9XA1"], VEST_HO: ["2"]})
     result = _apply_dec_tables(
-        _normalize_df(df)[0], _vestnr_meta(), {VESTNR_TITLE: _vestnr_dec(VESTNR_ROWS)},
+        _normalize_df(df)[0],
+        _vestnr_meta(),
+        {VESTNR_TITLE: _vestnr_dec(VESTNR_ROWS)},
     )
     assert result[VEST_HO_NORM].to_list() == ["2"]
     assert result[f"{VEST_HO_NORM}__gemeentenaam_volgens_rio"].to_list() == ["Bb"]
 
 
 @pytest.mark.parametrize("present,missing", [(INST_HO, VEST_HO), (VEST_HO, INST_HO)])
-def test_dec_vestnr_ho_compleet_missing_data_column_is_skipped_and_logged(present, missing, capsys):
+def test_dec_vestnr_ho_compleet_missing_data_column_is_skipped_and_logged(
+    present, missing, capsys
+):
     df = pl.DataFrame({present: ["9XA1"]})
     report = DecodeReport()
     report.begin_file("EV_TEST.csv", df.columns)
     report.start_pass({_canonical_name(present): present}, df.columns)
     norm_df = _normalize_df(df)[0]
     result = _apply_dec_tables(
-        norm_df, _vestnr_meta(), {VESTNR_TITLE: _vestnr_dec(VESTNR_ROWS)}, report=report,
+        norm_df,
+        _vestnr_meta(),
+        {VESTNR_TITLE: _vestnr_dec(VESTNR_ROWS)},
+        report=report,
     )
 
     assert result.equals(norm_df)
@@ -977,7 +1161,10 @@ def test_dec_vestnr_ho_compleet_without_two_key_rows_is_an_error(capsys):
     report.begin_file("EV_TEST.csv", df.columns)
     norm_df = _normalize_df(df)[0]
     result = _apply_dec_tables(
-        norm_df, _vestnr_meta(content), {VESTNR_TITLE: _vestnr_dec(VESTNR_ROWS)}, report=report,
+        norm_df,
+        _vestnr_meta(content),
+        {VESTNR_TITLE: _vestnr_dec(VESTNR_ROWS)},
+        report=report,
     )
     assert result.equals(norm_df)
     assert VESTNR_TITLE in capsys.readouterr().out
@@ -988,9 +1175,13 @@ def test_dec_vestnr_ho_compleet_respects_decode_columns():
     df = pl.DataFrame({INST_HO: ["9XA1"], VEST_HO: ["01"]})
     norm_df = _normalize_df(df)[0]
     tables = {VESTNR_TITLE: _vestnr_dec(VESTNR_ROWS)}
-    skipped = _apply_dec_tables(norm_df, _vestnr_meta(), tables, decode_columns=["Geslacht"])
+    skipped = _apply_dec_tables(
+        norm_df, _vestnr_meta(), tables, decode_columns=["Geslacht"]
+    )
     assert skipped.equals(norm_df)
-    chosen = _apply_dec_tables(norm_df, _vestnr_meta(), tables, decode_columns=[VESTNR_VAR])
+    chosen = _apply_dec_tables(
+        norm_df, _vestnr_meta(), tables, decode_columns=[VESTNR_VAR]
+    )
     assert chosen[f"{VEST_HO_NORM}__gemeentenaam_volgens_rio"].to_list() == ["Aa"]
 
 
@@ -1002,7 +1193,9 @@ def test_composite_dec_join_refuses_duplicate_pair_keys(capsys):
     report.begin_file("EV_TEST.csv", df.columns)
     report.start_pass({_canonical_name(c): c for c in df.columns}, df.columns)
     norm_df = _normalize_df(df)[0]
-    result = _apply_dec_tables(norm_df, _vestnr_meta(), {VESTNR_TITLE: _vestnr_dec(rows)}, report=report)
+    result = _apply_dec_tables(
+        norm_df, _vestnr_meta(), {VESTNR_TITLE: _vestnr_dec(rows)}, report=report
+    )
 
     assert result.equals(norm_df)
     out = capsys.readouterr().out
@@ -1018,13 +1211,23 @@ def test_composite_dec_join_refuses_duplicate_pair_keys(capsys):
 
 def test_composite_dec_join_via_dec_vest_ho_refuses_duplicate_pair_keys(capsys):
     data = pl.DataFrame({"instellingscode": ["02UC"], "vestigingsnummer": ["01"]})
-    dec = pl.DataFrame({
-        "instellingscode": ["02UC", "2UC"], "vestigingsnummer": ["01", "1"], "naam": ["A", "B"],
-    })
+    dec = pl.DataFrame(
+        {
+            "instellingscode": ["02UC", "2UC"],
+            "vestigingsnummer": ["01", "1"],
+            "naam": ["A", "B"],
+        }
+    )
     result = _apply_single_dec_join(
-        data, dec, "vestigingsnummer", "instellingscode",
-        is_composite=True, code_col2_norm="vestigingsnummer",
-        code_width=4, code2_width=2, dec_table_title="Dec_vest_ho.asc",
+        data,
+        dec,
+        "vestigingsnummer",
+        "instellingscode",
+        is_composite=True,
+        code_col2_norm="vestigingsnummer",
+        code_width=4,
+        code2_width=2,
+        dec_table_title="Dec_vest_ho.asc",
     )
     assert result.equals(data)
     out = capsys.readouterr().out
@@ -1033,14 +1236,22 @@ def test_composite_dec_join_via_dec_vest_ho_refuses_duplicate_pair_keys(capsys):
 
 def test_composite_dec_join_ignores_duplicates_with_an_empty_key():
     data = pl.DataFrame({"instellingscode": ["02UC"], "vestigingsnummer": ["01"]})
-    dec = pl.DataFrame({
-        "instellingscode": ["02UC", "02UC", "02UC"],
-        "vestigingsnummer": ["01", "", ""],
-        "naam": ["A", "leeg1", "leeg2"],
-    })
+    dec = pl.DataFrame(
+        {
+            "instellingscode": ["02UC", "02UC", "02UC"],
+            "vestigingsnummer": ["01", "", ""],
+            "naam": ["A", "leeg1", "leeg2"],
+        }
+    )
     result = _apply_single_dec_join(
-        data, dec, "vestigingsnummer", "instellingscode",
-        is_composite=True, code_col2_norm="vestigingsnummer", code_width=4, code2_width=2,
+        data,
+        dec,
+        "vestigingsnummer",
+        "instellingscode",
+        is_composite=True,
+        code_col2_norm="vestigingsnummer",
+        code_width=4,
+        code2_width=2,
     )
     assert result["vestigingsnummer__naam"].to_list() == ["A"]
 
@@ -1084,27 +1295,46 @@ def padded_dec_metadata_json(tmp_path):
     return str(p)
 
 
-def test_decode_fields_dec_only_keeps_data_columns_byte_identical(padded_dec_metadata_json):
-    df = pl.DataFrame({
-        "Hoogste vooropleiding": ["00411", "00411", "00000"],
-        "Nationaliteit": ["0001", "0000", ""],
-        "Instelling": ["02UC", "02DZ", "02UC"],
-    })
+def test_decode_fields_dec_only_keeps_data_columns_byte_identical(
+    padded_dec_metadata_json,
+):
+    df = pl.DataFrame(
+        {
+            "Hoogste vooropleiding": ["00411", "00411", "00000"],
+            "Nationaliteit": ["0001", "0000", ""],
+            "Instelling": ["02UC", "02DZ", "02UC"],
+        }
+    )
     dec_tables = {
         # Unpadded and integer-typed codes, as Dec tables are sometimes read.
-        "Dec_vopl.asc": pl.DataFrame({"Code vooropleiding": [411, 0], "Omschrijving": ["HBO", "onbekend"]}),
-        "Dec_landcode.asc": pl.DataFrame({
-            "Code land": [None, "0000", "1"], "Naam land": ["NULL", "Onbekend", "Nederland"],
-        }),
-        "Dec_instellingscode.asc": pl.DataFrame({"Instellingscode": ["2UC", "02DZ"], "Naam": ["Inst UC", "Inst DZ"]}),
+        "Dec_vopl.asc": pl.DataFrame(
+            {"Code vooropleiding": [411, 0], "Omschrijving": ["HBO", "onbekend"]}
+        ),
+        "Dec_landcode.asc": pl.DataFrame(
+            {
+                "Code land": [None, "0000", "1"],
+                "Naam land": ["NULL", "Onbekend", "Nederland"],
+            }
+        ),
+        "Dec_instellingscode.asc": pl.DataFrame(
+            {"Instellingscode": ["2UC", "02DZ"], "Naam": ["Inst UC", "Inst DZ"]}
+        ),
     }
     result = decode_fields_dec_only(df, padded_dec_metadata_json, dec_tables)
 
     assert result.height == df.height
     for col in df.columns:
         assert result[col].to_list() == df[col].to_list(), col
-    assert result["hoogste_vooropleiding__omschrijving"].to_list() == ["HBO", "HBO", "onbekend"]
-    assert result["nationaliteit__naam_land"].to_list() == ["Nederland", "Onbekend", None]
+    assert result["hoogste_vooropleiding__omschrijving"].to_list() == [
+        "HBO",
+        "HBO",
+        "onbekend",
+    ]
+    assert result["nationaliteit__naam_land"].to_list() == [
+        "Nederland",
+        "Onbekend",
+        None,
+    ]
     assert result["instelling__naam"].to_list() == ["Inst UC", "Inst DZ", "Inst UC"]
     assert not [c for c in result.columns if c.startswith("__")]
 
@@ -1151,15 +1381,25 @@ def test_dec_label_that_is_a_code_keeps_leading_zero_in_output(isced_dec_dir):
     """The label comes from the Dec table, not from a data column of the same name."""
     meta_path, dec_dir = isced_dec_dir
     dec_tables = load_dec_tables_from_metadata(meta_path, dec_dir)
-    df = pl.DataFrame({
-        "Opleidingscode": ["00123", "34567", "99999"],
-        "ISCEDF2013-rubriek": ["999999", "999999", "999999"],
-    })
+    df = pl.DataFrame(
+        {
+            "Opleidingscode": ["00123", "34567", "99999"],
+            "ISCEDF2013-rubriek": ["999999", "999999", "999999"],
+        }
+    )
     result = decode_fields_dec_only(df, meta_path, dec_tables)
     assert result["Opleidingscode"].to_list() == ["00123", "34567", "99999"]
     assert result["ISCEDF2013-rubriek"].to_list() == ["999999"] * 3
-    assert result["opleidingscode__iscedf2013_rubriek"].to_list() == ["031103", "041401", None]
-    assert result["opleidingscode__omschrijving"].to_list() == ["Economie", "Bedrijfskunde", None]
+    assert result["opleidingscode__iscedf2013_rubriek"].to_list() == [
+        "031103",
+        "041401",
+        None,
+    ]
+    assert result["opleidingscode__omschrijving"].to_list() == [
+        "Economie",
+        "Bedrijfskunde",
+        None,
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -1176,12 +1416,24 @@ VAKCODE_CONTENT = [
 
 def test_apply_vakken_simple_keeps_data_column_and_fills_labels():
     data = pl.DataFrame({"vakcode": ["0012", "12", " 0099 "]})
-    dec = pl.DataFrame({"vakcode": ["12", "0099"], "omschrijving_vak": ["Wiskunde", "Engels"]})
+    dec = pl.DataFrame(
+        {"vakcode": ["12", "0099"], "omschrijving_vak": ["Wiskunde", "Engels"]}
+    )
     result = _apply_vakken_simple(
-        data, dec, "vakcode", "vakcode", "Vakcode", "Dec_vakcode.asc", VAKCODE_CONTENT,
+        data,
+        dec,
+        "vakcode",
+        "vakcode",
+        "Vakcode",
+        "Dec_vakcode.asc",
+        VAKCODE_CONTENT,
     )
     assert result["vakcode"].to_list() == ["0012", "12", " 0099 "]
-    assert result["vakcode__omschrijving_vak"].to_list() == ["Wiskunde", "Wiskunde", "Engels"]
+    assert result["vakcode__omschrijving_vak"].to_list() == [
+        "Wiskunde",
+        "Wiskunde",
+        "Engels",
+    ]
     assert not [c for c in result.columns if c.startswith("__")]
 
 
@@ -1192,14 +1444,23 @@ def test_apply_vakken_composite_keeps_data_columns_and_fills_labels():
         "Vestigingsnummer    5             2      }",
         "Naam vestiging      7            30",
     ]
-    data = pl.DataFrame({"brinnummer": ["02UC", "2UC"], "vestigingsnummer": ["1", "00"]})
-    dec = pl.DataFrame({
-        "brinnummer": ["02UC", "02UC"],
-        "vestigingsnummer": ["01", "0"],
-        "naam_vestiging": ["Zeist", "Utrecht"],
-    })
+    data = pl.DataFrame(
+        {"brinnummer": ["02UC", "2UC"], "vestigingsnummer": ["1", "00"]}
+    )
+    dec = pl.DataFrame(
+        {
+            "brinnummer": ["02UC", "02UC"],
+            "vestigingsnummer": ["01", "0"],
+            "naam_vestiging": ["Zeist", "Utrecht"],
+        }
+    )
     result = _apply_vakken_composite(
-        data, dec, "brinnummer", "Vestigingsnummer", "brinnummer", content,
+        data,
+        dec,
+        "brinnummer",
+        "Vestigingsnummer",
+        "brinnummer",
+        content,
         "Dec_brinvestigingsnummer.asc",
     )
     assert result["brinnummer"].to_list() == ["02UC", "2UC"]
@@ -1215,17 +1476,27 @@ def test_apply_vakken_composite_refuses_duplicate_pair_keys(capsys):
         "Vestigingsnummer    5             2      }",
         "Naam vestiging      7            30",
     ]
-    data = pl.DataFrame({"brinnummer": ["02UC", "02UC"], "vestigingsnummer": ["01", "02"]})
-    dec = pl.DataFrame({
-        "brinnummer": ["02UC", "2UC", "02UC"],
-        "vestigingsnummer": ["01", "1", "02"],
-        "naam_vestiging": ["Zeist", "Utrecht", "Bilt"],
-    })
+    data = pl.DataFrame(
+        {"brinnummer": ["02UC", "02UC"], "vestigingsnummer": ["01", "02"]}
+    )
+    dec = pl.DataFrame(
+        {
+            "brinnummer": ["02UC", "2UC", "02UC"],
+            "vestigingsnummer": ["01", "1", "02"],
+            "naam_vestiging": ["Zeist", "Utrecht", "Bilt"],
+        }
+    )
     report = DecodeReport()
     report.begin_file("VAKHAVW_TEST.csv", data.columns)
     result = _apply_vakken_composite(
-        data, dec, "brinnummer", "Vestigingsnummer", "brinnummer", content,
-        "Dec_brinvestigingsnummer.asc", report=report,
+        data,
+        dec,
+        "brinnummer",
+        "Vestigingsnummer",
+        "brinnummer",
+        content,
+        "Dec_brinvestigingsnummer.asc",
+        report=report,
     )
     assert result.equals(data)
     out = capsys.readouterr().out
@@ -1250,7 +1521,9 @@ def test_apply_single_mapping_int_fallback_matches_and_logs(capsys):
 
 def test_apply_single_mapping_direct_match_does_not_log_int_fallback(capsys):
     df = pl.DataFrame({"vopl": ["00411", "07"]})
-    result = _apply_single_mapping(df, "vopl", {"00411": "HBO", "07": "X", 411: "HBO"}, "vopl", "Vopl")
+    result = _apply_single_mapping(
+        df, "vopl", {"00411": "HBO", "07": "X", 411: "HBO"}, "vopl", "Vopl"
+    )
     assert result["vopl"].to_list() == ["HBO", "X"]
     assert "numerieke sleutel" not in capsys.readouterr().out
 
@@ -1306,10 +1579,18 @@ def test_parse_vakken_layout_reads_the_decode_rule_per_row():
     fields = _by_name(parse_vakken_layout(VAKGEGEVENS_CONTENT))
     assert fields["Brinnummer VO-instelling"]["dec_table"] == "Dec_brinnummer.asc"
     assert fields["Brinnummer VO-instelling"]["composite"] is None
-    assert fields["Vestigingsnummer VO-vestiging"]["dec_table"] == "Dec_brinvestigingsnummer.asc"
+    assert (
+        fields["Vestigingsnummer VO-vestiging"]["dec_table"]
+        == "Dec_brinvestigingsnummer.asc"
+    )
     # "in combinatie met Brinnummer" points to the full field name.
-    assert fields["Vestigingsnummer VO-vestiging"]["composite"] == "Brinnummer VO-instelling"
-    assert fields["Vooropleiding oorspronkelijke code"]["dec_table"] == "Dec_vooropl.asc"
+    assert (
+        fields["Vestigingsnummer VO-vestiging"]["composite"]
+        == "Brinnummer VO-instelling"
+    )
+    assert (
+        fields["Vooropleiding oorspronkelijke code"]["dec_table"] == "Dec_vooropl.asc"
+    )
     assert fields["Vakcode"]["dec_table"] == "Dec_vakcode.asc"
     # A remark without a decode rule is no rule.
     assert fields["Diplomajaar"]["dec_table"] is None
@@ -1332,15 +1613,24 @@ def test_dec_title_from_vakken_table_title():
 
 
 def test_build_dec_layouts_combines_dec_vakken_and_inferred_layouts():
-    dec_meta = {"tables": [{"table_title": "Dec_vooropl.asc", "content": DEC_VOOROPL_CONTENT}]}
-    vakken_meta = {"tables": [
-        {"table_title": "Decodeertabel vakcode (Dec_vakcode.asc)", "content": DEC_VAKCODE_CONTENT},
-        {"table_title": "Vakgegevens", "content": VAKGEGEVENS_CONTENT},
-    ]}
+    dec_meta = {
+        "tables": [{"table_title": "Dec_vooropl.asc", "content": DEC_VOOROPL_CONTENT}]
+    }
+    vakken_meta = {
+        "tables": [
+            {
+                "table_title": "Decodeertabel vakcode (Dec_vakcode.asc)",
+                "content": DEC_VAKCODE_CONTENT,
+            },
+            {"table_title": "Vakgegevens", "content": VAKGEGEVENS_CONTENT},
+        ]
+    }
     layouts = build_dec_layouts(dec_meta, vakken_meta)
     assert set(layouts) == {
-        "Dec_vooropl.asc", "Dec_vakcode.asc",
-        "Dec_brinnummer.asc", "Dec_brinvestigingsnummer.asc",
+        "Dec_vooropl.asc",
+        "Dec_vakcode.asc",
+        "Dec_brinnummer.asc",
+        "Dec_brinvestigingsnummer.asc",
     }
 
 
@@ -1352,75 +1642,134 @@ def vakken_setup(tmp_path):
     composite join must use both keys.
     """
     dec_json = tmp_path / "Bestandsbeschrijving_Dec-bestanden.json"
-    dec_json.write_text(json.dumps({"tables": [
-        {"table_number": 1, "table_title": "Dec_vooropl.asc",
-         "content": DEC_VOOROPL_CONTENT, "decoding_variables": ["Hoogste vooropleiding"]},
-    ]}), encoding="utf-8")
+    dec_json.write_text(
+        json.dumps(
+            {
+                "tables": [
+                    {
+                        "table_number": 1,
+                        "table_title": "Dec_vooropl.asc",
+                        "content": DEC_VOOROPL_CONTENT,
+                        "decoding_variables": ["Hoogste vooropleiding"],
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
     vakken_json = tmp_path / "Bestandsbeschrijving_Vakkenbestanden.json"
-    vakken_json.write_text(json.dumps({"tables": [
-        {"table_number": 1, "table_title": "Decodeertabel vakcode (Dec_vakcode.asc)",
-         "content": DEC_VAKCODE_CONTENT, "decoding_variables": []},
-        {"table_number": 2, "table_title": "Vakgegevens",
-         "content": VAKGEGEVENS_CONTENT, "decoding_variables": []},
-    ]}), encoding="utf-8")
+    vakken_json.write_text(
+        json.dumps(
+            {
+                "tables": [
+                    {
+                        "table_number": 1,
+                        "table_title": "Decodeertabel vakcode (Dec_vakcode.asc)",
+                        "content": DEC_VAKCODE_CONTENT,
+                        "decoding_variables": [],
+                    },
+                    {
+                        "table_number": 2,
+                        "table_title": "Vakgegevens",
+                        "content": VAKGEGEVENS_CONTENT,
+                        "decoding_variables": [],
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
 
-    pl.DataFrame({
-        "Code vooropleiding oorspr. code": ["V0652", "00411"],
-        "Onderwijssector": ["VO", "HO"],
-        "Omschrijving vooropleiding oorspr. code": ["vwo", "propedeuse"],
-    }).write_csv(tmp_path / "Dec_vooropl.csv", separator=";")
-    pl.DataFrame({
-        "Vakcode": ["0012", "0099"],
-        "Omschrijving vak": ["Wiskunde A", "Engels"],
-    }).write_csv(tmp_path / "Dec_vakcode.csv", separator=";")
-    pl.DataFrame({
-        "Brinnummer": ["00AA", "01BB"],
-        "Naam": ["School Een", "School Twee"],
-    }).write_csv(tmp_path / "Dec_brinnummer.csv", separator=";")
-    pl.DataFrame({
-        "Brinnummer": ["00AA", "01BB"],
-        "Vestigingsnummer": ["01", "01"],
-        "Naam": ["Vestiging Een", "Vestiging Twee"],
-    }).write_csv(tmp_path / "Dec_brinvestigingsnummer.csv", separator=";")
+    pl.DataFrame(
+        {
+            "Code vooropleiding oorspr. code": ["V0652", "00411"],
+            "Onderwijssector": ["VO", "HO"],
+            "Omschrijving vooropleiding oorspr. code": ["vwo", "propedeuse"],
+        }
+    ).write_csv(tmp_path / "Dec_vooropl.csv", separator=";")
+    pl.DataFrame(
+        {
+            "Vakcode": ["0012", "0099"],
+            "Omschrijving vak": ["Wiskunde A", "Engels"],
+        }
+    ).write_csv(tmp_path / "Dec_vakcode.csv", separator=";")
+    pl.DataFrame(
+        {
+            "Brinnummer": ["00AA", "01BB"],
+            "Naam": ["School Een", "School Twee"],
+        }
+    ).write_csv(tmp_path / "Dec_brinnummer.csv", separator=";")
+    pl.DataFrame(
+        {
+            "Brinnummer": ["00AA", "01BB"],
+            "Vestigingsnummer": ["01", "01"],
+            "Naam": ["Vestiging Een", "Vestiging Twee"],
+        }
+    ).write_csv(tmp_path / "Dec_brinvestigingsnummer.csv", separator=";")
     return str(dec_json), str(vakken_json), str(tmp_path)
 
 
-VAKHAVW_FRAME = pl.DataFrame({
-    "Brinnummer VO-instelling": ["00AA", "01BB", "00AA"],
-    "Vestigingsnummer VO-vestiging": ["01", "01", "07"],
-    "Vooropleiding oorspronkelijke code": ["V0652", "00411", "V0652"],
-    "Vakcode": ["0012", "0099", "0012"],
-})
+VAKHAVW_FRAME = pl.DataFrame(
+    {
+        "Brinnummer VO-instelling": ["00AA", "01BB", "00AA"],
+        "Vestigingsnummer VO-vestiging": ["01", "01", "07"],
+        "Vooropleiding oorspronkelijke code": ["V0652", "00411", "V0652"],
+        "Vakcode": ["0012", "0099", "0012"],
+    }
+)
 
 
 def test_load_dec_tables_loads_tables_named_by_vakken_layout(vakken_setup):
     dec_json, vakken_json, dec_dir = vakken_setup
     without = load_dec_tables_from_metadata(dec_json, dec_dir)
     assert set(without) == {"Dec_vooropl.asc"}
-    tables = load_dec_tables_from_metadata(dec_json, dec_dir, vakken_metadata_json=vakken_json)
+    tables = load_dec_tables_from_metadata(
+        dec_json, dec_dir, vakken_metadata_json=vakken_json
+    )
     assert set(tables) == {
-        "Dec_vooropl.asc", "Dec_vakcode.asc",
-        "Dec_brinnummer.asc", "Dec_brinvestigingsnummer.asc",
+        "Dec_vooropl.asc",
+        "Dec_vakcode.asc",
+        "Dec_brinnummer.asc",
+        "Dec_brinvestigingsnummer.asc",
     }
     assert tables["Dec_brinnummer.asc"]["Brinnummer"].to_list() == ["00AA", "01BB"]
 
 
 def test_decode_vakken_layout_adds_labels_for_all_four_fields(vakken_setup):
     dec_json, vakken_json, dec_dir = vakken_setup
-    dec_tables = load_dec_tables_from_metadata(dec_json, dec_dir, vakken_metadata_json=vakken_json)
-    result = decode_fields_dec_only(
-        VAKHAVW_FRAME, dec_json, dec_tables, vakken_metadata_json=vakken_json,
+    dec_tables = load_dec_tables_from_metadata(
+        dec_json, dec_dir, vakken_metadata_json=vakken_json
     )
-    assert result["vakcode__omschrijving_vak"].to_list() == ["Wiskunde A", "Engels", "Wiskunde A"]
-    assert result["brinnummer_vo_instelling__naam"].to_list() == ["School Een", "School Twee", "School Een"]
-    assert result["vooropleiding_oorspronkelijke_code__onderwijssector"].to_list() == ["VO", "HO", "VO"]
+    result = decode_fields_dec_only(
+        VAKHAVW_FRAME,
+        dec_json,
+        dec_tables,
+        vakken_metadata_json=vakken_json,
+    )
+    assert result["vakcode__omschrijving_vak"].to_list() == [
+        "Wiskunde A",
+        "Engels",
+        "Wiskunde A",
+    ]
+    assert result["brinnummer_vo_instelling__naam"].to_list() == [
+        "School Een",
+        "School Twee",
+        "School Een",
+    ]
+    assert result["vooropleiding_oorspronkelijke_code__onderwijssector"].to_list() == [
+        "VO",
+        "HO",
+        "VO",
+    ]
     assert result[
         "vooropleiding_oorspronkelijke_code__omschrijving_vooropleiding_oorspr_code"
     ].to_list() == ["vwo", "propedeuse", "vwo"]
     # Composite: Brinnummer resolves to the brinnummer_vo_instelling column, so
     # vestiging 01 gets the label of its own school; 00AA+07 does not exist.
     assert result["vestigingsnummer_vo_vestiging__naam"].to_list() == [
-        "Vestiging Een", "Vestiging Twee", None,
+        "Vestiging Een",
+        "Vestiging Twee",
+        None,
     ]
     # The key columns of the Dec tables are not copied as labels.
     assert "vestigingsnummer_vo_vestiging__brinnummer" not in result.columns
@@ -1429,9 +1778,13 @@ def test_decode_vakken_layout_adds_labels_for_all_four_fields(vakken_setup):
 
 def test_decode_vakken_layout_keeps_data_columns_raw(vakken_setup):
     dec_json, vakken_json, dec_dir = vakken_setup
-    dec_tables = load_dec_tables_from_metadata(dec_json, dec_dir, vakken_metadata_json=vakken_json)
+    dec_tables = load_dec_tables_from_metadata(
+        dec_json, dec_dir, vakken_metadata_json=vakken_json
+    )
     result = decode_fields(
-        VAKHAVW_FRAME, dec_json, dec_tables,
+        VAKHAVW_FRAME,
+        dec_json,
+        dec_tables,
         variable_metadata_path=str(Path(dec_dir) / "geen.json"),
         vakken_metadata_json=vakken_json,
     )
@@ -1442,26 +1795,39 @@ def test_decode_vakken_layout_keeps_data_columns_raw(vakken_setup):
 
 def test_decode_without_vakken_json_behaves_as_before(vakken_setup):
     dec_json, vakken_json, dec_dir = vakken_setup
-    dec_tables = load_dec_tables_from_metadata(dec_json, dec_dir, vakken_metadata_json=vakken_json)
+    dec_tables = load_dec_tables_from_metadata(
+        dec_json, dec_dir, vakken_metadata_json=vakken_json
+    )
     result = decode_fields_dec_only(VAKHAVW_FRAME, dec_json, dec_tables)
     assert result.columns == VAKHAVW_FRAME.columns
 
 
 def test_decode_vakken_layout_leaves_a_non_vakken_frame_alone(vakken_setup, capsys):
     dec_json, vakken_json, dec_dir = vakken_setup
-    dec_tables = load_dec_tables_from_metadata(dec_json, dec_dir, vakken_metadata_json=vakken_json)
-    ev = pl.DataFrame({"Burgerservicenummer": ["000000012"], "Inschrijvingsjaar": ["2024"]})
-    result = decode_fields_dec_only(ev, dec_json, dec_tables, vakken_metadata_json=vakken_json)
+    dec_tables = load_dec_tables_from_metadata(
+        dec_json, dec_dir, vakken_metadata_json=vakken_json
+    )
+    ev = pl.DataFrame(
+        {"Burgerservicenummer": ["000000012"], "Inschrijvingsjaar": ["2024"]}
+    )
+    result = decode_fields_dec_only(
+        ev, dec_json, dec_tables, vakken_metadata_json=vakken_json
+    )
     assert result.columns == ev.columns
     assert "[vakken]" not in capsys.readouterr().out
 
 
 def test_decode_vakken_layout_respects_decode_columns(vakken_setup):
     dec_json, vakken_json, dec_dir = vakken_setup
-    dec_tables = load_dec_tables_from_metadata(dec_json, dec_dir, vakken_metadata_json=vakken_json)
+    dec_tables = load_dec_tables_from_metadata(
+        dec_json, dec_dir, vakken_metadata_json=vakken_json
+    )
     result = decode_fields_dec_only(
-        VAKHAVW_FRAME, dec_json, dec_tables,
-        decode_columns=["Vakcode"], vakken_metadata_json=vakken_json,
+        VAKHAVW_FRAME,
+        dec_json,
+        dec_tables,
+        decode_columns=["Vakcode"],
+        vakken_metadata_json=vakken_json,
     )
     added = [c for c in result.columns if c not in VAKHAVW_FRAME.columns]
     assert added == ["vakcode__omschrijving_vak"]
@@ -1469,9 +1835,13 @@ def test_decode_vakken_layout_respects_decode_columns(vakken_setup):
 
 def test_decode_vakken_missing_dec_table_is_logged_not_raised(vakken_setup, capsys):
     dec_json, vakken_json, dec_dir = vakken_setup
-    dec_tables = load_dec_tables_from_metadata(dec_json, dec_dir, vakken_metadata_json=vakken_json)
+    dec_tables = load_dec_tables_from_metadata(
+        dec_json, dec_dir, vakken_metadata_json=vakken_json
+    )
     del dec_tables["Dec_brinnummer.asc"]
-    result = decode_fields_dec_only(VAKHAVW_FRAME, dec_json, dec_tables, vakken_metadata_json=vakken_json)
+    result = decode_fields_dec_only(
+        VAKHAVW_FRAME, dec_json, dec_tables, vakken_metadata_json=vakken_json
+    )
     assert "brinnummer_vo_instelling__naam" not in result.columns
     assert "vakcode__omschrijving_vak" in result.columns
     assert "Dec_brinnummer.asc" in capsys.readouterr().out
@@ -1482,8 +1852,10 @@ def test_get_available_decode_columns_includes_vakken_fields(vakken_setup):
     assert "Vakcode" not in get_available_decode_columns(dec_json)
     result = get_available_decode_columns(dec_json, vakken_json)
     for name in (
-        "Brinnummer VO-instelling", "Vestigingsnummer VO-vestiging",
-        "Vooropleiding oorspronkelijke code", "Vakcode",
+        "Brinnummer VO-instelling",
+        "Vestigingsnummer VO-vestiging",
+        "Vooropleiding oorspronkelijke code",
+        "Vakcode",
     ):
         assert name in result
     assert "Diplomajaar" not in result
@@ -1507,18 +1879,27 @@ def test_apply_vakken_composite_pairs_keys_by_name():
         "Vestigingsnummer    5             2      }",
         "Naam                7            30",
     ]
-    data = pl.DataFrame({
-        "brinnummer_vo_instelling": ["00AA", "01BB"],
-        "vestigingsnummer_vo_vestiging": ["1", "01"],
-    })
-    dec = pl.DataFrame({
-        "brinnummer": ["00AA", "01BB"],
-        "vestigingsnummer": ["01", "01"],
-        "naam": ["Een", "Twee"],
-    })
+    data = pl.DataFrame(
+        {
+            "brinnummer_vo_instelling": ["00AA", "01BB"],
+            "vestigingsnummer_vo_vestiging": ["1", "01"],
+        }
+    )
+    dec = pl.DataFrame(
+        {
+            "brinnummer": ["00AA", "01BB"],
+            "vestigingsnummer": ["01", "01"],
+            "naam": ["Een", "Twee"],
+        }
+    )
     result = _apply_vakken_composite(
-        data, dec, "vestigingsnummer_vo_vestiging", "Brinnummer VO-instelling",
-        "brinnummer", content, "Dec_brinvestigingsnummer.asc",
+        data,
+        dec,
+        "vestigingsnummer_vo_vestiging",
+        "Brinnummer VO-instelling",
+        "brinnummer",
+        content,
+        "Dec_brinvestigingsnummer.asc",
     )
     assert result["vestigingsnummer_vo_vestiging__naam"].to_list() == ["Een", "Twee"]
     assert result["vestigingsnummer_vo_vestiging"].to_list() == ["1", "01"]
@@ -1536,6 +1917,7 @@ def test_find_vakken_metadata_json(tmp_path):
 # #202 — no fuzzy column choice; only exact names (plus an explicit repair)
 # ---------------------------------------------------------------------------
 
+
 def _dec_meta(var_name, code_name="Code"):
     return {
         "tables": [
@@ -1548,10 +1930,13 @@ def _dec_meta(var_name, code_name="Code"):
     }
 
 
-@pytest.mark.parametrize("var_name, column", [
-    ("Landcod", "landcode"),
-    ("Hoogste vooropleiding voor het H", "hoogste_vooropleiding_voor_het_ho"),
-])
+@pytest.mark.parametrize(
+    "var_name, column",
+    [
+        ("Landcod", "landcode"),
+        ("Hoogste vooropleiding voor het H", "hoogste_vooropleiding_voor_het_ho"),
+    ],
+)
 def test_apply_dec_tables_one_char_off_name_is_skipped(var_name, column, capsys):
     meta = _dec_meta(var_name)
     dec_tables = {"Dec_x.asc": pl.DataFrame({"Code": ["1"], "Omschrijving": ["Een"]})}
@@ -1567,7 +1952,13 @@ def test_apply_vakken_simple_one_char_off_column_is_skipped(capsys):
     data = pl.DataFrame({"vakcod": ["12"]})
     dec = pl.DataFrame({"vakcode": ["12"], "omschrijving_vak": ["Wiskunde"]})
     result = _apply_vakken_simple(
-        data, dec, "vakcode", "vakcode", "Vakcode", "Dec_vakcode.asc", VAKCODE_CONTENT,
+        data,
+        dec,
+        "vakcode",
+        "vakcode",
+        "Vakcode",
+        "Dec_vakcode.asc",
+        VAKCODE_CONTENT,
     )
     assert result.equals(data)
     out = capsys.readouterr().out
@@ -1575,10 +1966,13 @@ def test_apply_vakken_simple_one_char_off_column_is_skipped(capsys):
     assert "Dichtste" not in out
 
 
-@pytest.mark.parametrize("data", [
-    pl.DataFrame({"brinnummr": ["02UC"], "vestigingsnummer": ["1"]}),
-    pl.DataFrame({"brinnummer": ["02UC"], "vestigingsnummr": ["1"]}),
-])
+@pytest.mark.parametrize(
+    "data",
+    [
+        pl.DataFrame({"brinnummr": ["02UC"], "vestigingsnummer": ["1"]}),
+        pl.DataFrame({"brinnummer": ["02UC"], "vestigingsnummr": ["1"]}),
+    ],
+)
 def test_apply_vakken_composite_one_char_off_column_is_skipped(data, capsys):
     content = [
         "                    Startpositie  Aantal posities",
@@ -1586,11 +1980,20 @@ def test_apply_vakken_composite_one_char_off_column_is_skipped(data, capsys):
         "Vestigingsnummer    5             2      }",
         "Naam vestiging      7            30",
     ]
-    dec = pl.DataFrame({
-        "brinnummer": ["02UC"], "vestigingsnummer": ["01"], "naam_vestiging": ["Zeist"],
-    })
+    dec = pl.DataFrame(
+        {
+            "brinnummer": ["02UC"],
+            "vestigingsnummer": ["01"],
+            "naam_vestiging": ["Zeist"],
+        }
+    )
     result = _apply_vakken_composite(
-        data, dec, "brinnummer", "Vestigingsnummer", "brinnummer", content,
+        data,
+        dec,
+        "brinnummer",
+        "Vestigingsnummer",
+        "brinnummer",
+        content,
         "Dec_brinvestigingsnummer.asc",
     )
     assert result.equals(data)
@@ -1601,7 +2004,12 @@ def test_apply_vakken_composite_one_char_off_column_is_skipped(data, capsys):
 
 def test_resolve_mapping_column_exact_name():
     df = pl.DataFrame({"geslacht": ["M"]})
-    assert _resolve_mapping_column("geslacht", "Geslacht", df, {"geslacht": "Geslacht"}, None) == "geslacht"
+    assert (
+        _resolve_mapping_column(
+            "geslacht", "Geslacht", df, {"geslacht": "Geslacht"}, None
+        )
+        == "geslacht"
+    )
 
 
 def test_resolve_mapping_column_exact_cleaned_original_name():
@@ -1616,7 +2024,9 @@ def test_resolve_mapping_column_exact_cleaned_original_name():
 
 
 def test_resolve_mapping_column_near_name_returns_none(capsys):
-    df = pl.DataFrame({"vooropleiding_oorspronkelijke_code": ["1"], "indicatie_diplomavak": ["J"]})
+    df = pl.DataFrame(
+        {"vooropleiding_oorspronkelijke_code": ["1"], "indicatie_diplomavak": ["J"]}
+    )
     norm_map = {c: c for c in df.columns}
     for var_norm in (
         "hoogste_vooropleiding_voor_het_ho_oorspr_code",
@@ -1630,8 +2040,14 @@ def test_resolve_mapping_column_near_name_returns_none(capsys):
 def test_vakhavw_collision_mappings_leave_column_untouched(tmp_path):
     """Two 'oorspr. code' mappings must not land on vooropleiding_oorspronkelijke_code."""
     items = [
-        {"name": "Hoogste vooropleiding vóór het HO oorspr. code", "values": {"1": "VWO"}},
-        {"name": "Hoogste vooropleiding binnen het HO oorspr. code", "values": {"1": "HBO"}},
+        {
+            "name": "Hoogste vooropleiding vóór het HO oorspr. code",
+            "values": {"1": "VWO"},
+        },
+        {
+            "name": "Hoogste vooropleiding binnen het HO oorspr. code",
+            "values": {"1": "HBO"},
+        },
     ]
     path = tmp_path / "variable_metadata.json"
     path.write_text(json.dumps(items), encoding="utf-8")
@@ -1641,41 +2057,60 @@ def test_vakhavw_collision_mappings_leave_column_untouched(tmp_path):
     assert result["vooropleiding_oorspronkelijke_code"].to_list() == ["1", "2"]
 
 
-@pytest.mark.parametrize("raw", [
-    "Hoogste vooropleiding v��r het HO",
-    "Hoogste vooropleiding vï¿½ï¿½r het HO",
-    "Hoogste vooropleiding vóór het HO",
-])
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "Hoogste vooropleiding v��r het HO",
+        "Hoogste vooropleiding vï¿½ï¿½r het HO",
+        "Hoogste vooropleiding vóór het HO",
+    ],
+)
 def test_canonical_name_repairs_corrupt_voor(raw):
     assert _canonical_name(raw) == "hoogste_vooropleiding_voor_het_ho"
 
 
 def test_canonical_name_leaves_unknown_corruption_alone():
     # One replacement char is not in the repair table: not guessed.
-    assert _canonical_name("Hoogste vooropleiding v�r het HO") == "hoogste_vooropleiding_vr_het_ho"
+    assert (
+        _canonical_name("Hoogste vooropleiding v�r het HO")
+        == "hoogste_vooropleiding_vr_het_ho"
+    )
 
 
-@pytest.mark.parametrize("raw", [
-    "Hoogste vooropleiding v��r het HO",
-    "Hoogste vooropleiding vï¿½ï¿½r het HO",
-])
-@pytest.mark.parametrize("decode_columns", [None, ["Hoogste vooropleiding vóór het HO"]])
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "Hoogste vooropleiding v��r het HO",
+        "Hoogste vooropleiding vï¿½ï¿½r het HO",
+    ],
+)
+@pytest.mark.parametrize(
+    "decode_columns", [None, ["Hoogste vooropleiding vóór het HO"]]
+)
 def test_apply_dec_tables_repairs_corrupt_voor_without_fuzzy(raw, decode_columns):
     meta = _dec_meta(raw, code_name="Hoogste vooropleiding")
     dec_tables = {
-        "Dec_x.asc": pl.DataFrame({"Hoogste vooropleiding": ["1"], "Omschrijving": ["VWO"]})
+        "Dec_x.asc": pl.DataFrame(
+            {"Hoogste vooropleiding": ["1"], "Omschrijving": ["VWO"]}
+        )
     }
     df = pl.DataFrame({"hoogste_vooropleiding_voor_het_ho": ["1", "2"]})
     result = _apply_dec_tables(df, meta, dec_tables, decode_columns=decode_columns)
     assert result["hoogste_vooropleiding_voor_het_ho"].to_list() == ["1", "2"]
-    assert result["hoogste_vooropleiding_voor_het_ho__omschrijving"].to_list() == ["VWO", None]
+    assert result["hoogste_vooropleiding_voor_het_ho__omschrijving"].to_list() == [
+        "VWO",
+        None,
+    ]
 
 
 def test_nfwa_preset_has_no_corrupt_spelling():
     decode_columns = PRESET_CONFIGS["nfwa"]["settings"]["decode_columns"]
     assert not [c for c in decode_columns if "ï¿½" in c or "�" in c]
     assert "Hoogste vooropleiding vóór het HO" in decode_columns
-    assert PRESET_CONFIGS["evaluatietool"]["settings"] is PRESET_CONFIGS["nfwa"]["settings"]
+    assert (
+        PRESET_CONFIGS["evaluatietool"]["settings"]
+        is PRESET_CONFIGS["nfwa"]["settings"]
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1683,12 +2118,16 @@ def test_nfwa_preset_has_no_corrupt_spelling():
 # ---------------------------------------------------------------------------
 
 
-def test_decoded_and_enriched_keep_non_latin1_chars_after_snake_case(tmp_path, dec_metadata_json):
+def test_decoded_and_enriched_keep_non_latin1_chars_after_snake_case(
+    tmp_path, dec_metadata_json
+):
     """Characters outside latin-1 in data, Dec labels and variable labels survive
     decoding and the header normalisation step unchanged. Synthetic values only."""
     from eencijferho.utils.converter_headers import convert_csv_headers_to_snake_case
 
-    var_meta = [{"name": "Status code", "values": {"A": "Actief €", "I": "Inactief–oud"}}]
+    var_meta = [
+        {"name": "Status code", "values": {"A": "Actief €", "I": "Inactief–oud"}}
+    ]
     vm_path = tmp_path / "variable_metadata.json"
     vm_path.write_text(json.dumps(var_meta), encoding="utf-8")
 
@@ -1705,18 +2144,29 @@ def test_decoded_and_enriched_keep_non_latin1_chars_after_snake_case(tmp_path, d
         }
     )
     decoded = decode_fields_dec_only(main_df, dec_metadata_json, dec_tables)
-    enriched = decode_fields(main_df, dec_metadata_json, dec_tables, variable_metadata_path=str(vm_path))
+    enriched = decode_fields(
+        main_df, dec_metadata_json, dec_tables, variable_metadata_path=str(vm_path)
+    )
 
     out = tmp_path / "out"
     out.mkdir()
     # Written the way the pipeline writes them (core/pipeline.py, step 2).
-    (out / "EV2023_decoded.csv").write_text(decoded.write_csv(separator=";"), encoding="utf-8")
-    (out / "EV2023_enriched.csv").write_text(enriched.write_csv(separator=";"), encoding="utf-8")
+    (out / "EV2023_decoded.csv").write_text(
+        decoded.write_csv(separator=";"), encoding="utf-8"
+    )
+    (out / "EV2023_enriched.csv").write_text(
+        enriched.write_csv(separator=";"), encoding="utf-8"
+    )
 
     convert_csv_headers_to_snake_case(input_dir=str(out))
 
-    for name, expected in [("EV2023_decoded.csv", decoded), ("EV2023_enriched.csv", enriched)]:
-        result = pl.read_csv(out / name, separator=";", infer_schema_length=0, encoding="utf8")
+    for name, expected in [
+        ("EV2023_decoded.csv", decoded),
+        ("EV2023_enriched.csv", enriched),
+    ]:
+        result = pl.read_csv(
+            out / name, separator=";", infer_schema_length=0, encoding="utf8"
+        )
         assert "naam_school" in result.columns
         assert result.width == expected.width
         # Header names changed, so compare column by column in order.
@@ -1731,3 +2181,147 @@ def test_decoded_and_enriched_keep_non_latin1_chars_after_snake_case(tmp_path, d
     enriched_text = (out / "EV2023_enriched.csv").read_text(encoding="utf-8")
     assert "Actief €" in enriched_text
     assert "Inactief–oud" in enriched_text
+
+
+# ---------------------------------------------------------------------------
+# diplomajaar_code: the diploma year as an integer next to its label (#233)
+# ---------------------------------------------------------------------------
+
+_DIPLOMAJAAR_META = [
+    {"name": "Diplomajaar", "values": {"0000": "geen examen geregistreerd"}},
+    {"name": "Geslacht", "values": {"M": "man", "V": "vrouw"}},
+]
+
+
+def _decode_diplomajaar(tmp_path, dec_metadata_json, df, var_meta=None, **kwargs):
+    vm_path = tmp_path / "variable_metadata.json"
+    vm_path.write_text(json.dumps(var_meta or _DIPLOMAJAAR_META), encoding="utf-8")
+    return decode_fields(
+        df, dec_metadata_json, {}, variable_metadata_path=str(vm_path), **kwargs
+    )
+
+
+def test_diplomajaar_code_keeps_the_year_as_integer_next_to_the_label(
+    tmp_path, dec_metadata_json
+):
+    df = pl.DataFrame(
+        {
+            "Geslacht": ["M", "V", "M", "V"],
+            "Diplomajaar": ["0000", "2023", "0099", " 2021 "],
+            "Inschrijvingsjaar": ["2020", "2021", "2022", "2023"],
+        }
+    )
+
+    result = _decode_diplomajaar(tmp_path, dec_metadata_json, df)
+
+    assert result.columns == [
+        "Geslacht",
+        "Diplomajaar",
+        "diplomajaar_code",
+        "Inschrijvingsjaar",
+    ]
+    assert result["Diplomajaar"].to_list() == [
+        "geen examen geregistreerd",
+        "2023",
+        "0099",
+        "2021",
+    ]
+    assert result["diplomajaar_code"].to_list() == [0, 2023, 99, 2021]
+    assert result["diplomajaar_code"].dtype == pl.Int64
+    assert result["Geslacht"].to_list() == ["man", "vrouw", "man", "vrouw"]
+    assert result["Inschrijvingsjaar"].to_list() == ["2020", "2021", "2022", "2023"]
+
+
+def test_diplomajaar_code_is_null_for_empty_and_non_numeric_values(
+    tmp_path, dec_metadata_json
+):
+    df = pl.DataFrame({"Diplomajaar": [None, "", "   ", "abcd", "20x3", "2023"]})
+
+    result = _decode_diplomajaar(tmp_path, dec_metadata_json, df)
+
+    assert result["diplomajaar_code"].to_list() == [None, None, None, None, None, 2023]
+
+
+def test_diplomajaar_code_round_trips_as_integer_through_csv(
+    tmp_path, dec_metadata_json
+):
+    df = pl.DataFrame({"Diplomajaar": ["0000", "2023", ""]})
+    result = _decode_diplomajaar(tmp_path, dec_metadata_json, df)
+    path = tmp_path / "EV_enriched.csv"
+    path.write_text(result.write_csv(separator=";"), encoding="utf-8")
+
+    read = pl.read_csv(path, separator=";")
+
+    assert read["diplomajaar_code"].dtype in (pl.Int64, pl.Int32)
+    assert read["diplomajaar_code"].to_list() == [0, 2023, None]
+    assert read["Diplomajaar"].to_list() == ["geen examen geregistreerd", "2023", ""]
+
+
+def test_decoded_output_has_no_diplomajaar_code(tmp_path, dec_metadata_json):
+    df = pl.DataFrame({"Diplomajaar": ["0000", "2023"]})
+
+    decoded = decode_fields_dec_only(df, dec_metadata_json, {})
+    enriched = _decode_diplomajaar(tmp_path, dec_metadata_json, df)
+
+    assert "diplomajaar_code" not in decoded.columns
+    assert not enriched.equals(decoded)
+
+
+def test_diplomajaar_code_follows_enrich_variables(tmp_path, dec_metadata_json):
+    df = pl.DataFrame({"Geslacht": ["M"], "Diplomajaar": ["0000"]})
+
+    without = _decode_diplomajaar(
+        tmp_path, dec_metadata_json, df, enrich_variables=["Geslacht"]
+    )
+    with_it = _decode_diplomajaar(
+        tmp_path, dec_metadata_json, df, enrich_variables=["Diplomajaar"]
+    )
+
+    assert without.columns == ["Geslacht", "Diplomajaar"]
+    assert without["Diplomajaar"].to_list() == ["0000"]
+    assert with_it.columns == ["Geslacht", "Diplomajaar", "diplomajaar_code"]
+
+
+def test_no_diplomajaar_code_when_the_mapping_is_withheld(tmp_path, dec_metadata_json):
+    from eencijferho.core.decoder import MAX_LABEL_LENGTH
+
+    meta = [{"name": "Diplomajaar", "values": {"0000": "x" * (MAX_LABEL_LENGTH + 1)}}]
+    df = pl.DataFrame({"Diplomajaar": ["0000", "2023"]})
+
+    result = _decode_diplomajaar(tmp_path, dec_metadata_json, df, var_meta=meta)
+
+    assert result.columns == ["Diplomajaar"]
+    assert result["Diplomajaar"].to_list() == ["0000", "2023"]
+
+
+def test_no_diplomajaar_code_without_a_diplomajaar_column(tmp_path, dec_metadata_json):
+    df = pl.DataFrame({"Geslacht": ["M"]})
+
+    result = _decode_diplomajaar(tmp_path, dec_metadata_json, df)
+
+    assert result.columns == ["Geslacht"]
+
+
+def test_existing_diplomajaar_code_column_is_not_overwritten(
+    tmp_path, dec_metadata_json
+):
+    df = pl.DataFrame({"Diplomajaar": ["0000"], "diplomajaar_code": ["eigen waarde"]})
+
+    result = _decode_diplomajaar(tmp_path, dec_metadata_json, df)
+
+    assert result.columns == ["Diplomajaar", "diplomajaar_code"]
+    assert result["Diplomajaar"].to_list() == ["geen examen geregistreerd"]
+    assert result["diplomajaar_code"].to_list() == ["eigen waarde"]
+
+
+def test_decode_log_names_the_diplomajaar_code_column(tmp_path, dec_metadata_json):
+    report = DecodeReport()
+    report.begin_file("EV2023.csv")
+    df = pl.DataFrame({"Diplomajaar": ["0000", "2023"]})
+
+    _decode_diplomajaar(tmp_path, dec_metadata_json, df, report=report)
+
+    details = report.to_dict()["details"][0]
+    (entry,) = [m for m in details["variable_mappings"] if m["column"] == "Diplomajaar"]
+    assert entry["code_column"] == "diplomajaar_code"
+    assert details["errors"] == []
