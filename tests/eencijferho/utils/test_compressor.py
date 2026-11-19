@@ -95,3 +95,25 @@ def test_compressor_output_matches_the_source_csv(tmp_path, make_csv):
     assert parquet.columns == csv.columns
     for col in csv.columns:
         assert parquet[col].to_list() == csv[col].to_list(), col
+
+
+def test_compressor_writes_diplomajaar_code_of_enriched_as_integer(tmp_path, make_csv):
+    """#233: the integer code column of _enriched stays an integer in Parquet."""
+    make_csv(
+        tmp_path / "EV2023_enriched.csv",
+        [
+            {
+                "diplomajaar": "geen examen geregistreerd",
+                "diplomajaar_code": "0",
+                "bsn": "000000012",
+            },
+            {"diplomajaar": "2023", "diplomajaar_code": "2023", "bsn": "000000048"},
+            {"diplomajaar": "", "diplomajaar_code": "", "bsn": "000000063"},
+        ],
+    )
+    convert_csv_to_parquet(str(tmp_path))
+    df = pl.read_parquet(tmp_path / "EV2023_enriched.parquet")
+    assert df["diplomajaar_code"].dtype == pl.Int64
+    assert df["diplomajaar_code"].to_list() == [0, 2023, None]
+    assert df["diplomajaar"].dtype == pl.String
+    assert df["bsn"].to_list() == ["000000012", "000000048", "000000063"]

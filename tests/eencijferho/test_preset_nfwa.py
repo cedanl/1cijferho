@@ -84,3 +84,10 @@ def test_nfwa_preset_keeps_the_other_diploma_years_as_years(tmp_path):
         "0000",
         "2021",
     ]
+
+
+def test_nfwa_preset_adds_no_diploma_year_code_column(tmp_path):
+    # NFWA does not enrich "Diplomajaar", so it gets no integer code column (#233).
+    result = _decode_with_nfwa_preset(tmp_path)
+
+    assert not any(c.lower().endswith("_code") for c in result.columns)

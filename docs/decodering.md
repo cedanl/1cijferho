@@ -79,6 +79,7 @@ elkaar bevatten. Welke kolommen dat zijn, staat in het decodeerlog
 | `unmapped_rows` | Aantal gevulde rijen dat de code hield, omdat de lijst er geen label voor heeft. Een lege waarde zonder `[leeg]`-sleutel telt mee. |
 | `unmapped_distinct`, `sample` | Aantal verschillende niet-gemapte waarden en hooguit 5 voorbeelden. Nooit voorbeelden uit BSN-, PGN- of onderwijsnummerkolommen (`sample_withheld`). |
 | `skip_reason`, `skipped_rows` | Alleen als de mapping niet is toegepast: de reden (`labels_too_long`) en het aantal rijen dat zijn code hield. |
+| `code_column` | Alleen bij `Diplomajaar`: de naam van de toegevoegde kolom met het jaar als getal (`diplomajaar_code`, zie [Diplomajaar als getal](#diplomajaar-als-getal-diplomajaar_code)). |
 
 In `summary` telt `total_unmapped_rows` de niet-gemapte rijen van alle kolommen
 op en `variable_mappings_skipped` het aantal niet-toegepaste mappings. De console
@@ -137,6 +138,36 @@ dezelfde omschrijving als gemeentenaam. Die staan in aparte kolommen naast de
 postcodekolom.
 
 **Issue:** #207
+
+### Diplomajaar als getal (`diplomajaar_code`)
+
+`Diplomajaar` heeft in `variable_metadata` alleen een label voor `0000` ("geen
+examen geregistreerd"). In `_enriched` staat in die kolom dus het label of het
+jaar als tekst, en daar kan niet mee gerekend worden. Daarom krijgt `_enriched`
+direct na `Diplomajaar` de kolom `diplomajaar_code` met het jaar als geheel
+getal:
+
+| `Diplomajaar` in het bronbestand | `Diplomajaar` in `_enriched` | `diplomajaar_code` |
+|---|---|---|
+| `0000` | geen examen geregistreerd | `0` |
+| `2023` | 2023 | `2023` |
+| `0099` | 0099 | `99` |
+| leeg of geen getal | (ongewijzigd) | leeg (null) |
+
+De kolom heet `diplomajaar_code`, met en zonder snake_case-kolomnamen. In
+Parquet is hij `Int64` (de andere kolommen blijven `String`); een CSV-lezer met
+type-inferentie leest hem als geheel getal. `_decoded` krijgt deze kolom niet.
+Elk bestand met een kolom `Diplomajaar` (EV, en ook VAKHAVW) krijgt daardoor
+altijd een `_enriched`, ook als de labels verder niets veranderen.
+
+De kolom komt er alleen als de `Diplomajaar`-mapping wordt toegepast: niet als
+`enrich_variables` `Diplomajaar` uitsluit (bijvoorbeeld de NFWA-preset), niet als
+de mapping wordt overgeslagen (`labels_too_long`) en niet als het bestand al een
+kolom `diplomajaar_code` heeft. De andere diplomajaarkolommen
+(`Diplomajaar hoogste vooropleiding` en de `Diplomajaar van de hoogste vooropl. …`-kolommen)
+krijgen geen codekolom.
+
+**Issue:** #233
 
 ## Namen koppelen
 

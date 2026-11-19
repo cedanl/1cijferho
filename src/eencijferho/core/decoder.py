@@ -1193,6 +1193,19 @@ def _apply_vakken(
     )
 
 
+# Variables whose label replaces a number that consumers compute with. Next to
+# the label column, _enriched keeps that number as an integer column named
+# ``<column>_code`` (#233): the diploma year 0000 becomes a label, and
+# diplomajaar_code keeps the integer 0.
+CODE_COLUMN_VARIABLES: tuple[str, ...] = ("Diplomajaar",)
+CODE_COLUMN_SUFFIX = "_code"
+
+
+def _integer_code(column: str) -> pl.Expr:
+    """The value of ``column`` as an integer; null when empty or not a number."""
+    return pl.col(column).cast(pl.Utf8).str.strip_chars().cast(pl.Int64, strict=False)
+
+
 def _apply_variable_mappings(
     result_df: pl.DataFrame,
     variable_metadata_path: str | None,
@@ -1212,6 +1225,7 @@ def _apply_variable_mappings(
             whose name appears in this list (matched after normalization).
         report: Optional collector for the decode log.
     """
+    code_column_vars = {_canonical_name(v, naming_func) for v in CODE_COLUMN_VARIABLES}
     allowed_enrich: set[str] | None = None
     if enrich_variables is not None:
         allowed_enrich = {_canonical_name(v, naming_func) for v in enrich_variables}
@@ -1240,6 +1254,9 @@ def _apply_variable_mappings(
             )
             if chosen_col is None:
                 continue
+            code_col = None
+            if chosen_col == var_norm and var_norm in code_column_vars:
+                code_col = f"{chosen_col}{CODE_COLUMN_SUFFIX}"
             result_df = _apply_single_mapping(
                 result_df,
                 chosen_col,
@@ -1247,6 +1264,7 @@ def _apply_variable_mappings(
                 var_norm,
                 orig_name,
                 report=report,
+                code_column=code_col,
             )
     except Exception as e:
         print(f"[decoder] Fout bij toepassen variabele-mappings: {e}")
@@ -1345,11 +1363,18 @@ def _apply_single_mapping(
     var_norm: str,
     orig_name: str | None,
     report: DecodeReport | None = None,
+    code_column: str | None = None,
 ) -> pl.DataFrame:
     """Replace values in chosen_col using code→label mapping.
 
     Values without a label keep their code. A mapping with a label longer
     than MAX_LABEL_LENGTH is not applied at all.
+
+    Args:
+        code_column: When set and the mapping is applied, the codes of
+            chosen_col are kept as integers in a column of this name, placed
+            directly after chosen_col. An existing column of that name is
+            left alone.
     """
     try:
         longest = _longest_label(mapping)
@@ -1370,6 +1395,17 @@ def _apply_single_mapping(
                 )
             return result_df
 
+        if code_column is not None and code_column in result_df.columns:
+            print(
+                f"[decoder] '{chosen_col}': kolom '{code_column}' bestaat al, "
+                f"geen numerieke codekolom toegevoegd."
+            )
+            code_column = None
+        codes = (
+            result_df.select(_integer_code(chosen_col).alias(code_column)).to_series()
+            if code_column is not None
+            else None
+        )
         result_df = result_df.with_columns(
             pl.col(chosen_col).cast(pl.Utf8).str.strip_chars().alias(chosen_col)
         )
@@ -1439,6 +1475,14 @@ def _apply_single_mapping(
             result_df = result_df.with_columns(
                 pl.Series(mapped_vals).cast(pl.Utf8).alias(chosen_col)
             )
+        if codes is not None:
+            result_df = result_df.insert_column(
+                result_df.columns.index(chosen_col) + 1, codes
+            )
+            print(
+                f"[decoder] '{chosen_col}': codes als geheel getal in '{code_column}' "
+                f"({codes.null_count()} leeg of niet-numeriek)."
+            )
         personal_id = is_personal_id_column(chosen_col) or is_personal_id_column(
             orig_name
         )
@@ -1466,6 +1510,7 @@ def _apply_single_mapping(
                 int_fallback_seen,
                 unmapped_rows=unmapped_rows,
                 empty_label_choice=empty_label_choice,
+                code_column=code_column if codes is not None else None,
             )
     except Exception as e:
         print(f"[decoder] Fout bij mapping voor {var_norm}: {e}")

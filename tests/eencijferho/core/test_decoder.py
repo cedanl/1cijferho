@@ -2181,3 +2181,147 @@ def test_decoded_and_enriched_keep_non_latin1_chars_after_snake_case(
     enriched_text = (out / "EV2023_enriched.csv").read_text(encoding="utf-8")
     assert "Actief €" in enriched_text
     assert "Inactief–oud" in enriched_text
+
+
+# ---------------------------------------------------------------------------
+# diplomajaar_code: the diploma year as an integer next to its label (#233)
+# ---------------------------------------------------------------------------
+
+_DIPLOMAJAAR_META = [
+    {"name": "Diplomajaar", "values": {"0000": "geen examen geregistreerd"}},
+    {"name": "Geslacht", "values": {"M": "man", "V": "vrouw"}},
+]
+
+
+def _decode_diplomajaar(tmp_path, dec_metadata_json, df, var_meta=None, **kwargs):
+    vm_path = tmp_path / "variable_metadata.json"
+    vm_path.write_text(json.dumps(var_meta or _DIPLOMAJAAR_META), encoding="utf-8")
+    return decode_fields(
+        df, dec_metadata_json, {}, variable_metadata_path=str(vm_path), **kwargs
+    )
+
+
+def test_diplomajaar_code_keeps_the_year_as_integer_next_to_the_label(
+    tmp_path, dec_metadata_json
+):
+    df = pl.DataFrame(
+        {
+            "Geslacht": ["M", "V", "M", "V"],
+            "Diplomajaar": ["0000", "2023", "0099", " 2021 "],
+            "Inschrijvingsjaar": ["2020", "2021", "2022", "2023"],
+        }
+    )
+
+    result = _decode_diplomajaar(tmp_path, dec_metadata_json, df)
+
+    assert result.columns == [
+        "Geslacht",
+        "Diplomajaar",
+        "diplomajaar_code",
+        "Inschrijvingsjaar",
+    ]
+    assert result["Diplomajaar"].to_list() == [
+        "geen examen geregistreerd",
+        "2023",
+        "0099",
+        "2021",
+    ]
+    assert result["diplomajaar_code"].to_list() == [0, 2023, 99, 2021]
+    assert result["diplomajaar_code"].dtype == pl.Int64
+    assert result["Geslacht"].to_list() == ["man", "vrouw", "man", "vrouw"]
+    assert result["Inschrijvingsjaar"].to_list() == ["2020", "2021", "2022", "2023"]
+
+
+def test_diplomajaar_code_is_null_for_empty_and_non_numeric_values(
+    tmp_path, dec_metadata_json
+):
+    df = pl.DataFrame({"Diplomajaar": [None, "", "   ", "abcd", "20x3", "2023"]})
+
+    result = _decode_diplomajaar(tmp_path, dec_metadata_json, df)
+
+    assert result["diplomajaar_code"].to_list() == [None, None, None, None, None, 2023]
+
+
+def test_diplomajaar_code_round_trips_as_integer_through_csv(
+    tmp_path, dec_metadata_json
+):
+    df = pl.DataFrame({"Diplomajaar": ["0000", "2023", ""]})
+    result = _decode_diplomajaar(tmp_path, dec_metadata_json, df)
+    path = tmp_path / "EV_enriched.csv"
+    path.write_text(result.write_csv(separator=";"), encoding="utf-8")
+
+    read = pl.read_csv(path, separator=";")
+
+    assert read["diplomajaar_code"].dtype in (pl.Int64, pl.Int32)
+    assert read["diplomajaar_code"].to_list() == [0, 2023, None]
+    assert read["Diplomajaar"].to_list() == ["geen examen geregistreerd", "2023", ""]
+
+
+def test_decoded_output_has_no_diplomajaar_code(tmp_path, dec_metadata_json):
+    df = pl.DataFrame({"Diplomajaar": ["0000", "2023"]})
+
+    decoded = decode_fields_dec_only(df, dec_metadata_json, {})
+    enriched = _decode_diplomajaar(tmp_path, dec_metadata_json, df)
+
+    assert "diplomajaar_code" not in decoded.columns
+    assert not enriched.equals(decoded)
+
+
+def test_diplomajaar_code_follows_enrich_variables(tmp_path, dec_metadata_json):
+    df = pl.DataFrame({"Geslacht": ["M"], "Diplomajaar": ["0000"]})
+
+    without = _decode_diplomajaar(
+        tmp_path, dec_metadata_json, df, enrich_variables=["Geslacht"]
+    )
+    with_it = _decode_diplomajaar(
+        tmp_path, dec_metadata_json, df, enrich_variables=["Diplomajaar"]
+    )
+
+    assert without.columns == ["Geslacht", "Diplomajaar"]
+    assert without["Diplomajaar"].to_list() == ["0000"]
+    assert with_it.columns == ["Geslacht", "Diplomajaar", "diplomajaar_code"]
+
+
+def test_no_diplomajaar_code_when_the_mapping_is_withheld(tmp_path, dec_metadata_json):
+    from eencijferho.core.decoder import MAX_LABEL_LENGTH
+
+    meta = [{"name": "Diplomajaar", "values": {"0000": "x" * (MAX_LABEL_LENGTH + 1)}}]
+    df = pl.DataFrame({"Diplomajaar": ["0000", "2023"]})
+
+    result = _decode_diplomajaar(tmp_path, dec_metadata_json, df, var_meta=meta)
+
+    assert result.columns == ["Diplomajaar"]
+    assert result["Diplomajaar"].to_list() == ["0000", "2023"]
+
+
+def test_no_diplomajaar_code_without_a_diplomajaar_column(tmp_path, dec_metadata_json):
+    df = pl.DataFrame({"Geslacht": ["M"]})
+
+    result = _decode_diplomajaar(tmp_path, dec_metadata_json, df)
+
+    assert result.columns == ["Geslacht"]
+
+
+def test_existing_diplomajaar_code_column_is_not_overwritten(
+    tmp_path, dec_metadata_json
+):
+    df = pl.DataFrame({"Diplomajaar": ["0000"], "diplomajaar_code": ["eigen waarde"]})
+
+    result = _decode_diplomajaar(tmp_path, dec_metadata_json, df)
+
+    assert result.columns == ["Diplomajaar", "diplomajaar_code"]
+    assert result["Diplomajaar"].to_list() == ["geen examen geregistreerd"]
+    assert result["diplomajaar_code"].to_list() == ["eigen waarde"]
+
+
+def test_decode_log_names_the_diplomajaar_code_column(tmp_path, dec_metadata_json):
+    report = DecodeReport()
+    report.begin_file("EV2023.csv")
+    df = pl.DataFrame({"Diplomajaar": ["0000", "2023"]})
+
+    _decode_diplomajaar(tmp_path, dec_metadata_json, df, report=report)
+
+    details = report.to_dict()["details"][0]
+    (entry,) = [m for m in details["variable_mappings"] if m["column"] == "Diplomajaar"]
+    assert entry["code_column"] == "diplomajaar_code"
+    assert details["errors"] == []

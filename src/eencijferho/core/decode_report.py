@@ -274,6 +274,7 @@ class DecodeReport:
         *,
         unmapped_rows: int,
         empty_label_choice: dict[str, Any] | None = None,
+        code_column: str | None = None,
     ) -> None:
         """Record one applied variable_metadata mapping.
 
@@ -283,6 +284,8 @@ class DecodeReport:
             empty_label_choice: set when several ``leeg`` keys with different
                 labels competed for the empty value: the chosen key and all
                 candidate keys (metadata, never row data).
+            code_column: name of the integer column added next to the label
+                column, which keeps the codes (e.g. ``diplomajaar_code``).
         """
         column = self._name(column_norm)
         withhold = is_personal_id_column(column)
@@ -304,6 +307,8 @@ class DecodeReport:
             entry["sample_withheld"] = "personal_identifier"
         if empty_label_choice:
             entry["empty_label_choice"] = empty_label_choice
+        if code_column:
+            entry["code_column"] = code_column
         self._file().mappings[(column, variable)] = entry
         if mapped > 0:
             self.record_decoded(column_norm, "variable_metadata")
