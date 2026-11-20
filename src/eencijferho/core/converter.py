@@ -14,6 +14,7 @@ Public API:
 
 import sys
 import os
+import logging
 import multiprocessing as mp
 import datetime
 import re
@@ -24,8 +25,10 @@ from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeEl
 from eencijferho.config import INPUT_DIR, OUTPUT_DIR, DECODER_INPUT_DIR
 from eencijferho.io.decorators import with_storage
 from eencijferho.core.dec_layouts import INFERRED_LAYOUT_NOTE, SUPPLEMENTARY_LAYOUT_FILENAME
+from eencijferho.utils.run_log import log_failed
 
 _console = Console()
+logger = logging.getLogger(__name__)
 
 
 class MatchLogNotCompletedError(RuntimeError):
@@ -237,8 +240,11 @@ def _read_match_log(storage, match_log_file: str) -> dict | None:
         return None
     try:
         data = storage.read_json(match_log_file)
-    except Exception as e:
-        _console.print(f"[red]Fout bij laden match log: {e}")
+    except Exception as e:  # catch-all: any storage backend or JSON error; nothing is converted
+        log_failed(
+            logger, "match_log_load", e, file=match_log_file, show_message=True,
+            detail="Fout bij laden match log",
+        )
         return None
     if not isinstance(data, dict) or not isinstance(data.get("processed_files"), list):
         _console.print("[red]Fout bij laden match log: processed_files ontbreekt")
@@ -269,7 +275,11 @@ def _single_layout(valid_matches: list[dict], metadata_folder: str) -> str | Non
             _load_metadata(os.path.join(metadata_folder, m["validation_file"]))
             for m in valid_matches
         ]
-    except Exception:  # noqa: BLE001 - an unreadable layout is no single layout
+    except Exception as e:  # catch-all: an unreadable layout is no single layout
+        log_failed(
+            logger, "layout_load", e, show_message=True,
+            detail="Bestandsbeschrijving niet leesbaar; geen eenduidige layout",
+        )
         return None
     if all(layout == layouts[0] for layout in layouts[1:]):
         return valid_matches[0]["validation_file"]
@@ -327,9 +337,15 @@ def _convert_one(
         result["status"] = "success"
         result["output_file"] = output_file
         result["total_lines"] = total_lines
-    except Exception as e:
+    except Exception as e:  # catch-all: one failed file is reported in the conversion log, not fatal
+        # Runs in the parent process (only the chunks go to the pool), so the
+        # handlers of the run log are there.
         result["status"] = "failed"
         result["reason"] = f"Fout tijdens omzetting: {e}"
+        log_failed(
+            logger, "convert", e, file=input_file_name, show_message=True,
+            detail=f"{input_file_name}: fout tijdens omzetting",
+        )
 
     return result
 
@@ -547,8 +563,11 @@ def convert_dec_files(
         try:
             converter(dec_filepath, meta_file, output_folder)
             print(f"[converter] Omgezet: {dec_file}")
-        except Exception as e:
-            print(f"[converter] Waarschuwing: kon {dec_file} niet omzetten: {e}")
+        except Exception as e:  # catch-all: one Dec file that cannot be converted must not stop the others
+            log_failed(
+                logger, "convert_dec", e, file=dec_file, show_message=True,
+                detail=f"[converter] Waarschuwing: kon {dec_file} niet omzetten",
+            )
 
 
 if __name__ == "__main__":

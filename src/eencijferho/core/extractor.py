@@ -23,6 +23,7 @@ Public API:
 
 import os
 import json
+import logging
 import re
 import datetime
 
@@ -39,8 +40,10 @@ from .dec_layouts import (
 from .parse_metadata import parse_metadata_file
 from eencijferho.io.decorators import with_storage
 from eencijferho.io.text_encoding import DescriptionEncodingError, read_description_text
+from eencijferho.utils.run_log import log_failed, log_unexpected
 
 _console = Console()
+logger = logging.getLogger(__name__)
 
 # Constants for table extraction
 MAX_LOOKAHEAD_LINES_FOR_DECODING_SECTION = (
@@ -125,8 +128,11 @@ def _read_description(storage, path: str) -> str | None:
         return read_description_text(storage, path)
     except DescriptionEncodingError:
         raise
-    except Exception as e:
-        print(f"Error reading {path}: {e}")
+    except Exception as e:  # catch-all: any storage backend error; the file yields no tables
+        log_failed(
+            logger, "description_read", e, file=path, show_message=True,
+            detail=f"Error reading {path}",
+        )
         return None
 
 
@@ -449,8 +455,11 @@ def write_variable_metadata(
                     seen_names.add(name)
         except DescriptionEncodingError:
             raise
-        except Exception as e:
-            _console.print(f"[red]Parser failed for {txt_file}: {e}")
+        except Exception as e:  # catch-all: one unparsable description must not stop the others
+            log_failed(
+                logger, "variable_metadata_parse", e, file=txt_file, show_message=True,
+                detail=f"Parser failed for {txt_file}",
+            )
 
     if all_vars:
         storage.write_json(all_vars, output_path)
@@ -567,15 +576,9 @@ def _build_table_rows(
             )
             continue
         field_name, start_pos, aantal_pos, comment = parsed
-        try:
-            rows.append([row_id, field_name, start_pos, aantal_pos, comment])
-            row_id += 1
-            valid_content_lines += 1
-        except Exception as e:
-            _console.print(
-                f"[red]Row creation error: {e} | field_name={field_name}, "
-                f"start_pos={start_pos}, aantal_pos={aantal_pos}, comment={comment}"
-            )
+        rows.append([row_id, field_name, start_pos, aantal_pos, comment])
+        row_id += 1
+        valid_content_lines += 1
 
     return rows, valid_content_lines
 
@@ -657,10 +660,16 @@ def extract_excel_from_json(
     try:
         data = storage.read_json(json_file)
     except json.JSONDecodeError as e:
-        _console.print(f"[red]Error decoding JSON: {e}")
+        log_failed(
+            logger, "json_load", e, file=json_file, show_message=True,
+            detail=f"Error decoding JSON {json_file}",
+        )
         return [], 0, 0
-    except Exception as e:
-        _console.print(f"[red]Error opening file: {e}")
+    except Exception as e:  # catch-all: any storage backend error; the file yields no Excel files
+        log_failed(
+            logger, "json_load", e, file=json_file, show_message=True,
+            detail=f"Error opening file {json_file}",
+        )
         return [], 0, 0
 
     base_filename = data.get(
@@ -758,13 +767,20 @@ def extract_excel_from_json(
                     "File may be open in another program (e.g. Excel)"
                 )
                 results.append(table_result)
-            except Exception as e:
+            except Exception as e:  # catch-all: one table that cannot be written must not stop the others
+                log_failed(
+                    logger, "excel_write", e, file=output_filename, show_message=True,
+                    detail=f"Error writing table {table_title}",
+                )
                 table_result["status"] = "Error"
                 table_result["notes"] = f"Error: {str(e)}"
                 results.append(table_result)
 
-    except Exception as e:
-        _console.print(f"[red]Error during processing: {str(e)}")
+    except Exception as e:  # catch-all: keep the tables written so far and report them
+        log_unexpected(
+            logger, "excel_extract", e, file=json_file, show_message=True,
+            detail=f"Error during processing of {json_file}",
+        )
         return results, files_created, total_tables
 
     return results, files_created, total_tables

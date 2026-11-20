@@ -13,6 +13,7 @@ Functions:
     [M] validate_metadata_folder(metadata_folder="data/00-metadata", return_dict=False) -> Main function
         - Validates all Excel files in a metadata_folder and returns a summary
 """
+import logging
 import polars as pl
 from rich.console import Console
 import os
@@ -21,6 +22,9 @@ from pathlib import Path
 from typing import Any
 
 from eencijferho.io.decorators import with_storage
+from eencijferho.utils.run_log import log_failed
+
+logger = logging.getLogger(__name__)
 
 
 # Check column lenght in extractor with json
@@ -69,7 +73,11 @@ def validate_metadata(storage, file_path: str | Path) -> tuple[bool, dict[str, A
     try:
         df = storage.read_dataframe(str(file_path), format="excel", columns=[0, 1, 2, 3])
 
-    except Exception as e:
+    except Exception as e:  # catch-all: any Excel reader or storage error; reported as load_error
+        log_failed(
+            logger, "layout_validation", e, file=str(file_path), show_message=True,
+            detail=f"Could not load {os.path.basename(str(file_path))}",
+        )
         issues_dict["load_error"] = str(e)
         issues_dict["total_issues"] += 1
         return False, issues_dict

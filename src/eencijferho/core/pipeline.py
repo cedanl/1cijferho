@@ -2,6 +2,7 @@
 Modular pipeline orchestrator: conversion → decoding → validation → BSN translation (opt.) → header normalization → compression.
 """
 
+import logging
 import os
 from eencijferho.config import OutputConfig, DECODED_SUFFIX, ENRICHED_SUFFIX
 import polars as pl
@@ -15,6 +16,9 @@ from collections.abc import Callable
 from typing import Any
 
 from eencijferho.io.decorators import with_storage
+from eencijferho.utils.run_log import log_failed
+
+logger = logging.getLogger(__name__)
 
 
 def _is_main_csv_file(filename: str) -> bool:
@@ -70,7 +74,11 @@ def _collect_output_files(storage, output_dir: str) -> list[dict[str, Any]]:
         filename = os.path.basename(filepath)
         try:
             size = len(storage.read_bytes(filepath))
-        except Exception:
+        except Exception as e:  # catch-all: any storage backend error; the file is listed with size 0
+            log_failed(
+                logger, "output_size", e, file=filename,
+                detail=f"[pipeline] Grootte van {filename} niet te bepalen, 0 KB getoond",
+            )
             size = 0
 
         output_files.append({

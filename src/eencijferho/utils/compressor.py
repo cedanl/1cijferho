@@ -1,3 +1,4 @@
+import logging
 import os
 
 import polars as pl
@@ -8,6 +9,9 @@ from eencijferho.config import ENRICHED_SUFFIX
 from eencijferho.core.decoder import CODE_COLUMN_SUFFIX, CODE_COLUMN_VARIABLES
 from eencijferho.io.decorators import with_storage
 from eencijferho.utils.converter_headers import normalize_name
+from eencijferho.utils.run_log import log_failed
+
+logger = logging.getLogger(__name__)
 
 # Integer columns the decoder adds to _enriched next to a label column (#233).
 # Every other column stays a String (see below).
@@ -53,7 +57,8 @@ def convert_csv_to_parquet(storage, input_dir: str | None = None) -> None:
                 df = _cast_integer_code_columns(df)
             storage.write_dataframe(df, parquet_file, format="parquet")
             console.print(f"[green]✓[/] {filename}")
-        except Exception as e:
-            console.print(f"[bold red]✗[/] {filename}: {e!s}")
+        except Exception as e:  # catch-all: one file that cannot be compressed must not stop the others
+            # A CSV read error can quote cell values: report the type only.
+            log_failed(logger, "parquet", e, file=filename, detail=f"✗ {filename}")
 
     console.print("[bold green]Conversion completed![/]")

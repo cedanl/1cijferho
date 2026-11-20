@@ -1,3 +1,4 @@
+import logging
 import os
 import polars as pl
 import re
@@ -5,6 +6,9 @@ import unicodedata
 from rich.console import Console
 from collections.abc import Callable
 from eencijferho.io.decorators import with_storage
+from eencijferho.utils.run_log import log_failed
+
+logger = logging.getLogger(__name__)
 
 def normalize_name(name: str, naming_func: Callable[[str], str] | None = None) -> str:
     """
@@ -110,7 +114,7 @@ def convert_csv_headers_to_snake_case(
                     infer_schema_length=infer_schema_length,
                     truncate_ragged_lines=True,
                 )
-            except Exception:
+            except pl.exceptions.PolarsError:
                 df = storage.read_dataframe(
                     filepath, format="csv",
                     encoding=encoding,
@@ -140,9 +144,13 @@ def convert_csv_headers_to_snake_case(
 
             console.print("  [green]✓ Updated successfully[/green]\n")
 
-        except Exception as e:
-            console.print(f"  [red]✗ Error processing {fname}: {e}[/red]\n")
-            failed_files.append((fname, str(e)))
+        except Exception as e:  # catch-all: one file that cannot be renamed must not stop the others
+            # A CSV read error can quote cell values: report the type only.
+            log_failed(
+                logger, "snake_case_headers", e, file=fname,
+                detail=f"  ✗ Error processing {fname}",
+            )
+            failed_files.append((fname, type(e).__name__))
 
     # Summary
     console.print("[bold green]Conversion complete![/bold green]")
