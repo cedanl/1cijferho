@@ -12,6 +12,7 @@ en dit project volgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Parquet-kolomnamen identiek aan CSV** (#219): Parquet krijgt dezelfde kolomnamen en kolomvolgorde als de CSV (standaard snake_case); voorheen had Parquet de kale DUO-namen.
 
 ### Added
+- **Diplomajaar als getal in `_enriched`** (#233): `_enriched` krijgt direct na `Diplomajaar` de kolom `diplomajaar_code` met het jaar als geheel getal (`0000` → `0`, leeg of geen getal → leeg). `Diplomajaar` zelf houdt het label "geen examen geregistreerd", zodat Staat van de Onderwijsinstelling weer met het diplomajaar kan rekenen. In Parquet is deze kolom `Int64`; `_decoded` verandert niet. **Let op:** de kolommen na `Diplomajaar` schuiven één positie op, en elk bestand met een kolom `Diplomajaar` krijgt nu altijd een `_enriched`, ook VAKHAVW (in de DEMO-data komt `VAKHAVW_99XX_DEMO_enriched` erbij). Zie [Decodering](docs/decodering.md#diplomajaar-als-getal-diplomajaar_code).
 - `--fail-on-empty-output` flag voor pipeline en convert commands (#230)
 - Decodeerlog `(7)_decoding_log_latest.json` naast de bestaande logs, en `--strict` flag voor pipeline en convert (#210)
 - `--layout-year JJJJ` voor `validate` en `pipeline`: forceer de bestandsbeschrijving van een jaar voor EV- en VAKHAVW-bestanden, met een waarschuwing in console en koppelingslog (#198)

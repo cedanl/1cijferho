@@ -1,13 +1,11 @@
-import json
 import logging
 import os
 import re as _re
+from collections.abc import Callable
+from typing import Any
 
 import polars as pl
 
-from eencijferho.utils.converter_headers import clean_header_name, normalize_name, strip_accents
-from eencijferho.utils.run_log import log_failed, log_skipped, log_unexpected
-from eencijferho.io.decorators import with_storage
 from eencijferho.core.dec_layouts import supplementary_tables
 from eencijferho.core.decode_report import (
     DEC_TABLE_NOT_LOADED,
@@ -17,8 +15,13 @@ from eencijferho.core.decode_report import (
     DecodeReport,
     is_personal_id_column,
 )
-from collections.abc import Callable
-from typing import Any
+from eencijferho.io.decorators import with_storage
+from eencijferho.utils.converter_headers import (
+    clean_header_name,
+    normalize_name,
+    strip_accents,
+)
+from eencijferho.utils.run_log import log_failed, log_skipped, log_unexpected
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +41,12 @@ def _report_file(report: DecodeReport | None) -> str | None:
 # "vóór" arrives with each accented letter replaced by U+FFFD, either as the
 # character itself or as its UTF-8 bytes read as Latin-1 ("ï¿½").
 _NAME_REPAIRS: tuple[tuple[_re.Pattern[str], str], ...] = (
-    (_re.compile(r"\b([vV])(?:\ufffd\ufffd|\u00ef\u00bf\u00bd\u00ef\u00bf\u00bd)r\b"), r"\1óór"),
+    (
+        _re.compile(
+            r"\b([vV])(?:\ufffd\ufffd|\u00ef\u00bf\u00bd\u00ef\u00bf\u00bd)r\b"
+        ),
+        r"\1óór",
+    ),
 )
 
 
@@ -142,7 +150,9 @@ def load_variable_mappings(
     if variable_metadata_path:
         candidates.append(variable_metadata_path)
     candidates.append(
-        os.path.join(os.getcwd(), "data", "00-metadata", "json", "variable_metadata.json")
+        os.path.join(
+            os.getcwd(), "data", "00-metadata", "json", "variable_metadata.json"
+        )
     )
     path = next((p for p in candidates if storage.exists(p)), None)
     if path is None:
@@ -269,7 +279,9 @@ def load_dec_tables_from_metadata(
 
     dec_tables: dict[str, pl.DataFrame] = {}
     for table in meta["tables"]:
-        dec_path = os.path.join(dec_output_dir, table["table_title"].replace(".asc", ".csv"))
+        dec_path = os.path.join(
+            dec_output_dir, table["table_title"].replace(".asc", ".csv")
+        )
         df = _read_dec_csv(storage, dec_path)
         if df is not None:
             dec_tables[table["table_title"]] = df
@@ -299,7 +311,9 @@ def find_vakken_metadata_json(storage, json_dir: str) -> str | None:
     """Path of the Bestandsbeschrijving_Vakkenbestanden*.json in json_dir, or None."""
     if not json_dir:
         return None
-    matches = sorted(storage.list_files(f"{json_dir}/Bestandsbeschrijving_Vakkenbestanden*.json"))
+    matches = sorted(
+        storage.list_files(f"{json_dir}/Bestandsbeschrijving_Vakkenbestanden*.json")
+    )
     return matches[0] if matches else None
 
 
@@ -323,7 +337,6 @@ def _normalize_df(
         (norm_df, norm_map, orig_columns)
         norm_map maps normalized_name → original_name.
     """
-
 
     orig_columns = list(df.columns)
     norm_map = {normalize_name(col, naming_func): col for col in orig_columns}
@@ -384,8 +397,7 @@ def _key_width(meta_width: int | None, *columns: pl.Series) -> int | None:
     if meta_width:
         return meta_width
     maxima = [
-        col.cast(pl.Utf8).str.strip_chars().str.len_chars().max()
-        for col in columns
+        col.cast(pl.Utf8).str.strip_chars().str.len_chars().max() for col in columns
     ]
     lengths = [n for n in maxima if isinstance(n, int) and n]
     return max(lengths) if lengths else None
@@ -454,12 +466,9 @@ def _keyed_lookup(
         right_keys.append(_join_key(pl.col(dec_col), width).alias(key))
 
     left = result_df.select(left_keys)
-    right = (
-        join_df.select(
-            right_keys + [pl.col(c).alias(n) for c, n in zip(dec_cols, label_cols)]
-        )
-        .drop_nulls(subset=key_cols)
-    )
+    right = join_df.select(
+        right_keys + [pl.col(c).alias(n) for c, n in zip(dec_cols, label_cols)]
+    ).drop_nulls(subset=key_cols)
     if require_unique:
         # Uniqueness is checked on the whole key only. In Dec_vest_ho and
         # Dec_vestnr_ho_compleet the institution code alone repeats (in the
@@ -468,13 +477,13 @@ def _keyed_lookup(
         # leading-zero artefact; the pair (instellingscode, vestigingsnummer)
         # is unique, also after zero-padding.
         dupes = (
-            right.group_by(key_cols, maintain_order=True).len()
+            right.group_by(key_cols, maintain_order=True)
+            .len()
             .filter(pl.col("len") > 1)
         )
         if dupes.height:
             sample = [
-                "|".join(row)
-                for row in dupes.select(key_cols).head(5).iter_rows()
+                "|".join(row) for row in dupes.select(key_cols).head(5).iter_rows()
             ]
             raise DuplicateDecKeyError(
                 f"Dubbele sleutels in Dec-tabel voor {log_name}: "
@@ -529,21 +538,27 @@ def _apply_single_dec_join(
                 # TypeError: what join_df[None] raised here before.
                 raise TypeError("samengestelde sleutel zonder tweede codekolom")
             dec_cols = [
-                c for c in join_df.columns
-                if c != code_col_norm and c != code_col2_norm
+                c for c in join_df.columns if c != code_col_norm and c != code_col2_norm
             ]
             pairs = [
                 (anchor, code_col_norm, code_width),
                 (var_norm, code_col2_norm, code2_width),
             ]
-            log_name = f"{var_norm} ({dec_table_title})" if dec_table_title else var_norm
+            log_name = (
+                f"{var_norm} ({dec_table_title})" if dec_table_title else var_norm
+            )
         else:
             dec_cols = [c for c in join_df.columns if c != code_col_norm]
             pairs = [(var_norm, code_col_norm, code_width)]
             log_name = var_norm
 
         joined, label_cols = _keyed_lookup(
-            result_df, join_df, pairs, dec_cols, log_name, require_unique=is_composite,
+            result_df,
+            join_df,
+            pairs,
+            dec_cols,
+            log_name,
+            require_unique=is_composite,
         )
 
         result_df = result_df.with_columns(
@@ -617,7 +632,9 @@ def _apply_dec_tables(
                     v_norm = _canonical_name(v, naming_func)
                     if v_norm not in allowed:
                         report.record_skip(v_norm, NOT_IN_DECODE_SCOPE)
-            dec_vars = [v for v in dec_vars if _canonical_name(v, naming_func) in allowed]
+            dec_vars = [
+                v for v in dec_vars if _canonical_name(v, naming_func) in allowed
+            ]
         if not dec_vars:
             continue
 
@@ -626,7 +643,8 @@ def _apply_dec_tables(
                 report.record_dec_table_not_loaded(table["table_title"], "not_loaded")
                 for v in dec_vars:
                     report.record_skip(
-                        normalize_name(strip_accents(v), naming_func), DEC_TABLE_NOT_LOADED
+                        normalize_name(strip_accents(v), naming_func),
+                        DEC_TABLE_NOT_LOADED,
                     )
             continue
 
@@ -636,12 +654,18 @@ def _apply_dec_tables(
 
         # Special column-name fallbacks for known Dec tables
         title_lower = table["table_title"].lower()
-        if title_lower.startswith("dec_landcode") and code_col_norm not in join_df.columns:
+        if (
+            title_lower.startswith("dec_landcode")
+            and code_col_norm not in join_df.columns
+        ):
             if "code_land" in join_df.columns:
                 code_col_norm = "code_land"
             else:
                 continue
-        if title_lower.startswith("dec_nationaliteitscode") and code_col_norm not in join_df.columns:
+        if (
+            title_lower.startswith("dec_nationaliteitscode")
+            and code_col_norm not in join_df.columns
+        ):
             if "code_nationaliteit" in join_df.columns:
                 code_col_norm = "code_nationaliteit"
             else:
@@ -663,8 +687,15 @@ def _apply_dec_tables(
         source = _COMPOSITE_DEC_SOURCES.get(title_lower)
         if source is not None:
             result_df = _apply_composite_source(
-                result_df, join_df, table, dec_vars[0], source, code_col_norm,
-                code_col2_norm, naming_func, report=report,
+                result_df,
+                join_df,
+                table,
+                dec_vars[0],
+                source,
+                code_col_norm,
+                code_col2_norm,
+                naming_func,
+                report=report,
             )
             continue
 
@@ -673,16 +704,25 @@ def _apply_dec_tables(
             if var_norm not in result_df.columns:
                 layout_col = _layout_column(var, result_df.columns, naming_func)
                 if layout_col is None:
-                    print(f"[decoder] Sla '{var}' over — kolom '{var_norm}' niet gevonden in DataFrame.")
+                    print(
+                        f"[decoder] Sla '{var}' over — kolom '{var_norm}' niet gevonden in DataFrame."
+                    )
                     if report is not None:
                         report.record_not_found(var, table["table_title"])
                     continue
-                print(f"[decoder] '{var}' heet in het databestand '{layout_col}' (vaste naamtabel).")
+                print(
+                    f"[decoder] '{var}' heet in het databestand '{layout_col}' (vaste naamtabel)."
+                )
                 var_norm = layout_col
 
             result_df = _apply_single_dec_join(
-                result_df, join_df, var_norm, code_col_norm,
-                is_composite, code_col2_norm, naming_func,
+                result_df,
+                join_df,
+                var_norm,
+                code_col_norm,
+                is_composite,
+                code_col2_norm,
+                naming_func,
                 code_width=_code_width(content[1]),
                 code2_width=_code_width(content[2]) if is_composite else None,
                 report=report,
@@ -715,12 +755,15 @@ def _apply_composite_source(
     anchor_col, var_norm = (_canonical_name(c, naming_func) for c in source)
 
     missing = [
-        (raw, col) for raw, col in zip(source, (anchor_col, var_norm))
+        (raw, col)
+        for raw, col in zip(source, (anchor_col, var_norm))
         if col not in result_df.columns
     ]
     if missing:
         names = [col for _, col in missing]
-        print(f"[decoder] Sla '{dec_var}' over — kolom(men) {names} niet gevonden in DataFrame.")
+        print(
+            f"[decoder] Sla '{dec_var}' over — kolom(men) {names} niet gevonden in DataFrame."
+        )
         if report is not None:
             for raw, _ in missing:
                 report.record_not_found(raw, title)
@@ -742,8 +785,13 @@ def _apply_composite_source(
         return result_df
 
     return _apply_single_dec_join(
-        result_df, join_df, var_norm, code_col_norm,
-        True, code_col2_norm, naming_func,
+        result_df,
+        join_df,
+        var_norm,
+        code_col_norm,
+        True,
+        code_col2_norm,
+        naming_func,
         code_width=_code_width(content[1]),
         code2_width=_code_width(content[2]),
         report=report,
@@ -781,12 +829,14 @@ def _parse_layout_rows(content: list[str]) -> list[dict[str, Any]]:
         m = _LAYOUT_ROW_RE.match(line)
         if not m:
             continue
-        rows.append({
-            "name": m.group("name").strip(),
-            "start": int(m.group("start")),
-            "width": int(m.group("width")),
-            "remark": (m.group("remark") or "").strip(),
-        })
+        rows.append(
+            {
+                "name": m.group("name").strip(),
+                "start": int(m.group("start")),
+                "width": int(m.group("width")),
+                "remark": (m.group("remark") or "").strip(),
+            }
+        )
     return rows
 
 
@@ -833,7 +883,9 @@ def parse_vakken_layout(
         reference, dec_table = _parse_vakken_opmerking(row["remark"])
         partner = None
         if reference:
-            partner = _resolve_field_reference(reference, names, row["name"], naming_func)
+            partner = _resolve_field_reference(
+                reference, names, row["name"], naming_func
+            )
             if partner is None:
                 print(
                     f"[decoder][vakken] Samengesteld veld '{reference}' bij "
@@ -893,8 +945,7 @@ def _apply_vakken_layout(
             continue
         fields = parse_vakken_layout(content, naming_func)
         decode_cols = {
-            _canonical_name(f["name"], naming_func)
-            for f in fields if f["dec_table"]
+            _canonical_name(f["name"], naming_func) for f in fields if f["dec_table"]
         }
         if not decode_cols & set(result_df.columns):
             continue  # not a Vakken file (e.g. EV): nothing to decode here
@@ -922,19 +973,33 @@ def _apply_vakken_layout(
             if not dec_rows:
                 print(f"[decoder][vakken] Geen lay-out voor {dec_table_title}")
                 continue
-            dec_code_col_norm = normalize_name(strip_accents(dec_rows[0]["name"]), naming_func)
+            dec_code_col_norm = normalize_name(
+                strip_accents(dec_rows[0]["name"]), naming_func
+            )
             join_df = _normalize_dec_table(dec_table, dec_code_col_norm, naming_func)
 
             if field["composite"]:
                 result_df = _apply_vakken_composite(
-                    result_df, join_df, var_norm, field["composite"],
-                    dec_code_col_norm, dec_content, dec_table_title, naming_func,
+                    result_df,
+                    join_df,
+                    var_norm,
+                    field["composite"],
+                    dec_code_col_norm,
+                    dec_content,
+                    dec_table_title,
+                    naming_func,
                     report=report,
                 )
             else:
                 result_df = _apply_vakken_simple(
-                    result_df, join_df, var_norm, dec_code_col_norm,
-                    field["name"], dec_table_title, dec_content, report=report,
+                    result_df,
+                    join_df,
+                    var_norm,
+                    dec_code_col_norm,
+                    field["name"],
+                    dec_table_title,
+                    dec_content,
+                    report=report,
                 )
 
     return result_df
@@ -951,7 +1016,8 @@ def _parse_vakken_opmerking(opm: str) -> tuple[str | None, str | None]:
     if "in combinatie met" in opm_lower and "te decoderen met dec_" in opm_lower:
         m = _re.search(
             r"in combinatie met (.+?) te decoderen met (Dec_[\w-]+)\.asc",
-            opm, _re.IGNORECASE,
+            opm,
+            _re.IGNORECASE,
         )
         if m:
             return m.group(1).strip(), m.group(2) + ".asc"
@@ -978,17 +1044,27 @@ def _apply_vakken_simple(
     left as it is.
     """
     if var_norm not in result_df.columns:
-        print(f"[decoder][vakken] Sla '{naam}' over — kolom '{var_norm}' niet gevonden in DataFrame.")
+        print(
+            f"[decoder][vakken] Sla '{naam}' over — kolom '{var_norm}' niet gevonden in DataFrame."
+        )
         if report is not None:
             report.record_not_found(naam, dec_table_title)
         return result_df
 
     try:
         dec_cols = [c for c in join_df.columns if c != dec_code_col_norm]
-        width = _code_width(dec_content[1]) if dec_content and len(dec_content) > 1 else None
+        width = (
+            _code_width(dec_content[1])
+            if dec_content and len(dec_content) > 1
+            else None
+        )
         joined, label_cols = _keyed_lookup(
-            result_df, join_df, [(var_norm, dec_code_col_norm, width)],
-            dec_cols, naam, log_prefix="[decoder][vakken]",
+            result_df,
+            join_df,
+            [(var_norm, dec_code_col_norm, width)],
+            dec_cols,
+            naam,
+            log_prefix="[decoder][vakken]",
         )
         result_df = result_df.with_columns(
             joined[label].alias(f"{var_norm}__{col}")
@@ -999,7 +1075,9 @@ def _apply_vakken_simple(
                 pl.col(var_norm).is_not_null() & joined[label_cols[0]].is_null()
             )
             if unmatched.height > 0:
-                print(f"[decoder][vakken] Niet-gematcht voor {naam}: {unmatched[var_norm].unique().to_list()[:5]}")
+                print(
+                    f"[decoder][vakken] Niet-gematcht voor {naam}: {unmatched[var_norm].unique().to_list()[:5]}"
+                )
                 if report is not None:
                     report.record_unmatched([var_norm], dec_table_title, unmatched)
         elif report is not None:
@@ -1039,18 +1117,24 @@ def _apply_vakken_composite(
     """
     composite_norm = _canonical_name(composite, naming_func)
     if len(dec_content) <= 2:
-        print(f"[decoder][vakken] Geen tweede sleutelkolom voor samengestelde join in {dec_table_title}")
+        print(
+            f"[decoder][vakken] Geen tweede sleutelkolom voor samengestelde join in {dec_table_title}"
+        )
         return result_df
 
     dec_rows = _parse_layout_rows(dec_content)
     if len(dec_rows) >= 2:
-        dec_code_col2_norm = normalize_name(strip_accents(dec_rows[1]["name"]), naming_func)
+        dec_code_col2_norm = normalize_name(
+            strip_accents(dec_rows[1]["name"]), naming_func
+        )
     else:
         dec_code_col2_norm = normalize_name(dec_content[2].split()[0], naming_func)
 
     for col in [var_norm, composite_norm]:
         if col not in result_df.columns:
-            print(f"[decoder][vakken] Sla {var_norm} over (samengesteld) — kolom '{col}' niet gevonden in DataFrame.")
+            print(
+                f"[decoder][vakken] Sla {var_norm} over (samengesteld) — kolom '{col}' niet gevonden in DataFrame."
+            )
             if report is not None:
                 report.record_not_found(col, dec_table_title)
             return result_df
@@ -1059,7 +1143,9 @@ def _apply_vakken_composite(
         return data_col == key_col or data_col.startswith(key_col + "_")
 
     first_width, second_width = _code_width(dec_content[1]), _code_width(dec_content[2])
-    if _belongs(composite_norm, dec_code_col_norm) and not _belongs(var_norm, dec_code_col_norm):
+    if _belongs(composite_norm, dec_code_col_norm) and not _belongs(
+        var_norm, dec_code_col_norm
+    ):
         pairs = [
             (composite_norm, dec_code_col_norm, first_width),
             (var_norm, dec_code_col2_norm, second_width),
@@ -1071,12 +1157,18 @@ def _apply_vakken_composite(
         ]
     try:
         dec_cols = [
-            c for c in join_df.columns
+            c
+            for c in join_df.columns
             if c not in (dec_code_col_norm, dec_code_col2_norm)
         ]
         joined, label_cols = _keyed_lookup(
-            result_df, join_df, pairs, dec_cols, f"{var_norm} ({dec_table_title})",
-            log_prefix="[decoder][vakken]", require_unique=True,
+            result_df,
+            join_df,
+            pairs,
+            dec_cols,
+            f"{var_norm} ({dec_table_title})",
+            log_prefix="[decoder][vakken]",
+            require_unique=True,
         )
         result_df = result_df.with_columns(
             joined[label].alias(f"{var_norm}__{col}")
@@ -1089,13 +1181,17 @@ def _apply_vakken_composite(
                 & joined[label_cols[0]].is_null()
             )
             if unmatched.height > 0:
-                pairs = list(zip(
-                    unmatched[var_norm].unique().to_list()[:5],
-                    unmatched[composite_norm].unique().to_list()[:5],
-                ))
+                pairs = list(
+                    zip(
+                        unmatched[var_norm].unique().to_list()[:5],
+                        unmatched[composite_norm].unique().to_list()[:5],
+                    )
+                )
                 print(f"[decoder][vakken] Niet-gematchte samengestelde codes: {pairs}")
                 if report is not None:
-                    report.record_unmatched([composite_norm, var_norm], dec_table_title, unmatched)
+                    report.record_unmatched(
+                        [composite_norm, var_norm], dec_table_title, unmatched
+                    )
         elif report is not None:
             report.record_skip(var_norm, NO_LABEL_COLUMNS)
     except Exception as e:  # catch-all: one failed join leaves the column undecoded, not the run
@@ -1124,9 +1220,27 @@ def _apply_vakken(
     vakken_meta = _load_meta(vakken_metadata_json)
     dec_layouts = build_dec_layouts(dec_meta, vakken_meta)
     return _apply_vakken_layout(
-        result_df, vakken_meta, dec_layouts, dec_tables, naming_func, decode_columns,
+        result_df,
+        vakken_meta,
+        dec_layouts,
+        dec_tables,
+        naming_func,
+        decode_columns,
         report=report,
     )
+
+
+# Variables whose label replaces a number that consumers compute with. Next to
+# the label column, _enriched keeps that number as an integer column named
+# ``<column>_code`` (#233): the diploma year 0000 becomes a label, and
+# diplomajaar_code keeps the integer 0.
+CODE_COLUMN_VARIABLES: tuple[str, ...] = ("Diplomajaar",)
+CODE_COLUMN_SUFFIX = "_code"
+
+
+def _integer_code(column: str) -> pl.Expr:
+    """The value of ``column`` as an integer; null when empty or not a number."""
+    return pl.col(column).cast(pl.Utf8).str.strip_chars().cast(pl.Int64, strict=False)
 
 
 def _apply_variable_mappings(
@@ -1148,12 +1262,15 @@ def _apply_variable_mappings(
             whose name appears in this list (matched after normalization).
         report: Optional collector for the decode log.
     """
+    code_column_vars = {_canonical_name(v, naming_func) for v in CODE_COLUMN_VARIABLES}
     allowed_enrich: set[str] | None = None
     if enrich_variables is not None:
         allowed_enrich = {_canonical_name(v, naming_func) for v in enrich_variables}
 
     try:
-        var_maps = load_variable_mappings(variable_metadata_path, naming_func=naming_func)
+        var_maps = load_variable_mappings(
+            variable_metadata_path, naming_func=naming_func
+        )
         if not var_maps:
             return result_df
         if allowed_enrich is not None:
@@ -1165,13 +1282,26 @@ def _apply_variable_mappings(
             mapping = info.get("mapping") if isinstance(info, dict) else info
             orig_name = info.get("orig_name") if isinstance(info, dict) else None
             chosen_col = _resolve_mapping_column(
-                var_norm, orig_name, result_df, norm_map, naming_func,
+                var_norm,
+                orig_name,
+                result_df,
+                norm_map,
+                naming_func,
                 report=report,
             )
             if chosen_col is None:
                 continue
+            code_col = None
+            if chosen_col == var_norm and var_norm in code_column_vars:
+                code_col = f"{chosen_col}{CODE_COLUMN_SUFFIX}"
             result_df = _apply_single_mapping(
-                result_df, chosen_col, mapping, var_norm, orig_name, report=report,
+                result_df,
+                chosen_col,
+                mapping,
+                var_norm,
+                orig_name,
+                report=report,
+                code_column=code_col,
             )
     except Exception as e:  # catch-all: per-column errors are handled in _apply_single_mapping
         log_unexpected(
@@ -1201,7 +1331,10 @@ def _resolve_mapping_column(
 
     matches = []
     for col, orig in norm_map.items():
-        if col in result_df.columns and normalize_name(clean_header_name(orig), naming_func) == var_norm:
+        if (
+            col in result_df.columns
+            and normalize_name(clean_header_name(orig), naming_func) == var_norm
+        ):
             matches.append(col)
 
     if len(matches) == 1:
@@ -1221,7 +1354,9 @@ def _resolve_mapping_column(
         )
         return layout_col
 
-    print(f"[decoder] Mapping voor '{var_norm}' (orig: '{orig_name}') — kolom niet gevonden.")
+    print(
+        f"[decoder] Mapping voor '{var_norm}' (orig: '{orig_name}') — kolom niet gevonden."
+    )
     if report is not None:
         report.record_not_found(orig_name or var_norm, "variable_metadata")
     return None
@@ -1246,7 +1381,9 @@ def _empty_label(mapping: dict) -> tuple[Any, str | None, list[str]]:
         ``(label, chosen key, candidate keys)``; label and key are None when
         the mapping has no leeg key.
     """
-    candidates = sorted(k for k in mapping if isinstance(k, str) and "leeg" in k.lower())
+    candidates = sorted(
+        k for k in mapping if isinstance(k, str) and "leeg" in k.lower()
+    )
     exact = [k for k in candidates if k.strip().lower() == "[leeg]"]
     ordered = exact + [k for k in candidates if k not in exact]
     for key in ordered:
@@ -1266,11 +1403,18 @@ def _apply_single_mapping(
     var_norm: str,
     orig_name: str | None,
     report: DecodeReport | None = None,
+    code_column: str | None = None,
 ) -> pl.DataFrame:
     """Replace values in chosen_col using code→label mapping.
 
     Values without a label keep their code. A mapping with a label longer
     than MAX_LABEL_LENGTH is not applied at all.
+
+    Args:
+        code_column: When set and the mapping is applied, the codes of
+            chosen_col are kept as integers in a column of this name, placed
+            directly after chosen_col. An existing column of that name is
+            left alone.
     """
     try:
         longest = _longest_label(mapping)
@@ -1283,10 +1427,25 @@ def _apply_single_mapping(
             )
             if report is not None:
                 report.record_withheld_mapping(
-                    chosen_col, orig_name or var_norm, LABELS_TOO_LONG, rows, longest,
+                    chosen_col,
+                    orig_name or var_norm,
+                    LABELS_TOO_LONG,
+                    rows,
+                    longest,
                 )
             return result_df
 
+        if code_column is not None and code_column in result_df.columns:
+            print(
+                f"[decoder] '{chosen_col}': kolom '{code_column}' bestaat al, "
+                f"geen numerieke codekolom toegevoegd."
+            )
+            code_column = None
+        codes = (
+            result_df.select(_integer_code(chosen_col).alias(code_column)).to_series()
+            if code_column is not None
+            else None
+        )
         result_df = result_df.with_columns(
             pl.col(chosen_col).cast(pl.Utf8).str.strip_chars().alias(chosen_col)
         )
@@ -1295,7 +1454,10 @@ def _apply_single_mapping(
         empty_label, empty_key, empty_candidates = _empty_label(mapping)
         empty_label_choice = None
         if len({str(mapping[k]) for k in empty_candidates}) > 1:
-            empty_label_choice = {"chosen_key": empty_key, "candidate_keys": empty_candidates}
+            empty_label_choice = {
+                "chosen_key": empty_key,
+                "candidate_keys": empty_candidates,
+            }
             print(
                 f"[decoder] '{chosen_col}': meerdere sleutels voor een lege waarde "
                 f"{empty_candidates}, gekozen: '{empty_key}'"
@@ -1357,8 +1519,20 @@ def _apply_single_mapping(
             result_df = result_df.with_columns(
                 pl.Series(mapped_vals).cast(pl.Utf8).alias(chosen_col)
             )
-        personal_id = is_personal_id_column(chosen_col) or is_personal_id_column(orig_name)
-        examples = "(voorbeelden weggelaten)" if personal_id else sorted(unmapped_seen)[:5]
+        if codes is not None:
+            result_df = result_df.insert_column(
+                result_df.columns.index(chosen_col) + 1, codes
+            )
+            print(
+                f"[decoder] '{chosen_col}': codes als geheel getal in '{code_column}' "
+                f"({codes.null_count()} leeg of niet-numeriek)."
+            )
+        personal_id = is_personal_id_column(chosen_col) or is_personal_id_column(
+            orig_name
+        )
+        examples = (
+            "(voorbeelden weggelaten)" if personal_id else sorted(unmapped_seen)[:5]
+        )
         print(
             f"[decoder] '{chosen_col}' (orig: '{orig_name}'): "
             f"{mapped_count}/{total_non_null} gemapt, {unmapped_rows} rij(en) niet-gemapt "
@@ -1371,9 +1545,16 @@ def _apply_single_mapping(
             )
         if report is not None:
             report.record_mapping(
-                chosen_col, orig_name or var_norm, mapped_count, total_non_null, unmapped_seen,
-                int_fallback_count, int_fallback_seen,
-                unmapped_rows=unmapped_rows, empty_label_choice=empty_label_choice,
+                chosen_col,
+                orig_name or var_norm,
+                mapped_count,
+                total_non_null,
+                unmapped_seen,
+                int_fallback_count,
+                int_fallback_seen,
+                unmapped_rows=unmapped_rows,
+                empty_label_choice=empty_label_choice,
+                code_column=code_column if codes is not None else None,
             )
     except Exception as e:  # catch-all: one failed mapping leaves the column unmapped, not the run
         log_failed(
@@ -1426,14 +1607,23 @@ def decode_fields_dec_only(
     norm_df, norm_map, orig_columns = _normalize_df(df, naming_func)
     if report is not None:
         report.start_pass(norm_map, orig_columns)
-    result_df = _apply_dec_tables(norm_df, meta, dec_tables, naming_func, decode_columns, report=report)
+    result_df = _apply_dec_tables(
+        norm_df, meta, dec_tables, naming_func, decode_columns, report=report
+    )
     result_df = _apply_vakken(
-        result_df, meta, vakken_metadata_json, dec_tables, naming_func, decode_columns,
+        result_df,
+        meta,
+        vakken_metadata_json,
+        dec_tables,
+        naming_func,
+        decode_columns,
         report=report,
     )
     if report is not None:
         report.record_coverage(norm_df.columns, result_df.columns)
-    return result_df.rename({k: v for k, v in norm_map.items() if k in result_df.columns})
+    return result_df.rename(
+        {k: v for k, v in norm_map.items() if k in result_df.columns}
+    )
 
 
 def decode_fields(
@@ -1479,15 +1669,29 @@ def decode_fields(
     norm_df, norm_map, orig_columns = _normalize_df(df, naming_func)
     if report is not None:
         report.start_pass(norm_map, orig_columns)
-    result_df = _apply_dec_tables(norm_df, meta, dec_tables, naming_func, decode_columns, report=report)
+    result_df = _apply_dec_tables(
+        norm_df, meta, dec_tables, naming_func, decode_columns, report=report
+    )
     result_df = _apply_vakken(
-        result_df, meta, vakken_metadata_json, dec_tables, naming_func, decode_columns,
+        result_df,
+        meta,
+        vakken_metadata_json,
+        dec_tables,
+        naming_func,
+        decode_columns,
         report=report,
     )
     if report is not None:
         report.record_coverage(norm_df.columns, result_df.columns)
     result_df = _apply_variable_mappings(
-        result_df, variable_metadata_path, naming_func, norm_map, orig_columns, enrich_variables,
+        result_df,
+        variable_metadata_path,
+        naming_func,
+        norm_map,
+        orig_columns,
+        enrich_variables,
         report=report,
     )
-    return result_df.rename({k: v for k, v in norm_map.items() if k in result_df.columns})
+    return result_df.rename(
+        {k: v for k, v in norm_map.items() if k in result_df.columns}
+    )

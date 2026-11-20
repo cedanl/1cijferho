@@ -108,7 +108,9 @@ class _FileEntry:
             # Variables named in the metadata but absent from this file: usually
             # variables of another file type, so grouped and compact.
             "variables_not_found_count": sum(len(v) for v in self.not_found.values()),
-            "variables_not_found": {k: sorted(self.not_found[k]) for k in sorted(self.not_found)},
+            "variables_not_found": {
+                k: sorted(self.not_found[k]) for k in sorted(self.not_found)
+            },
             "errors": [self.errors[k] for k in sorted(self.errors)],
         }
 
@@ -194,7 +196,9 @@ class DecodeReport:
             "reason": reason,
         }
 
-    def record_variable_metadata(self, path: str | None, status: str, mappings: int) -> None:
+    def record_variable_metadata(
+        self, path: str | None, status: str, mappings: int
+    ) -> None:
         self.variable_metadata = {
             "file": os.path.basename(path) if path else None,
             "status": status,
@@ -275,6 +279,7 @@ class DecodeReport:
         *,
         unmapped_rows: int,
         empty_label_choice: dict[str, Any] | None = None,
+        code_column: str | None = None,
     ) -> None:
         """Record one applied variable_metadata mapping.
 
@@ -284,6 +289,8 @@ class DecodeReport:
             empty_label_choice: set when several ``leeg`` keys with different
                 labels competed for the empty value: the chosen key and all
                 candidate keys (metadata, never row data).
+            code_column: name of the integer column added next to the label
+                column, which keeps the codes (e.g. ``diplomajaar_code``).
         """
         column = self._name(column_norm)
         withhold = is_personal_id_column(column)
@@ -305,6 +312,8 @@ class DecodeReport:
             entry["sample_withheld"] = "personal_identifier"
         if empty_label_choice:
             entry["empty_label_choice"] = empty_label_choice
+        if code_column:
+            entry["code_column"] = code_column
         self._file().mappings[(column, variable)] = entry
         if mapped > 0:
             self.record_decoded(column_norm, "variable_metadata")
@@ -361,7 +370,9 @@ class DecodeReport:
             "step": step,
             "error_type": type(error).__name__,
         }
-        self.record_skip(column_norm, MAPPING_ERROR if step == "variable_mapping" else JOIN_ERROR)
+        self.record_skip(
+            column_norm, MAPPING_ERROR if step == "variable_mapping" else JOIN_ERROR
+        )
 
     # -- output -------------------------------------------------------------
 
@@ -375,9 +386,13 @@ class DecodeReport:
             "columns_decoded": sum(len(d["columns_decoded"]) for d in details),
             "columns_not_decoded": sum(len(d["columns_not_decoded"]) for d in details),
             "dec_tables_not_loaded": len(self._not_loaded),
-            "total_unmatched_distinct_codes": sum(u["distinct_codes"] for u in unmatched),
+            "total_unmatched_distinct_codes": sum(
+                u["distinct_codes"] for u in unmatched
+            ),
             "total_unmatched_rows": sum(u["rows_unmatched"] for u in unmatched),
-            "total_unmapped_distinct_values": sum(m["unmapped_distinct"] for m in mappings),
+            "total_unmapped_distinct_values": sum(
+                m["unmapped_distinct"] for m in mappings
+            ),
             "total_unmapped_rows": sum(m["unmapped_rows"] for m in mappings),
             "variable_mappings_skipped": sum(1 for m in mappings if "skip_reason" in m),
             "total_int_fallback_rows": sum(m["int_fallback_rows"] for m in mappings),
@@ -397,7 +412,9 @@ class DecodeReport:
         """
         violations = []
         if summary["dec_tables_not_loaded"]:
-            violations.append(f"{summary['dec_tables_not_loaded']} Dec-tabel(len) niet geladen")
+            violations.append(
+                f"{summary['dec_tables_not_loaded']} Dec-tabel(len) niet geladen"
+            )
         if summary["total_unmatched_distinct_codes"]:
             violations.append(
                 f"{summary['total_unmatched_distinct_codes']} niet-gematchte code(s) in Dec-tabellen"
@@ -417,7 +434,9 @@ class DecodeReport:
             "variable_metadata": self.variable_metadata,
             "dec_tables_total": self.dec_tables_total,
             "dec_tables_loaded": self.dec_tables_loaded,
-            "dec_tables_not_loaded": [self._not_loaded[k] for k in sorted(self._not_loaded)],
+            "dec_tables_not_loaded": [
+                self._not_loaded[k] for k in sorted(self._not_loaded)
+            ],
             "total_files": len(details),
             "details": details,
             "summary": self.summary(),
@@ -427,7 +446,9 @@ class DecodeReport:
         """Write the timestamped and the ``(7)`` latest log; return the latest path."""
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         data = self.to_dict(timestamp)
-        storage.write_json(data, os.path.join(logs_dir, f"{DECODING_LOG_PREFIX}{timestamp}.json"))
+        storage.write_json(
+            data, os.path.join(logs_dir, f"{DECODING_LOG_PREFIX}{timestamp}.json")
+        )
         latest = os.path.join(logs_dir, DECODING_LOG_LATEST)
         storage.write_json(data, latest)
         self.log_path = latest
