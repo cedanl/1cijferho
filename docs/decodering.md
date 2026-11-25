@@ -225,5 +225,5 @@ in `details`), in de console en in het log van Turbo Convert. Bij
 
 ## Zie Ook
 
-- [CHANGELOG.md](../CHANGELOG.md) — Versiegeschiedenis
+- [CHANGELOG.md](https://github.com/cedanl/1cijferho/blob/main/CHANGELOG.md) — Versiegeschiedenis
 - Issues: #204, #205, #207, #199

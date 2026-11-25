@@ -15,6 +15,9 @@ Alle commando's vereisen:
 |-------|-------------|
 | `--input PATH` | Map met invoerbestanden (`data/01-input`) |
 | `--output PATH` | Map voor uitvoerbestanden (`data/02-output`) |
+| `--debug` | Toon de volledige traceback van afgevangen fouten, op de console en in het runlog. Standaard staat er één leesbare regel per probleem. |
+
+Elk commando schrijft een runlog, `metadata/logs/(8)_run_log_latest.log` in de uitvoermap (alleen op de lokale schijf), met wat is overgeslagen, mislukt of onverwacht was.
 
 ---
 
@@ -98,6 +101,8 @@ eencijferho convert --input data/01-input --output data/02-output [opties]
 | `--decode-columns KOLOM ...` | Alleen opgegeven kolommen decoderen |
 | `--enrich-variables VAR ...` | Alleen opgegeven variabelen verrijken |
 | `--bsn-mapping-file PAD` | Koppelbestand (CSV/Parquet) om een lokaal studentnummer toe te voegen aan EV/VAKHAVW-bestanden. Verwacht kolommen `burgerservicenummer` en `studentnummer`. Voor afwijkende kolomnamen: gebruik de [Python API](api/index.md) (`OutputConfig`). |
+| `--preset NAAM` | Laad een vooraf gedefinieerde configuratie (`nfwa` of `evaluatietool`). Overschrijft alle andere uitvoeropties. Alleen bij `convert` en `pipeline`. |
+| `--fail-on-empty-output` | Exit-code 1 als er geen uitvoerbestanden worden geleverd (standaard: exit-code 0). |
 | `--strict` | Exit-code 1 als het decodeerlog niet-geladen Dec-tabellen of niet-gematchte Dec-codes bevat. Log en outputbestanden worden eerst geschreven. |
 
 ---

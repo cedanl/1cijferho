@@ -1,25 +1,29 @@
+# Zensical heeft geen `gh-deploy`: publiceren gaat via GitHub Pages met bron "GitHub Actions"
+# (Settings > Pages > Source).
 name: Docs
 
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
 
-      - name: Install docs dependencies
-        run: uv sync --extra docs
-
-      - name: Build and deploy docs
-        run: uv run mkdocs gh-deploy --force
+      - name: Build docs (strict)
+        # zensical staat vastgepind in de docs-extra van pyproject.toml
+        run: uv run --extra docs zensical build --strict --clean

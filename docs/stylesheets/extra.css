@@ -1,0 +1,358 @@
+/* ==========================================================================
+   CEDA Ontwikkelaarshandboek — Npuls Huisstijl
+   Bron: .claude/skills/vormgever-npuls-huisstijl/references/design-tokens.json
+   Alle voorgrond/achtergrond-paren volgen allowed_combinations & WCAG AA/AAA.
+   npuls-zwart (#000000) wordt uitsluitend voor typografie/lijnen gebruikt,
+   nooit als achtergrondkleur.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+:root,
+[data-md-color-scheme="default"] {
+  /* Primaire Npuls-kleuren */
+  --npuls-oranje: #DD784B;
+  --npuls-zwart: #000000;
+  --npuls-roze: #F4D9DC;
+  --npuls-blauw: #3D68EC;
+  --npuls-geel: #F4D74B;
+  --npuls-groen: #00AF81;
+  --npuls-wit: #FFFFFF;
+
+  /* Secundaire ondersteunende pasteltinten */
+  --npuls-licht-groen: #CCEEE6;
+  --npuls-licht-blauw: #D6E2FD;
+  --npuls-licht-roze: #FAEAEA;
+  --npuls-licht-oranje: #FFE4D8;
+  --npuls-licht-geel: #FCF5D4;
+
+  /* Neutraal (alleen tekst, randen, codevlakken) */
+  --npuls-grijs-50: #F7F7F8;
+  --npuls-grijs-100: #ECECEE;
+  --npuls-grijs-200: #DCDCE0;
+  --npuls-grijs-600: #5C5C66;
+  --npuls-grijs-800: #2B2B31;
+
+  /* Typografie */
+  --npuls-font-primary: 'General Sans', 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --npuls-font-secondary: 'Cooper Light', 'Cooper Lt BT', Georgia, 'Times New Roman', serif;
+  --md-text-font-family: var(--npuls-font-primary);
+  --md-code-font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* Schaal: ruimte, afronding en schaduw */
+  --npuls-space-xs: 4px;
+  --npuls-space-sm: 8px;
+  --npuls-space-md: 16px;
+  --npuls-space-lg: 24px;
+  --npuls-space-xl: 32px;
+  --npuls-space-2xl: 48px;
+  --npuls-radius-sm: 6px;
+  --npuls-radius-md: 12px;
+  --npuls-radius-lg: 20px;
+  --npuls-radius-xl: 32px;
+  --npuls-radius-pill: 9999px;
+  --npuls-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --npuls-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --npuls-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
+
+  /* MkDocs Material thema-koppeling:
+     npuls-roze (#F4D9DC) met npuls-zwart (#000000) tekst -> 15.81:1 (WCAG AAA) */
+  --md-primary-fg-color: var(--npuls-roze);
+  --md-primary-fg-color--light: var(--npuls-licht-roze);
+  --md-primary-fg-color--dark: #eabec3;
+  --md-primary-bg-color: var(--npuls-zwart);
+  --md-primary-bg-color--light: var(--npuls-grijs-800);
+
+  --md-accent-fg-color: var(--npuls-blauw);
+  --md-accent-fg-color--transparent: rgba(61, 104, 236, 0.12);
+  --md-typeset-color: var(--npuls-zwart);
+  --md-typeset-a-color: var(--npuls-blauw);
+  --md-code-bg-color: var(--npuls-grijs-50);
+}
+
+/* --------------------------------------------------------------------------
+   Header & Top-level Navigatie (npuls-roze + npuls-zwart, nooit zwart vlak)
+   -------------------------------------------------------------------------- */
+.md-header {
+  background-color: var(--npuls-roze);
+  color: var(--npuls-zwart);
+  box-shadow: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.md-header__title,
+.md-header__button,
+.md-source {
+  color: var(--npuls-zwart) !important;
+}
+
+.md-header__button.md-logo {
+  padding: 0.2rem;
+  margin-right: 0.35rem;
+}
+
+.md-header__button.md-logo img {
+  height: 2rem;
+  width: 2rem;
+  border-radius: var(--npuls-radius-sm);
+  display: block;
+}
+
+.md-header__topic .md-ellipsis {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Zoekbalk als heldere witte pil op npuls-roze */
+.md-search__form {
+  background-color: var(--npuls-wit);
+  border-radius: var(--npuls-radius-pill);
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  height: 2rem;
+}
+
+.md-search__form:hover {
+  background-color: var(--npuls-wit);
+  border-color: var(--npuls-blauw);
+}
+
+.md-search__input {
+  color: var(--npuls-zwart) !important;
+  font-size: 0.82rem;
+}
+
+.md-search__input::placeholder,
+.md-search__icon {
+  color: var(--npuls-grijs-600) !important;
+}
+
+/* Navigatie-tabbalk */
+.md-tabs {
+  background-color: var(--npuls-roze);
+  color: var(--npuls-zwart);
+  border-bottom: 2px solid var(--npuls-oranje);
+}
+
+.md-tabs__list {
+  gap: 0.15rem;
+  align-items: center;
+}
+
+.md-tabs__item {
+  display: flex;
+  align-items: center;
+  height: 2.6rem;
+  padding-left: 0.15rem;
+  padding-right: 0.15rem;
+}
+
+.md-tabs__link {
+  color: var(--npuls-zwart) !important;
+  font-weight: 600;
+  font-size: 0.78rem;
+  opacity: 0.85;
+  padding: 0.35rem 0.8rem;
+  margin-top: 0;
+  border-radius: var(--npuls-radius-pill);
+  transition: background-color 0.16s ease, opacity 0.16s ease;
+}
+
+.md-tabs__link:hover,
+.md-tabs__link:focus-visible {
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.65);
+}
+
+/* Actieve tab: npuls-oranje (#DD784B) met npuls-zwart (#000000) -> 6.86:1 AA */
+.md-tabs__item--active .md-tabs__link,
+.md-tabs__link--active {
+  opacity: 1;
+  background-color: var(--npuls-oranje) !important;
+  color: var(--npuls-zwart) !important;
+  font-weight: 700;
+}
+
+/* --------------------------------------------------------------------------
+   Zijbalk-navigatie, Kruimelpad & Algemene Typografie
+   -------------------------------------------------------------------------- */
+.md-nav__title {
+  color: var(--npuls-zwart);
+  font-weight: 700;
+}
+
+.md-nav__link {
+  border-radius: var(--npuls-radius-sm);
+  padding: 0.25rem 0.5rem;
+  color: var(--npuls-grijs-800);
+}
+
+.md-nav__link:hover {
+  color: var(--npuls-blauw) !important;
+  background-color: var(--npuls-licht-blauw);
+}
+
+.md-nav__link--active,
+.md-nav__item .md-nav__link--active {
+  color: var(--npuls-zwart) !important;
+  background-color: var(--npuls-licht-oranje);
+  font-weight: 700;
+}
+
+.md-path__link {
+  color: var(--npuls-grijs-600);
+}
+
+.md-top {
+  background-color: var(--npuls-wit);
+  color: var(--npuls-zwart);
+  border: 1.5px solid var(--npuls-zwart);
+  font-weight: 600;
+}
+
+.md-top:hover,
+.md-top:focus {
+  background-color: var(--npuls-oranje);
+  color: var(--npuls-zwart);
+}
+
+/* Toetsenbord-focus overal direct zichtbaar */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--npuls-blauw);
+  outline-offset: 2px;
+}
+
+.md-typeset h1 {
+  color: var(--npuls-zwart);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.9rem;
+}
+
+.md-typeset h2 {
+  color: var(--npuls-zwart);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  border-bottom: 2px solid var(--npuls-grijs-100);
+  padding-bottom: 0.35rem;
+}
+
+.md-typeset h3 {
+  color: var(--npuls-zwart);
+  font-weight: 600;
+}
+
+.md-typeset a {
+  color: var(--npuls-blauw);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+}
+
+.md-typeset a:hover {
+  color: var(--npuls-zwart);
+  background-color: var(--npuls-licht-geel);
+}
+
+/* Codeblokken & Tabellen */
+.md-typeset pre > code {
+  border-radius: var(--npuls-radius-md);
+  border: 1px solid var(--npuls-grijs-200);
+}
+
+.md-typeset code {
+  border-radius: var(--npuls-radius-sm);
+  padding: 0.1em 0.35em;
+}
+
+.md-typeset table:not([class]) {
+  border-radius: var(--npuls-radius-md);
+  border: 1px solid var(--npuls-grijs-200);
+  box-shadow: var(--npuls-shadow-sm);
+  overflow: hidden;
+}
+
+.md-typeset table:not([class]) th {
+  background-color: var(--npuls-roze);
+  color: var(--npuls-zwart);
+  font-weight: 700;
+}
+
+/* Admonitions in Npuls feedback_colors (geen standaard rood buiten palet) */
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: var(--npuls-radius-md);
+  border-width: 0 0 0 5px;
+  box-shadow: var(--npuls-shadow-sm);
+}
+
+.md-typeset .admonition.warning,
+.md-typeset details.warning {
+  border-color: var(--npuls-oranje);
+  background-color: var(--npuls-licht-oranje);
+}
+
+.md-typeset .admonition.warning > .admonition-title,
+.md-typeset details.warning > summary {
+  background-color: rgba(221, 120, 75, 0.18);
+  color: var(--npuls-zwart);
+}
+
+.md-typeset .admonition.warning > .admonition-title::before,
+.md-typeset details.warning > summary::before {
+  background-color: var(--npuls-oranje);
+}
+
+.md-typeset .admonition.info,
+.md-typeset .admonition.note {
+  border-color: var(--npuls-blauw);
+  background-color: var(--npuls-licht-blauw);
+}
+
+.md-typeset .admonition.info > .admonition-title,
+.md-typeset .admonition.note > .admonition-title {
+  background-color: rgba(61, 104, 236, 0.12);
+  color: var(--npuls-zwart);
+}
+
+.md-typeset .admonition.info > .admonition-title::before,
+.md-typeset .admonition.note > .admonition-title::before {
+  background-color: var(--npuls-blauw);
+}
+
+.md-typeset .admonition.tip,
+.md-typeset .admonition.success {
+  border-color: var(--npuls-groen);
+  background-color: var(--npuls-licht-groen);
+}
+
+/* --------------------------------------------------------------------------
+   Footer op npuls-roze (vervangt de standaard zwarte MkDocs Material footer)
+   -------------------------------------------------------------------------- */
+.md-footer {
+  background-color: var(--npuls-roze);
+  color: var(--npuls-zwart);
+  border-top: 2px solid var(--npuls-oranje);
+}
+
+.md-footer__inner,
+.md-footer__link {
+  color: var(--npuls-zwart) !important;
+}
+
+.md-footer-meta {
+  background-color: var(--npuls-licht-roze);
+  color: var(--npuls-zwart);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.md-footer-meta a,
+.md-copyright,
+.md-copyright__highlight {
+  color: var(--npuls-zwart) !important;
+}
+
+.md-footer-meta a {
+  text-decoration: underline;
+  font-weight: 600;
+}

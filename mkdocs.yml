@@ -10,33 +10,37 @@ site_dir: site
 
 theme:
   name: material
+  # Zensical: classic bewaart het Material-uiterlijk waar extra.css op is gebouwd
+  variant: classic
   language: nl
-  logo: assets/npuls_logo.png
-  favicon: assets/npuls_logo.png
-  palette:
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: teal
-      accent: teal
-      toggle:
-        icon: material/brightness-7
-        name: Donker thema
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: teal
-      accent: teal
-      toggle:
-        icon: material/brightness-4
-        name: Licht thema
+  logo: assets/logos/npuls_logo.jpg
+  favicon: assets/logos/beeldmerk.svg
   features:
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
+    - navigation.indexes
+    - navigation.path
     - navigation.top
-    - toc.integrate
-    - search.suggest
     - search.highlight
+    - search.suggest
     - content.code.copy
+    - content.code.annotate
     - content.tabs.link
+    - toc.follow
+  palette:
+    - scheme: default
+      primary: custom
+      accent: custom
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  generator: false
+
+copyright: >-
+  Centrum Educatieve Data Analyse (CEDA) · Onderdeel van <a href="https://npuls.nl/" target="_blank" rel="noopener">Npuls</a> · <a href="https://edu.nl/twt84" target="_blank" rel="noopener">CEDA-community</a> · <a href="mailto:ceda@surf.nl">ceda@surf.nl</a>
 
 plugins:
   - search:
@@ -53,24 +57,30 @@ plugins:
             members_order: source
 
 markdown_extensions:
+  - attr_list
+  - md_in_html
+  - tables
+  - admonition
+  - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.superfences
   - pymdownx.snippets:
       base_path: ["."]
-  - admonition
-  - pymdownx.details
-  - attr_list
   - pymdownx.tabbed:
       alternate_style: true
-  - tables
   - toc:
       permalink: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 nav:
   - Home: index.md
   - Aan de slag: getting-started.md
   - CLI-referentie: cli.md
+  - Decodering: decodering.md
+  - Migratie outputcontract: outputcontract-migratie.md
   - API-referentie: api/index.md
   - Opslag backends: storage-abstraction.md
   - S3 in CI (SURF): ci-surf-object-store.md
