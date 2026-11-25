@@ -90,7 +90,7 @@ data/
 ```
 
 !!! tip "Demo-modus"
-    Zet bestanden met `*_DEMO*` in de naam in `data/01-input/` om de tool te testen zonder echte data.
+    De repository bevat demo-bestanden in `data/01-input/DEMO/`. Zet in de Streamlit UI de demo-modus aan om de tool daarmee te testen zonder echte data. In de CLI gebruik je `--input data/01-input/DEMO`.
 
 ---
 
