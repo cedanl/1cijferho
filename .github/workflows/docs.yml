@@ -24,6 +24,9 @@ jobs:
 
       - uses: astral-sh/setup-uv@v5
 
+      - name: Versieregel genereren
+        run: python3 scripts/docs_meta.py
+
       - name: Build docs (strict)
         # zensical staat vastgepind in de docs-extra van pyproject.toml
         run: uv run --extra docs zensical build --strict --clean

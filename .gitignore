@@ -200,3 +200,6 @@ dev/reports/
 # Lighthouse: local-only escape hatch and agent worktrees (never tracked)
 /.claude/allow-main
 /.claude/worktrees/
+
+# Gegenereerd door scripts/docs_meta.py (versieregel docs-site)
+/.docs-meta/

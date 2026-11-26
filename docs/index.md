@@ -27,6 +27,8 @@ icon: lucide/house
 
 De omzetting van het vaste-breedteformaat naar CSV is geverifieerd verliesvrij. Decoderen en verrijken zijn aanvullingen die codes kunnen wijzigen — controleer de logs in `metadata/logs/` en vergelijk een `_decoded.csv` met de ruwe `.csv` voordat je die gebruikt.
 
+--8<-- ".docs-meta/versie.md"
+
 ---
 
 ## Voor wie?
