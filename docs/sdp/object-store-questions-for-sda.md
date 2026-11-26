@@ -1,4 +1,7 @@
-# Object Store — questions for the SDA team
+# Object Store: vragen voor het SDA-team
+
+!!! info "Interne projectdocumentatie"
+    Open vragen van het SURF-projectteam aan het SDA-team. De tekst is Engelstalig. Dit is geen gebruikershandleiding.
 
 Context: the [SDP Gap Analysis](sdp-gap-analysis.html) names the **SURF Object
 Store** (external Ceph RGW, `objectstore.surf.nl`) as suited for *long-term

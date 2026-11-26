@@ -2,7 +2,7 @@
 icon: lucide/shield-check
 ---
 
-# SDP compliance & deployment
+# Project & infrastructuur: SDP compliance en uitrol
 
 Planning material for deploying CEDA repositories on SURF's Developer Platform
 (SDP), and the regulatory-gap context driving the tooling choices. This is
@@ -35,3 +35,6 @@ documented at-rest encryption *and* the SDP PII-on-production policy roadmap —
 are tooling and schema problems. The [questions for the SDA
 team](object-store-questions-for-sda.md) are what turn the "may offer better
 guarantees" language in the deck into an actual decision.
+!!! info "Interne projectdocumentatie"
+    Planning voor het SURF Developer Platform (SDP), bedoeld voor het SURF-projectteam. De tekst is Engelstalig. Dit is geen gebruikershandleiding.
+
