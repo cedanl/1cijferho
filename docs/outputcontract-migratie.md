@@ -4,6 +4,12 @@ icon: lucide/arrow-right-left
 
 # Outputcontract: migratiegids voor de komende release
 
+!!! warning "Status: nog niet uitgebracht"
+    Deze gids hoort bij de eerstvolgende release na **0.1.8** (de huidige versie). Alle wijzigingen
+    staan onder `[Unreleased]` in de [CHANGELOG](https://github.com/cedanl/1cijferho/blob/main/CHANGELOG.md).
+    Na die release leest dit als verleden tijd: zet dan hier het versienummer en de datum,
+    en verplaats de gids naar "Vorige versies".
+
 De komende release bundelt drie wijzigingen aan de output (#219, #221, #222). Dit document
 beschrijft wat er voor consumenten verandert en wat al vandaag geldt. De wijzigingen zijn pas
 van kracht **vanaf de release die deze PR's bevat** — een versienummer in `pyproject.toml` is

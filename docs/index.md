@@ -1,5 +1,5 @@
 ---
-icon: lucide/home
+icon: lucide/house
 ---
 
 # 1CijferHO
@@ -101,5 +101,5 @@ Zie [Aan de slag](getting-started.md) voor de volledige installatiestappen.
 
 ## Achtergrond & presentaties
 
-- [Presentatie DAIR 2025](presentatie-DAIR-2025.pdf) — introductie op de tool en het 1cijferHO-verwerkingsproces.
-- [SDP & compliance](sdp/index.md) — analyse van de inzet op SURF's Developer Platform (NIS2, EU AI Act, Data Act) en de rol van de Object Store.
+- [Presentatie DAIR 2025 (PDF, 2025)](presentatie-DAIR-2025.pdf) — introductie op de tool en het 1cijferHO-verwerkingsproces.
+- [Project & infrastructuur](sdp/index.md) — interne projectdocumentatie (Engelstalig): analyse van de inzet op SURF's Developer Platform (NIS2, EU AI Act, Data Act) en de rol van de Object Store. Geen gebruikershandleiding.

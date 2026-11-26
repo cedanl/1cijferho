@@ -2,7 +2,7 @@
 icon: lucide/database
 ---
 
-# Storage Abstraction Layer
+# Opslag-backends (Storage Abstraction Layer)
 
 The `eencijferho.io` module provides a pluggable storage layer that lets you swap between local disk, MinIO (S3-compatible), and PostgreSQL — without changing any processing code. All core modules use the `@with_storage` decorator, so switching backends is a single environment variable change.
 
@@ -419,3 +419,6 @@ All core processing modules use `@with_storage` for I/O:
 - `_write_table_excel` — pandas ExcelWriter needs a file path or buffer; used only during metadata extraction
 - `_run_parallel` / `_run_serial` — multiprocessing workers need direct disk access for writing CSV chunks
 - `converter_validation.py`, `encryptor.py`, `converter_headers.py` — leaf utilities that could be migrated later if needed
+!!! info "Interne projectdocumentatie"
+    Deze pagina is voor ontwikkelaars die een opslag-backend (lokaal, MinIO/S3, PostgreSQL) instellen of uitbreiden. De tekst is Engelstalig. Dit is geen gebruikershandleiding.
+

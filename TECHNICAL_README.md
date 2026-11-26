@@ -6,40 +6,8 @@ Deze README bevat technische details over de installatie, configuratie en archit
 
 ## Installatie
 
-### Vereisten
-- **Besturingssysteem**: Windows, macOS of Linux
-- **Software**: [uv](https://docs.astral.sh/uv/getting-started/installation/)
-
-### Stappen
-
-1. **Installeer uv**  
-   - **Linux/macOS**:  
-     ```bash
-     curl -LsSf https://astral.sh/uv/install.sh | sh
-     ```
-   - **Windows**:  
-     ```powershell
-     powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-     ```
-
-2. **Controleer de installatie**  
-   Voer het volgende commando uit om te controleren of uv correct is geïnstalleerd:
-   ```bash
-   uv self update
-   ```
-
-3. **Installeer frontend (Streamlit) dependencies**
-Voordat je de frontend opstart, installeer je deze dependencies:
-```bash
-uv sync --extra frontend
-```
-
-4. **Start de applicatie**  
-Ga naar de map waar de tool is opgeslagen en voer uit:
-```bash
-uv run streamlit run src/main.py
-```
-
+De installatiestappen staan op de documentatiesite, zodat ze op één plek bijgehouden worden:
+[Aan de slag](https://cedanl.github.io/1cijferho/getting-started/).
 
 ---
 
@@ -72,6 +40,7 @@ Public release naar PyPI gebeurt automatisch via OIDC Trusted Publishing (geen A
    git push origin v0.1.3
    ```
 4. Maak een GitHub Release via de UI of CLI met deze tag.
+5. Werk de documentatie bij: zet in `docs/outputcontract-migratie.md` het versienummer en de datum in de statusbanner, en verplaats de gids naar "Vorige versies" zodra de wijzigingen erin zijn uitgebracht.
 
 De publicatie-workflow start automatisch en wacht op handmatige goedkeuring.
 

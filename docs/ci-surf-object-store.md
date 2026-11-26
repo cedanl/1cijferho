@@ -2,7 +2,7 @@
 icon: lucide/cloud
 ---
 
-# Testing the S3 backend in CI (SURF object store)
+# S3 testen in CI (SURF Object Store)
 
 CI exercises the generic S3 backend (`eencijferho.io.backends.s3`) at two levels:
 
@@ -138,3 +138,6 @@ uv run pytest tests/integration/test_s3_backend.py -v
 
 With `S3_TEST_ENDPOINT` unset, the same command falls back to the local MinIO
 container (started via docker-compose).
+!!! info "Interne projectdocumentatie"
+    Deze pagina is voor het SURF-team en beheerders van de testinfrastructuur. De tekst is Engelstalig. Dit is geen gebruikershandleiding.
+

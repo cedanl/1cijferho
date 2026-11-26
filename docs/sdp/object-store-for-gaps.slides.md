@@ -4,6 +4,9 @@ theme: default
 paginate: true
 ---
 
+!!! info "Interne projectdocumentatie"
+    Presentatie voor het SURF-projectteam (concept). De tekst is Engelstalig. Dit is geen gebruikershandleiding.
+
 # Object Store vs. SDP MinIO
 
 ### Where an external object store improves the gap posture

@@ -80,13 +80,16 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Aan de slag: getting-started.md
-  - CLI-referentie: cli.md
-  - Decodering: decodering.md
-  - Migratie outputcontract: outputcontract-migratie.md
-  - API-referentie: api/index.md
-  - Opslag backends: storage-abstraction.md
-  - S3 in CI (SURF): ci-surf-object-store.md
-  - SDP & compliance:
+  - Gebruiken:
+      - Decodering begrijpen: decodering.md
+  - Referentie:
+      - CLI-referentie: cli.md
+      - API-referentie: api/index.md
+      - Migratie outputcontract: outputcontract-migratie.md
+  - Techniek:
+      - Opslag-backends: storage-abstraction.md
+      - S3 testen in CI (SURF): ci-surf-object-store.md
+  - Project & infrastructuur:
       - Overzicht: sdp/index.md
       - Object Store voor de gaps: sdp/object-store-for-gaps.slides.md
-      - Vragen voor team SDA: sdp/object-store-questions-for-sda.md
+      - Vragen voor het SDA-team: sdp/object-store-questions-for-sda.md
