@@ -40,4 +40,4 @@ Met een koppelbestand en de optie `--bsn-mapping-file`. Zie [Aan de slag](gettin
 
 ## Welke versie documenteert deze site?
 
-De documentatie volgt de `main`-versie van de repository. Een deel van de beschreven wijzigingen zit nog niet in release 0.1.8. Zie de statusbanner op de [migratiegids](outputcontract-migratie.md) en de [CHANGELOG](https://github.com/cedanl/1cijferho/blob/main/CHANGELOG.md).
+De documentatie volgt de `main`-versie van de repository. De versieregel op de [startpagina](index.md) en de [migratiegids](outputcontract-migratie.md) noemt de versie uit de code en de commit waarvan de site is gebouwd. Staat er iets onder `[Unreleased]` in de [CHANGELOG](https://github.com/cedanl/1cijferho/blob/main/CHANGELOG.md), dan zegt die regel dat die wijzigingen nog niet in een release zitten.

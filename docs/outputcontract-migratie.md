@@ -10,6 +10,8 @@ icon: lucide/arrow-right-left
     Na die release leest dit als verleden tijd: zet dan hier het versienummer en de datum,
     en verplaats de gids naar "Vorige versies".
 
+--8<-- ".docs-meta/versie.md"
+
 De komende release bundelt drie wijzigingen aan de output (#219, #221, #222). Dit document
 beschrijft wat er voor consumenten verandert en wat al vandaag geldt. De wijzigingen zijn pas
 van kracht **vanaf de release die deze PR's bevat** — een versienummer in `pyproject.toml` is
