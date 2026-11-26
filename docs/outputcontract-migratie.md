@@ -1,3 +1,7 @@
+---
+icon: lucide/arrow-right-left
+---
+
 # Outputcontract: migratiegids voor de komende release
 
 De komende release bundelt drie wijzigingen aan de output (#219, #221, #222). Dit document

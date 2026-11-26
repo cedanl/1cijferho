@@ -1,3 +1,7 @@
+---
+icon: lucide/shield-check
+---
+
 # SDP compliance & deployment
 
 Planning material for deploying CEDA repositories on SURF's Developer Platform

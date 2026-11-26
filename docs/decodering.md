@@ -1,3 +1,7 @@
+---
+icon: lucide/binary
+---
+
 # Decodering in 1CijferHO
 
 Dit document beschrijft welke DUO-velden worden gedecodeert naar labels en welke nog niet.

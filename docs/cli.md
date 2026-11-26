@@ -1,3 +1,7 @@
+---
+icon: lucide/terminal
+---
+
 # CLI-referentie
 
 De `eencijferho` CLI verwerkt DUO-bestanden via losse stappen of in één pipeline-aanroep.

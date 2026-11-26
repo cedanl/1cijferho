@@ -1,3 +1,7 @@
+---
+icon: lucide/code
+---
+
 # API-referentie
 
 De publieke API van `eencijferho` is beschikbaar via directe import:

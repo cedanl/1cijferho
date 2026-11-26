@@ -1,3 +1,7 @@
+---
+icon: lucide/rocket
+---
+
 # Aan de slag
 
 ## Vereisten

@@ -1,3 +1,7 @@
+---
+icon: lucide/home
+---
+
 # 1CijferHO
 
 **Maak 1cijferHO-data direct bruikbaar voor analyse en onderzoek.**

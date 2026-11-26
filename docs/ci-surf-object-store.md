@@ -1,3 +1,7 @@
+---
+icon: lucide/cloud
+---
+
 # Testing the S3 backend in CI (SURF object store)
 
 CI exercises the generic S3 backend (`eencijferho.io.backends.s3`) at two levels:

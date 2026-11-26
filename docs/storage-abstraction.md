@@ -1,3 +1,7 @@
+---
+icon: lucide/database
+---
+
 # Storage Abstraction Layer
 
 The `eencijferho.io` module provides a pluggable storage layer that lets you swap between local disk, MinIO (S3-compatible), and PostgreSQL — without changing any processing code. All core modules use the `@with_storage` decorator, so switching backends is a single environment variable change.
