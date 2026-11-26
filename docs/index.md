@@ -29,6 +29,17 @@ De omzetting van het vaste-breedteformaat naar CSV is geverifieerd verliesvrij. 
 
 ---
 
+## Voor wie?
+
+| Jij bent | Begin hier |
+|---|---|
+| Medewerker van een instelling, zonder programmeerkennis | De Streamlit-interface: [Aan de slag](getting-started.md), daarna het [voorbeeld met DEMO-gegevens](voorbeeld-demo.md) |
+| Privacyfunctionaris of beheerder | [Privacy en persoonsgegevens](privacy.md) |
+| Dataspecialist of ontwikkelaar | De [CLI](cli.md) en de [Python API](api/index.md) |
+| Er gaat iets mis | [Problemen oplossen](problemen-oplossen.md) en de [veelgestelde vragen](faq.md) |
+
+---
+
 ## Demo
 
 ![Demo](assets/demo.gif)
@@ -73,29 +84,22 @@ Zie [Aan de slag](getting-started.md) voor de volledige installatiestappen.
     Zie de [CLI-referentie](cli.md) voor alle commando's.
 
 === "Python API"
-    Integreer de verwerking in je eigen code.
+    Integreer de verwerking in je eigen code. De omzetting leest metadata die eerst uit de bestandsbeschrijvingen gehaald moet zijn.
 
     ```python
     from eencijferho import run_turbo_convert_pipeline
     from eencijferho.config import OutputConfig
 
-    # Standaard: alles aan
+    # Na de extractiestappen uit het voorbeeld in de API-referentie:
     run_turbo_convert_pipeline(
         input_dir="data/01-input",
         output_dir="data/02-output",
-    )
-
-    # Met koppelbestand voor lokaal studentnummer (optioneel, aangeleverd door instelling)
-    run_turbo_convert_pipeline(
-        input_dir="data/01-input",
-        output_dir="data/02-output",
-        output_config=OutputConfig(
-            bsn_mapping_file="data/koppeling_bsn_studentnummer.csv",
-        ),
+        metadata_dir="data/02-output/metadata",
+        output_config=OutputConfig(),
     )
     ```
 
-    Zie de [API-referentie](api/index.md) voor de volledige API.
+    Zie de [API-referentie](api/index.md) voor het volledige, werkende voorbeeld.
 
 ---
 

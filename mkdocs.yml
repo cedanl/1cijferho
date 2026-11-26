@@ -82,6 +82,10 @@ nav:
   - Aan de slag: getting-started.md
   - Gebruiken:
       - Decodering begrijpen: decodering.md
+      - Privacy en persoonsgegevens: privacy.md
+      - Voorbeeld met DEMO-gegevens: voorbeeld-demo.md
+      - Problemen oplossen: problemen-oplossen.md
+      - Veelgestelde vragen: faq.md
   - Referentie:
       - CLI-referentie: cli.md
       - API-referentie: api/index.md
