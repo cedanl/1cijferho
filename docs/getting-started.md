@@ -138,16 +138,13 @@ de DEMO-bestanden.
     ```
 
 === "Python API"
+    Geef het koppelbestand mee in `OutputConfig`. Het volledige voorbeeld staat in de [API-referentie](api/index.md).
+
     ```python
-    from eencijferho import run_turbo_convert_pipeline
     from eencijferho.config import OutputConfig
 
-    run_turbo_convert_pipeline(
-        input_dir="data/01-input",
-        output_dir="data/02-output",
-        output_config=OutputConfig(
-            bsn_mapping_file="data/koppeling_bsn_studentnummer.csv",
-        ),
+    output_config = OutputConfig(
+        bsn_mapping_file="data/koppeling_bsn_studentnummer.csv",
     )
     ```
 
